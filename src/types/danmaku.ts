@@ -22,4 +22,9 @@ export interface DanmakuMessage {
   guardLevel?: number;
   isAdmin?: boolean;
   dmType?: number;
+  backgroundColor?: string;
+  backgroundBottomColor?: string;
+  backgroundPriceColor?: string;
+  messageFontColor?: string;
+  backgroundImage?: string;
 }

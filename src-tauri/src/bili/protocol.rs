@@ -127,6 +127,10 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
         return parse_interact_word(command, room_id);
     }
 
+    if cmd == "SUPER_CHAT_MESSAGE" {
+        return parse_super_chat(command, room_id);
+    }
+
     None
 }
 
@@ -173,6 +177,11 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         price: None,
         gift_name: None,
         count: None,
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
     })
 }
 
@@ -208,6 +217,11 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         price: data.get("price").and_then(value_as_u64).map(|value| value as u32),
         gift_name: Some(gift_name),
         count: Some(count),
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
     })
 }
 
@@ -262,6 +276,69 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         price: None,
         gift_name: None,
         count: None,
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
+    })
+}
+
+fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    let data = command.get("data")?;
+    let user_info = data.get("user_info")?;
+    let gift = data.get("gift");
+    let username = user_info.get("uname")?.as_str()?.to_string();
+    let uid = data.get("uid").and_then(value_as_u64).unwrap_or(0);
+    let content = data.get("message")?.as_str()?.to_string();
+    let timestamp = data.get("start_time").and_then(value_as_u64).unwrap_or(0);
+    let id = data
+        .get("id")
+        .and_then(value_as_u64)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| format!("sc-{room_id}-{uid}-{timestamp}"));
+
+    Some(DanmakuEvent {
+        id,
+        room_id,
+        event_type: "superChat".to_string(),
+        username,
+        content,
+        timestamp,
+        avatar: user_info.get("face").and_then(Value::as_str).map(ToString::to_string),
+        medal: parse_object_medal(data.get("medal_info")),
+        uid,
+        color: 16_777_215,
+        guard_level: user_info.get("guard_level").and_then(value_as_u64).unwrap_or(0) as u8,
+        is_admin: false,
+        dm_type: 0,
+        price: data.get("price").and_then(value_as_u64).map(|value| value as u32),
+        gift_name: gift
+            .and_then(|value| value.get("gift_name"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string)
+            .or_else(|| Some("醒目留言".to_string())),
+        count: gift.and_then(|value| value.get("num")).and_then(value_as_u64).map(|value| value as u32),
+        background_color: data
+            .get("background_color")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        background_bottom_color: data
+            .get("background_bottom_color")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        background_price_color: data
+            .get("background_price_color")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        message_font_color: data
+            .get("message_font_color")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        background_image: data
+            .get("background_image")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
     })
 }
 

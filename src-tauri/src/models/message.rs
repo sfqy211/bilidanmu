@@ -18,4 +18,9 @@ pub struct DanmakuEvent {
     pub price: Option<u32>,
     pub gift_name: Option<String>,
     pub count: Option<u32>,
+    pub background_color: Option<String>,
+    pub background_bottom_color: Option<String>,
+    pub background_price_color: Option<String>,
+    pub message_font_color: Option<String>,
+    pub background_image: Option<String>,
 }
