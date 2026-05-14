@@ -1,4 +1,5 @@
 use crate::models::account::{Credential, LoginStatus};
+use crate::bili::credential::BiliCredential;
 
 #[tauri::command]
 pub async fn login_by_qr() -> Result<serde_json::Value, String> {
@@ -15,8 +16,17 @@ pub async fn poll_qr(_qrcode_key: String) -> Result<Credential, String> {
 
 #[tauri::command]
 pub async fn login_by_cookie(cookie: String) -> Result<Credential, String> {
+    let parsed = BiliCredential::from_cookie_str(&cookie);
+    parsed.validate_for_send()?;
+
     let mut credential = Credential::mock();
-    credential.cookie = cookie;
+    credential.uid = parsed
+        .dede_user_id
+        .as_deref()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(credential.uid);
+    credential.cookie = parsed.cookie_header();
+    credential.bili_jct = parsed.bili_jct;
     Ok(credential)
 }
 
