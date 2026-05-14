@@ -3,6 +3,7 @@ mod commands;
 mod credential_store;
 mod models;
 mod room_store;
+mod settings_store;
 mod tray;
 
 use bili::credential::BiliCredential;

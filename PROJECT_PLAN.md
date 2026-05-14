@@ -12,7 +12,7 @@
 | Phase 2：认证 & WBI 签名       | ✅ 已完成   | `credential.rs` / `wbi.rs` / `buvid.rs` / `credential_store.rs` 已接通；Cookie 登录、启动恢复登录、WBI 缓存、buvid 生成均已实现    |
 | Phase 3：弹幕发送 & API        | ✅ 已完成   | 文字/表情弹幕发送、表情列表获取、房间搜索、房间信息、弹幕服务器信息、循环发送后端均为真实调用                                      |
 | Phase 4：WebSocket 弹幕接收    | ✅ 已完成   | `protocol.rs` 协议解析、`ws_client.rs` 连接/认证/心跳/重连、前端事件监听和 DanmakuPage 基础展示均已接通                            |
-| Phase 5：前端页面开发          | 🔧 进行中   | `RoomPage`、`DanmakuPage`（独轮车+礼物/进场/SC 消息）、`AccountPage` 已进入可用态；`AIPage` 仍是占位页，`SettingsPage` 仅展示默认值      |
+| Phase 5：前端页面开发          | 🔧 进行中   | `RoomPage`、`DanmakuPage`（独轮车+礼物/进场/SC+表情）、`AccountPage`、`SettingsPage` 已进入可用态；`AIPage` 仍是占位页      |
 | Phase 6：完善 & 打包           | ⬜ 未开始   | 系统托盘仅完成基础显示/退出，动态菜单、打包脚本、发布流程尚未开始                                                                    |
 
 ### 当前已实现情况（按代码现状）
@@ -34,21 +34,19 @@
 - 接收增强：礼物消息（SEND_GIFT）、进场消息（INTERACT_WORD 新旧结构兼容）、SC 消息（SUPER_CHAT_MESSAGE + 真实颜色两段式卡片）、inline 表情渲染（emots 解析 + 正则替换 + img 渲染）、大表情渲染（dmType=1 + info[0][13] 解析 + PiliPlus 尺寸策略）
 - 独轮车完整版（useScheduler + 循环发送面板：切房/卸载自动停、发送计数、条目索引、停止原因、前后端 0.3s 下限一致）
 - AccountPage 真实 UI（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
+- SettingsPage 真实读写（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 
 **部分完成：**
-- `Settings` 数据模型完整，但前后端未打通真实持久化配置
 - 系统托盘已有基础菜单，但未接入直播间 / 账号 / AI 动态菜单
 
 **未完成 / 占位：**
 
 - `AIPage` 真实 UI 与真实接口
-- `SettingsPage` 真实读写
 - 二维码登录真实流程
 
 **下一步重点：**
 
 1. `AIPage` 真实 UI 与真实接口
-2. `SettingsPage` 真实读写
 
 ---
 
@@ -1071,7 +1069,7 @@ impl RateLimiter {
   - [x] room-store.ts 新增 searchResults/addRoom/removeRoom
 - [x] **5.2** 子页面二：AccountPage ✅ 最小可用闭环（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - [ ] **5.3** 子页面三：AIPage（当前仍为占位页）
-- [ ] **5.4** 子页面四：SettingsPage（当前仅展示默认值，未接入真实读写）
+- [x] **5.4** 子页面四：SettingsPage ✅ 最小可用闭环（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 - [x] **5.5** 发送弹幕页面：DanmakuPage（当前已完成基础实时弹幕页）
   - [x] 进入房间自动连接弹幕流，离开自动断开
   - [x] 监听 danmaku-received/ws-connected/ws-disconnected/danmaku-error/ws-heartbeat 事件
