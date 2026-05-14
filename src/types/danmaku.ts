@@ -16,6 +16,16 @@ export interface InlineEmoticon {
   width?: number;
 }
 
+export interface BigEmoticonOptions {
+  emoticonUnique: string;
+  url: string;
+  width: number;
+  height: number;
+  isDynamic?: number;
+  bulgeDisplay?: number;
+  inPlayerArea?: number;
+}
+
 export interface DanmakuMessage {
   id: string;
   roomId: number;
@@ -39,4 +49,5 @@ export interface DanmakuMessage {
   messageFontColor?: string;
   backgroundImage?: string;
   emots?: Record<string, InlineEmoticon>;
+  emoticonOptions?: BigEmoticonOptions;
 }

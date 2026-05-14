@@ -7,7 +7,7 @@ import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
-import type { InlineEmoticon } from "@/types/danmaku";
+import type { BigEmoticonOptions, InlineEmoticon } from "@/types/danmaku";
 
 const statusTextMap = {
   idle: "未连接",
@@ -168,6 +168,21 @@ function renderInlineEmots(content: string, emots?: Record<string, InlineEmotico
   }
 
   return parts;
+}
+
+function getBigEmoticonSize(emoticon?: BigEmoticonOptions) {
+  if (!emoticon) {
+    return { width: 162, height: 162 };
+  }
+
+  if (emoticon.emoticonUnique?.startsWith("official_")) {
+    return {
+      width: emoticon.width ?? 183,
+      height: emoticon.height ?? 60
+    };
+  }
+
+  return { width: 162, height: 162 };
 }
 
 export function DanmakuPage() {
@@ -369,6 +384,10 @@ export function DanmakuPage() {
             ) : (
               messages.map((item) => {
                 const textColor = colorToHex(item.color);
+                const bigEmoticonSize =
+                  item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
+                    ? getBigEmoticonSize(item.emoticonOptions)
+                    : null;
 
                 if (item.type === "superChat") {
                   const headerBg = normalizeHexColor(item.backgroundColor, "#EDF5FF");
@@ -461,9 +480,20 @@ export function DanmakuPage() {
                         item.type === "danmaku" && textColor ? { color: textColor } : undefined
                       }
                     >
-                      {item.type === "danmaku"
-                        ? renderInlineEmots(item.content, item.emots)
-                        : item.content}
+                      {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (
+                        <span className="flex items-center justify-center py-1">
+                          <img
+                            src={item.emoticonOptions.url}
+                            alt={item.emoticonOptions.emoticonUnique}
+                            className="object-contain"
+                            style={{ width: bigEmoticonSize.width, height: bigEmoticonSize.height }}
+                          />
+                        </span>
+                      ) : item.type === "danmaku" ? (
+                        renderInlineEmots(item.content, item.emots)
+                      ) : (
+                        item.content
+                      )}
                     </p>
                   </div>
                 );

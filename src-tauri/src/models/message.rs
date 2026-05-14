@@ -24,4 +24,5 @@ pub struct DanmakuEvent {
     pub message_font_color: Option<String>,
     pub background_image: Option<String>,
     pub emots: Option<serde_json::Value>,
+    pub emoticon_options: Option<serde_json::Value>,
 }

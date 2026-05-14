@@ -155,6 +155,16 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         .and_then(|value| serde_json::from_str::<Value>(value).ok())
         .and_then(|value| value.get("emots").cloned())
         .filter(Value::is_object);
+    let emoticon_options = basic.get(13).and_then(|value| {
+        if value.is_object() {
+            Some(value.clone())
+        } else {
+            value
+                .as_str()
+                .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+                .filter(Value::is_object)
+        }
+    });
 
     let avatar = basic
         .get(15)
@@ -190,6 +200,7 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         message_font_color: None,
         background_image: None,
         emots,
+        emoticon_options,
     })
 }
 
@@ -231,6 +242,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         message_font_color: None,
         background_image: None,
         emots: None,
+        emoticon_options: None,
     })
 }
 
@@ -291,6 +303,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         message_font_color: None,
         background_image: None,
         emots: None,
+        emoticon_options: None,
     })
 }
 
@@ -350,6 +363,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
             .and_then(Value::as_str)
             .map(ToString::to_string),
         emots: None,
+        emoticon_options: None,
     })
 }
 
