@@ -31,7 +31,7 @@
 - buvid3/4 真实生成（随机 hex + 时间戳，自动补充到 Cookie 缺失字段）
 - WebSocket 弹幕接收、心跳、断线重连
 - DanmakuPage 实时弹幕流、时间戳、人气值、自动滚动、回到底部、Enter 发送、表情选择器
-- 接收增强：礼物消息（SEND_GIFT）、进场消息（INTERACT_WORD 新旧结构兼容）、SC 消息（SUPER_CHAT_MESSAGE + 真实颜色两段式卡片）、inline 表情渲染（emots 解析 + 正则替换 + img 渲染）
+- 接收增强：礼物消息（SEND_GIFT）、进场消息（INTERACT_WORD 新旧结构兼容）、SC 消息（SUPER_CHAT_MESSAGE + 真实颜色两段式卡片）、inline 表情渲染（emots 解析 + 正则替换 + img 渲染）、大表情渲染（dmType=1 + info[0][13] 解析 + PiliPlus 尺寸策略）
 - 独轮车完整版（useScheduler + 循环发送面板：切房/卸载自动停、发送计数、条目索引、停止原因、前后端 0.3s 下限一致）
 - AccountPage 真实 UI（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
 
@@ -153,7 +153,7 @@ GET https://api.live.bilibili.com/room/v1/Room/get_info?room_id={room_id}
 ```
 bilidanmu/
 ├── package.json                        # 前端依赖 & scripts
-├── bun.lockb
+├── package-lock.json
 ├── vite.config.ts                      # Vite 构建配置
 ├── tsconfig.json
 ├── tsconfig.node.json
@@ -973,9 +973,9 @@ impl RateLimiter {
 ### Phase 1：项目骨架 & Tauri 环境（Day 1-2） ✅ 已完成
 
 - [x] **1.1** 初始化 Tauri 2 + React 项目
-  - [x] `bun create tauri-app`（React + TypeScript 模板）
+  - [x] `npm create tauri-app`（React + TypeScript 模板）
   - [x] 安装依赖：react-router, zustand, @tanstack/react-query, @tauri-apps/api, @tauri-apps/plugin-store
-  - [x] 初始化 shadcn/ui（`bunx shadcn@latest init`）
+  - [x] 初始化 shadcn/ui（`npx shadcn@latest init`）
   - [x] 配置 TailwindCSS 3 + postcss
   - [x] 配置 `tauri.conf.json`（960×680，最小 800×600，标题 BiliDanmu）
   - [x] 验证 `cargo check` 通过（0 错误）
@@ -1088,13 +1088,14 @@ impl RateLimiter {
   - [x] 进场消息（INTERACT_WORD 解析 + 新旧结构兼容 + msg_type 映射 + 轻量卡片）
   - [x] SC 消息（SUPER_CHAT_MESSAGE + 真实颜色两段式卡片 + 背景装饰图 + 价格标签）
   - [x] inline 表情渲染（emots 从 info[0][15].extra 解析 + InlineEmoticon 类型 + renderInlineEmots 正则替换 + key 长度降序防短 token 抢先匹配）
+  - [x] 大表情渲染（dmType=1 + info[0][13] emoticon_options 解析 + BigEmoticonOptions 类型 + PiliPlus 尺寸策略：official_ 原始宽高 / 其他 162×162）
 
 ### Phase 6：完善 & 打包发布（Day 15-18）
 
 - [x] **6.1** 系统托盘（tray.rs） ✅ 基础实现（显示/退出）
 - [ ] **6.2** 测试（Rust 单元测试 + 前端组件测试 + 手动集成测试）
 - [ ] **6.3** 风控对抗（预留项，当前个人使用场景下不作为近期重点）
-- [ ] **6.4** 打包（`bun tauri build` → NSIS 安装包，GitHub Release CI/CD）
+- [ ] **6.4** 打包（`npm run build` → NSIS 安装包，GitHub Release CI/CD）
 
 ---
 
