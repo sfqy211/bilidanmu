@@ -17,4 +17,9 @@ export interface DanmakuMessage {
   price?: number;
   giftName?: string;
   count?: number;
+  uid?: number;
+  color?: number;
+  guardLevel?: number;
+  isAdmin?: boolean;
+  dmType?: number;
 }
