@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Send, Wifi, WifiOff } from "lucide-react";
+import { ArrowDown, Flame, Send, Wifi, WifiOff } from "lucide-react";
 import { useDanmaku } from "@/hooks/useDanmaku";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -11,14 +11,43 @@ const statusTextMap = {
   connected: "已连接",
   reconnecting: "重连中",
   disconnected: "已断开",
-  error: "连接异常"
+  error: "连接异常",
 } as const;
+
+function formatTime(ts: number): string {
+  if (!ts) {
+    return "";
+  }
+
+  const date = new Date(ts * 1000);
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function formatPopularity(n: number): string {
+  if (n >= 10_000) {
+    return `${(n / 10_000).toFixed(1)}万`;
+  }
+
+  return String(n);
+}
+
+/** Convert B站 color int (0xRRGGBB) to CSS hex string */
+function colorToHex(color?: number): string | undefined {
+  if (color == null || color === 16_777_215) {
+    return undefined;
+  }
+
+  return `#${color.toString(16).padStart(6, "0")}`;
+}
 
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   useDanmakuStream(roomId);
 
@@ -27,17 +56,37 @@ export function DanmakuPage() {
   const wsStatus = useDanmakuStore((state) => state.wsStatus);
   const lastError = useDanmakuStore((state) => state.lastError);
   const sentCount = useDanmakuStore((state) => state.sentCount);
+  const popularity = useDanmakuStore((state) => state.popularity);
   const { send, sending } = useDanmaku();
 
+  // --- Auto-scroll logic ---
+  const checkAtBottom = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) {
+      return;
+    }
+
+    const threshold = 80;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    setIsAtBottom(distanceFromBottom <= threshold);
+  }, []);
+
+  // Scroll to bottom when new messages arrive AND user is already at bottom
   useEffect(() => {
+    if (!isAtBottom) {
+      return;
+    }
+
     const container = scrollRef.current;
     if (!container) {
       return;
     }
 
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isAtBottom]);
 
+  // --- Send ---
   const handleSend = async () => {
     if (!roomId || !message.trim()) {
       return;
@@ -45,6 +94,16 @@ export function DanmakuPage() {
 
     await send(roomId, message.trim());
     setMessage("");
+  };
+
+  const scrollToBottom = () => {
+    const container = scrollRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    setIsAtBottom(true);
   };
 
   return (
@@ -63,32 +122,85 @@ export function DanmakuPage() {
             )}
             <span className="text-slate-200">{statusTextMap[wsStatus]}</span>
           </div>
+
+          {/* Popularity */}
+          {wsConnected && (
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <Flame className="h-4 w-4 text-orange-400" />
+              <span className="text-orange-300">人气 {formatPopularity(popularity)}</span>
+            </div>
+          )}
+
           <p className="mt-3 text-sm text-slate-400">已发送 {sentCount} 条弹幕</p>
           {lastError ? <p className="mt-3 text-sm text-rose-400">{lastError}</p> : null}
         </div>
       </aside>
 
       <main className="flex min-h-0 flex-col p-6">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-          <div className="border-b border-white/10 px-5 py-4 text-sm text-slate-400">实时弹幕流</div>
-          <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          {/* Header bar with popularity */}
+          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-sm text-slate-400">
+            <span>实时弹幕流</span>
+            {popularity > 0 && (
+              <span className="flex items-center gap-1.5 text-orange-300">
+                <Flame className="h-3.5 w-3.5" />
+                {formatPopularity(popularity)}
+              </span>
+            )}
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={scrollRef}
+            onScroll={checkAtBottom}
+            className="flex flex-1 flex-col gap-2 overflow-y-auto p-5"
+          >
             {messages.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/10 bg-slate-950/30 p-6 text-sm text-slate-500">
                 暂无弹幕，连接成功后会在这里实时显示。
               </div>
             ) : (
-              messages.map((item) => (
-                <div key={`${item.roomId}-${item.id}-${item.timestamp}`} className="rounded-xl bg-slate-950/50 p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-pink-300">{item.username}</span>
-                    {item.medal ? <span className="text-xs text-cyan-300">[{item.medal}]</span> : null}
-                    {item.isAdmin ? <span className="text-xs text-amber-300">房管</span> : null}
+              messages.map((item) => {
+                const textColor = colorToHex(item.color);
+                return (
+                  <div
+                    key={`${item.roomId}-${item.id}-${item.timestamp}`}
+                    className="rounded-lg bg-slate-950/50 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2 text-xs">
+                      {item.timestamp > 0 && (
+                        <span className="text-slate-500">{formatTime(item.timestamp)}</span>
+                      )}
+                      <span className="font-medium text-pink-300">{item.username}</span>
+                      {item.medal ? (
+                        <span className="text-cyan-300">[{item.medal}]</span>
+                      ) : null}
+                      {item.isAdmin ? (
+                        <span className="text-amber-300">房管</span>
+                      ) : null}
+                    </div>
+                    <p
+                      className="mt-1 break-words text-sm"
+                      style={textColor ? { color: textColor } : undefined}
+                    >
+                      {item.content}
+                    </p>
                   </div>
-                  <p className="mt-2 break-words text-sm text-slate-100">{item.content}</p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
+
+          {/* Scroll-to-bottom button */}
+          {!isAtBottom && (
+            <button
+              onClick={scrollToBottom}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-pink-500/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur transition hover:bg-pink-400"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+              回到底部
+            </button>
+          )}
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/90 p-4">

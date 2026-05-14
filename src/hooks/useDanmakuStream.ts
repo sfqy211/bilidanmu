@@ -19,6 +19,7 @@ export function useDanmakuStream(roomId: number | null) {
   const setWsStatus = useDanmakuStore((state) => state.setWsStatus);
   const setLastError = useDanmakuStore((state) => state.setLastError);
   const setRoomId = useDanmakuStore((state) => state.setRoomId);
+  const setPopularity = useDanmakuStore((state) => state.setPopularity);
 
   const connect = useCallback(async () => {
     if (!roomId) {
@@ -76,6 +77,10 @@ export function useDanmakuStream(roomId: number | null) {
   useTauriEvent<WsErrorPayload>("danmaku-error", (payload) => {
     setWsStatus("error");
     setLastError(payload.message ?? "弹幕流发生错误");
+  });
+
+  useTauriEvent<{ popularity: number }>("ws-heartbeat", (payload) => {
+    setPopularity(payload.popularity);
   });
 
   return {

@@ -11,6 +11,7 @@ interface DanmakuState {
   autoSpamRunning: boolean;
   lastError: string | null;
   roomId: number | null;
+  popularity: number;
   addMessage: (message: DanmakuMessage) => void;
   clearMessages: () => void;
   setWsConnected: (connected: boolean) => void;
@@ -18,6 +19,7 @@ interface DanmakuState {
   incrementSentCount: () => void;
   setLastError: (message: string | null) => void;
   setRoomId: (roomId: number | null) => void;
+  setPopularity: (popularity: number) => void;
 }
 
 export const useDanmakuStore = create<DanmakuState>((set) => ({
@@ -30,6 +32,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   autoSpamRunning: false,
   lastError: null,
   roomId: null,
+  popularity: 0,
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages.slice(-199), message] })),
   clearMessages: () => set({ messages: [] }),
@@ -37,5 +40,6 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   setWsStatus: (wsStatus) => set({ wsStatus }),
   incrementSentCount: () => set((state) => ({ sentCount: state.sentCount + 1 })),
   setLastError: (lastError) => set({ lastError }),
-  setRoomId: (roomId) => set({ roomId })
+  setRoomId: (roomId) => set({ roomId }),
+  setPopularity: (popularity) => set({ popularity })
 }));
