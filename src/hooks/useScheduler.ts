@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { tauriCommands } from "@/lib/tauri";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
+import { useDanmakuStore } from "@/stores/danmaku-store";
 
 interface LoopSendTickPayload {
   roomId: number;
@@ -20,6 +21,11 @@ export function useScheduler(roomId: number | null) {
   const [isRunning, setIsRunning] = useState(false);
   const [lastSentMessage, setLastSentMessage] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [lastIndex, setLastIndex] = useState<number | null>(null);
+  const [loopSentCount, setLoopSentCount] = useState(0);
+  const [stopReason, setStopReason] = useState<string | null>(null);
+  const incrementSentCount = useDanmakuStore((state) => state.incrementSentCount);
+  const prevRoomIdRef = useRef<number | null>(roomId);
 
   const start = useCallback(
     async (messages: string[], intervalMs: number) => {
@@ -30,6 +36,7 @@ export function useScheduler(roomId: number | null) {
       }
 
       setLastError(null);
+      setStopReason(null);
 
       try {
         await tauriCommands.danmaku.startLoop(roomId, messages, intervalMs);
@@ -57,6 +64,10 @@ export function useScheduler(roomId: number | null) {
     setIsRunning(true);
     setLastError(null);
     setLastSentMessage(payload.message);
+    setLastIndex(payload.index);
+    setLoopSentCount((count) => count + 1);
+    setStopReason(null);
+    incrementSentCount();
   });
 
   useTauriEvent<LoopSendErrorPayload>("loop-send-error", (payload) => {
@@ -66,16 +77,36 @@ export function useScheduler(roomId: number | null) {
 
     setIsRunning(false);
     setLastError(payload.error || "循环发送失败");
+    setStopReason("error");
   });
 
-  useTauriEvent<LoopSendStoppedPayload>("loop-send-stopped", () => {
+  useTauriEvent<LoopSendStoppedPayload>("loop-send-stopped", (payload) => {
     setIsRunning(false);
+    setStopReason(payload.reason ?? "manual");
   });
+
+  useEffect(() => {
+    const prevRoomId = prevRoomIdRef.current;
+    prevRoomIdRef.current = roomId;
+
+    if (prevRoomId !== null && roomId !== prevRoomId && isRunning) {
+      void stop();
+    }
+  }, [isRunning, roomId, stop]);
+
+  useEffect(() => {
+    return () => {
+      void tauriCommands.danmaku.stopLoop();
+    };
+  }, []);
 
   return {
     isRunning,
     lastSentMessage,
     lastError,
+    lastIndex,
+    loopSentCount,
+    stopReason,
     start,
     stop
   };

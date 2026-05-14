@@ -64,6 +64,18 @@ function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
   return JSON.stringify({ emoticon_unique: emoticon.emoticonUnique });
 }
 
+function formatStopReason(reason: string): string {
+  if (reason === "manual") {
+    return "手动停止";
+  }
+
+  if (reason === "error") {
+    return "发生错误";
+  }
+
+  return reason;
+}
+
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
@@ -91,6 +103,9 @@ export function DanmakuPage() {
     isRunning: loopRunning,
     lastSentMessage: lastLoopMessage,
     lastError: loopError,
+    lastIndex: lastLoopIndex,
+    loopSentCount,
+    stopReason,
     start: startLoop,
     stop: stopLoop
   } = useScheduler(roomId);
@@ -481,6 +496,11 @@ export function DanmakuPage() {
 
           <div className="mt-3 space-y-1 text-xs">
             {lastLoopMessage ? <p className="text-slate-400">最近发送：{lastLoopMessage}</p> : null}
+            {lastLoopIndex !== null ? (
+              <p className="text-slate-500">当前条目索引：#{lastLoopIndex + 1}</p>
+            ) : null}
+            <p className="text-slate-500">累计循环发送：{loopSentCount} 条</p>
+            {stopReason ? <p className="text-slate-500">停止原因：{formatStopReason(stopReason)}</p> : null}
             {loopError ? <p className="text-rose-400">循环发送错误：{loopError}</p> : null}
           </div>
         </div>
