@@ -12,7 +12,7 @@
 | Phase 2：认证 & WBI 签名       | ✅ 已完成   | `credential.rs` / `wbi.rs` / `buvid.rs` / `credential_store.rs` 已接通；Cookie 登录、启动恢复登录、WBI 缓存、buvid 生成均已实现    |
 | Phase 3：弹幕发送 & API        | ✅ 已完成   | 文字/表情弹幕发送、表情列表获取、房间搜索、房间信息、弹幕服务器信息、循环发送后端均为真实调用                                      |
 | Phase 4：WebSocket 弹幕接收    | ✅ 已完成   | `protocol.rs` 协议解析、`ws_client.rs` 连接/认证/心跳/重连、前端事件监听和 DanmakuPage 基础展示均已接通                            |
-| Phase 5：前端页面开发          | 🔧 进行中   | `RoomPage`、`DanmakuPage`（独轮车+礼物/进场/SC+表情）、`AccountPage`、`SettingsPage` 已进入可用态；`AIPage` 仍是占位页      |
+| Phase 5：前端页面开发          | ✅ 已完成   | `RoomPage`、`DanmakuPage`（独轮车+礼物/进场/SC+表情）、`AccountPage`、`SettingsPage`、`AIPage` 全部进入可用态      |
 | Phase 6：完善 & 打包           | ⬜ 未开始   | 系统托盘仅完成基础显示/退出，动态菜单、打包脚本、发布流程尚未开始                                                                    |
 
 ### 当前已实现情况（按代码现状）
@@ -35,18 +35,18 @@
 - 独轮车完整版（useScheduler + 循环发送面板：切房/卸载自动停、发送计数、条目索引、停止原因、前后端 0.3s 下限一致）
 - AccountPage 真实 UI（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - SettingsPage 真实读写（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
+- AIPage 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前模型）
 
 **部分完成：**
 - 系统托盘已有基础菜单，但未接入直播间 / 账号 / AI 动态菜单
 
 **未完成 / 占位：**
 
-- `AIPage` 真实 UI 与真实接口
 - 二维码登录真实流程
 
 **下一步重点：**
 
-1. `AIPage` 真实 UI 与真实接口
+1. 二维码登录真实流程
 
 ---
 
@@ -1068,7 +1068,7 @@ impl RateLimiter {
   - [x] 已添加直播间列表（设为当前/进入/移除）
   - [x] room-store.ts 新增 searchResults/addRoom/removeRoom
 - [x] **5.2** 子页面二：AccountPage ✅ 最小可用闭环（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
-- [ ] **5.3** 子页面三：AIPage（当前仍为占位页）
+- [x] **5.3** 子页面三：AIPage ✅ 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前模型）
 - [x] **5.4** 子页面四：SettingsPage ✅ 最小可用闭环（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 - [x] **5.5** 发送弹幕页面：DanmakuPage（当前已完成基础实时弹幕页）
   - [x] 进入房间自动连接弹幕流，离开自动断开

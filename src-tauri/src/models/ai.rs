@@ -18,13 +18,13 @@ pub struct AIModelInput {
 }
 
 impl AIModel {
-    pub fn from_input(id: &str, input: AIModelInput) -> Self {
+    pub fn from_input(id: &str, input: AIModelInput, is_current: bool) -> Self {
         Self {
             id: id.into(),
             endpoint: input.endpoint,
             model_name: input.model_name,
             notes: input.notes,
-            is_current: Some(true),
+            is_current: Some(is_current),
         }
     }
 }

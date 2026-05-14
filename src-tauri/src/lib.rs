@@ -1,3 +1,4 @@
+mod ai_store;
 mod bili;
 mod commands;
 mod credential_store;
@@ -82,6 +83,7 @@ pub fn run() {
             commands::danmaku::start_loop_send,
             commands::danmaku::stop_loop_send,
             commands::ai::add_ai_model,
+            commands::ai::get_ai_models,
             commands::ai::test_ai_connection,
             commands::ai::fetch_models,
             commands::ai::set_current_model,

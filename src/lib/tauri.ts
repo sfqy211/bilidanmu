@@ -64,6 +64,7 @@ export const tauriCommands = {
     disconnect: () => invoke<void>("disconnect_danmaku_stream")
   },
   ai: {
+    getModels: () => invoke<AIModel[]>("get_ai_models"),
     addModel: (input: AIModelInput) => invoke<AIModel>("add_ai_model", { ...input }),
     testConnection: (input: AIModelInput) =>
       invoke<TestResult>("test_ai_connection", { ...input }),
