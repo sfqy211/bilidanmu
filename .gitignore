@@ -1,0 +1,11 @@
+reference/
+src-tauri/gen/
+node_modules/
+dist/
+.vite/
+target/
+src-tauri/target/
+*.log
+*.tsbuildinfo
+.idea/
+.vscode/
