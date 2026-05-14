@@ -1,4 +1,5 @@
 use crate::models::account::{Credential, LoginStatus};
+use crate::bili::buvid::ensure_buvid;
 use crate::bili::credential::BiliCredential;
 use crate::commands::build_api_client;
 use crate::{credential_store, AppState};
@@ -23,7 +24,8 @@ pub async fn login_by_cookie(
     cookie: String,
     state: State<'_, AppState>,
 ) -> Result<Credential, String> {
-    let parsed = BiliCredential::from_cookie_str(&cookie);
+    let mut parsed = BiliCredential::from_cookie_str(&cookie);
+    ensure_buvid(&mut parsed);
     parsed.validate_for_send()?;
 
     {
@@ -77,7 +79,8 @@ pub async fn restore_login(
             // AppState 中没有，尝试从本地存储加载
             match credential_store::load_cookie(&app)? {
                 Some(cookie) => {
-                    let cred = BiliCredential::from_cookie_str(&cookie);
+                    let mut cred = BiliCredential::from_cookie_str(&cookie);
+                    ensure_buvid(&mut cred);
                     if cred.validate_for_send().is_err() {
                         return Ok(None);
                     }

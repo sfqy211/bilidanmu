@@ -8,15 +8,21 @@ mod tray;
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
 use bili::ws_client::DanmakuWsClient;
+use bili::buvid::ensure_buvid;
 use std::sync::Arc;
 use tauri::Manager;
 use tauri::WindowEvent;
-use tokio::sync::Mutex;
+use tokio::sync::{oneshot, Mutex};
+
+pub struct LoopSenderState {
+    pub shutdown_tx: Option<oneshot::Sender<()>>,
+}
 
 pub struct AppState {
     pub credential: Mutex<Option<BiliCredential>>,
     pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
     pub ws_client: Mutex<Option<DanmakuWsClient>>,
+    pub loop_sender: Mutex<LoopSenderState>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,13 +35,15 @@ pub fn run() {
             credential: Mutex::new(None),
             wbi_cache: Arc::new(Mutex::new(WbiKeyCache::default())),
             ws_client: Mutex::new(None),
+            loop_sender: Mutex::new(LoopSenderState { shutdown_tx: None }),
         })
         .setup(|app| {
             tray::create_tray(app)?;
 
             // 尝试从本地存储恢复登录凭据
             if let Ok(Some(cookie)) = credential_store::load_cookie(app.handle()) {
-                let parsed = BiliCredential::from_cookie_str(&cookie);
+                let mut parsed = BiliCredential::from_cookie_str(&cookie);
+                ensure_buvid(&mut parsed);
                 if parsed.validate_for_send().is_ok() {
                     let state = app.state::<AppState>();
                     let state = state.inner();

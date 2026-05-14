@@ -4,7 +4,7 @@ import { tauriCommands } from "@/lib/tauri";
 import { useAuthStore } from "@/stores/auth-store";
 
 export default function App() {
-  const { setAccounts, setSendAccountId } = useAuthStore();
+  const { setAccounts, setSendAccountId, setRecvAccountId } = useAuthStore();
 
   useEffect(() => {
     let cancelled = false;
@@ -22,6 +22,7 @@ export default function App() {
           };
           setAccounts([account]);
           setSendAccountId(account.id);
+          setRecvAccountId(account.id);
         }
       } catch {
         // 恢复登录失败时静默处理，用户可手动登录
@@ -33,7 +34,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [setAccounts, setSendAccountId]);
+  }, [setAccounts, setRecvAccountId, setSendAccountId]);
 
   return <Outlet />;
 }

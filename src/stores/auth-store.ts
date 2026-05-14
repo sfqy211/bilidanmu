@@ -22,5 +22,5 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSendAccountId: (sendAccountId) => set({ sendAccountId }),
   setRecvAccountId: (recvAccountId) => set({ recvAccountId }),
   setStealthMode: (stealthMode) => set({ stealthMode }),
-  clearAuth: () => set({ accounts: [], sendAccountId: null, recvAccountId: null })
+  clearAuth: () => set({ accounts: [], sendAccountId: null, recvAccountId: null, stealthMode: false })
 }));
