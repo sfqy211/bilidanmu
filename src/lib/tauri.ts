@@ -32,7 +32,9 @@ export const tauriCommands = {
     loginByQr: () => invoke<{ url: string; qrcodeKey: string }>("login_by_qr"),
     pollQr: (qrcodeKey: string) => invoke<Credential>("poll_qr", { qrcodeKey }),
     loginByCookie: (cookie: string) => invoke<Credential>("login_by_cookie", { cookie }),
-    checkLoginStatus: () => invoke<LoginStatus>("check_login_status")
+    checkLoginStatus: () => invoke<LoginStatus>("check_login_status"),
+    restoreLogin: () => invoke<Credential | null>("restore_login"),
+    logout: () => invoke<void>("logout")
   },
   room: {
     search: (query: string, mode: SearchRoomMode) =>

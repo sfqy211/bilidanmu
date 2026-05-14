@@ -10,6 +10,7 @@ interface AuthState {
   setSendAccountId: (id: string | null) => void;
   setRecvAccountId: (id: string | null) => void;
   setStealthMode: (enabled: boolean) => void;
+  clearAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -20,5 +21,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAccounts: (accounts) => set({ accounts }),
   setSendAccountId: (sendAccountId) => set({ sendAccountId }),
   setRecvAccountId: (recvAccountId) => set({ recvAccountId }),
-  setStealthMode: (stealthMode) => set({ stealthMode })
+  setStealthMode: (stealthMode) => set({ stealthMode }),
+  clearAuth: () => set({ accounts: [], sendAccountId: null, recvAccountId: null })
 }));
