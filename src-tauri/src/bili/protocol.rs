@@ -148,6 +148,13 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
     let guard_level = info.get(7).and_then(value_as_u64).unwrap_or(0) as u8;
     let medal = parse_array_medal(info.get(3));
+    let emots = basic
+        .get(15)
+        .and_then(|value| value.get("extra"))
+        .and_then(Value::as_str)
+        .and_then(|value| serde_json::from_str::<Value>(value).ok())
+        .and_then(|value| value.get("emots").cloned())
+        .filter(Value::is_object);
 
     let avatar = basic
         .get(15)
@@ -182,6 +189,7 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_price_color: None,
         message_font_color: None,
         background_image: None,
+        emots,
     })
 }
 
@@ -222,6 +230,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_price_color: None,
         message_font_color: None,
         background_image: None,
+        emots: None,
     })
 }
 
@@ -281,6 +290,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_price_color: None,
         message_font_color: None,
         background_image: None,
+        emots: None,
     })
 }
 
@@ -339,6 +349,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
             .get("background_image")
             .and_then(Value::as_str)
             .map(ToString::to_string),
+        emots: None,
     })
 }
 

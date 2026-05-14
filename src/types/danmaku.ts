@@ -5,6 +5,17 @@ export type DanmakuMessageType =
   | "entry"
   | "system";
 
+export interface InlineEmoticon {
+  count?: number;
+  descript?: string;
+  emoji?: string;
+  emoticonId?: number;
+  emoticonUnique?: string;
+  height?: number;
+  url: string;
+  width?: number;
+}
+
 export interface DanmakuMessage {
   id: string;
   roomId: number;
@@ -27,4 +38,5 @@ export interface DanmakuMessage {
   backgroundPriceColor?: string;
   messageFontColor?: string;
   backgroundImage?: string;
+  emots?: Record<string, InlineEmoticon>;
 }

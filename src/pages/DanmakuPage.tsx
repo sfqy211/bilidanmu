@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowDown, Flame, Send, Smile, Wifi, WifiOff, X } from "lucide-react";
 import { useDanmaku } from "@/hooks/useDanmaku";
@@ -7,6 +7,7 @@ import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
+import type { InlineEmoticon } from "@/types/danmaku";
 
 const statusTextMap = {
   idle: "未连接",
@@ -110,6 +111,63 @@ function getMessageTextClass(type: string): string {
   }
 
   return "mt-1 break-words text-sm";
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderInlineEmots(content: string, emots?: Record<string, InlineEmoticon>) {
+  if (!emots || Object.keys(emots).length === 0) {
+    return content;
+  }
+
+  const keys = Object.keys(emots);
+  if (keys.length === 0) {
+    return content;
+  }
+
+  const pattern = new RegExp(
+    [...keys].sort((a, b) => b.length - a.length).map(escapeRegExp).join("|"),
+    "g"
+  );
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      parts.push(content.slice(lastIndex, index));
+    }
+
+    const token = match[0];
+    const emot = emots[token];
+    if (emot?.url) {
+      parts.push(
+        <img
+          key={`${token}-${index}`}
+          src={emot.url}
+          alt={emot.emoji ?? token}
+          title={emot.descript ?? token}
+          className="mx-0.5 inline-block align-middle"
+          style={{
+            width: emot.width ?? 20,
+            height: emot.height ?? 20
+          }}
+        />
+      );
+    } else {
+      parts.push(token);
+    }
+
+    lastIndex = index + token.length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts;
 }
 
 export function DanmakuPage() {
@@ -403,7 +461,9 @@ export function DanmakuPage() {
                         item.type === "danmaku" && textColor ? { color: textColor } : undefined
                       }
                     >
-                      {item.content}
+                      {item.type === "danmaku"
+                        ? renderInlineEmots(item.content, item.emots)
+                        : item.content}
                     </p>
                   </div>
                 );
