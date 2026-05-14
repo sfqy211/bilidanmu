@@ -47,6 +47,19 @@ impl From<RoomInfo> for Room {
     }
 }
 
+impl From<RoomInfo> for SearchRoomResult {
+    fn from(value: RoomInfo) -> Self {
+        Self {
+            room_id: value.room.room_id,
+            uid: value.room.uid,
+            uname: value.room.uname,
+            title: value.room.title,
+            cover: value.room.cover,
+            is_live: value.room.is_live,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchRoomResult {

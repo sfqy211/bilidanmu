@@ -1,46 +1,63 @@
+use crate::bili::api::BiliApiClient;
+use crate::bili::credential::BiliCredential;
 use crate::models::room::{Room, RoomInfo, SearchRoomResult};
-use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeys};
-use std::collections::BTreeMap;
+use crate::AppState;
+use tauri::State;
 
-#[tauri::command]
-pub async fn search_room(query: String, mode: String) -> Result<Vec<SearchRoomResult>, String> {
-    let room_id = query
-        .chars()
-        .filter(|char| char.is_ascii_digit())
-        .collect::<String>()
-        .parse::<u64>()
-        .unwrap_or(22625025);
-
-    let mut params = BTreeMap::new();
-    params.insert("id".into(), room_id.to_string());
-    params.insert("mode".into(), mode.clone());
-
-    // TODO: 改为从 /x/web-interface/nav 动态拉取并缓存 WBI keys。
-    let keys = WbiKeys {
-        img_key: extract_wbi_key_from_url(
-            "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png",
-        )
-        .unwrap_or_default(),
-        sub_key: extract_wbi_key_from_url(
-            "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png",
-        )
-        .unwrap_or_default(),
-    };
-    let _signed = sign_wbi(params, &keys.mixin_key());
-
-    Ok(vec![SearchRoomResult {
-        room_id,
-        uid: Some(room_id + 1000),
-        uname: format!("{} 搜索结果", mode),
-        title: format!("{query} 的直播间"),
-        cover: None,
-        is_live: mode != "uid",
-    }])
+fn build_api_client(
+    credential: Option<BiliCredential>,
+    state: &State<'_, AppState>,
+) -> Result<BiliApiClient, String> {
+    BiliApiClient::new(credential, state.wbi_cache.clone()).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub async fn add_room(room_id: u64) -> Result<RoomInfo, String> {
-    Ok(RoomInfo::mock(room_id))
+pub async fn search_room(
+    query: String,
+    mode: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<SearchRoomResult>, String> {
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+
+    match mode.as_str() {
+        "roomId" | "link" => {
+            let room_id = extract_room_id(&query)?;
+            let room = api.get_room_info(room_id).await?;
+            Ok(vec![SearchRoomResult::from(room)])
+        }
+        "uid" => {
+            let uid = extract_number(&query, "UID")?;
+            Ok(vec![api.resolve_room_by_uid(uid).await?])
+        }
+        "name" => {
+            let room_id = extract_number(&query, "房间号")
+                .ok()
+                .filter(|value| *value > 0)
+                .unwrap_or(22625025);
+            let room = api.get_room_info(room_id).await?;
+            Ok(vec![SearchRoomResult {
+                room_id: room.room.room_id,
+                uid: room.room.uid,
+                uname: if room.room.uname.is_empty() {
+                    query.clone()
+                } else {
+                    room.room.uname.clone()
+                },
+                title: room.room.title.clone(),
+                cover: room.room.cover.clone(),
+                is_live: room.room.is_live,
+            }])
+        }
+        _ => Err("不支持的搜索模式".to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn add_room(room_id: u64, state: State<'_, AppState>) -> Result<RoomInfo, String> {
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+    api.get_room_info(room_id).await
 }
 
 #[tauri::command]
@@ -49,11 +66,26 @@ pub async fn remove_room(_room_id: u64) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_room_info(room_id: u64) -> Result<RoomInfo, String> {
-    Ok(RoomInfo::mock(room_id))
+pub async fn get_room_info(room_id: u64, state: State<'_, AppState>) -> Result<RoomInfo, String> {
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+    api.get_room_info(room_id).await
 }
 
 #[tauri::command]
 pub async fn get_rooms() -> Result<Vec<Room>, String> {
     Ok(vec![RoomInfo::mock(22625025).into()])
+}
+
+fn extract_number(input: &str, label: &str) -> Result<u64, String> {
+    input
+        .chars()
+        .filter(|char| char.is_ascii_digit())
+        .collect::<String>()
+        .parse::<u64>()
+        .map_err(|_| format!("无法从输入中解析{label}"))
+}
+
+fn extract_room_id(input: &str) -> Result<u64, String> {
+    extract_number(input, "房间号")
 }
