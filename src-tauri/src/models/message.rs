@@ -15,4 +15,7 @@ pub struct DanmakuEvent {
     pub guard_level: u8,
     pub is_admin: bool,
     pub dm_type: u8,
+    pub price: Option<u32>,
+    pub gift_name: Option<String>,
+    pub count: Option<u32>,
 }

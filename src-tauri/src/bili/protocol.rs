@@ -113,62 +113,178 @@ pub fn decode_packets(data: &[u8]) -> Result<Vec<ParsedPacket>, String> {
 }
 
 pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
-    if command.get("cmd")?.as_str()?.starts_with("DANMU_MSG") {
-        let info = command.get("info")?.as_array()?;
-        let content = info.get(1)?.as_str()?.to_string();
-        let user_info = info.get(2)?.as_array()?;
-        let uid = user_info.first().and_then(value_as_u64).unwrap_or(0);
-        let username = user_info.get(1)?.as_str()?.to_string();
-        let basic = info.first()?.as_array()?;
-        let timestamp = basic.get(4).and_then(value_as_u64).unwrap_or(0);
-        let id = basic.get(5).and_then(value_as_u64).unwrap_or(timestamp).to_string();
-        let color = basic.get(3).and_then(value_as_u64).unwrap_or(16_777_215) as u32;
-        let dm_type = basic.get(12).and_then(value_as_u64).unwrap_or(0) as u8;
-        let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
-        let guard_level = info.get(7).and_then(value_as_u64).unwrap_or(0) as u8;
+    let cmd = command.get("cmd")?.as_str()?;
 
-        let medal = info
-            .get(3)
-            .and_then(Value::as_array)
-            .filter(|medal| !medal.is_empty())
-            .map(|medal| {
-                format!(
-                    "{} {}",
-                    medal.get(1).and_then(Value::as_str).unwrap_or_default(),
-                    medal.get(0).and_then(value_as_u64).unwrap_or_default()
-                )
-            })
-            .filter(|value| !value.trim().is_empty());
+    if cmd.starts_with("DANMU_MSG") {
+        return parse_text_danmaku(command, room_id);
+    }
 
-        let avatar = basic
-            .get(15)
-            .and_then(Value::as_object)
-            .and_then(|mode_info| mode_info.get("user"))
-            .and_then(Value::as_object)
-            .and_then(|user| user.get("base"))
-            .and_then(Value::as_object)
-            .and_then(|base| base.get("face"))
-            .and_then(Value::as_str)
-            .map(ToString::to_string);
+    if cmd == "SEND_GIFT" {
+        return parse_gift_message(command, room_id);
+    }
 
-        return Some(DanmakuEvent {
-            id,
-            room_id,
-            event_type: "danmaku".to_string(),
-            username,
-            content,
-            timestamp,
-            avatar,
-            medal,
-            uid,
-            color,
-            guard_level,
-            is_admin,
-            dm_type,
-        });
+    if cmd == "INTERACT_WORD" {
+        return parse_interact_word(command, room_id);
     }
 
     None
+}
+
+fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    let info = command.get("info")?.as_array()?;
+    let content = info.get(1)?.as_str()?.to_string();
+    let user_info = info.get(2)?.as_array()?;
+    let uid = user_info.first().and_then(value_as_u64).unwrap_or(0);
+    let username = user_info.get(1)?.as_str()?.to_string();
+    let basic = info.first()?.as_array()?;
+    let timestamp = basic.get(4).and_then(value_as_u64).unwrap_or(0);
+    let id = basic.get(5).and_then(value_as_u64).unwrap_or(timestamp).to_string();
+    let color = basic.get(3).and_then(value_as_u64).unwrap_or(16_777_215) as u32;
+    let dm_type = basic.get(12).and_then(value_as_u64).unwrap_or(0) as u8;
+    let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
+    let guard_level = info.get(7).and_then(value_as_u64).unwrap_or(0) as u8;
+    let medal = parse_array_medal(info.get(3));
+
+    let avatar = basic
+        .get(15)
+        .and_then(Value::as_object)
+        .and_then(|mode_info| mode_info.get("user"))
+        .and_then(Value::as_object)
+        .and_then(|user| user.get("base"))
+        .and_then(Value::as_object)
+        .and_then(|base| base.get("face"))
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+
+    Some(DanmakuEvent {
+        id,
+        room_id,
+        event_type: "danmaku".to_string(),
+        username,
+        content,
+        timestamp,
+        avatar,
+        medal,
+        uid,
+        color,
+        guard_level,
+        is_admin,
+        dm_type,
+        price: None,
+        gift_name: None,
+        count: None,
+    })
+}
+
+fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    let data = command.get("data")?;
+    let username = data.get("uname")?.as_str()?.to_string();
+    let uid = data.get("uid").and_then(value_as_u64).unwrap_or(0);
+    let gift_name = data.get("giftName")?.as_str()?.to_string();
+    let count = data.get("num").and_then(value_as_u64).unwrap_or(1) as u32;
+    let action = data.get("action").and_then(Value::as_str).unwrap_or("送出");
+    let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
+    let id = data
+        .get("rnd")
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+        .or_else(|| data.get("tid").and_then(Value::as_str).map(ToString::to_string))
+        .unwrap_or_else(|| format!("gift-{room_id}-{uid}-{timestamp}"));
+
+    Some(DanmakuEvent {
+        id,
+        room_id,
+        event_type: "gift".to_string(),
+        username,
+        content: format!("{action}了 {gift_name} ×{count}"),
+        timestamp,
+        avatar: data.get("face").and_then(Value::as_str).map(ToString::to_string),
+        medal: parse_object_medal(data.get("medal_info")),
+        uid,
+        color: 16_777_215,
+        guard_level: data.get("guard_level").and_then(value_as_u64).unwrap_or(0) as u8,
+        is_admin: false,
+        dm_type: 0,
+        price: data.get("price").and_then(value_as_u64).map(|value| value as u32),
+        gift_name: Some(gift_name),
+        count: Some(count),
+    })
+}
+
+fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    let data = command.get("data")?;
+    let uinfo = data.get("uinfo");
+    let base = uinfo.and_then(|value| value.get("base"));
+    let username = base
+        .and_then(|value| value.get("name"))
+        .and_then(Value::as_str)
+        .or_else(|| data.get("uname").and_then(Value::as_str))?
+        .to_string();
+    let uid = uinfo
+        .and_then(|value| value.get("uid"))
+        .and_then(value_as_u64)
+        .or_else(|| data.get("uid").and_then(value_as_u64))
+        .unwrap_or(0);
+    let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
+    let msg_type = data.get("msg_type").and_then(value_as_u64).unwrap_or(1);
+    let content = match msg_type {
+        1 => "进入了直播间",
+        2 => "关注了主播",
+        3 => "分享了直播间",
+        4 => "特别关注了主播",
+        5 => "和主播互相关注了",
+        6 => "点赞了直播间",
+        _ => "触发了互动消息",
+    }
+    .to_string();
+
+    Some(DanmakuEvent {
+        id: format!("interact-{room_id}-{uid}-{timestamp}"),
+        room_id,
+        event_type: "entry".to_string(),
+        username,
+        content,
+        timestamp,
+        avatar: base
+            .and_then(|value| value.get("face"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        medal: parse_object_medal(data.get("fans_medal")),
+        uid,
+        color: 16_777_215,
+        guard_level: data
+            .get("fans_medal")
+            .and_then(|value| value.get("guard_level"))
+            .and_then(value_as_u64)
+            .unwrap_or(0) as u8,
+        is_admin: false,
+        dm_type: 0,
+        price: None,
+        gift_name: None,
+        count: None,
+    })
+}
+
+fn parse_array_medal(value: Option<&Value>) -> Option<String> {
+    value
+        .and_then(Value::as_array)
+        .filter(|medal| !medal.is_empty())
+        .map(|medal| {
+            format!(
+                "{} {}",
+                medal.get(1).and_then(Value::as_str).unwrap_or_default(),
+                medal.get(0).and_then(value_as_u64).unwrap_or_default()
+            )
+        })
+        .filter(|value| !value.trim().is_empty())
+}
+
+fn parse_object_medal(value: Option<&Value>) -> Option<String> {
+    let value = value?;
+    let medal_name = value.get("medal_name").and_then(Value::as_str).unwrap_or_default();
+    let medal_level = value.get("medal_level").and_then(value_as_u64).unwrap_or_default();
+    let display = format!("{} {}", medal_name, medal_level);
+    (!display.trim().is_empty() && !medal_name.trim().is_empty()).then_some(display)
 }
 
 fn make_packet(body: &[u8], operation: u32) -> Result<Vec<u8>, String> {

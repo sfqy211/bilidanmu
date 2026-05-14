@@ -76,6 +76,30 @@ function formatStopReason(reason: string): string {
   return reason;
 }
 
+function getMessageCardClass(type: string): string {
+  if (type === "gift") {
+    return "rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2";
+  }
+
+  if (type === "entry") {
+    return "rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2";
+  }
+
+  return "rounded-lg bg-slate-950/50 px-3 py-2";
+}
+
+function getMessageTextClass(type: string): string {
+  if (type === "gift") {
+    return "mt-1 break-words text-sm text-amber-100";
+  }
+
+  if (type === "entry") {
+    return "mt-1 break-words text-sm text-slate-300";
+  }
+
+  return "mt-1 break-words text-sm";
+}
+
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
@@ -278,19 +302,26 @@ export function DanmakuPage() {
                 return (
                   <div
                     key={`${item.roomId}-${item.id}-${item.timestamp}`}
-                    className="rounded-lg bg-slate-950/50 px-3 py-2"
+                    className={getMessageCardClass(item.type)}
                   >
                     <div className="flex items-center gap-2 text-xs">
                       {item.timestamp > 0 && (
                         <span className="text-slate-500">{formatTime(item.timestamp)}</span>
                       )}
+                      {item.type === "gift" ? <span className="text-amber-300">🎁</span> : null}
+                      {item.type === "entry" ? <span className="text-slate-400">↪</span> : null}
                       <span className="font-medium text-pink-300">{item.username}</span>
                       {item.medal ? <span className="text-cyan-300">[{item.medal}]</span> : null}
                       {item.isAdmin ? <span className="text-amber-300">房管</span> : null}
+                      {item.type === "gift" && item.giftName ? (
+                        <span className="text-amber-200">{item.giftName}</span>
+                      ) : null}
                     </div>
                     <p
-                      className="mt-1 break-words text-sm"
-                      style={textColor ? { color: textColor } : undefined}
+                      className={getMessageTextClass(item.type)}
+                      style={
+                        item.type === "danmaku" && textColor ? { color: textColor } : undefined
+                      }
                     >
                       {item.content}
                     </p>
