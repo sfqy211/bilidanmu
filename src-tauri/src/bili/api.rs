@@ -1,6 +1,7 @@
 use crate::bili::credential::BiliCredential;
 use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeyCache, WbiKeys};
 use crate::models::account::LoginStatus;
+use crate::models::response::BiliResponse;
 use crate::models::room::{Room, RoomInfo, SearchRoomResult};
 use serde_json::Value;
 use regex::Regex;
@@ -279,6 +280,100 @@ impl BiliApiClient {
 
         let response = request.send().await.map_err(|error| error.to_string())?;
         response.json::<Value>().await.map_err(|error| error.to_string())
+    }
+
+    async fn post_form(
+        &self,
+        url: &str,
+        form: &BTreeMap<String, String>,
+    ) -> Result<Value, String> {
+        let mut request = self
+            .client
+            .post(url)
+            .header("Referer", "https://www.bilibili.com/");
+
+        if let Some(credential) = &self.credential {
+            let cookie_header = credential.cookie_header();
+            if !cookie_header.is_empty() {
+                request = request.header("Cookie", cookie_header);
+            }
+        }
+
+        let response = request
+            .form(form)
+            .send()
+            .await
+            .map_err(|error| error.to_string())?;
+
+        response.json::<Value>().await.map_err(|error| error.to_string())
+    }
+
+    pub async fn send_danmaku(
+        &self,
+        room_id: u64,
+        msg: &str,
+        color: Option<u32>,
+        mode: Option<u32>,
+        dm_type: u32,
+        emoticon_options: Option<String>,
+    ) -> Result<BiliResponse, String> {
+        let credential = self
+            .credential
+            .as_ref()
+            .ok_or_else(|| "未登录，无法发送弹幕".to_string())?;
+
+        credential.validate_for_send()?;
+        let csrf = credential
+            .csrf()
+            .ok_or_else(|| "Cookie 缺少 bili_jct".to_string())?;
+        let rnd = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .to_string();
+
+        let mut form = BTreeMap::from([
+            ("roomid".to_string(), room_id.to_string()),
+            ("msg".to_string(), msg.to_string()),
+            ("color".to_string(), color.unwrap_or(16_777_215).to_string()),
+            ("fontsize".to_string(), "25".to_string()),
+            ("mode".to_string(), mode.unwrap_or(1).to_string()),
+            ("rnd".to_string(), rnd),
+            ("bubble".to_string(), "0".to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+            ("csrf_token".to_string(), csrf.to_string()),
+            ("dm_type".to_string(), dm_type.to_string()),
+        ]);
+
+        if dm_type == 0 {
+            form.insert("room_type".to_string(), "0".to_string());
+        }
+
+        if let Some(emoticon_options) = emoticon_options {
+            form.insert("emoticon_options".to_string(), emoticon_options);
+        }
+
+        let response = self
+            .post_form("https://api.live.bilibili.com/msg/send", &form)
+            .await?;
+
+        let code = response.get("code").and_then(Value::as_i64).unwrap_or(-1) as i32;
+        let message = response
+            .get("message")
+            .or_else(|| response.get("msg"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+
+        if code == 0 {
+            Ok(BiliResponse { code, message })
+        } else {
+            Err(if message.is_empty() {
+                format!("发送弹幕失败，错误码 {code}")
+            } else {
+                message
+            })
+        }
     }
 }
 

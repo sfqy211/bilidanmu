@@ -46,7 +46,7 @@ pub fn clear_cookie(app: &tauri::AppHandle) -> Result<(), String> {
         .build()
         .map_err(|error| format!("创建凭据存储失败: {error}"))?;
 
-    store.remove(COOKIE_KEY);
+    store.delete(COOKIE_KEY);
 
     store
         .save()

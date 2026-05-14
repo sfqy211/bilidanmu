@@ -7,13 +7,16 @@ mod tray;
 
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
+use bili::ws_client::DanmakuWsClient;
 use std::sync::Arc;
+use tauri::Manager;
 use tauri::WindowEvent;
 use tokio::sync::Mutex;
 
 pub struct AppState {
     pub credential: Mutex<Option<BiliCredential>>,
     pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
+    pub ws_client: Mutex<Option<DanmakuWsClient>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -25,6 +28,7 @@ pub fn run() {
         .manage(AppState {
             credential: Mutex::new(None),
             wbi_cache: Arc::new(Mutex::new(WbiKeyCache::default())),
+            ws_client: Mutex::new(None),
         })
         .setup(|app| {
             tray::create_tray(app)?;
