@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import type { Room } from "@/types/bilibili";
+import type { Room, RoomInfo } from "@/types/bilibili";
 
 interface RoomState {
   rooms: Room[];
   currentRoomId: string | null;
   searchResults: Room[];
   setRooms: (rooms: Room[]) => void;
-  addRoom: (room: Room) => void;
+  addRoom: (room: Room | RoomInfo) => void;
   removeRoom: (roomId: number) => void;
   setCurrentRoomId: (id: string | null) => void;
   setSearchResults: (results: Room[]) => void;

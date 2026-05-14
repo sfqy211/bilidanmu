@@ -47,6 +47,7 @@ export interface SearchRoomResult {
   title: string;
   cover?: string;
   isLive: boolean;
+  online?: number;
 }
 
 export interface AIModel {

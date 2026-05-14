@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MonitorPlay, Plus, Search, Trash2 } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
@@ -19,6 +19,7 @@ function toRoom(result: {
   title: string;
   cover?: string;
   isLive: boolean;
+  online?: number;
 }): Room {
   return {
     id: String(result.roomId),
@@ -28,7 +29,7 @@ function toRoom(result: {
     title: result.title,
     cover: result.cover,
     isLive: result.isLive,
-    online: result.isLive ? 12000 : 0
+    online: result.online ?? (result.isLive ? 12000 : 0)
   };
 }
 
@@ -39,11 +40,49 @@ export function RoomPage() {
   const [mode, setMode] = useState<SearchRoomMode>("name");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addingRoomIds, setAddingRoomIds] = useState<Set<number>>(new Set());
 
   const placeholder = useMemo(
     () => searchModes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容",
     [mode]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRooms = async () => {
+      try {
+        const savedRooms = await tauriCommands.state.getRooms();
+        if (!cancelled) {
+          useRoomStore.setState({ rooms: savedRooms });
+        }
+      } catch {
+        // 忽略初始化读取失败，保留空状态
+      }
+    };
+
+    void loadRooms();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAddRoom = async (roomId: number) => {
+    setAddingRoomIds((prev) => new Set(prev).add(roomId));
+    try {
+      const roomInfo = await tauriCommands.room.add(roomId);
+      addRoom(roomInfo);
+    } catch (addError) {
+      setError(addError instanceof Error ? addError.message : "添加失败");
+    } finally {
+      setAddingRoomIds((prev) => {
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
+    }
+  };
 
   const handleSearch = async () => {
     const trimmed = query.trim();
@@ -141,12 +180,12 @@ export function RoomPage() {
                     <p className="mt-2 truncate text-sm text-slate-300">{room.title}</p>
                   </div>
                   <button
-                    onClick={() => addRoom(room)}
-                    disabled={added}
+                    onClick={() => void handleAddRoom(room.roomId)}
+                    disabled={added || addingRoomIds.has(room.roomId)}
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-2 text-sm text-pink-300 transition hover:bg-pink-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Plus className="h-4 w-4" />
-                    {added ? "已添加" : "添加"}
+                    {added ? "已添加" : addingRoomIds.has(room.roomId) ? "添加中..." : "添加"}
                   </button>
                 </div>
               );
