@@ -1,5 +1,6 @@
 mod bili;
 mod commands;
+mod credential_store;
 mod models;
 mod room_store;
 mod tray;
@@ -27,6 +28,20 @@ pub fn run() {
         })
         .setup(|app| {
             tray::create_tray(app)?;
+
+            // 尝试从本地存储恢复登录凭据
+            if let Ok(Some(cookie)) = credential_store::load_cookie(app.handle()) {
+                let parsed = BiliCredential::from_cookie_str(&cookie);
+                if parsed.validate_for_send().is_ok() {
+                    let state = app.state::<AppState>();
+                    let state = state.inner();
+                    // 在启动阶段使用 blocking lock 是安全的，因为此时还没有并发任务
+                    if let Ok(mut credential) = state.credential.try_lock() {
+                        *credential = Some(parsed);
+                    }
+                }
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -40,6 +55,8 @@ pub fn run() {
             commands::auth::poll_qr,
             commands::auth::login_by_cookie,
             commands::auth::check_login_status,
+            commands::auth::restore_login,
+            commands::auth::logout,
             commands::room::search_room,
             commands::room::add_room,
             commands::room::remove_room,
