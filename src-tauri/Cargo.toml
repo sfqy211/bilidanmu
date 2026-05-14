@@ -30,6 +30,7 @@ rand = "0.8"
 url = "2.5"
 log = "0.4"
 thiserror = "2"
+regex = "1"
 
 [profile.release]
 codegen-units = 1

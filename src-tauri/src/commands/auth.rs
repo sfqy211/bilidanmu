@@ -1,15 +1,8 @@
-use crate::bili::api::BiliApiClient;
 use crate::models::account::{Credential, LoginStatus};
 use crate::bili::credential::BiliCredential;
+use crate::commands::build_api_client;
 use crate::AppState;
 use tauri::State;
-
-fn build_api_client(
-    credential: Option<BiliCredential>,
-    state: &State<'_, AppState>,
-) -> Result<BiliApiClient, String> {
-    BiliApiClient::new(credential, state.wbi_cache.clone()).map_err(|error| error.to_string())
-}
 
 #[tauri::command]
 pub async fn login_by_qr() -> Result<serde_json::Value, String> {

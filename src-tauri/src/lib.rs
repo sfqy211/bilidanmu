@@ -1,6 +1,7 @@
 mod bili;
 mod commands;
 mod models;
+mod room_store;
 mod tray;
 
 use bili::credential::BiliCredential;
@@ -43,6 +44,7 @@ pub fn run() {
             commands::room::add_room,
             commands::room::remove_room,
             commands::room::get_room_info,
+            commands::room::get_danmu_info,
             commands::room::get_rooms,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,

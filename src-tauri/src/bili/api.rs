@@ -3,6 +3,7 @@ use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeyCache, WbiKeys}
 use crate::models::account::LoginStatus;
 use crate::models::room::{Room, RoomInfo, SearchRoomResult};
 use serde_json::Value;
+use regex::Regex;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -185,7 +186,57 @@ impl BiliApiClient {
                 .to_string(),
             cover: entry.get("face").and_then(Value::as_str).map(ToString::to_string),
             is_live: entry.get("live_status").and_then(Value::as_u64).unwrap_or(0) == 1,
+            online: entry.get("online").and_then(value_as_u64),
         })
+    }
+
+    pub async fn search_rooms_by_name(&self, keyword: &str, page: u32) -> Result<Vec<SearchRoomResult>, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/web-interface/search/type",
+                Some(BTreeMap::from([
+                    ("search_type".to_string(), "live".to_string()),
+                    ("cover_type".to_string(), "user_cover".to_string()),
+                    ("order".to_string(), "".to_string()),
+                    ("keyword".to_string(), keyword.to_string()),
+                    ("category_id".to_string(), "".to_string()),
+                    ("__refresh__".to_string(), "".to_string()),
+                    ("_extra".to_string(), "".to_string()),
+                    ("highlight".to_string(), "0".to_string()),
+                    ("single_column".to_string(), "0".to_string()),
+                    ("page".to_string(), page.to_string()),
+                ])),
+            )
+            .await?;
+
+        ensure_success(&response)?;
+        let items = response
+            .get("data")
+            .and_then(|data| data.get("result"))
+            .and_then(|result| result.get("live_room"))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(items
+            .iter()
+            .filter_map(|item| {
+                let room_id = item.get("roomid").and_then(value_as_u64)?;
+                let uname = item.get("uname").and_then(Value::as_str).unwrap_or_default();
+                let title = item.get("title").and_then(Value::as_str).unwrap_or_default();
+                let cover = item.get("cover").and_then(Value::as_str).map(normalize_cover_url);
+
+                Some(SearchRoomResult {
+                    room_id,
+                    uid: item.get("uid").and_then(value_as_u64),
+                    uname: strip_em_tags(uname),
+                    title: strip_em_tags(title),
+                    cover,
+                    is_live: true,
+                    online: item.get("online").and_then(value_as_u64),
+                })
+            })
+            .collect())
     }
 
     pub async fn verify_login_status(&self) -> Result<LoginStatus, String> {
@@ -265,4 +316,21 @@ fn value_as_u64(value: &Value) -> Option<u64> {
     value
         .as_u64()
         .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
+}
+
+fn strip_em_tags(input: &str) -> String {
+    Regex::new(r"</?em[^>]*>")
+        .map(|regex| regex.replace_all(input, "").to_string())
+        .unwrap_or_else(|_| input.to_string())
+}
+
+fn normalize_cover_url(input: &str) -> String {
+    let url = strip_em_tags(input);
+    if url.starts_with("http://") || url.starts_with("https://") {
+        url
+    } else if url.starts_with("//") {
+        format!("https:{url}")
+    } else {
+        format!("https://{url}")
+    }
 }

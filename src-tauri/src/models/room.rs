@@ -56,6 +56,7 @@ impl From<RoomInfo> for SearchRoomResult {
             title: value.room.title,
             cover: value.room.cover,
             is_live: value.room.is_live,
+            online: value.room.online,
         }
     }
 }
@@ -69,4 +70,5 @@ pub struct SearchRoomResult {
     pub title: String,
     pub cover: Option<String>,
     pub is_live: bool,
+    pub online: Option<u64>,
 }
