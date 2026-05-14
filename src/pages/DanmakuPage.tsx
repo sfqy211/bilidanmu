@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowDown, Flame, Send, Smile, Wifi, WifiOff, X } from "lucide-react";
 import { useDanmaku } from "@/hooks/useDanmaku";
+import { useScheduler } from "@/hooks/useScheduler";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -74,6 +75,8 @@ export function DanmakuPage() {
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [activePkgId, setActivePkgId] = useState<number | null>(null);
+  const [loopMessagesInput, setLoopMessagesInput] = useState("");
+  const [loopIntervalSec, setLoopIntervalSec] = useState("2");
 
   useDanmakuStream(roomId);
 
@@ -84,6 +87,13 @@ export function DanmakuPage() {
   const sentCount = useDanmakuStore((state) => state.sentCount);
   const popularity = useDanmakuStore((state) => state.popularity);
   const { send, sendEmoticon, sending } = useDanmaku();
+  const {
+    isRunning: loopRunning,
+    lastSentMessage: lastLoopMessage,
+    lastError: loopError,
+    start: startLoop,
+    stop: stopLoop
+  } = useScheduler(roomId);
 
   const checkAtBottom = useCallback(() => {
     const container = scrollRef.current;
@@ -178,6 +188,24 @@ export function DanmakuPage() {
     () => emoticonPackages.find((pkg) => pkg.pkgId === activePkgId) ?? emoticonPackages[0],
     [activePkgId, emoticonPackages]
   );
+
+  const loopMessages = useMemo(
+    () => loopMessagesInput.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+    [loopMessagesInput]
+  );
+
+  const handleStartLoop = async () => {
+    const intervalSec = Number(loopIntervalSec);
+    if (!Number.isFinite(intervalSec) || intervalSec < 0.3) {
+      return;
+    }
+
+    try {
+      await startLoop(loopMessages, Math.round(intervalSec * 1000));
+    } catch {
+      // 错误已由 useScheduler 记录并展示，这里只避免未处理的 Promise rejection
+    }
+  };
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-slate-950 text-slate-100 lg:grid-cols-[320px_1fr]">
@@ -396,6 +424,64 @@ export function DanmakuPage() {
               <Send className="h-4 w-4" />
               {sending ? "发送中..." : "发送"}
             </button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-medium text-white">独轮车（最小版）</h3>
+              <p className="mt-1 text-xs text-slate-400">每行一条弹幕，按固定间隔循环发送。</p>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs ${
+                loopRunning
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : "bg-slate-800 text-slate-400"
+              }`}
+            >
+              {loopRunning ? "运行中" : "未运行"}
+            </span>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[1fr_160px_auto]">
+            <textarea
+              value={loopMessagesInput}
+              onChange={(event) => setLoopMessagesInput(event.target.value)}
+              placeholder={"每行一条循环弹幕\n第一条\n第二条\n第三条"}
+              className="min-h-28 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500"
+            />
+            <div>
+              <label className="mb-2 block text-sm text-slate-400">发送间隔（秒）</label>
+              <input
+                value={loopIntervalSec}
+                onChange={(event) => setLoopIntervalSec(event.target.value)}
+                inputMode="decimal"
+                className="h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm text-white outline-none"
+              />
+              <p className="mt-2 text-xs text-slate-500">最小 0.3 秒，当前共 {loopMessages.length} 条</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => void handleStartLoop()}
+                disabled={!roomId || loopRunning || loopMessages.length === 0 || Number(loopIntervalSec) < 0.3}
+                className="rounded-xl bg-pink-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                开始循环
+              </button>
+              <button
+                onClick={() => void stopLoop()}
+                disabled={!loopRunning}
+                className="rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-200 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                停止循环
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-1 text-xs">
+            {lastLoopMessage ? <p className="text-slate-400">最近发送：{lastLoopMessage}</p> : null}
+            {loopError ? <p className="text-rose-400">循环发送错误：{loopError}</p> : null}
           </div>
         </div>
       </main>
