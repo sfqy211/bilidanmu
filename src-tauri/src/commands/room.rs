@@ -1,5 +1,5 @@
 use crate::commands::build_api_client;
-use crate::models::room::{Room, RoomInfo, SearchRoomResult};
+use crate::models::room::{EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::room_store;
 use crate::AppState;
 use tauri::State;
@@ -65,6 +65,16 @@ pub async fn get_danmu_info(room_id: u64, state: State<'_, AppState>) -> Result<
 #[tauri::command]
 pub async fn get_rooms(app: tauri::AppHandle) -> Result<Vec<Room>, String> {
     room_store::load_rooms(&app)
+}
+
+#[tauri::command]
+pub async fn get_emoticons(
+    room_id: u64,
+    state: State<'_, AppState>,
+) -> Result<Vec<EmoticonPackage>, String> {
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+    api.get_emoticons(room_id).await
 }
 
 fn extract_number(input: &str, label: &str) -> Result<u64, String> {

@@ -67,6 +67,7 @@ pub fn run() {
             commands::room::get_room_info,
             commands::room::get_danmu_info,
             commands::room::get_rooms,
+            commands::room::get_emoticons,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,
             commands::danmaku::start_loop_send,

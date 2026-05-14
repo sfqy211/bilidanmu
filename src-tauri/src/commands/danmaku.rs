@@ -22,6 +22,7 @@ pub async fn send_danmaku(
 pub async fn send_emoticon(
     room_id: u64,
     emoticon_unique: String,
+    emoticon_options: Option<String>,
     color: Option<u32>,
     mode: Option<u32>,
     dm_type: Option<u32>,
@@ -29,10 +30,12 @@ pub async fn send_emoticon(
 ) -> Result<BiliResponse, String> {
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state)?;
-    let emoticon_options = serde_json::json!({
-        "emoticon_unique": emoticon_unique,
-    })
-    .to_string();
+    let emoticon_options = emoticon_options.unwrap_or_else(|| {
+        serde_json::json!({
+            "emoticon_unique": emoticon_unique,
+        })
+        .to_string()
+    });
 
     api.send_danmaku(
         room_id,

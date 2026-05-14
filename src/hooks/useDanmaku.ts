@@ -27,10 +27,12 @@ export function useDanmaku() {
   );
 
   const sendEmoticon = useCallback(
-    async (roomId: number, emoticonUnique: string) => {
+    async (roomId: number, emoticonUnique: string, emoticonOptions?: string) => {
       setSending(true);
       try {
-        const result = await tauriCommands.danmaku.sendEmoticon(roomId, emoticonUnique);
+        const result = await tauriCommands.danmaku.sendEmoticon(roomId, emoticonUnique, {
+          emoticonOptions
+        });
         incrementSentCount();
         setLastError(null);
         return result;

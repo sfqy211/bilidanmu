@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowDown, Flame, Send, Wifi, WifiOff } from "lucide-react";
+import { ArrowDown, Flame, Send, Smile, Wifi, WifiOff, X } from "lucide-react";
 import { useDanmaku } from "@/hooks/useDanmaku";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
+import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
+import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
 
 const statusTextMap = {
   idle: "未连接",
@@ -11,7 +13,7 @@ const statusTextMap = {
   connected: "已连接",
   reconnecting: "重连中",
   disconnected: "已断开",
-  error: "连接异常",
+  error: "连接异常"
 } as const;
 
 function formatTime(ts: number): string {
@@ -33,7 +35,6 @@ function formatPopularity(n: number): string {
   return String(n);
 }
 
-/** Convert B站 color int (0xRRGGBB) to CSS hex string */
 function colorToHex(color?: number): string | undefined {
   if (color == null || color === 16_777_215) {
     return undefined;
@@ -42,12 +43,37 @@ function colorToHex(color?: number): string | undefined {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
+function getPackageLabel(pkg: EmoticonPackage): string {
+  return pkg.pkgName || `表情包 ${pkg.pkgId}`;
+}
+
+function isEmoticonAvailable(emoticon: Emoticon): boolean {
+  return (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
+}
+
+function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
+  if (emoticon.emoticonOptions) {
+    return JSON.stringify(emoticon.emoticonOptions);
+  }
+
+  if (!emoticon.emoticonUnique) {
+    return undefined;
+  }
+
+  return JSON.stringify({ emoticon_unique: emoticon.emoticonUnique });
+}
+
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
+  const [emoticonPackages, setEmoticonPackages] = useState<EmoticonPackage[]>([]);
+  const [loadingEmoticons, setLoadingEmoticons] = useState(false);
+  const [emoticonError, setEmoticonError] = useState<string | null>(null);
+  const [activePkgId, setActivePkgId] = useState<number | null>(null);
 
   useDanmakuStream(roomId);
 
@@ -57,9 +83,8 @@ export function DanmakuPage() {
   const lastError = useDanmakuStore((state) => state.lastError);
   const sentCount = useDanmakuStore((state) => state.sentCount);
   const popularity = useDanmakuStore((state) => state.popularity);
-  const { send, sending } = useDanmaku();
+  const { send, sendEmoticon, sending } = useDanmaku();
 
-  // --- Auto-scroll logic ---
   const checkAtBottom = useCallback(() => {
     const container = scrollRef.current;
     if (!container) {
@@ -72,7 +97,6 @@ export function DanmakuPage() {
     setIsAtBottom(distanceFromBottom <= threshold);
   }, []);
 
-  // Scroll to bottom when new messages arrive AND user is already at bottom
   useEffect(() => {
     if (!isAtBottom) {
       return;
@@ -86,7 +110,39 @@ export function DanmakuPage() {
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages, isAtBottom]);
 
-  // --- Send ---
+  const loadEmoticons = useCallback(async () => {
+    if (!roomId) {
+      return;
+    }
+
+    setLoadingEmoticons(true);
+    setEmoticonError(null);
+
+    try {
+      const packages = await tauriCommands.room.getEmoticons(roomId);
+      setEmoticonPackages(packages);
+      setActivePkgId((current) => {
+        if (current && packages.some((pkg) => pkg.pkgId === current)) {
+          return current;
+        }
+        return packages[0]?.pkgId ?? null;
+      });
+    } catch (error) {
+      setEmoticonError(error instanceof Error ? error.message : "加载表情失败");
+    } finally {
+      setLoadingEmoticons(false);
+    }
+  }, [roomId]);
+
+  const handleToggleEmoticonPicker = useCallback(async () => {
+    const nextOpen = !emoticonPickerOpen;
+    setEmoticonPickerOpen(nextOpen);
+
+    if (nextOpen && emoticonPackages.length === 0 && !loadingEmoticons) {
+      await loadEmoticons();
+    }
+  }, [emoticonPackages.length, emoticonPickerOpen, loadEmoticons, loadingEmoticons]);
+
   const handleSend = async () => {
     if (!roomId || !message.trim()) {
       return;
@@ -95,6 +151,18 @@ export function DanmakuPage() {
     await send(roomId, message.trim());
     setMessage("");
   };
+
+  const handleSendEmoticon = useCallback(
+    async (emoticon: Emoticon) => {
+      if (!roomId || !emoticon.emoticonUnique || !isEmoticonAvailable(emoticon)) {
+        return;
+      }
+
+      await sendEmoticon(roomId, emoticon.emoticonUnique, serializeEmoticonOptions(emoticon));
+      setEmoticonPickerOpen(false);
+    },
+    [roomId, sendEmoticon]
+  );
 
   const scrollToBottom = () => {
     const container = scrollRef.current;
@@ -105,6 +173,11 @@ export function DanmakuPage() {
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     setIsAtBottom(true);
   };
+
+  const activePackage = useMemo(
+    () => emoticonPackages.find((pkg) => pkg.pkgId === activePkgId) ?? emoticonPackages[0],
+    [activePkgId, emoticonPackages]
+  );
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-slate-950 text-slate-100 lg:grid-cols-[320px_1fr]">
@@ -123,7 +196,6 @@ export function DanmakuPage() {
             <span className="text-slate-200">{statusTextMap[wsStatus]}</span>
           </div>
 
-          {/* Popularity */}
           {wsConnected && (
             <div className="mt-3 flex items-center gap-2 text-sm">
               <Flame className="h-4 w-4 text-orange-400" />
@@ -138,7 +210,6 @@ export function DanmakuPage() {
 
       <main className="flex min-h-0 flex-col p-6">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-          {/* Header bar with popularity */}
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-sm text-slate-400">
             <span>实时弹幕流</span>
             {popularity > 0 && (
@@ -149,7 +220,6 @@ export function DanmakuPage() {
             )}
           </div>
 
-          {/* Messages */}
           <div
             ref={scrollRef}
             onScroll={checkAtBottom}
@@ -172,12 +242,8 @@ export function DanmakuPage() {
                         <span className="text-slate-500">{formatTime(item.timestamp)}</span>
                       )}
                       <span className="font-medium text-pink-300">{item.username}</span>
-                      {item.medal ? (
-                        <span className="text-cyan-300">[{item.medal}]</span>
-                      ) : null}
-                      {item.isAdmin ? (
-                        <span className="text-amber-300">房管</span>
-                      ) : null}
+                      {item.medal ? <span className="text-cyan-300">[{item.medal}]</span> : null}
+                      {item.isAdmin ? <span className="text-amber-300">房管</span> : null}
                     </div>
                     <p
                       className="mt-1 break-words text-sm"
@@ -191,7 +257,6 @@ export function DanmakuPage() {
             )}
           </div>
 
-          {/* Scroll-to-bottom button */}
           {!isAtBottom && (
             <button
               onClick={scrollToBottom}
@@ -206,7 +271,109 @@ export function DanmakuPage() {
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/90 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-end">
             <div className="flex-1">
-              <label className="mb-2 block text-sm text-slate-400">发送弹幕</label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm text-slate-400">发送弹幕</label>
+                <button
+                  type="button"
+                  onClick={() => void handleToggleEmoticonPicker()}
+                  disabled={!roomId || sending}
+                  className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Smile className="h-3.5 w-3.5" />
+                  表情
+                </button>
+              </div>
+
+              {emoticonPickerOpen && (
+                <div className="mb-3 rounded-xl border border-white/10 bg-slate-950/80 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">表情选择器</p>
+                      <p className="text-xs text-slate-500">点击大表情后直接发送</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEmoticonPickerOpen(false)}
+                      className="rounded-md p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {loadingEmoticons ? (
+                    <div className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
+                      正在加载表情列表...
+                    </div>
+                  ) : emoticonError ? (
+                    <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-4 text-sm text-rose-300">
+                      <p>{emoticonError}</p>
+                      <button
+                        type="button"
+                        onClick={() => void loadEmoticons()}
+                        className="mt-2 text-xs text-pink-300 hover:text-pink-200"
+                      >
+                        重新加载
+                      </button>
+                    </div>
+                  ) : emoticonPackages.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
+                      当前房间没有可用表情。
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {emoticonPackages.map((pkg) => {
+                          const active = pkg.pkgId === activePackage?.pkgId;
+                          return (
+                            <button
+                              key={pkg.pkgId}
+                              type="button"
+                              onClick={() => setActivePkgId(pkg.pkgId)}
+                              className={`rounded-full border px-3 py-1 text-xs transition ${
+                                active
+                                  ? "border-pink-400 bg-pink-500/15 text-pink-200"
+                                  : "border-white/10 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                              }`}
+                            >
+                              {getPackageLabel(pkg)}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid max-h-64 grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4 xl:grid-cols-6">
+                        {activePackage?.emoticons.map((emoticon, index) => {
+                          const available = isEmoticonAvailable(emoticon);
+                          return (
+                            <button
+                              key={`${activePackage.pkgId}-${emoticon.emoticonId ?? index}`}
+                              type="button"
+                              disabled={!available || sending}
+                              onClick={() => void handleSendEmoticon(emoticon)}
+                              title={emoticon.descript ?? emoticon.emoji ?? "表情"}
+                              className={`flex flex-col items-center rounded-xl border p-2 text-center transition ${
+                                available
+                                  ? "border-white/10 bg-slate-900/70 hover:border-pink-400/40 hover:bg-slate-800"
+                                  : "cursor-not-allowed border-white/5 bg-slate-900/40 opacity-50"
+                              }`}
+                            >
+                              <img
+                                src={emoticon.url}
+                                alt={emoticon.descript ?? emoticon.emoji ?? "表情"}
+                                className="h-12 w-12 object-contain"
+                              />
+                              <span className="mt-2 line-clamp-2 text-[11px] text-slate-300">
+                                {emoticon.descript ?? emoticon.emoji ?? "未命名表情"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               <textarea
                 value={message}
                 onChange={(event) => setMessage(event.target.value.slice(0, 20))}

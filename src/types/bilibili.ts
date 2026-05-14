@@ -50,6 +50,29 @@ export interface SearchRoomResult {
   online?: number;
 }
 
+export interface Emoticon {
+  emoji?: string;
+  descript?: string;
+  url: string;
+  perm?: number;
+  emoticonUnique?: string;
+  emoticonId?: number;
+  pkgId?: number;
+  height?: number;
+  width?: number;
+  isDynamic?: number;
+  unlockShowText?: string;
+  emoticonOptions?: unknown;
+}
+
+export interface EmoticonPackage {
+  pkgId: number;
+  pkgName: string;
+  pkgType?: number;
+  currentCover?: string;
+  emoticons: Emoticon[];
+}
+
 export interface AIModel {
   id: string;
   endpoint: string;

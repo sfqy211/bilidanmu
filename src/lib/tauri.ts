@@ -3,6 +3,7 @@ import type {
   AIModel,
   AIModelInput,
   Credential,
+  EmoticonPackage,
   LoginStatus,
   Room,
   RoomInfo,
@@ -19,7 +20,7 @@ export interface SendOptions {
 }
 
 export interface SendEmoticonOptions extends SendOptions {
-  emoticonUnique: string;
+  emoticonOptions?: string;
 }
 
 export interface BiliResponse {
@@ -41,12 +42,14 @@ export const tauriCommands = {
       invoke<SearchRoomResult[]>("search_room", { query, mode }),
     add: (roomId: number) => invoke<RoomInfo>("add_room", { roomId }),
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
-    getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId })
+    getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId }),
+    getEmoticons: (roomId: number) =>
+      invoke<EmoticonPackage[]>("get_emoticons", { roomId })
   },
   danmaku: {
     send: (roomId: number, msg: string, options?: SendOptions) =>
       invoke<BiliResponse>("send_danmaku", { roomId, msg, ...options }),
-    sendEmoticon: (roomId: number, emoticonUnique: string, options?: SendOptions) =>
+    sendEmoticon: (roomId: number, emoticonUnique: string, options?: SendEmoticonOptions) =>
       invoke<BiliResponse>("send_emoticon", {
         roomId,
         emoticonUnique,

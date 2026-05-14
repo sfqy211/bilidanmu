@@ -2,7 +2,7 @@ use crate::bili::credential::BiliCredential;
 use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeyCache, WbiKeys};
 use crate::models::account::LoginStatus;
 use crate::models::response::BiliResponse;
-use crate::models::room::{Room, RoomInfo, SearchRoomResult};
+use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use serde_json::Value;
 use regex::Regex;
 use std::collections::BTreeMap;
@@ -260,6 +260,31 @@ impl BiliApiClient {
         })
     }
 
+    pub async fn get_emoticons(&self, room_id: u64) -> Result<Vec<EmoticonPackage>, String> {
+        let response = self
+            .get_json(
+                "https://api.live.bilibili.com/xlive/web-ucenter/v2/emoticon/GetEmoticons",
+                Some(BTreeMap::from([
+                    ("platform".to_string(), "pc".to_string()),
+                    ("room_id".to_string(), room_id.to_string()),
+                ])),
+            )
+            .await?;
+
+        ensure_success(&response)?;
+
+        let packages = response
+            .get("data")
+            .and_then(|data| data.get("data"))
+            .and_then(Value::as_array)
+            .ok_or_else(|| "表情列表缺少 data.data 字段".to_string())?;
+
+        packages
+            .iter()
+            .map(parse_emoticon_package)
+            .collect::<Result<Vec<_>, _>>()
+    }
+
     async fn get_json(
         &self,
         url: &str,
@@ -428,4 +453,57 @@ fn normalize_cover_url(input: &str) -> String {
     } else {
         format!("https://{url}")
     }
+}
+
+fn parse_emoticon_package(value: &Value) -> Result<EmoticonPackage, String> {
+    Ok(EmoticonPackage {
+        pkg_id: value.get("pkg_id").and_then(value_as_u64).unwrap_or_default(),
+        pkg_name: value
+            .get("pkg_name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        pkg_type: value.get("pkg_type").and_then(value_as_u64),
+        current_cover: value
+            .get("current_cover")
+            .and_then(Value::as_str)
+            .map(normalize_cover_url),
+        emoticons: value
+            .get("emoticons")
+            .and_then(Value::as_array)
+            .map(|items| items.iter().map(parse_emoticon).collect::<Result<Vec<_>, _>>())
+            .transpose()?
+            .unwrap_or_default(),
+    })
+}
+
+fn parse_emoticon(value: &Value) -> Result<Emoticon, String> {
+    let url = value
+        .get("url")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "表情缺少 url 字段".to_string())?;
+
+    Ok(Emoticon {
+        emoji: value.get("emoji").and_then(Value::as_str).map(ToString::to_string),
+        descript: value
+            .get("descript")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        url: normalize_cover_url(url),
+        perm: value.get("perm").and_then(value_as_u64),
+        emoticon_unique: value
+            .get("emoticon_unique")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        emoticon_id: value.get("emoticon_id").and_then(value_as_u64),
+        pkg_id: value.get("pkg_id").and_then(value_as_u64),
+        height: value.get("height").and_then(value_as_u64),
+        width: value.get("width").and_then(value_as_u64),
+        is_dynamic: value.get("is_dynamic").and_then(value_as_u64),
+        unlock_show_text: value
+            .get("unlock_show_text")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        emoticon_options: value.get("emoticon_options").cloned(),
+    })
 }

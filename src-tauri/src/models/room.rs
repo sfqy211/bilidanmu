@@ -72,3 +72,34 @@ pub struct SearchRoomResult {
     pub is_live: bool,
     pub online: Option<u64>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmoticonPackage {
+    pub pkg_id: u64,
+    pub pkg_name: String,
+    pub pkg_type: Option<u64>,
+    pub current_cover: Option<String>,
+    #[serde(default)]
+    pub emoticons: Vec<Emoticon>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Emoticon {
+    pub emoji: Option<String>,
+    pub descript: Option<String>,
+    pub url: String,
+    pub perm: Option<u64>,
+    pub emoticon_unique: Option<String>,
+    pub emoticon_id: Option<u64>,
+    pub pkg_id: Option<u64>,
+    pub height: Option<u64>,
+    pub width: Option<u64>,
+    #[serde(default)]
+    pub is_dynamic: Option<u64>,
+    #[serde(default)]
+    pub unlock_show_text: Option<String>,
+    #[serde(default)]
+    pub emoticon_options: Option<serde_json::Value>,
+}
