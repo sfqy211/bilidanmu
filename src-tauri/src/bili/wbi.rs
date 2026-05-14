@@ -2,6 +2,8 @@ use md5::{Digest, Md5};
 use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const WBI_CACHE_TTL_SECS: u64 = 60 * 60 * 12;
+
 const MIXIN_KEY_ENC_TAB: [usize; 64] = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42,
     19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60,
@@ -14,9 +16,34 @@ pub struct WbiKeys {
     pub sub_key: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct WbiKeyCache {
+    pub keys: Option<WbiKeys>,
+    pub fetched_at: Option<u64>,
+}
+
 impl WbiKeys {
     pub fn mixin_key(&self) -> String {
         get_mixin_key(&format!("{}{}", self.img_key, self.sub_key))
+    }
+}
+
+impl WbiKeyCache {
+    pub fn get_if_fresh(&self) -> Option<WbiKeys> {
+        let fetched_at = self.fetched_at?;
+        let keys = self.keys.clone()?;
+        let now = now_unix_seconds();
+
+        if now.saturating_sub(fetched_at) < WBI_CACHE_TTL_SECS {
+            Some(keys)
+        } else {
+            None
+        }
+    }
+
+    pub fn store(&mut self, keys: WbiKeys) {
+        self.keys = Some(keys);
+        self.fetched_at = Some(now_unix_seconds());
     }
 }
 
@@ -35,11 +62,7 @@ pub fn get_mixin_key(raw: &str) -> String {
 
 pub fn sign_wbi(params: BTreeMap<String, String>, mixin_key: &str) -> BTreeMap<String, String> {
     let mut signed = params;
-    let wts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        .to_string();
+    let wts = now_unix_seconds().to_string();
 
     signed.insert("wts".into(), wts);
 
@@ -59,6 +82,13 @@ pub fn sign_wbi(params: BTreeMap<String, String>, mixin_key: &str) -> BTreeMap<S
 
     signed.insert("w_rid".into(), w_rid);
     signed
+}
+
+fn now_unix_seconds() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 pub fn extract_wbi_key_from_url(url: &str) -> Option<String> {

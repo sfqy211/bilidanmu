@@ -3,7 +3,16 @@ mod commands;
 mod models;
 mod tray;
 
+use bili::credential::BiliCredential;
+use bili::wbi::WbiKeyCache;
+use std::sync::Arc;
 use tauri::WindowEvent;
+use tokio::sync::Mutex;
+
+pub struct AppState {
+    pub credential: Mutex<Option<BiliCredential>>,
+    pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,6 +20,10 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_log::Builder::default().build())
+        .manage(AppState {
+            credential: Mutex::new(None),
+            wbi_cache: Arc::new(Mutex::new(WbiKeyCache::default())),
+        })
         .setup(|app| {
             tray::create_tray(app)?;
             Ok(())
