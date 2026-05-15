@@ -35,7 +35,7 @@
 - 独轮车完整版（useScheduler + 循环发送面板：切房/卸载自动停、发送计数、条目索引、停止原因、前后端 0.3s 下限一致）
 - AccountPage 真实 UI（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - SettingsPage 真实读写（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
-- AIPage 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前模型）
+- AIPage 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除，ID 改用时间戳+随机 hex 防冲突）
 
 **部分完成：**
 - 系统托盘已有基础菜单，但未接入直播间 / 账号 / AI 动态菜单
@@ -1068,7 +1068,7 @@ impl RateLimiter {
   - [x] 已添加直播间列表（设为当前/进入/移除）
   - [x] room-store.ts 新增 searchResults/addRoom/removeRoom
 - [x] **5.2** 子页面二：AccountPage ✅ 最小可用闭环（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
-- [x] **5.3** 子页面三：AIPage ✅ 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前模型）
+- [x] **5.3** 子页面三：AIPage ✅ 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除）
 - [x] **5.4** 子页面四：SettingsPage ✅ 最小可用闭环（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 - [x] **5.5** 发送弹幕页面：DanmakuPage（当前已完成基础实时弹幕页）
   - [x] 进入房间自动连接弹幕流，离开自动断开

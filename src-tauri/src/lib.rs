@@ -87,6 +87,8 @@ pub fn run() {
             commands::ai::test_ai_connection,
             commands::ai::fetch_models,
             commands::ai::set_current_model,
+            commands::ai::update_ai_model,
+            commands::ai::delete_ai_model,
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
             commands::settings::get_settings,

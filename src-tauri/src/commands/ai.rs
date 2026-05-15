@@ -1,5 +1,6 @@
 use crate::ai_store;
 use crate::models::ai::{AIModel, AIModelInput, TestResult};
+use rand::Rng;
 use std::time::Instant;
 
 #[tauri::command]
@@ -10,7 +11,7 @@ pub async fn get_ai_models(app: tauri::AppHandle) -> Result<Vec<AIModel>, String
 #[tauri::command]
 pub async fn add_ai_model(app: tauri::AppHandle, input: AIModelInput) -> Result<AIModel, String> {
     let mut models = ai_store::load_models(&app)?;
-    let id = format!("model-{}", models.len() + 1);
+    let id = generate_model_id();
     let model = AIModel::from_input(&id, input, models.is_empty());
 
     if model.is_current == Some(true) {
@@ -20,6 +21,23 @@ pub async fn add_ai_model(app: tauri::AppHandle, input: AIModelInput) -> Result<
     }
 
     models.push(model.clone());
+    let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
+    ai_store::save_models(&app, &models, current_id)?;
+    Ok(model)
+}
+
+#[tauri::command]
+pub async fn update_ai_model(app: tauri::AppHandle, id: String, input: AIModelInput) -> Result<AIModel, String> {
+    let mut models = ai_store::load_models(&app)?;
+    let index = models
+        .iter()
+        .position(|item| item.id == id)
+        .ok_or_else(|| "未找到对应模型".to_string())?;
+
+    let is_current = models[index].is_current == Some(true);
+    let model = AIModel::from_input(&id, input, is_current);
+    models[index] = model.clone();
+
     let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
     ai_store::save_models(&app, &models, current_id)?;
     Ok(model)
@@ -120,6 +138,40 @@ pub async fn set_current_model(app: tauri::AppHandle, id: String) -> Result<(), 
     ai_store::save_models(&app, &models, Some(&id))
 }
 
+#[tauri::command]
+pub async fn delete_ai_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let mut models = ai_store::load_models(&app)?;
+    let removed_current = models.iter().any(|item| item.id == id && item.is_current == Some(true));
+    let original_len = models.len();
+    models.retain(|item| item.id != id);
+
+    if models.len() == original_len {
+        return Err("未找到对应模型".to_string());
+    }
+
+    if removed_current {
+        if let Some(first) = models.first_mut() {
+            first.is_current = Some(true);
+            let current_id = first.id.clone();
+            return ai_store::save_models(&app, &models, Some(&current_id));
+        }
+
+        return ai_store::save_models(&app, &models, None);
+    }
+
+    let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
+    ai_store::save_models(&app, &models, current_id)
+}
+
 fn normalize_endpoint(endpoint: &str) -> String {
     endpoint.trim().trim_end_matches('/').to_string()
+}
+
+fn generate_model_id() -> String {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let random: u16 = rand::thread_rng().gen();
+    format!("model-{timestamp}-{random:04x}")
 }
