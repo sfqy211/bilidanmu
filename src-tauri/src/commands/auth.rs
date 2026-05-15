@@ -8,15 +8,109 @@ use tauri::State;
 
 #[tauri::command]
 pub async fn login_by_qr() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0")
+        .build()
+        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))?;
+
+    let response = client
+        .get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate")
+        .header("Referer", "https://www.bilibili.com/")
+        .send()
+        .await
+        .map_err(|error| format!("获取二维码失败: {error}"))?;
+
+    let json = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("解析二维码响应失败: {error}"))?;
+
+    let code = json.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
+    if code != 0 {
+        return Err(json
+            .get("message")
+            .or_else(|| json.get("msg"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("获取二维码失败")
+            .to_string());
+    }
+
+    let data = json.get("data").ok_or_else(|| "二维码响应缺少 data 字段".to_string())?;
     Ok(serde_json::json!({
-        "url": "https://passport.bilibili.com/login",
-        "qrcodeKey": "mock-qrcode-key"
+        "url": data.get("url").and_then(serde_json::Value::as_str).unwrap_or_default(),
+        "qrcodeKey": data.get("qrcode_key").and_then(serde_json::Value::as_str).unwrap_or_default()
     }))
 }
 
 #[tauri::command]
-pub async fn poll_qr(_qrcode_key: String) -> Result<Credential, String> {
-    Ok(Credential::mock())
+pub async fn poll_qr(
+    app: tauri::AppHandle,
+    qrcode_key: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0")
+        .build()
+        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))?;
+
+    let response = client
+        .get("https://passport.bilibili.com/x/passport-login/web/qrcode/poll")
+        .header("Referer", "https://www.bilibili.com/")
+        .query(&[("qrcode_key", qrcode_key)])
+        .send()
+        .await
+        .map_err(|error| format!("轮询二维码状态失败: {error}"))?;
+
+    let headers = response.headers().clone();
+    let json = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("解析二维码轮询响应失败: {error}"))?;
+
+    let outer_code = json.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
+    if outer_code != 0 {
+        return Err(json
+            .get("message")
+            .or_else(|| json.get("msg"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("二维码轮询失败")
+            .to_string());
+    }
+
+    let data = json.get("data").ok_or_else(|| "二维码轮询响应缺少 data 字段".to_string())?;
+    let status_code = data.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
+
+    match status_code {
+        0 => {
+            let cookie = headers
+                .get_all(reqwest::header::SET_COOKIE)
+                .iter()
+                .filter_map(|value| value.to_str().ok())
+                .filter_map(|value| value.split(';').next())
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; ");
+
+            let credential = complete_login_with_cookie(&app, &state, cookie).await?;
+            Ok(serde_json::json!({
+                "status": "success",
+                "message": "扫码登录成功",
+                "credential": credential,
+            }))
+        }
+        86038 => Ok(serde_json::json!({
+            "status": "expired",
+            "message": data.get("message").and_then(serde_json::Value::as_str).unwrap_or("二维码已过期"),
+        })),
+        86090 => Ok(serde_json::json!({
+            "status": "scanned",
+            "message": data.get("message").and_then(serde_json::Value::as_str).unwrap_or("已扫码，等待确认"),
+        })),
+        _ => Ok(serde_json::json!({
+            "status": "pending",
+            "message": data.get("message").and_then(serde_json::Value::as_str).unwrap_or("等待扫码"),
+        })),
+    }
 }
 
 #[tauri::command]
@@ -24,6 +118,14 @@ pub async fn login_by_cookie(
     app: tauri::AppHandle,
     cookie: String,
     state: State<'_, AppState>,
+) -> Result<Credential, String> {
+    complete_login_with_cookie(&app, &state, cookie).await
+}
+
+async fn complete_login_with_cookie(
+    app: &tauri::AppHandle,
+    state: &State<'_, AppState>,
+    cookie: String,
 ) -> Result<Credential, String> {
     let mut parsed = BiliCredential::from_cookie_str(&cookie);
     ensure_buvid(&mut parsed);

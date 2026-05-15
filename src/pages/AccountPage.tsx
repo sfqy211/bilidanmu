@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EyeOff, LogOut, Shield, UserRound } from "lucide-react";
+import { toDataURL } from "qrcode";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -17,12 +18,71 @@ export function AccountPage() {
   } = useAuth();
 
   const [cookie, setCookie] = useState("");
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [qrKey, setQrKey] = useState<string | null>(null);
+  const [qrStatus, setQrStatus] = useState<string>("未生成二维码");
   const [loading, setLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const currentAccount = useMemo(() => accounts[0] ?? null, [accounts]);
+
+  useEffect(() => {
+    if (!qrKey) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const result = await tauriCommands.auth.pollQr(qrKey);
+        if (cancelled) {
+          return;
+        }
+
+        setQrStatus(result.message ?? "等待扫码...");
+
+        if (result.status === "success" && result.credential) {
+          const account = {
+            id: result.credential.accountId,
+            uid: result.credential.uid,
+            username: result.credential.username,
+            avatar: result.credential.avatar,
+            cookie: result.credential.cookie
+          };
+
+          setAccounts([account]);
+          setSendAccountId(account.id);
+          setRecvAccountId(account.id);
+          setSuccess("扫码登录成功");
+          setError(null);
+          setQrKey(null);
+          setQrUrl(null);
+          setQrImageUrl(null);
+          setQrStatus("扫码登录成功");
+        }
+
+        if (result.status === "expired") {
+          setQrKey(null);
+          setQrStatus("二维码已过期，正在自动刷新...");
+          void handleCreateQr(true);
+        }
+      } catch (pollError) {
+        if (!cancelled) {
+          setError(pollError instanceof Error ? pollError.message : "轮询二维码失败");
+          setQrKey(null);
+          setQrStatus("二维码轮询失败");
+        }
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [qrKey, setAccounts, setRecvAccountId, setSendAccountId]);
 
   const handleLogin = async () => {
     const trimmed = cookie.trim();
@@ -74,6 +134,35 @@ export function AccountPage() {
     }
   };
 
+  const handleCreateQr = async (silent = false) => {
+    setLoading(true);
+    if (!silent) {
+      setError(null);
+      setSuccess(null);
+    }
+
+    try {
+      const result = await tauriCommands.auth.loginByQr();
+      const imageUrl = await toDataURL(result.url, {
+        margin: 1,
+        width: 180,
+        color: {
+          dark: "#111827",
+          light: "#ffffff"
+        }
+      });
+      setQrUrl(result.url);
+      setQrImageUrl(imageUrl);
+      setQrKey(result.qrcodeKey);
+      setQrStatus("请使用哔哩哔哩 App 扫码登录，并在手机端确认");
+    } catch (qrError) {
+      setError(qrError instanceof Error ? qrError.message : "获取二维码失败");
+      setQrStatus("获取二维码失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="space-y-6">
       <div>
@@ -81,6 +170,37 @@ export function AccountPage() {
         <p className="mt-1 text-sm text-slate-400">
           先提供 Cookie 登录、当前账号展示、发送/接收账号标记与隐身模式开关。
         </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <h3 className="text-lg font-medium text-white">扫码登录</h3>
+        <p className="mt-1 text-sm text-slate-400">生成二维码后，使用 Bilibili App 扫码并在手机端确认。</p>
+
+        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+            {qrUrl ? (
+              <img
+                src={qrImageUrl ?? undefined}
+                alt="Bilibili 登录二维码"
+                className="h-[180px] w-[180px] rounded-lg bg-white p-2"
+              />
+            ) : (
+              <span className="text-sm text-slate-500">暂无二维码</span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => void handleCreateQr()}
+              disabled={loading}
+              className="rounded-xl border border-cyan-500/20 px-5 py-3 text-sm text-cyan-300 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "生成中..." : qrUrl ? "刷新二维码" : "生成二维码"}
+            </button>
+            <p className="text-sm text-slate-400">{qrStatus}</p>
+            <p className="text-xs text-slate-500">二维码生成后会每 3 秒自动轮询一次状态，过期时会自动刷新。</p>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -105,7 +225,7 @@ export function AccountPage() {
           >
             {loading ? "登录中..." : "使用 Cookie 登录"}
           </button>
-          <span className="text-xs text-slate-500">当前阶段暂未接入扫码登录。</span>
+          <span className="text-xs text-slate-500">手动 Cookie 登录仍可作为扫码登录的备用方案。</span>
         </div>
 
         {error ? <p className="mt-3 text-sm text-rose-400">{error}</p> : null}

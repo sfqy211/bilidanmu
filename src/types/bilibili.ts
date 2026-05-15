@@ -23,6 +23,17 @@ export interface LoginStatus {
   account?: Account;
 }
 
+export interface QrLoginResult {
+  url: string;
+  qrcodeKey: string;
+}
+
+export interface QrPollResult {
+  status: "pending" | "scanned" | "expired" | "success";
+  message?: string;
+  credential?: Credential;
+}
+
 export interface Room {
   id: string;
   roomId: number;
