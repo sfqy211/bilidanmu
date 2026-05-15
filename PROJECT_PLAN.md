@@ -267,7 +267,7 @@ bilidanmu/
 │       │   ├── api.rs                  # HTTP API 封装（reqwest）
 │       │   ├── protocol.rs             # WebSocket 二进制协议
 │       │   ├── ws_client.rs            # WebSocket 客户端
-│       │   └── rate_limiter.rs         # 速率限制器
+│       │   └── (rate_limiter.rs 已删除)
 │       │
 │       ├── tray.rs                     # 系统托盘
 │       │
@@ -299,7 +299,7 @@ bilidanmu/
 │  └───────────────────────┬───────────────────────────────┘   │
 │  ┌───────────────────────┴───────────────────────────────┐   │
 │  │  bili/  ← B站协议实现层                               │   │
-│  │  api.rs · ws_client · credential · wbi · rate_limiter │   │
+│  │  api.rs · ws_client · credential · wbi               │   │
 │  └───────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -1024,7 +1024,7 @@ impl RateLimiter {
   - [x] send_danmaku / send_emoticon — 真实 POST 到 api.live.bilibili.com/msg/send
   - [x] get_emoticons — 获取房间表情列表（GetEmoticons API + parse_emoticon_package/parse_emoticon）
   - [ ] **TODO**: get_user_info
-- [ ] **3.2** `bili/rate_limiter.rs` — 预留能力，当前个人使用场景暂不优先实现
+- [x] **3.2** `bili/rate_limiter.rs` — 已删除（个人使用场景不需要，0.3s 下限已够用）
 - [x] **3.3** `commands/danmaku.rs` — send_danmaku, send_emoticon 命令已接入
   - [x] `send_danmaku`: POST `https://api.live.bilibili.com/msg/send`，form 参数：roomid, msg, color(16777215), fontsize(25), mode(1), rnd(时间戳), bubble(0), csrf(bili_jct), csrf_token(bili_jct), dm_type(0)
   - [x] `send_emoticon`: 同上 + dm_type=1 + emoticon_options JSON（支持 API 返回的 emoticon_options 直传）
