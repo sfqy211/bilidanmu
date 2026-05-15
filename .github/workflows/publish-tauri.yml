@@ -7,10 +7,23 @@ on:
       - 'app-v*'
 
 jobs:
-  publish-windows:
+  publish:
     permissions:
       contents: write
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-13
+            target: x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout repository
@@ -24,11 +37,20 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          key: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install frontend dependencies
         run: npm ci
@@ -40,8 +62,9 @@ jobs:
         run: cargo check
         working-directory: src-tauri
 
-      # 可选：如果后续配置了 Windows 代码签名证书，可取消注释并补充 secrets
+      # 可选：Windows 代码签名
       # - name: Import Windows certificate
+      #   if: matrix.platform == 'windows-latest'
       #   env:
       #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
       #     WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
@@ -56,12 +79,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 如果后续启用 updater 签名，可在仓库 Secrets 中添加以下两个值
           # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: app-v__VERSION__
           releaseName: 'BiliDanmu v__VERSION__'
-          releaseBody: 'See the assets attached to this release for the Windows installer and bundle artifacts.'
+          releaseBody: 'See the assets attached to this release for installers and bundle artifacts.'
           releaseDraft: true
           prerelease: false
+          args: --target ${{ matrix.target }}
