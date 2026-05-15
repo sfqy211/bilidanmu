@@ -1,13 +1,15 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowDown, Flame, Send, Smile, Wifi, WifiOff, X } from "lucide-react";
+import { ArrowDown, Flame, Send, Smile, Wifi, WifiOff } from "lucide-react";
+import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
+import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
+import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
 import { useScheduler } from "@/hooks/useScheduler";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
-import type { BigEmoticonOptions, InlineEmoticon } from "@/types/danmaku";
 
 const statusTextMap = {
   idle: "未连接",
@@ -18,51 +20,12 @@ const statusTextMap = {
   error: "连接异常"
 } as const;
 
-function formatTime(ts: number): string {
-  if (!ts) {
-    return "";
-  }
-
-  const date = new Date(ts * 1000);
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
 function formatPopularity(n: number): string {
   if (n >= 10_000) {
     return `${(n / 10_000).toFixed(1)}万`;
   }
 
   return String(n);
-}
-
-function colorToHex(color?: number): string | undefined {
-  if (color == null || color === 16_777_215) {
-    return undefined;
-  }
-
-  return `#${color.toString(16).padStart(6, "0")}`;
-}
-
-function normalizeHexColor(color?: string, fallback?: string): string | undefined {
-  if (!color) {
-    return fallback;
-  }
-
-  if (color.startsWith("#")) {
-    return color;
-  }
-
-  return `#${color}`;
-}
-
-function getPackageLabel(pkg: EmoticonPackage): string {
-  return pkg.pkgName || `表情包 ${pkg.pkgId}`;
-}
-
-function isEmoticonAvailable(emoticon: Emoticon): boolean {
-  return (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
 }
 
 function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
@@ -87,102 +50,6 @@ function formatStopReason(reason: string): string {
   }
 
   return reason;
-}
-
-function getMessageCardClass(type: string): string {
-  if (type === "gift") {
-    return "rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2";
-  }
-
-  if (type === "entry") {
-    return "rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2";
-  }
-
-  return "rounded-lg bg-slate-950/50 px-3 py-2";
-}
-
-function getMessageTextClass(type: string): string {
-  if (type === "gift") {
-    return "mt-1 break-words text-sm text-amber-100";
-  }
-
-  if (type === "entry") {
-    return "mt-1 break-words text-sm text-slate-300";
-  }
-
-  return "mt-1 break-words text-sm";
-}
-
-function escapeRegExp(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function renderInlineEmots(content: string, emots?: Record<string, InlineEmoticon>) {
-  if (!emots || Object.keys(emots).length === 0) {
-    return content;
-  }
-
-  const keys = Object.keys(emots);
-  if (keys.length === 0) {
-    return content;
-  }
-
-  const pattern = new RegExp(
-    [...keys].sort((a, b) => b.length - a.length).map(escapeRegExp).join("|"),
-    "g"
-  );
-  const parts: ReactNode[] = [];
-  let lastIndex = 0;
-
-  for (const match of content.matchAll(pattern)) {
-    const index = match.index ?? 0;
-    if (index > lastIndex) {
-      parts.push(content.slice(lastIndex, index));
-    }
-
-    const token = match[0];
-    const emot = emots[token];
-    if (emot?.url) {
-      parts.push(
-        <img
-          key={`${token}-${index}`}
-          src={emot.url}
-          alt={emot.emoji ?? token}
-          title={emot.descript ?? token}
-          className="mx-0.5 inline-block align-middle"
-          style={{
-            width: emot.width ?? 20,
-            height: emot.height ?? 20
-          }}
-        />
-      );
-    } else {
-      parts.push(token);
-    }
-
-    lastIndex = index + token.length;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex));
-  }
-
-  return parts;
-}
-
-function getBigEmoticonSize(emoticon?: BigEmoticonOptions) {
-  if (!emoticon) {
-    return { width: 162, height: 162 };
-  }
-
-  if (emoticon.emoticonUnique?.startsWith("official_")) {
-    return {
-      width: emoticon.width ?? 183,
-      height: emoticon.height ?? 60
-    };
-  }
-
-  return { width: 162, height: 162 };
 }
 
 export function DanmakuPage() {
@@ -288,7 +155,7 @@ export function DanmakuPage() {
 
   const handleSendEmoticon = useCallback(
     async (emoticon: Emoticon) => {
-      if (!roomId || !emoticon.emoticonUnique || !isEmoticonAvailable(emoticon)) {
+      if (!roomId || !emoticon.emoticonUnique || (emoticon.perm ?? 1) === 0) {
         return;
       }
 
@@ -307,11 +174,6 @@ export function DanmakuPage() {
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     setIsAtBottom(true);
   };
-
-  const activePackage = useMemo(
-    () => emoticonPackages.find((pkg) => pkg.pkgId === activePkgId) ?? emoticonPackages[0],
-    [activePkgId, emoticonPackages]
-  );
 
   const loopMessages = useMemo(
     () => loopMessagesInput.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
@@ -382,122 +244,13 @@ export function DanmakuPage() {
                 暂无弹幕，连接成功后会在这里实时显示。
               </div>
             ) : (
-              messages.map((item) => {
-                const textColor = colorToHex(item.color);
-                const bigEmoticonSize =
-                  item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
-                    ? getBigEmoticonSize(item.emoticonOptions)
-                    : null;
-
-                if (item.type === "superChat") {
-                  const headerBg = normalizeHexColor(item.backgroundColor, "#EDF5FF");
-                  const bottomBg = normalizeHexColor(item.backgroundBottomColor, "#2A60B2");
-                  const priceColor = normalizeHexColor(item.backgroundPriceColor, "#7497CD");
-                  const messageColor = normalizeHexColor(item.messageFontColor, "#FFFFFF");
-
-                  return (
-                    <div
-                      key={`${item.roomId}-${item.id}-${item.timestamp}`}
-                      className="overflow-hidden rounded-lg"
-                    >
-                      <div
-                        className="flex items-center gap-3 border-x border-t px-3 py-2"
-                        style={{
-                          backgroundColor: headerBg,
-                          borderColor: bottomBg,
-                          backgroundImage: item.backgroundImage
-                            ? `url(${item.backgroundImage})`
-                            : undefined,
-                          backgroundRepeat: "no-repeat",
-                          backgroundPosition: "top right",
-                          backgroundSize: "auto 100%"
-                        }}
-                      >
-                        {item.avatar ? (
-                          <img
-                            src={item.avatar}
-                            alt={item.username}
-                            className="h-9 w-9 rounded-full border border-white/20 object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/30 text-slate-700">
-                            💬
-                          </div>
-                        )}
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 text-xs text-slate-600">
-                            {item.timestamp > 0 ? (
-                              <span className="text-slate-500">{formatTime(item.timestamp)}</span>
-                            ) : null}
-                            <span className="truncate font-medium text-slate-800">{item.username}</span>
-                            {item.medal ? <span className="text-cyan-700">[{item.medal}]</span> : null}
-                          </div>
-                        </div>
-
-                        {item.price ? (
-                          <span className="text-sm font-semibold" style={{ color: priceColor }}>
-                            ¥{item.price}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div
-                        className="border-x border-b px-3 py-2 text-sm"
-                        style={{
-                          backgroundColor: bottomBg,
-                          borderColor: bottomBg,
-                          color: messageColor
-                        }}
-                      >
-                        {item.content}
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={`${item.roomId}-${item.id}-${item.timestamp}`}
-                    className={getMessageCardClass(item.type)}
-                  >
-                    <div className="flex items-center gap-2 text-xs">
-                      {item.timestamp > 0 && (
-                        <span className="text-slate-500">{formatTime(item.timestamp)}</span>
-                      )}
-                      {item.type === "gift" ? <span className="text-amber-300">🎁</span> : null}
-                      {item.type === "entry" ? <span className="text-slate-400">↪</span> : null}
-                      <span className="font-medium text-pink-300">{item.username}</span>
-                      {item.medal ? <span className="text-cyan-300">[{item.medal}]</span> : null}
-                      {item.isAdmin ? <span className="text-amber-300">房管</span> : null}
-                      {item.type === "gift" && item.giftName ? (
-                        <span className="text-amber-200">{item.giftName}</span>
-                      ) : null}
-                    </div>
-                    <p
-                      className={getMessageTextClass(item.type)}
-                      style={
-                        item.type === "danmaku" && textColor ? { color: textColor } : undefined
-                      }
-                    >
-                      {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (
-                        <span className="flex items-center justify-center py-1">
-                          <img
-                            src={item.emoticonOptions.url}
-                            alt={item.emoticonOptions.emoticonUnique}
-                            className="object-contain"
-                            style={{ width: bigEmoticonSize.width, height: bigEmoticonSize.height }}
-                          />
-                        </span>
-                      ) : item.type === "danmaku" ? (
-                        renderInlineEmots(item.content, item.emots)
-                      ) : (
-                        item.content
-                      )}
-                    </p>
-                  </div>
-                );
-              })
+              messages.map((item) =>
+                item.type === "superChat" ? (
+                  <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
+                ) : (
+                  <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
+                )
+              )
             )}
           </div>
 
@@ -528,95 +281,19 @@ export function DanmakuPage() {
                 </button>
               </div>
 
-              {emoticonPickerOpen && (
-                <div className="mb-3 rounded-xl border border-white/10 bg-slate-950/80 p-3">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-200">表情选择器</p>
-                      <p className="text-xs text-slate-500">点击大表情后直接发送</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setEmoticonPickerOpen(false)}
-                      className="rounded-md p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {loadingEmoticons ? (
-                    <div className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
-                      正在加载表情列表...
-                    </div>
-                  ) : emoticonError ? (
-                    <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-4 text-sm text-rose-300">
-                      <p>{emoticonError}</p>
-                      <button
-                        type="button"
-                        onClick={() => void loadEmoticons()}
-                        className="mt-2 text-xs text-pink-300 hover:text-pink-200"
-                      >
-                        重新加载
-                      </button>
-                    </div>
-                  ) : emoticonPackages.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
-                      当前房间没有可用表情。
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {emoticonPackages.map((pkg) => {
-                          const active = pkg.pkgId === activePackage?.pkgId;
-                          return (
-                            <button
-                              key={pkg.pkgId}
-                              type="button"
-                              onClick={() => setActivePkgId(pkg.pkgId)}
-                              className={`rounded-full border px-3 py-1 text-xs transition ${
-                                active
-                                  ? "border-pink-400 bg-pink-500/15 text-pink-200"
-                                  : "border-white/10 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                              }`}
-                            >
-                              {getPackageLabel(pkg)}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className="grid max-h-64 grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4 xl:grid-cols-6">
-                        {activePackage?.emoticons.map((emoticon, index) => {
-                          const available = isEmoticonAvailable(emoticon);
-                          return (
-                            <button
-                              key={`${activePackage.pkgId}-${emoticon.emoticonId ?? index}`}
-                              type="button"
-                              disabled={!available || sending}
-                              onClick={() => void handleSendEmoticon(emoticon)}
-                              title={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                              className={`flex flex-col items-center rounded-xl border p-2 text-center transition ${
-                                available
-                                  ? "border-white/10 bg-slate-900/70 hover:border-pink-400/40 hover:bg-slate-800"
-                                  : "cursor-not-allowed border-white/5 bg-slate-900/40 opacity-50"
-                              }`}
-                            >
-                              <img
-                                src={emoticon.url}
-                                alt={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                                className="h-12 w-12 object-contain"
-                              />
-                              <span className="mt-2 line-clamp-2 text-[11px] text-slate-300">
-                                {emoticon.descript ?? emoticon.emoji ?? "未命名表情"}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+              {emoticonPickerOpen ? (
+                <EmoticonPickerPanel
+                  loading={loadingEmoticons}
+                  error={emoticonError}
+                  packages={emoticonPackages}
+                  activePkgId={activePkgId}
+                  sending={sending}
+                  onClose={() => setEmoticonPickerOpen(false)}
+                  onReload={() => void loadEmoticons()}
+                  onSelectPackage={setActivePkgId}
+                  onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
+                />
+              ) : null}
 
               <textarea
                 value={message}
