@@ -12,7 +12,7 @@
 | Phase 2：认证 & WBI 签名       | ✅ 已完成   | `credential.rs` / `wbi.rs` / `buvid.rs` / `credential_store.rs` 已接通；Cookie 登录、启动恢复登录、WBI 缓存、buvid 生成均已实现    |
 | Phase 3：弹幕发送 & API        | ✅ 已完成   | 文字/表情弹幕发送、表情列表获取、房间搜索、房间信息、弹幕服务器信息、循环发送后端均为真实调用                                      |
 | Phase 4：WebSocket 弹幕接收    | ✅ 已完成   | `protocol.rs` 协议解析、`ws_client.rs` 连接/认证/心跳/重连、前端事件监听和 DanmakuPage 基础展示均已接通                            |
-| Phase 5：前端页面开发          | ✅ 已完成   | `RoomPage`、`DanmakuPage`（独轮车+礼物/进场/SC+表情）、`AccountPage`、`SettingsPage`、`AIPage` 全部进入可用态      |
+| Phase 5：前端页面开发          | ✅ 已完成   | `RoomPage`、`DanmakuPage`（组件化拆分 + 独轮车+礼物/进场/SC+表情）、`AccountPage`、`SettingsPage`、`AIPage` 全部进入可用态 |
 | Phase 6：完善 & 打包           | 🔧 进行中   | 系统托盘动态菜单已完成，打包脚本、发布流程尚未开始                                                                    |
 
 ### 当前已实现情况（按代码现状）
@@ -37,6 +37,7 @@
 - SettingsPage 真实读写（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 - AIPage 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除，ID 改用时间戳+随机 hex 防冲突）
 - 系统托盘动态菜单（账号/房间/AI 状态实时展示，状态变化自动刷新）
+- DanmakuPage 组件化拆分：SuperChatCard（SC 卡片）、DanmakuMessageItem（普通/礼物/进场/大表情渲染）、InlineEmotText（inline 表情混排）、EmoticonPickerPanel（表情选择器）
 
 **未完成 / 占位：**
 
@@ -1069,7 +1070,7 @@ impl RateLimiter {
 - [x] **5.2** 子页面二：AccountPage ✅ 完整版（扫码登录 + Cookie 登录、本地 QR 生成、过期自动刷新、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - [x] **5.3** 子页面三：AIPage ✅ 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除）
 - [x] **5.4** 子页面四：SettingsPage ✅ 最小可用闭环（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
-- [x] **5.5** 发送弹幕页面：DanmakuPage（当前已完成基础实时弹幕页）
+- [x] **5.5** 发送弹幕页面：DanmakuPage（组件化拆分 + 基础实时弹幕页）
   - [x] 进入房间自动连接弹幕流，离开自动断开
   - [x] 监听 danmaku-received/ws-connected/ws-disconnected/danmaku-error/ws-heartbeat 事件
   - [x] 实时弹幕流渲染（用户名、勋章、房管标记、弹幕内容）
@@ -1080,6 +1081,7 @@ impl RateLimiter {
   - [x] WS 状态指示（连接中/已连接/重连中/错误）
   - [x] 发送统计与错误显示
   - [x] 表情选择器（懒加载、包切换、网格展示、可用性判断、点击发送）
+  - [x] 组件化拆分：SuperChatCard / DanmakuMessageItem / InlineEmotText / EmoticonPickerPanel（第一轮）
   - [x] 独轮车完整版（useScheduler + 多行输入 + 间隔 + 启动/停止 + 运行态/错误 + 切房自动停 + 发送计数 + 条目索引 + 停止原因）
   - [x] 礼物消息（SEND_GIFT 解析 + amber 卡片样式 + 礼物名显示）
   - [x] 进场消息（INTERACT_WORD 解析 + 新旧结构兼容 + msg_type 映射 + 轻量卡片）
