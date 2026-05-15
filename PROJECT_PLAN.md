@@ -33,18 +33,18 @@
 - DanmakuPage 实时弹幕流、时间戳、人气值、自动滚动、回到底部、Enter 发送、表情选择器
 - 接收增强：礼物消息（SEND_GIFT）、进场消息（INTERACT_WORD 新旧结构兼容）、SC 消息（SUPER_CHAT_MESSAGE + 真实颜色两段式卡片）、inline 表情渲染（emots 解析 + 正则替换 + img 渲染）、大表情渲染（dmType=1 + info[0][13] 解析 + PiliPlus 尺寸策略）
 - 独轮车完整版（useScheduler + 循环发送面板：切房/卸载自动停、发送计数、条目索引、停止原因、前后端 0.3s 下限一致）
-- AccountPage 真实 UI（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
+- AccountPage 真实 UI（扫码登录 + Cookie 登录、本地 QR 生成、过期自动刷新、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - SettingsPage 真实读写（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 - AIPage 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除，ID 改用时间戳+随机 hex 防冲突）
 - 系统托盘动态菜单（账号/房间/AI 状态实时展示，状态变化自动刷新）
 
 **未完成 / 占位：**
 
-- 二维码登录真实流程
+- （无）
 
 **下一步重点：**
 
-1. 二维码登录真实流程
+1. 测试、风控对抗、打包发布
 
 ---
 
@@ -1007,7 +1007,8 @@ impl RateLimiter {
   - [x] check_login_status 调用 `/x/web-interface/nav` 真实校验
   - [x] 账号持久化：credential_store.rs（cookie 本地存储）+ restore_login + logout
   - [x] App.tsx 启动时自动恢复登录状态
-  - [ ] **TODO**: login_by_qr 二维码登录（当前 mock）
+  - [x] login_by_qr 二维码登录（真实 API + Set-Cookie 提取 + complete_login_with_cookie 共享逻辑）
+  - [x] AccountPage 扫码 UI（本地 QR 生成 via qrcode 库 + 3s 轮询 + 过期自动刷新 + 七种状态文案）
 
 ### Phase 3：Rust 后端 — 弹幕发送 & API（Day 5-7） 🔧 进行中
 
@@ -1065,7 +1066,7 @@ impl RateLimiter {
   - [x] 搜索结果列表 + 添加房间
   - [x] 已添加直播间列表（设为当前/进入/移除）
   - [x] room-store.ts 新增 searchResults/addRoom/removeRoom
-- [x] **5.2** 子页面二：AccountPage ✅ 最小可用闭环（Cookie 登录、账号展示、发送/接收标记、退出登录、隐身模式开关）
+- [x] **5.2** 子页面二：AccountPage ✅ 完整版（扫码登录 + Cookie 登录、本地 QR 生成、过期自动刷新、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - [x] **5.3** 子页面三：AIPage ✅ 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除）
 - [x] **5.4** 子页面四：SettingsPage ✅ 最小可用闭环（settings_store.rs 持久化 + IPC 命令 + 前端表单：发送间隔/接收/外观/通知核心子集）
 - [x] **5.5** 发送弹幕页面：DanmakuPage（当前已完成基础实时弹幕页）
@@ -1112,6 +1113,7 @@ impl RateLimiter {
     "clsx": "^2.1",
     "tailwind-merge": "^2.6",
     "class-variance-authority": "^0.7",
+    "qrcode": "^1.5",
     "lucide-react": "^0.460",
     "@radix-ui/react-dialog": "^1.1",
     "@radix-ui/react-select": "^2.1",
@@ -1123,6 +1125,7 @@ impl RateLimiter {
     "@vitejs/plugin-react": "^4.3",
     "tailwindcss": "^3.0",
     "@tauri-apps/cli": "^2.0",
+    "@types/qrcode": "^1.5",
     "vitest": "(未接入)",
     "@testing-library/react": "(未接入)",
     "jsdom": "(未接入)"
