@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function App() {
+  useTheme();
   const { setAccounts, setSendAccountId, setRecvAccountId } = useAuthStore();
 
   useEffect(() => {

@@ -3,22 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --background: 222 47% 11%;
+  --background: 220 14% 96%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 338 85% 61%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 94%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 196 87% 55%;
+  --accent-foreground: 222 47% 11%;
+  --border: 220 13% 89%;
+  --input: 220 13% 89%;
+  --ring: 338 85% 61%;
+  --radius: 0.875rem;
+}
+
+.dark {
+  --background: 222 47% 7%;
   --foreground: 210 40% 98%;
-  --card: 224 37% 15%;
+  --card: 222 30% 10%;
   --card-foreground: 210 40% 98%;
   --primary: 338 85% 61%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 217 33% 20%;
+  --secondary: 222 25% 12%;
   --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 20%;
-  --muted-foreground: 215 20% 70%;
+  --muted: 222 25% 12%;
+  --muted-foreground: 215 20% 55%;
   --accent: 196 87% 55%;
-  --accent-foreground: 222 47% 11%;
-  --border: 217 33% 24%;
-  --input: 217 33% 24%;
+  --accent-foreground: 222 47% 7%;
+  --border: 222 25% 16%;
+  --input: 222 25% 16%;
   --ring: 338 85% 61%;
-  --radius: 0.875rem;
 }
 
 * {

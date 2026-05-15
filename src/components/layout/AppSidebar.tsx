@@ -12,8 +12,8 @@ const navItems = [
 
 export function AppSidebar() {
   return (
-    <aside className="flex w-16 flex-col border-r border-white/10 bg-slate-950/80">
-      <div className="flex h-16 items-center justify-center border-b border-white/10 text-lg font-semibold text-pink-400">
+    <aside className="flex w-16 flex-col border-r border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#0e1018]">
+      <div className="flex h-16 items-center justify-center border-b border-slate-300 text-lg font-semibold text-pink-500 dark:border-white/[0.06] dark:text-pink-400">
         BD
       </div>
       <nav className="flex flex-1 flex-col gap-2 p-2">
@@ -23,8 +23,8 @@ export function AppSidebar() {
             to={to}
             className={({ isActive }) =>
               cn(
-                "group relative flex h-12 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white/5 hover:text-white",
-                isActive && "bg-white/10 text-white"
+                "group relative flex h-12 items-center justify-center text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white",
+                isActive && "bg-slate-200 text-slate-900 dark:bg-white/[0.08] dark:text-white"
               )
             }
             title={label}
@@ -33,7 +33,7 @@ export function AppSidebar() {
               <>
                 <span
                   className={cn(
-                    "absolute left-0 h-8 w-1 rounded-r-full bg-pink-500 opacity-0 transition",
+                    "absolute left-0 h-8 w-1 bg-pink-500 opacity-0 transition",
                     isActive && "opacity-100"
                   )}
                 />
@@ -43,7 +43,7 @@ export function AppSidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="border-t border-white/10 p-3 text-center text-xs text-slate-500">{APP_VERSION}</div>
+      <div className="border-t border-slate-300 p-3 text-center text-xs text-slate-400 dark:border-white/[0.06] dark:text-slate-500">{APP_VERSION}</div>
     </aside>
   );
 }
