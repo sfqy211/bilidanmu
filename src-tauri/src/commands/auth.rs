@@ -2,6 +2,7 @@ use crate::models::account::{Credential, LoginStatus};
 use crate::bili::buvid::ensure_buvid;
 use crate::bili::credential::BiliCredential;
 use crate::commands::build_api_client;
+use crate::tray;
 use crate::{credential_store, AppState};
 use tauri::State;
 
@@ -38,6 +39,7 @@ pub async fn login_by_cookie(
 
     // 登录验证成功后保存 cookie 到本地存储
     credential_store::save_cookie(&app, &cookie)?;
+    let _ = tray::refresh_tray(&app);
 
     let mut credential = Credential::mock();
     if let Some(account) = login_status.account {
@@ -135,5 +137,7 @@ pub async fn logout(
         let mut credential_state = state.credential.lock().await;
         *credential_state = None;
     }
-    credential_store::clear_cookie(&app)
+    credential_store::clear_cookie(&app)?;
+    let _ = tray::refresh_tray(&app);
+    Ok(())
 }

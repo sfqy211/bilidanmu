@@ -56,6 +56,8 @@ pub fn run() {
                 }
             }
 
+            let _ = tray::refresh_tray(app.handle());
+
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -1,5 +1,6 @@
 use crate::ai_store;
 use crate::models::ai::{AIModel, AIModelInput, TestResult};
+use crate::tray;
 use rand::Rng;
 use std::time::Instant;
 
@@ -23,6 +24,7 @@ pub async fn add_ai_model(app: tauri::AppHandle, input: AIModelInput) -> Result<
     models.push(model.clone());
     let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
     ai_store::save_models(&app, &models, current_id)?;
+    let _ = tray::refresh_tray(&app);
     Ok(model)
 }
 
@@ -40,6 +42,7 @@ pub async fn update_ai_model(app: tauri::AppHandle, id: String, input: AIModelIn
 
     let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
     ai_store::save_models(&app, &models, current_id)?;
+    let _ = tray::refresh_tray(&app);
     Ok(model)
 }
 
@@ -135,7 +138,9 @@ pub async fn set_current_model(app: tauri::AppHandle, id: String) -> Result<(), 
         return Err("未找到对应模型".to_string());
     }
 
-    ai_store::save_models(&app, &models, Some(&id))
+    ai_store::save_models(&app, &models, Some(&id))?;
+    let _ = tray::refresh_tray(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -153,14 +158,20 @@ pub async fn delete_ai_model(app: tauri::AppHandle, id: String) -> Result<(), St
         if let Some(first) = models.first_mut() {
             first.is_current = Some(true);
             let current_id = first.id.clone();
-            return ai_store::save_models(&app, &models, Some(&current_id));
+            ai_store::save_models(&app, &models, Some(&current_id))?;
+            let _ = tray::refresh_tray(&app);
+            return Ok(());
         }
 
-        return ai_store::save_models(&app, &models, None);
+        ai_store::save_models(&app, &models, None)?;
+        let _ = tray::refresh_tray(&app);
+        return Ok(());
     }
 
     let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
-    ai_store::save_models(&app, &models, current_id)
+    ai_store::save_models(&app, &models, current_id)?;
+    let _ = tray::refresh_tray(&app);
+    Ok(())
 }
 
 fn normalize_endpoint(endpoint: &str) -> String {

@@ -1,6 +1,7 @@
 use crate::commands::build_api_client;
 use crate::models::room::{EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::room_store;
+use crate::tray;
 use crate::AppState;
 use tauri::State;
 
@@ -40,12 +41,15 @@ pub async fn add_room(
     let api = build_api_client(credential, &state)?;
     let room = api.get_room_info(room_id).await?;
     room_store::upsert_room(&app, &room.room)?;
+    let _ = tray::refresh_tray(&app);
     Ok(room)
 }
 
 #[tauri::command]
 pub async fn remove_room(app: tauri::AppHandle, room_id: u64) -> Result<(), String> {
-    room_store::remove_room(&app, room_id)
+    room_store::remove_room(&app, room_id)?;
+    let _ = tray::refresh_tray(&app);
+    Ok(())
 }
 
 #[tauri::command]
