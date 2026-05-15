@@ -1081,7 +1081,8 @@ impl RateLimiter {
   - [x] WS 状态指示（连接中/已连接/重连中/错误）
   - [x] 发送统计与错误显示
   - [x] 表情选择器（懒加载、包切换、网格展示、可用性判断、点击发送）
-  - [x] 组件化拆分：SuperChatCard / DanmakuMessageItem / InlineEmotText / EmoticonPickerPanel（第一轮）
+  - [x] 组件化拆分第一轮：SuperChatCard / DanmakuMessageItem / InlineEmotText / EmoticonPickerPanel
+  - [x] 组件化拆分第二轮：LoopSenderPanel（独轮车面板独立组件）
   - [x] 独轮车完整版（useScheduler + 多行输入 + 间隔 + 启动/停止 + 运行态/错误 + 切房自动停 + 发送计数 + 条目索引 + 停止原因）
   - [x] 礼物消息（SEND_GIFT 解析 + amber 卡片样式 + 礼物名显示）
   - [x] 进场消息（INTERACT_WORD 解析 + 新旧结构兼容 + msg_type 映射 + 轻量卡片）
