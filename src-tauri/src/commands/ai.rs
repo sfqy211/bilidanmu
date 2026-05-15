@@ -1,17 +1,19 @@
 use crate::ai_store;
 use crate::models::ai::{AIModel, AIModelInput, TestResult};
 use crate::tray;
+use crate::AppState;
 use rand::Rng;
 use std::time::Instant;
+use tauri::State;
 
 #[tauri::command]
-pub async fn get_ai_models(app: tauri::AppHandle) -> Result<Vec<AIModel>, String> {
-    ai_store::load_models(&app)
+pub async fn get_ai_models(state: State<'_, AppState>) -> Result<Vec<AIModel>, String> {
+    ai_store::load_models(state.inner())
 }
 
 #[tauri::command]
-pub async fn add_ai_model(app: tauri::AppHandle, input: AIModelInput) -> Result<AIModel, String> {
-    let mut models = ai_store::load_models(&app)?;
+pub async fn add_ai_model(app: tauri::AppHandle, input: AIModelInput, state: State<'_, AppState>) -> Result<AIModel, String> {
+    let mut models = ai_store::load_models(state.inner())?;
     let id = generate_model_id();
     let model = AIModel::from_input(&id, input, models.is_empty());
 
@@ -22,15 +24,14 @@ pub async fn add_ai_model(app: tauri::AppHandle, input: AIModelInput) -> Result<
     }
 
     models.push(model.clone());
-    let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
-    ai_store::save_models(&app, &models, current_id)?;
+    ai_store::save_models(state.inner(), &models)?;
     let _ = tray::refresh_tray(&app);
     Ok(model)
 }
 
 #[tauri::command]
-pub async fn update_ai_model(app: tauri::AppHandle, id: String, input: AIModelInput) -> Result<AIModel, String> {
-    let mut models = ai_store::load_models(&app)?;
+pub async fn update_ai_model(app: tauri::AppHandle, id: String, input: AIModelInput, state: State<'_, AppState>) -> Result<AIModel, String> {
+    let mut models = ai_store::load_models(state.inner())?;
     let index = models
         .iter()
         .position(|item| item.id == id)
@@ -40,8 +41,7 @@ pub async fn update_ai_model(app: tauri::AppHandle, id: String, input: AIModelIn
     let model = AIModel::from_input(&id, input, is_current);
     models[index] = model.clone();
 
-    let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
-    ai_store::save_models(&app, &models, current_id)?;
+    ai_store::save_models(state.inner(), &models)?;
     let _ = tray::refresh_tray(&app);
     Ok(model)
 }
@@ -122,8 +122,8 @@ pub async fn fetch_models(endpoint: String, api_key: String) -> Result<Vec<Strin
 }
 
 #[tauri::command]
-pub async fn set_current_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    let mut models = ai_store::load_models(&app)?;
+pub async fn set_current_model(app: tauri::AppHandle, id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let mut models = ai_store::load_models(state.inner())?;
     let mut found = false;
 
     for model in &mut models {
@@ -138,14 +138,14 @@ pub async fn set_current_model(app: tauri::AppHandle, id: String) -> Result<(), 
         return Err("未找到对应模型".to_string());
     }
 
-    ai_store::save_models(&app, &models, Some(&id))?;
+    ai_store::save_models(state.inner(), &models)?;
     let _ = tray::refresh_tray(&app);
     Ok(())
 }
 
 #[tauri::command]
-pub async fn delete_ai_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    let mut models = ai_store::load_models(&app)?;
+pub async fn delete_ai_model(app: tauri::AppHandle, id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let mut models = ai_store::load_models(state.inner())?;
     let removed_current = models.iter().any(|item| item.id == id && item.is_current == Some(true));
     let original_len = models.len();
     models.retain(|item| item.id != id);
@@ -157,19 +157,17 @@ pub async fn delete_ai_model(app: tauri::AppHandle, id: String) -> Result<(), St
     if removed_current {
         if let Some(first) = models.first_mut() {
             first.is_current = Some(true);
-            let current_id = first.id.clone();
-            ai_store::save_models(&app, &models, Some(&current_id))?;
+            ai_store::save_models(state.inner(), &models)?;
             let _ = tray::refresh_tray(&app);
             return Ok(());
         }
 
-        ai_store::save_models(&app, &models, None)?;
+        ai_store::save_models(state.inner(), &models)?;
         let _ = tray::refresh_tray(&app);
         return Ok(());
     }
 
-    let current_id = models.iter().find(|item| item.is_current == Some(true)).map(|item| item.id.as_str());
-    ai_store::save_models(&app, &models, current_id)?;
+    ai_store::save_models(state.inner(), &models)?;
     let _ = tray::refresh_tray(&app);
     Ok(())
 }

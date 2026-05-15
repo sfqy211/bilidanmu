@@ -1,4 +1,4 @@
-use crate::{ai_store, credential_store, room_store};
+use crate::{ai_store, credential_store, room_store, AppState};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIcon, TrayIconBuilder},
@@ -47,7 +47,9 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let account = MenuItem::with_id(app, "account", account_text, false, None::<&str>)?;
     menu.append(&account)?;
 
-    let rooms = room_store::load_rooms(app).unwrap_or_default();
+    let state = app.state::<AppState>();
+
+    let rooms = room_store::load_rooms(state.inner()).unwrap_or_default();
     if rooms.is_empty() {
         let empty = MenuItem::with_id(app, "rooms-empty", "📺 直播间：暂无", false, None::<&str>)?;
         menu.append(&empty)?;
@@ -61,7 +63,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         }
     }
 
-    let models = ai_store::load_models(app).unwrap_or_default();
+    let models = ai_store::load_models(state.inner()).unwrap_or_default();
     let current_model = models.iter().find(|item| item.is_current == Some(true));
     let ai_text = current_model
         .map(|item| format!("🤖 AI：{}", item.model_name))

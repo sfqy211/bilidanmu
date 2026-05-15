@@ -40,14 +40,14 @@ pub async fn add_room(
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state)?;
     let room = api.get_room_info(room_id).await?;
-    room_store::upsert_room(&app, &room.room)?;
+    room_store::upsert_room(state.inner(), &room.room)?;
     let _ = tray::refresh_tray(&app);
     Ok(room)
 }
 
 #[tauri::command]
-pub async fn remove_room(app: tauri::AppHandle, room_id: u64) -> Result<(), String> {
-    room_store::remove_room(&app, room_id)?;
+pub async fn remove_room(app: tauri::AppHandle, room_id: u64, state: State<'_, AppState>) -> Result<(), String> {
+    room_store::remove_room(state.inner(), room_id)?;
     let _ = tray::refresh_tray(&app);
     Ok(())
 }
@@ -67,8 +67,8 @@ pub async fn get_danmu_info(room_id: u64, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
-pub async fn get_rooms(app: tauri::AppHandle) -> Result<Vec<Room>, String> {
-    room_store::load_rooms(&app)
+pub async fn get_rooms(state: State<'_, AppState>) -> Result<Vec<Room>, String> {
+    room_store::load_rooms(state.inner())
 }
 
 #[tauri::command]
@@ -76,9 +76,17 @@ pub async fn get_emoticons(
     room_id: u64,
     state: State<'_, AppState>,
 ) -> Result<Vec<EmoticonPackage>, String> {
+    if let Ok(cached) = crate::emoticon_store::load_room_packages(state.inner(), room_id) {
+        if !cached.is_empty() {
+            return Ok(cached);
+        }
+    }
+
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state)?;
-    api.get_emoticons(room_id).await
+    let packages = api.get_emoticons(room_id).await?;
+    let _ = crate::emoticon_store::save_packages(state.inner(), room_id, &packages);
+    Ok(packages)
 }
 
 #[tauri::command]

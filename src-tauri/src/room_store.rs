@@ -1,52 +1,72 @@
+use crate::db;
 use crate::models::room::Room;
-use tauri_plugin_store::StoreExt;
+use crate::AppState;
+use rusqlite::params;
 
-const STORE_FILE: &str = "rooms.json";
-const STORE_KEY: &str = "rooms";
+pub fn load_rooms(state: &AppState) -> Result<Vec<Room>, String> {
+    db::with_connection(state, |connection| {
+        let mut statement = connection
+            .prepare(
+                "SELECT room_id, uid, title, uname, cover, is_live, online FROM rooms ORDER BY room_id DESC",
+            )
+            .map_err(|error| format!("准备查询房间列表失败: {error}"))?;
 
-pub fn load_rooms(app: &tauri::AppHandle) -> Result<Vec<Room>, String> {
-    let store = app
-        .store_builder(STORE_FILE)
-        .build()
-        .map_err(|error| format!("创建房间存储失败: {error}"))?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(Room {
+                    id: row.get::<_, u64>(0)?.to_string(),
+                    room_id: row.get(0)?,
+                    uid: row.get(1)?,
+                    title: row.get(2)?,
+                    uname: row.get(3)?,
+                    cover: row.get(4)?,
+                    is_live: row.get::<_, i64>(5)? != 0,
+                    online: row.get(6)?,
+                })
+            })
+            .map_err(|error| format!("查询房间列表失败: {error}"))?;
 
-    let Some(value) = store.get(STORE_KEY) else {
-        return Ok(Vec::new());
-    };
-
-    serde_json::from_value(value).map_err(|error| format!("读取房间列表失败: {error}"))
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("读取房间列表失败: {error}"))
+    })
 }
 
-pub fn save_rooms(app: &tauri::AppHandle, rooms: &[Room]) -> Result<(), String> {
-    let store = app
-        .store_builder(STORE_FILE)
-        .build()
-        .map_err(|error| format!("创建房间存储失败: {error}"))?;
+pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
+    db::with_connection(state, |connection| {
+        connection
+            .execute(
+                r#"
+                INSERT INTO rooms (room_id, uid, title, uname, cover, is_live, online)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                ON CONFLICT(room_id) DO UPDATE SET
+                  uid = excluded.uid,
+                  title = excluded.title,
+                  uname = excluded.uname,
+                  cover = excluded.cover,
+                  is_live = excluded.is_live,
+                  online = excluded.online
+                "#,
+                params![
+                    room.room_id,
+                    room.uid,
+                    room.title,
+                    room.uname,
+                    room.cover,
+                    if room.is_live { 1 } else { 0 },
+                    room.online,
+                ],
+            )
+            .map_err(|error| format!("保存房间失败: {error}"))?;
 
-    store.set(
-        STORE_KEY,
-        serde_json::to_value(rooms).map_err(|error| format!("序列化房间列表失败: {error}"))?,
-    );
-
-    store
-        .save()
-        .map_err(|error| format!("保存房间列表失败: {error}"))?;
-
-    Ok(())
+        Ok(())
+    })
 }
 
-pub fn upsert_room(app: &tauri::AppHandle, room: &Room) -> Result<(), String> {
-    let mut rooms = load_rooms(app)?;
-    if let Some(existing) = rooms.iter_mut().find(|item| item.room_id == room.room_id) {
-        *existing = room.clone();
-    } else {
-        rooms.push(room.clone());
-    }
-    save_rooms(app, &rooms)
-}
-
-pub fn remove_room(app: &tauri::AppHandle, room_id: u64) -> Result<(), String> {
-    let mut rooms = load_rooms(app)?;
-    rooms.retain(|room| room.room_id != room_id);
-    save_rooms(app, &rooms)
+pub fn remove_room(state: &AppState, room_id: u64) -> Result<(), String> {
+    db::with_connection(state, |connection| {
+        connection
+            .execute("DELETE FROM rooms WHERE room_id = ?1", params![room_id])
+            .map_err(|error| format!("删除房间失败: {error}"))?;
+        Ok(())
+    })
 }

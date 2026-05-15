@@ -2,6 +2,8 @@ mod ai_store;
 mod bili;
 mod commands;
 mod credential_store;
+mod db;
+mod emoticon_store;
 mod models;
 mod room_store;
 mod settings_store;
@@ -11,7 +13,7 @@ use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
 use bili::ws_client::DanmakuWsClient;
 use bili::buvid::ensure_buvid;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use tauri::Manager;
 use tauri::WindowEvent;
 use tokio::sync::{oneshot, Mutex};
@@ -25,6 +27,7 @@ pub struct AppState {
     pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
     pub ws_client: Mutex<Option<DanmakuWsClient>>,
     pub loop_sender: Mutex<LoopSenderState>,
+    pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,9 +41,18 @@ pub fn run() {
             wbi_cache: Arc::new(Mutex::new(WbiKeyCache::default())),
             ws_client: Mutex::new(None),
             loop_sender: Mutex::new(LoopSenderState { shutdown_tx: None }),
+            db: Arc::new(StdMutex::new(None)),
         })
         .setup(|app| {
             tray::create_tray(app)?;
+
+            if let Ok(connection) = db::open_database(app.handle()) {
+                let state = app.state::<AppState>();
+                let state = state.inner();
+                if let Ok(mut db) = state.db.lock() {
+                    *db = Some(connection);
+                }
+            }
 
             // 尝试从本地存储恢复登录凭据
             if let Ok(Some(cookie)) = credential_store::load_cookie(app.handle()) {
