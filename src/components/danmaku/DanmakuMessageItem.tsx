@@ -1,17 +1,6 @@
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
 import type { DanmakuMessage } from "@/types/danmaku";
 
-function formatTime(ts: number): string {
-  if (!ts) {
-    return "";
-  }
-
-  const date = new Date(ts * 1000);
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
 function colorToHex(color?: number): string | undefined {
   if (color == null || color === 16_777_215) {
     return undefined;
@@ -20,40 +9,31 @@ function colorToHex(color?: number): string | undefined {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
-function getMessageCardClass(type: string): string {
-  if (type === "gift") {
-    return "rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2";
-  }
-
-  if (type === "entry") {
-    return "rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2";
-  }
-
-  return "rounded-lg bg-slate-950/50 px-3 py-2";
-}
-
 function getMessageTextClass(type: string): string {
   if (type === "gift") {
-    return "mt-1 break-words text-sm text-amber-100";
+    return "break-words text-sm text-amber-700 dark:text-amber-100";
   }
 
   if (type === "entry") {
-    return "mt-1 break-words text-sm text-slate-300";
+    return "break-words text-sm text-slate-500 dark:text-slate-300";
   }
 
-  return "mt-1 break-words text-sm";
+  return "break-words text-sm text-slate-700 dark:text-slate-200";
 }
 
 function getBigEmoticonSize(emoticon?: DanmakuMessage["emoticonOptions"]) {
   if (!emoticon) {
-    return { width: 162, height: 162 };
+    return { width: 48, height: 48 };
   }
 
   if (emoticon.emoticonUnique?.startsWith("official_")) {
-    return { width: emoticon.width ?? 183, height: emoticon.height ?? 60 };
+    return {
+      width: Math.min(emoticon.width ?? 48, 56),
+      height: Math.min(emoticon.height ?? 48, 56),
+    };
   }
 
-  return { width: 162, height: 162 };
+  return { width: 48, height: 48 };
 }
 
 export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
@@ -64,22 +44,19 @@ export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
       : null;
 
   return (
-    <div className={getMessageCardClass(item.type)}>
-      <div className="flex items-center gap-2 text-xs">
-        {item.timestamp > 0 ? <span className="text-slate-500">{formatTime(item.timestamp)}</span> : null}
-        {item.type === "gift" ? <span className="text-amber-300">🎁</span> : null}
-        {item.type === "entry" ? <span className="text-slate-400">↪</span> : null}
-        <span className="font-medium text-pink-300">{item.username}</span>
-        {item.medal ? <span className="text-cyan-300">[{item.medal}]</span> : null}
-        {item.isAdmin ? <span className="text-amber-300">房管</span> : null}
-        {item.type === "gift" && item.giftName ? <span className="text-amber-200">{item.giftName}</span> : null}
-      </div>
-      <p
+    <div className="text-sm leading-6">
+      {item.medal ? <span className="mr-2 text-xs text-cyan-600 dark:text-cyan-300">[{item.medal}]</span> : null}
+      {item.type === "gift" ? <span className="mr-1 text-amber-500 dark:text-amber-300">🎁</span> : null}
+      {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
+      <span className="mr-1 font-medium text-pink-600 dark:text-pink-300">{item.username}</span>
+      {item.isAdmin ? <span className="mr-1 text-xs text-amber-600 dark:text-amber-300">房管</span> : null}
+      {item.type === "gift" && item.giftName ? <span className="mr-1 text-amber-600 dark:text-amber-200">{item.giftName}</span> : null}
+      <span
         className={getMessageTextClass(item.type)}
         style={item.type === "danmaku" && textColor ? { color: textColor } : undefined}
       >
         {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (
-          <span className="flex items-center justify-center py-1">
+          <span className="inline-flex items-center align-middle">
             <img
               src={item.emoticonOptions.url}
               alt={item.emoticonOptions.emoticonUnique}
@@ -92,7 +69,7 @@ export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
         ) : (
           item.content
         )}
-      </p>
+      </span>
     </div>
   );
 }

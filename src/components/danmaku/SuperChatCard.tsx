@@ -30,7 +30,7 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const messageColor = normalizeHexColor(item.messageFontColor, "#FFFFFF");
 
   return (
-    <div className="overflow-hidden rounded-lg">
+    <div className="overflow-hidden">
       <div
         className="flex items-center gap-3 border-x border-t px-3 py-2"
         style={{

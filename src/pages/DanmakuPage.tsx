@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowDown, Flame, Send, Smile, Wifi, WifiOff } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ArrowDown, Repeat2, Send, Smile } from "lucide-react";
 import { LoopSenderPanel } from "@/components/danmaku/LoopSenderPanel";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
@@ -11,23 +12,6 @@ import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
-
-const statusTextMap = {
-  idle: "未连接",
-  connecting: "连接中",
-  connected: "已连接",
-  reconnecting: "重连中",
-  disconnected: "已断开",
-  error: "连接异常"
-} as const;
-
-function formatPopularity(n: number): string {
-  if (n >= 10_000) {
-    return `${(n / 10_000).toFixed(1)}万`;
-  }
-
-  return String(n);
-}
 
 function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
   if (emoticon.emoticonOptions) {
@@ -46,23 +30,19 @@ export function DanmakuPage() {
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputBarRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
   const [emoticonPackages, setEmoticonPackages] = useState<EmoticonPackage[]>([]);
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [activePkgId, setActivePkgId] = useState<number | null>(null);
+  const [loopPanelOpen, setLoopPanelOpen] = useState(false);
   const [loopMessagesInput, setLoopMessagesInput] = useState("");
   const [loopIntervalSec, setLoopIntervalSec] = useState("2");
-
   useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
-  const wsConnected = useDanmakuStore((state) => state.wsConnected);
-  const wsStatus = useDanmakuStore((state) => state.wsStatus);
-  const lastError = useDanmakuStore((state) => state.lastError);
-  const sentCount = useDanmakuStore((state) => state.sentCount);
-  const popularity = useDanmakuStore((state) => state.popularity);
   const { send, sendEmoticon, sending } = useDanmaku();
   const {
     isRunning: loopRunning,
@@ -100,6 +80,27 @@ export function DanmakuPage() {
     container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages, isAtBottom]);
 
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+
+      if (inputBarRef.current?.contains(target)) {
+        return;
+      }
+
+      setEmoticonPickerOpen(false);
+      setLoopPanelOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, []);
+
   const loadEmoticons = useCallback(async () => {
     if (!roomId) {
       return;
@@ -126,6 +127,9 @@ export function DanmakuPage() {
 
   const handleToggleEmoticonPicker = useCallback(async () => {
     const nextOpen = !emoticonPickerOpen;
+    if (nextOpen) {
+      setLoopPanelOpen(false);
+    }
     setEmoticonPickerOpen(nextOpen);
 
     if (nextOpen && emoticonPackages.length === 0 && !loadingEmoticons) {
@@ -183,45 +187,8 @@ export function DanmakuPage() {
   };
 
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-slate-950 text-slate-100 lg:grid-cols-[320px_1fr]">
-      <aside className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r">
-        <Link to="/rooms" className="text-sm text-pink-400 hover:text-pink-300">
-          ← 返回直播间
-        </Link>
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <h1 className="text-xl font-semibold">房间 {roomIdParam}</h1>
-          <div className="mt-4 flex items-center gap-2 text-sm">
-            {wsConnected ? (
-              <Wifi className="h-4 w-4 text-emerald-400" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-amber-400" />
-            )}
-            <span className="text-slate-200">{statusTextMap[wsStatus]}</span>
-          </div>
-
-          {wsConnected && (
-            <div className="mt-3 flex items-center gap-2 text-sm">
-              <Flame className="h-4 w-4 text-orange-400" />
-              <span className="text-orange-300">人气 {formatPopularity(popularity)}</span>
-            </div>
-          )}
-
-          <p className="mt-3 text-sm text-slate-400">已发送 {sentCount} 条弹幕</p>
-          {lastError ? <p className="mt-3 text-sm text-rose-400">{lastError}</p> : null}
-        </div>
-      </aside>
-
-      <main className="flex min-h-0 flex-col p-6">
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-sm text-slate-400">
-            <span>实时弹幕流</span>
-            {popularity > 0 && (
-              <span className="flex items-center gap-1.5 text-orange-300">
-                <Flame className="h-3.5 w-3.5" />
-                {formatPopularity(popularity)}
-              </span>
-            )}
-          </div>
+    <main className="flex h-screen flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
 
           <div
             ref={scrollRef}
@@ -229,7 +196,7 @@ export function DanmakuPage() {
             className="flex flex-1 flex-col gap-2 overflow-y-auto p-5"
           >
             {messages.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-slate-950/30 p-6 text-sm text-slate-500">
+              <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
                 暂无弹幕，连接成功后会在这里实时显示。
               </div>
             ) : (
@@ -246,7 +213,7 @@ export function DanmakuPage() {
           {!isAtBottom && (
             <button
               onClick={scrollToBottom}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-pink-500/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur transition hover:bg-pink-400"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-pink-500 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-pink-400"
             >
               <ArrowDown className="h-3.5 w-3.5" />
               回到底部
@@ -254,24 +221,38 @@ export function DanmakuPage() {
           )}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/90 p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            <div className="flex-1">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="block text-sm text-slate-400">发送弹幕</label>
-                <button
-                  type="button"
-                  onClick={() => void handleToggleEmoticonPicker()}
-                  disabled={!roomId || sending}
-                  className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Smile className="h-3.5 w-3.5" />
-                  表情
-                </button>
-              </div>
+        <div className="border-t border-slate-300 bg-white p-3 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div ref={inputBarRef} className="relative flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLoopPanelOpen((value) => {
+                  const next = !value;
+                  if (next) {
+                    setEmoticonPickerOpen(false);
+                  }
+                  return next;
+                });
+              }}
+              className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              title="独轮车"
+            >
+              <Repeat2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleToggleEmoticonPicker()}
+              disabled={!roomId || sending}
+              className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              title="表情"
+            >
+              <Smile className="h-4 w-4" />
+            </button>
 
+            <div className="min-w-0 flex-1">
               {emoticonPickerOpen ? (
                 <EmoticonPickerPanel
+                  className="absolute bottom-full left-0 right-0 z-20 mb-2 w-[min(100%,520px)]"
                   loading={loadingEmoticons}
                   error={emoticonError}
                   packages={emoticonPackages}
@@ -284,47 +265,49 @@ export function DanmakuPage() {
                 />
               ) : null}
 
-              <textarea
+              {loopPanelOpen ? (
+                <LoopSenderPanel
+                  className="absolute bottom-full left-0 right-0 z-20 mb-2 w-[min(100%,520px)]"
+                  loopRunning={loopRunning}
+                  loopMessages={loopMessages}
+                  loopMessagesInput={loopMessagesInput}
+                  loopIntervalSec={loopIntervalSec}
+                  lastLoopMessage={lastLoopMessage}
+                  lastLoopIndex={lastLoopIndex}
+                  loopSentCount={loopSentCount}
+                  stopReason={stopReason}
+                  loopError={loopError}
+                  onLoopMessagesInputChange={setLoopMessagesInput}
+                  onLoopIntervalSecChange={setLoopIntervalSec}
+                  onStartLoop={() => void handleStartLoop()}
+                  onStopLoop={() => void stopLoop()}
+                  onClose={() => setLoopPanelOpen(false)}
+                />
+              ) : null}
+
+              <input
                 value={message}
                 onChange={(event) => setMessage(event.target.value.slice(0, 20))}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
+                  if (event.key === "Enter") {
                     event.preventDefault();
                     void handleSend();
                   }
                 }}
                 placeholder="输入要发送的弹幕内容，最多 20 字"
-                className="min-h-24 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500"
+                className="h-10 w-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
               />
-              <p className="mt-2 text-right text-xs text-slate-500">{message.length}/20</p>
             </div>
             <button
               onClick={() => void handleSend()}
               disabled={!roomId || !message.trim() || sending}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-10 w-10 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              title={sending ? "发送中" : "发送"}
             >
               <Send className="h-4 w-4" />
-              {sending ? "发送中..." : "发送"}
             </button>
           </div>
         </div>
-
-        <LoopSenderPanel
-          loopRunning={loopRunning}
-          loopMessages={loopMessages}
-          loopMessagesInput={loopMessagesInput}
-          loopIntervalSec={loopIntervalSec}
-          lastLoopMessage={lastLoopMessage}
-          lastLoopIndex={lastLoopIndex}
-          loopSentCount={loopSentCount}
-          stopReason={stopReason}
-          loopError={loopError}
-          onLoopMessagesInputChange={setLoopMessagesInput}
-          onLoopIntervalSecChange={setLoopIntervalSec}
-          onStartLoop={() => void handleStartLoop()}
-          onStopLoop={() => void stopLoop()}
-        />
       </main>
-    </div>
   );
 }

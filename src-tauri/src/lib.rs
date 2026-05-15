@@ -62,8 +62,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -80,6 +82,7 @@ pub fn run() {
             commands::room::get_danmu_info,
             commands::room::get_rooms,
             commands::room::get_emoticons,
+            commands::room::open_danmaku_window,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,
             commands::danmaku::start_loop_send,

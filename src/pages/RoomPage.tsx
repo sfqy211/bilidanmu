@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { MonitorPlay, Plus, Search, Trash2 } from "lucide-react";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { tauriCommands } from "@/lib/tauri";
@@ -240,13 +239,13 @@ export function RoomPage() {
                       >
                         设为当前
                       </button>
-                      <Link
-                        to={`/room/${room.roomId}`}
+                      <button
+                        onClick={() => void tauriCommands.room.openDanmaku(room.roomId)}
                         className="inline-flex items-center gap-1 bg-cyan-50 px-3 py-1.5 text-xs text-cyan-700 transition hover:bg-cyan-100 dark:bg-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/30"
                       >
                         <MonitorPlay className="h-3 w-3" />
-                        进入
-                      </Link>
+                        打开弹幕
+                      </button>
                       <button
                         onClick={() => removeRoom(room.roomId)}
                         className="inline-flex items-center gap-1 border border-rose-200 px-3 py-1.5 text-xs text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"

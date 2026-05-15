@@ -45,6 +45,7 @@ export const tauriCommands = {
     add: (roomId: number) => invoke<RoomInfo>("add_room", { roomId }),
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
     getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId }),
+    openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
     getEmoticons: (roomId: number) =>
       invoke<EmoticonPackage[]>("get_emoticons", { roomId })
   },

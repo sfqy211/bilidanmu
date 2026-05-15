@@ -22,7 +22,7 @@ export const router = createBrowserRouter([
           { path: "/settings", element: <SettingsPage /> },
         ]
       },
-      { path: "/room/:roomId", element: <DanmakuPage /> }
+      { path: "/danmaku/:roomId", element: <DanmakuPage /> }
     ]
   }
 ]);
