@@ -17,6 +17,7 @@ pub struct PacketHeader {
     pub header_size: u16,
     pub ver: u16,
     pub operation: u32,
+    #[allow(dead_code)]
     pub seq_id: u32,
 }
 
