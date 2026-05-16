@@ -19,6 +19,9 @@ use tauri::Manager;
 use tauri::WindowEvent;
 use tokio::sync::{oneshot, Mutex};
 
+const PROXY_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
+
 pub struct LoopSenderState {
     pub shutdown_tx: Option<oneshot::Sender<()>>,
 }
@@ -29,6 +32,7 @@ pub struct AppState {
     pub ws_client: Mutex<Option<DanmakuWsClient>>,
     pub loop_sender: Mutex<LoopSenderState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
+    pub proxy_client: reqwest::Client,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +47,10 @@ pub fn run() {
             ws_client: Mutex::new(None),
             loop_sender: Mutex::new(LoopSenderState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
+            proxy_client: reqwest::Client::builder()
+                .user_agent(PROXY_USER_AGENT)
+                .build()
+                .expect("failed to build proxy HTTP client"),
         })
         .setup(|app| {
             tray::create_tray(app)?;
@@ -109,6 +117,7 @@ pub fn run() {
             commands::ai::delete_ai_model,
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
+            commands::proxy::proxy_image,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::selections::load_selections,

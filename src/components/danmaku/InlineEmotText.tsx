@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { InlineEmoticon } from "@/types/danmaku";
 
 function escapeRegExp(input: string): string {
@@ -39,7 +40,7 @@ export function InlineEmotText({
     const emot = emots[token];
     if (emot?.url) {
       parts.push(
-        <img
+        <ProxiedImage
           key={`${token}-${index}`}
           src={emot.url}
           alt={emot.emoji ?? token}

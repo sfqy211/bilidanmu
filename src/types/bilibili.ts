@@ -84,6 +84,10 @@ export interface EmoticonPackage {
   emoticons: Emoticon[];
 }
 
+export function makePkgKey(pkg: EmoticonPackage): string {
+  return `${pkg.pkgId}-${pkg.pkgType ?? 0}`;
+}
+
 export interface AIModel {
   id: string;
   endpoint: string;

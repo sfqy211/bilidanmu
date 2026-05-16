@@ -1,4 +1,5 @@
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { DanmakuMessage } from "@/types/danmaku";
 
 function colorToHex(color?: number): string | undefined {
@@ -57,7 +58,7 @@ export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
       >
         {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (
           <span className="inline-flex items-center align-middle">
-            <img
+            <ProxiedImage
               src={item.emoticonOptions.url}
               alt={item.emoticonOptions.emoticonUnique}
               className="object-contain"

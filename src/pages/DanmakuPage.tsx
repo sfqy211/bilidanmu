@@ -12,6 +12,7 @@ import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
+import { makePkgKey } from "@/types/bilibili";
 
 function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
   if (emoticon.emoticonOptions) {
@@ -36,7 +37,7 @@ export function DanmakuPage() {
   const [emoticonPackages, setEmoticonPackages] = useState<EmoticonPackage[]>([]);
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
-  const [activePkgId, setActivePkgId] = useState<number | null>(null);
+  const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [loopPanelOpen, setLoopPanelOpen] = useState(false);
   const [loopMessagesInput, setLoopMessagesInput] = useState("");
   const [loopIntervalSec, setLoopIntervalSec] = useState("2");
@@ -112,11 +113,11 @@ export function DanmakuPage() {
     try {
       const packages = await tauriCommands.room.getEmoticons(roomId);
       setEmoticonPackages(packages);
-      setActivePkgId((current) => {
-        if (current && packages.some((pkg) => pkg.pkgId === current)) {
+      setActivePkgKey((current) => {
+        if (current && packages.some((pkg) => makePkgKey(pkg) === current)) {
           return current;
         }
-        return packages[0]?.pkgId ?? null;
+        return packages[0] ? makePkgKey(packages[0]) : null;
       });
     } catch (error) {
       setEmoticonError(error instanceof Error ? error.message : "加载表情失败");
@@ -256,11 +257,11 @@ export function DanmakuPage() {
                   loading={loadingEmoticons}
                   error={emoticonError}
                   packages={emoticonPackages}
-                  activePkgId={activePkgId}
+                  activePkgKey={activePkgKey}
                   sending={sending}
                   onClose={() => setEmoticonPickerOpen(false)}
                   onReload={() => void loadEmoticons()}
-                  onSelectPackage={setActivePkgId}
+                  onSelectPackage={setActivePkgKey}
                   onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
                 />
               ) : null}

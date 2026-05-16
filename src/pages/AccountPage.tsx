@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EyeOff, LogOut, Shield, UserRound } from "lucide-react";
 import { toDataURL } from "qrcode";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -267,7 +268,7 @@ export function AccountPage() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex items-center gap-4">
                     {currentAccount.avatar ? (
-                      <img
+                      <ProxiedImage
                         src={currentAccount.avatar}
                         alt={currentAccount.username}
                         className="h-14 w-14 shrink-0 border border-slate-200 object-cover dark:border-white/[0.06]"

@@ -1,3 +1,5 @@
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
+import { useProxyImage } from "@/hooks/useProxyImage";
 import type { DanmakuMessage } from "@/types/danmaku";
 
 function normalizeHexColor(color?: string, fallback?: string): string | undefined {
@@ -28,6 +30,7 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const bottomBg = normalizeHexColor(item.backgroundBottomColor, "#2A60B2");
   const priceColor = normalizeHexColor(item.backgroundPriceColor, "#7497CD");
   const messageColor = normalizeHexColor(item.messageFontColor, "#FFFFFF");
+  const bgImage = useProxyImage(item.backgroundImage);
 
   return (
     <div className="overflow-hidden">
@@ -36,14 +39,14 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
         style={{
           backgroundColor: headerBg,
           borderColor: bottomBg,
-          backgroundImage: item.backgroundImage ? `url(${item.backgroundImage})` : undefined,
+          backgroundImage: bgImage ? `url(${bgImage})` : undefined,
           backgroundRepeat: "no-repeat",
           backgroundPosition: "top right",
           backgroundSize: "auto 100%",
         }}
       >
         {item.avatar ? (
-          <img
+          <ProxiedImage
             src={item.avatar}
             alt={item.username}
             className="h-9 w-9 rounded-full border border-white/20 object-cover"

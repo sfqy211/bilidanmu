@@ -88,5 +88,8 @@ export const tauriCommands = {
   selections: {
     load: (keys: string[]) => invoke<Record<string, unknown>>("load_selections", { keys }),
     save: (entries: Record<string, unknown>) => invoke<void>("save_selections", { entries })
+  },
+  proxy: {
+    image: (url: string) => invoke<string>("proxy_image", { url })
   }
 };

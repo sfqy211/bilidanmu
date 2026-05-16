@@ -1,5 +1,7 @@
 import { X } from "lucide-react";
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
+import { makePkgKey } from "@/types/bilibili";
 
 function getPackageLabel(pkg: EmoticonPackage): string {
   return pkg.pkgName || `表情包 ${pkg.pkgId}`;
@@ -9,7 +11,7 @@ export function EmoticonPickerPanel({
   loading,
   error,
   packages,
-  activePkgId,
+  activePkgKey,
   sending,
   onClose,
   onReload,
@@ -20,15 +22,15 @@ export function EmoticonPickerPanel({
   loading: boolean;
   error: string | null;
   packages: EmoticonPackage[];
-  activePkgId: number | null;
+  activePkgKey: string | null;
   sending: boolean;
   onClose: () => void;
   onReload: () => void;
-  onSelectPackage: (pkgId: number) => void;
+  onSelectPackage: (pkgKey: string) => void;
   onSelectEmoticon: (emoticon: Emoticon) => void;
   className?: string;
 }) {
-  const activePackage = packages.find((pkg) => pkg.pkgId === activePkgId) ?? packages[0];
+  const activePackage = packages.find((pkg) => makePkgKey(pkg) === activePkgKey) ?? packages[0];
 
   return (
     <div
@@ -68,14 +70,14 @@ export function EmoticonPickerPanel({
         <>
           <div className="mb-3 overflow-x-auto pb-1">
             <div className="flex min-w-max gap-2">
-            {packages.map((pkg) => {
-              const active = pkg.pkgId === activePackage?.pkgId;
+            {packages.map((pkg, index) => {
+              const active = pkg === activePackage;
               const preview = pkg.emoticons[0];
               return (
                 <button
-                  key={pkg.pkgId}
+                  key={`${pkg.pkgId}-${pkg.pkgType ?? 0}-${index}`}
                   type="button"
-                  onClick={() => onSelectPackage(pkg.pkgId)}
+                  onClick={() => onSelectPackage(makePkgKey(pkg))}
                   title={getPackageLabel(pkg)}
                   className={`flex h-12 w-12 items-center justify-center border transition ${
                     active
@@ -84,7 +86,7 @@ export function EmoticonPickerPanel({
                   }`}
                 >
                   {preview ? (
-                    <img
+                    <ProxiedImage
                       src={preview.url}
                       alt={getPackageLabel(pkg)}
                       className="h-8 w-8 object-contain"
@@ -103,7 +105,7 @@ export function EmoticonPickerPanel({
               const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
               return (
                 <button
-                  key={`${activePackage.pkgId}-${emoticon.emoticonId ?? index}`}
+                  key={`${activePackage.pkgId}-${emoticon.emoticonUnique ?? emoticon.emoticonId ?? index}`}
                   type="button"
                   disabled={!available || sending}
                   onClick={() => onSelectEmoticon(emoticon)}
@@ -114,7 +116,7 @@ export function EmoticonPickerPanel({
                       : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-50 dark:border-white/[0.04] dark:bg-[#0c0e18]"
                   }`}
                 >
-                  <img
+                  <ProxiedImage
                     src={emoticon.url}
                     alt={emoticon.descript ?? emoticon.emoji ?? "表情"}
                     className="h-12 w-12 object-contain"
