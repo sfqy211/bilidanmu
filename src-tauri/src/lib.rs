@@ -5,6 +5,7 @@ mod credential_store;
 mod db;
 mod emoticon_store;
 mod models;
+mod proxy;
 mod room_store;
 mod selections_store;
 mod settings_store;
@@ -14,6 +15,7 @@ use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
 use bili::ws_client::DanmakuWsClient;
 use bili::buvid::ensure_buvid;
+use proxy::stream_proxy::StreamProxyServer;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::Manager;
@@ -37,10 +39,16 @@ pub struct AppState {
     pub auto_sender: TokioMutex<AutoSenderState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
+    pub stream_proxy: StreamProxyServer,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let proxy_client = reqwest::Client::builder()
+        .user_agent(PROXY_USER_AGENT)
+        .build()
+        .expect("failed to build proxy HTTP client");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
@@ -54,10 +62,8 @@ pub fn run() {
             ws_client: TokioMutex::new(None),
             auto_sender: TokioMutex::new(AutoSenderState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
-            proxy_client: reqwest::Client::builder()
-                .user_agent(PROXY_USER_AGENT)
-                .build()
-                .expect("failed to build proxy HTTP client"),
+            proxy_client: proxy_client.clone(),
+            stream_proxy: StreamProxyServer::new(proxy_client),
         })
         .setup(|app| {
             tray::create_tray(app)?;
@@ -140,6 +146,8 @@ pub fn run() {
             commands::room::get_rooms,
             commands::room::get_emoticons,
             commands::room::open_danmaku_window,
+            commands::room::get_audio_stream_url,
+            commands::room::clear_audio_stream,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,
             commands::danmaku::start_auto_send,
