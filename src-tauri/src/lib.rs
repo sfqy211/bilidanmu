@@ -14,10 +14,11 @@ use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
 use bili::ws_client::DanmakuWsClient;
 use bili::buvid::ensure_buvid;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::Manager;
 use tauri::WindowEvent;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex as TokioMutex};
 
 const PROXY_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
@@ -27,10 +28,13 @@ pub struct AutoSenderState {
 }
 
 pub struct AppState {
-    pub credential: Mutex<Option<BiliCredential>>,
-    pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
-    pub ws_client: Mutex<Option<DanmakuWsClient>>,
-    pub auto_sender: Mutex<AutoSenderState>,
+    pub credential: TokioMutex<Option<BiliCredential>>,
+    pub credentials: std::sync::Mutex<HashMap<String, BiliCredential>>,
+    pub active_account_id: std::sync::Mutex<Option<String>>,
+    pub account_metas: std::sync::Mutex<HashMap<String, credential_store::AccountMeta>>,
+    pub wbi_cache: Arc<TokioMutex<WbiKeyCache>>,
+    pub ws_client: TokioMutex<Option<DanmakuWsClient>>,
+    pub auto_sender: TokioMutex<AutoSenderState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
 }
@@ -42,10 +46,13 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_log::Builder::default().build())
         .manage(AppState {
-            credential: Mutex::new(None),
-            wbi_cache: Arc::new(Mutex::new(WbiKeyCache::default())),
-            ws_client: Mutex::new(None),
-            auto_sender: Mutex::new(AutoSenderState { shutdown_tx: None }),
+            credential: TokioMutex::new(None),
+            credentials: std::sync::Mutex::new(HashMap::new()),
+            active_account_id: std::sync::Mutex::new(None),
+            account_metas: std::sync::Mutex::new(HashMap::new()),
+            wbi_cache: Arc::new(TokioMutex::new(WbiKeyCache::default())),
+            ws_client: TokioMutex::new(None),
+            auto_sender: TokioMutex::new(AutoSenderState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
             proxy_client: reqwest::Client::builder()
                 .user_agent(PROXY_USER_AGENT)
@@ -63,16 +70,42 @@ pub fn run() {
                 }
             }
 
-            // 尝试从本地存储恢复登录凭据
-            if let Ok(Some(cookie)) = credential_store::load_cookie(app.handle()) {
-                let mut parsed = BiliCredential::from_cookie_str(&cookie);
-                ensure_buvid(&mut parsed);
-                if parsed.validate_for_send().is_ok() {
+            // 尝试从本地存储恢复所有登录凭据
+            if let Ok(cookies) = credential_store::load_all_cookies(app.handle()) {
+                if !cookies.is_empty() {
                     let state = app.state::<AppState>();
                     let state = state.inner();
-                    // 在启动阶段使用 blocking lock 是安全的，因为此时还没有并发任务
-                    if let Ok(mut credential) = state.credential.try_lock() {
-                        *credential = Some(parsed);
+
+                    // 加载活跃账号 ID
+                    let active_id = credential_store::load_active_account_id(app.handle()).ok().flatten();
+
+                    // 解析所有账号
+                    let mut credentials_map: HashMap<String, BiliCredential> = HashMap::new();
+                    for (uid, cookie) in &cookies {
+                        let mut parsed = BiliCredential::from_cookie_str(cookie);
+                        ensure_buvid(&mut parsed);
+                        if parsed.validate_for_send().is_ok() {
+                            credentials_map.insert(uid.clone(), parsed);
+                        }
+                    }
+
+                    *state.credentials.lock().unwrap() = credentials_map.clone();
+
+                    // 加载账号元数据
+                    if let Ok(metas) = credential_store::load_account_metas(app.handle()) {
+                        *state.account_metas.lock().unwrap() = metas;
+                    }
+
+                    // 激活上次使用的账号
+                    let active_uid = active_id
+                        .filter(|id| credentials_map.contains_key(id));
+                    if let Some(uid) = active_uid {
+                        if let Some(cred) = credentials_map.get(&uid) {
+                            if let Ok(mut credential) = state.credential.try_lock() {
+                                *credential = Some(cred.clone());
+                            }
+                            *state.active_account_id.lock().unwrap() = Some(uid.clone());
+                        }
                     }
                 }
             }
@@ -96,6 +129,9 @@ pub fn run() {
             commands::auth::check_login_status,
             commands::auth::restore_login,
             commands::auth::logout,
+            commands::auth::remove_account,
+            commands::auth::switch_account,
+            commands::auth::list_accounts,
             commands::room::search_room,
             commands::room::add_room,
             commands::room::remove_room,

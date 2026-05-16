@@ -1,9 +1,9 @@
-use crate::{ai_store, credential_store, room_store, AppState};
+use crate::{ai_store, room_store, AppState};
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{TrayIcon, TrayIconBuilder},
-    App, AppHandle, Manager,
+    App, AppHandle, Emitter, Manager,
 };
 
 pub fn create_tray(app: &App) -> tauri::Result<()> {
@@ -57,6 +57,26 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 }
             }
         }
+        _ if id.starts_with("acct:") => {
+            let account_id = &id["acct:".len()..];
+            let account_id = account_id.to_string();
+            let app_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let state = app_clone.state::<AppState>();
+                match crate::commands::auth::switch_account(
+                    app_clone.clone(),
+                    account_id,
+                    state,
+                ).await {
+                    Ok(_) => {
+                        let _ = app_clone.emit("account-switched", "ok");
+                    }
+                    Err(e) => {
+                        let _ = app_clone.emit("account-switch-error", e);
+                    }
+                }
+            });
+        }
         _ if id.starts_with("ai:") => {
             let model_id = &id["ai:".len()..];
             let state = app.state::<AppState>();
@@ -79,15 +99,51 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     menu.append(&title)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
 
-    // 账号
-    let account_text = match credential_store::load_cookie(app) {
-        Ok(Some(_)) => "👤 账号：已登录",
-        _ => "👤 账号：未登录",
-    };
-    let account = MenuItem::with_id(app, "account", account_text, false, None::<&str>)?;
-    menu.append(&account)?;
-
+    // 账号子菜单（显示所有已登录账号）
     let state = app.state::<AppState>();
+
+    // 从 AppState 读取（已由 setup 或 restore_login 填充）
+    let credentials = state.credentials.lock().unwrap();
+    let active_id = state.active_account_id.lock().unwrap();
+    let metas = state.account_metas.lock().unwrap();
+
+    if credentials.is_empty() {
+        let empty = MenuItem::with_id(app, "account-empty", "账号：未登录", false, None::<&str>)?;
+        menu.append(&empty)?;
+    } else {
+        let account_submenu = Submenu::with_id(app, "accounts", "账号", true)?;
+
+        for (uid, _cred) in credentials.iter() {
+            let is_active = active_id.as_deref() == Some(uid.as_str());
+
+            // 优先使用保存的用户名，否则 fallback 到 UID
+            let display_name = metas
+                .get(uid)
+                .map(|m| m.username.as_str())
+                .unwrap_or(uid);
+
+            let label = if is_active {
+                format!("✅ {} (当前)", display_name)
+            } else {
+                display_name.to_string()
+            };
+
+            let item = CheckMenuItem::with_id(
+                app,
+                format!("acct:{uid}"),
+                &label,
+                true,
+                is_active,
+                None::<&str>,
+            )?;
+            account_submenu.append(&item)?;
+        }
+
+        menu.append(&account_submenu)?;
+    }
+    drop(credentials);
+    drop(active_id);
+    drop(metas);
 
     // 直播间子菜单
     let rooms = room_store::load_rooms(state.inner()).unwrap_or_default();

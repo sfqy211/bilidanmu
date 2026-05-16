@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { EyeOff, LogOut, Shield, UserRound } from "lucide-react";
+import { Check, LogOut, UserRound } from "lucide-react";
 import { toDataURL } from "qrcode";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuth } from "@/hooks/useAuth";
+import type { Credential } from "@/types/bilibili";
 
 export function AccountPage() {
   const {
     accounts,
-    sendAccountId,
-    recvAccountId,
-    stealthMode,
-    setAccounts,
-    setSendAccountId,
-    setRecvAccountId,
-    setStealthMode,
-    clearAuth
+    activeAccountId,
+    addAccount,
+    removeAccount,
+    setActiveAccount,
+    clearAuth,
   } = useAuth();
 
   const [cookie, setCookie] = useState("");
@@ -25,40 +23,29 @@ export function AccountPage() {
   const [qrKey, setQrKey] = useState<string | null>(null);
   const [qrStatus, setQrStatus] = useState<string>("未生成二维码");
   const [loading, setLoading] = useState(false);
-  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("login");
 
-  const currentAccount = useMemo(() => accounts[0] ?? null, [accounts]);
+  const activeAccount = useMemo(
+    () => accounts.find((a) => a.accountId === activeAccountId) ?? null,
+    [accounts, activeAccountId]
+  );
 
   useEffect(() => {
-    if (!qrKey) {
-      return;
-    }
+    if (!qrKey) return;
 
     let cancelled = false;
     const timer = window.setInterval(async () => {
       try {
         const result = await tauriCommands.auth.pollQr(qrKey);
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         setQrStatus(result.message ?? "等待扫码...");
 
         if (result.status === "success" && result.credential) {
-          const account = {
-            id: result.credential.accountId,
-            uid: result.credential.uid,
-            username: result.credential.username,
-            avatar: result.credential.avatar,
-            cookie: result.credential.cookie
-          };
-
-          setAccounts([account]);
-          setSendAccountId(account.id);
-          setRecvAccountId(account.id);
+          addAccount(result.credential);
           setSuccess("扫码登录成功");
           setError(null);
           setQrKey(null);
@@ -85,7 +72,7 @@ export function AccountPage() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [qrKey, setAccounts, setRecvAccountId, setSendAccountId]);
+  }, [qrKey, addAccount]);
 
   const handleLogin = async () => {
     const trimmed = cookie.trim();
@@ -101,17 +88,7 @@ export function AccountPage() {
 
     try {
       const credential = await tauriCommands.auth.loginByCookie(trimmed);
-      const account = {
-        id: credential.accountId,
-        uid: credential.uid,
-        username: credential.username,
-        avatar: credential.avatar,
-        cookie: credential.cookie
-      };
-
-      setAccounts([account]);
-      setSendAccountId(account.id);
-      setRecvAccountId(account.id);
+      addAccount(credential);
       setCookie("");
       setSuccess("Cookie 登录成功");
     } catch (loginError) {
@@ -121,8 +98,33 @@ export function AccountPage() {
     }
   };
 
+  const handleRemoveAccount = async (accountId: string) => {
+    try {
+      await tauriCommands.auth.removeAccount(accountId);
+      removeAccount(accountId);
+      setSuccess("已移除账号");
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "移除账号失败");
+    }
+  };
+
+  const handleSwitchAccount = async (accountId: string) => {
+    setSwitchingId(accountId);
+    setError(null);
+    try {
+      const credential = await tauriCommands.auth.switchAccount(accountId);
+      setActiveAccount(accountId, credential);
+      setSuccess(`已切换到 ${credential.username}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "切换账号失败");
+    } finally {
+      setSwitchingId(null);
+    }
+  };
+
   const handleLogout = async () => {
-    setLogoutLoading(true);
+    setLoading(true);
     setError(null);
     setSuccess(null);
 
@@ -133,7 +135,7 @@ export function AccountPage() {
     } catch (logoutError) {
       setError(logoutError instanceof Error ? logoutError.message : "退出登录失败");
     } finally {
-      setLogoutLoading(false);
+      setLoading(false);
     }
   };
 
@@ -171,7 +173,7 @@ export function AccountPage() {
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold">账号</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码或 Cookie 登录，管理当前账号与隐身模式。</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码或 Cookie 登录，支持多账号切换。</p>
         </div>
         {error ? <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p> : null}
         {success ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p> : null}
@@ -238,114 +240,99 @@ export function AccountPage() {
               >
                 {loading ? "登录中..." : "使用 Cookie 登录"}
               </button>
-              <span className="text-xs text-slate-400 dark:text-slate-500">手动 Cookie 登录仍可作为扫码登录的备用方案。</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">登录后会自动添加到账号列表并设为当前。</span>
             </div>
           </div>
         </TabContent>
 
         <TabContent value="account" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white">当前账号</h3>
-              {currentAccount ? (
+          {accounts.length === 0 ? (
+            <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
+              当前还没有登录账号。先从登录页完成登录。
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {accounts.map((account) => {
+                const isActive = account.accountId === activeAccountId;
+                const isSwitching = switchingId === account.accountId;
+                return (
+                  <div
+                    key={account.accountId}
+                    className={`border bg-white p-4 dark:bg-[#161822] ${
+                      isActive
+                        ? "border-pink-300 dark:border-pink-500/40"
+                        : "border-slate-200 dark:border-white/[0.06]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        {account.avatar ? (
+                          <ProxiedImage
+                            src={account.avatar}
+                            alt={account.username}
+                            className="h-12 w-12 shrink-0 border border-slate-200 object-cover dark:border-white/[0.06]"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-slate-200 bg-slate-100 text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+                            <UserRound className="h-5 w-5" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-base font-medium text-slate-900 dark:text-white">{account.username}</p>
+                            {isActive ? (
+                              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                <Check className="h-3 w-3" />
+                                当前
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">UID: {account.uid}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        {!isActive ? (
+                          <button
+                            onClick={() => void handleSwitchAccount(account.accountId)}
+                            disabled={isSwitching}
+                            className="border border-pink-200 px-3 py-1.5 text-xs text-pink-600 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-pink-500/30 dark:text-pink-300 dark:hover:bg-pink-500/10"
+                          >
+                            {isSwitching ? "切换中..." : "切换"}
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => void handleRemoveAccount(account.accountId)}
+                          className="border border-rose-200 px-3 py-1.5 text-xs text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                        >
+                          <LogOut className="inline h-3 w-3" /> 移除
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {activeAccount ? (
+            <div className="border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-medium text-slate-900 dark:text-white">快捷操作</h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">退出当前账号将从列表中移除并断开连接。</p>
+                </div>
                 <button
                   onClick={() => void handleLogout()}
-                  disabled={logoutLoading}
+                  disabled={loading}
                   className="inline-flex items-center gap-2 border border-rose-200 px-4 py-2 text-sm text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
                 >
                   <LogOut className="h-4 w-4" />
-                  {logoutLoading ? "退出中..." : "退出登录"}
-                </button>
-              ) : null}
-            </div>
-
-            {!currentAccount ? (
-              <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
-                当前还没有登录账号。先从登录页完成登录。
-              </div>
-            ) : (
-              <div className="border border-slate-200 bg-white p-4 dark:border-white/[0.06] dark:bg-[#161822]">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-4">
-                    {currentAccount.avatar ? (
-                      <ProxiedImage
-                        src={currentAccount.avatar}
-                        alt={currentAccount.username}
-                        className="h-14 w-14 shrink-0 border border-slate-200 object-cover dark:border-white/[0.06]"
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-slate-200 bg-slate-100 text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
-                        <UserRound className="h-6 w-6" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-base font-medium text-slate-900 dark:text-white">{currentAccount.username}</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">UID: {currentAccount.uid}</p>
-                      <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                        Cookie 已写入本地存储，可随应用启动自动恢复
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <button
-                      onClick={() => {
-                        setSendAccountId(currentAccount.id);
-                        void tauriCommands.selections.save({ sendAccountId: currentAccount.id });
-                      }}
-                      className={`border px-4 py-2 text-left transition ${
-                        sendAccountId === currentAccount.id
-                          ? "border-pink-300 bg-pink-50 text-pink-700 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
-                          : "border-slate-200 hover:bg-slate-50 dark:border-white/[0.06] dark:hover:bg-white/[0.03]"
-                      }`}
-                    >
-                      发送账号：{sendAccountId === currentAccount.id ? "当前账号" : "设为当前"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRecvAccountId(currentAccount.id);
-                        void tauriCommands.selections.save({ recvAccountId: currentAccount.id });
-                      }}
-                      className={`border px-4 py-2 text-left transition ${
-                        recvAccountId === currentAccount.id
-                          ? "border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-500/40 dark:bg-cyan-500/[0.08] dark:text-cyan-200"
-                          : "border-slate-200 hover:bg-slate-50 dark:border-white/[0.06] dark:hover:bg-white/[0.03]"
-                      }`}
-                    >
-                      接收账号：{recvAccountId === currentAccount.id ? "当前账号" : "设为当前"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
-            <div className="flex items-start gap-3">
-              <div className="bg-slate-100 p-2 text-slate-500 dark:bg-[#0e1018] dark:text-slate-200">
-                <EyeOff className="h-5 w-5" />
-              </div>
-              <div className="flex flex-1 items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white">隐身模式</h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    打开后，接收侧可视为匿名模式；当前仅保存为前端状态，后续会继续接入 WS 连接策略。
-                  </p>
-                </div>
-                <button
-                  onClick={() => setStealthMode(!stealthMode)}
-                  className={`shrink-0 inline-flex items-center gap-2 border px-4 py-2 text-sm transition ${
-                    stealthMode
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/[0.08] dark:text-emerald-200"
-                      : "border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.03]"
-                  }`}
-                >
-                  <Shield className="h-4 w-4" />
-                  {stealthMode ? "隐身模式已开启" : "开启隐身模式"}
+                  {loading ? "退出中..." : "退出当前账号"}
                 </button>
               </div>
             </div>
-          </div>
+          ) : null}
         </TabContent>
       </PageTabs>
     </section>

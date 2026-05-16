@@ -8,7 +8,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 export default function App() {
   useTheme();
-  const { setAccounts, setSendAccountId, setRecvAccountId } = useAuthStore();
+  const { setAccounts, setActiveAccount } = useAuthStore();
   const setCurrentRoomId = useRoomStore((state) => state.setCurrentRoomId);
   const setRooms = useRoomStore((state) => state.setRooms);
   const setSettings = useSettingsStore((state) => state.setSettings);
@@ -18,18 +18,11 @@ export default function App() {
 
     const restore = async () => {
       try {
-        const [credential, settings, rooms] = await Promise.all([
+        const [activeCredential, settings, rooms] = await Promise.all([
           tauriCommands.auth.restoreLogin(),
           tauriCommands.settings.get(),
           tauriCommands.state.getRooms()
         ]);
-
-        let selections: Record<string, unknown> = {};
-        try {
-          selections = await tauriCommands.selections.load(["currentRoomId", "sendAccountId", "recvAccountId"]);
-        } catch {
-          selections = {};
-        }
 
         if (cancelled) {
           return;
@@ -38,23 +31,30 @@ export default function App() {
         setSettings(settings);
         setRooms(rooms);
 
-        const savedSendAccountId = selections.sendAccountId as string | undefined;
-        const savedRecvAccountId = selections.recvAccountId as string | undefined;
-        const savedRoomId = selections.currentRoomId as number | undefined;
-
-        if (credential) {
-          const account = {
-            id: credential.accountId,
-            uid: credential.uid,
-            username: credential.username,
-            avatar: credential.avatar,
-            cookie: credential.cookie
-          };
-          setAccounts([account]);
-          setSendAccountId(savedSendAccountId === account.id ? savedSendAccountId : account.id);
-          setRecvAccountId(savedRecvAccountId === account.id ? savedRecvAccountId : account.id);
+        // 恢复活跃账号
+        if (activeCredential) {
+          setActiveAccount(activeCredential.accountId, activeCredential);
         }
 
+        // 恢复所有账号列表
+        try {
+          const allAccounts = await tauriCommands.auth.listAccounts();
+          if (!cancelled && allAccounts.length > 0) {
+            setAccounts(allAccounts);
+          }
+        } catch {
+          // listAccounts 失败不影响主流程
+        }
+
+        // 恢复上次选中的房间
+        let selections: Record<string, unknown> = {};
+        try {
+          selections = await tauriCommands.selections.load(["currentRoomId"]);
+        } catch {
+          selections = {};
+        }
+
+        const savedRoomId = selections.currentRoomId as number | undefined;
         const savedRoomIdString = savedRoomId ? String(savedRoomId) : null;
         const roomExists = savedRoomIdString ? rooms.some((room) => room.id === savedRoomIdString) : false;
 
@@ -71,7 +71,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [setAccounts, setCurrentRoomId, setRecvAccountId, setRooms, setSendAccountId, setSettings]);
+  }, [setAccounts, setActiveAccount, setCurrentRoomId, setRooms, setSettings]);
 
   return <Outlet />;
 }

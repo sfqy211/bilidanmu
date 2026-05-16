@@ -43,7 +43,10 @@ export const tauriCommands = {
     loginByCookie: (cookie: string) => invoke<Credential>("login_by_cookie", { cookie }),
     checkLoginStatus: () => invoke<LoginStatus>("check_login_status"),
     restoreLogin: () => invoke<Credential | null>("restore_login"),
-    logout: () => invoke<void>("logout")
+    logout: () => invoke<void>("logout"),
+    removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
+    switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
+    listAccounts: () => invoke<Credential[]>("list_accounts")
   },
   room: {
     search: (query: string, mode: SearchRoomMode) =>
