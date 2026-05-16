@@ -154,7 +154,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         let room_submenu = Submenu::with_id(app, "rooms", "📺 直播间", true)?;
         for room in rooms.iter().take(10) {
             let status = if room.is_live { "🔴" } else { "⚫" };
-            let label = format!("{status} {} ({})", room.uname, room.room_id);
+            let label = format!("{status} {}", room.uname);
             let item =
                 MenuItem::with_id(app, format!("room:{}", room.room_id), label, true, None::<&str>)?;
             room_submenu.append(&item)?;

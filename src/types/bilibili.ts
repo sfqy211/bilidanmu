@@ -42,7 +42,6 @@ export interface Room {
   uname: string;
   cover?: string;
   isLive: boolean;
-  online?: number;
 }
 
 export interface RoomInfo extends Room {
@@ -58,7 +57,6 @@ export interface SearchRoomResult {
   title: string;
   cover?: string;
   isLive: boolean;
-  online?: number;
 }
 
 export interface Emoticon {

@@ -7,7 +7,7 @@ pub fn load_rooms(state: &AppState) -> Result<Vec<Room>, String> {
     db::with_connection(state, |connection| {
         let mut statement = connection
             .prepare(
-                "SELECT room_id, uid, title, uname, cover, is_live, online FROM rooms ORDER BY room_id DESC",
+                "SELECT room_id, uid, title, uname, cover, is_live FROM rooms ORDER BY room_id DESC",
             )
             .map_err(|error| format!("准备查询房间列表失败: {error}"))?;
 
@@ -21,7 +21,6 @@ pub fn load_rooms(state: &AppState) -> Result<Vec<Room>, String> {
                     uname: row.get(3)?,
                     cover: row.get(4)?,
                     is_live: row.get::<_, i64>(5)? != 0,
-                    online: row.get(6)?,
                 })
             })
             .map_err(|error| format!("查询房间列表失败: {error}"))?;
@@ -36,15 +35,14 @@ pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
         connection
             .execute(
                 r#"
-                INSERT INTO rooms (room_id, uid, title, uname, cover, is_live, online)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                INSERT INTO rooms (room_id, uid, title, uname, cover, is_live)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                 ON CONFLICT(room_id) DO UPDATE SET
                   uid = excluded.uid,
                   title = excluded.title,
                   uname = excluded.uname,
                   cover = excluded.cover,
-                  is_live = excluded.is_live,
-                  online = excluded.online
+                  is_live = excluded.is_live
                 "#,
                 params![
                     room.room_id,
@@ -53,7 +51,6 @@ pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
                     room.uname,
                     room.cover,
                     if room.is_live { 1 } else { 0 },
-                    room.online,
                 ],
             )
             .map_err(|error| format!("保存房间失败: {error}"))?;

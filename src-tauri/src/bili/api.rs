@@ -98,22 +98,32 @@ impl BiliApiClient {
             .get("room_id")
             .and_then(value_as_u64)
             .unwrap_or(room_id);
+        let uid = data.get("uid").and_then(value_as_u64);
+
+        let mut uname = data
+            .get("uname")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+
+        // /room/v1/Room/get_info 不返回 uname，通过 uid 补充获取
+        if uname.is_empty() {
+            if let Some(uid) = uid {
+                uname = self.fetch_uname(uid).await.unwrap_or_default();
+            }
+        }
 
         Ok(RoomInfo {
             room: Room {
                 id: actual_room_id.to_string(),
                 room_id: actual_room_id,
-                uid: data.get("uid").and_then(value_as_u64),
+                uid,
                 title: data
                     .get("title")
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_string(),
-                uname: data
-                    .get("uname")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_string(),
+                uname,
                 cover: data
                     .get("user_cover")
                     .or_else(|| data.get("cover"))
@@ -124,7 +134,6 @@ impl BiliApiClient {
                     .and_then(Value::as_u64)
                     .unwrap_or(0)
                     == 1,
-                online: data.get("online").and_then(value_as_u64),
             },
             area_name: data
                 .get("area_name")
@@ -187,7 +196,6 @@ impl BiliApiClient {
                 .to_string(),
             cover: entry.get("face").and_then(Value::as_str).map(ToString::to_string),
             is_live: entry.get("live_status").and_then(Value::as_u64).unwrap_or(0) == 1,
-            online: entry.get("online").and_then(value_as_u64),
         })
     }
 
@@ -234,7 +242,6 @@ impl BiliApiClient {
                     title: strip_em_tags(title),
                     cover,
                     is_live: true,
-                    online: item.get("online").and_then(value_as_u64),
                 })
             })
             .collect())
@@ -258,6 +265,24 @@ impl BiliApiClient {
                 expires_at: None,
             }),
         })
+    }
+
+    /// 通过 uid 获取主播名
+    async fn fetch_uname(&self, uid: u64) -> Option<String> {
+        let response = self
+            .get_json(
+                "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids",
+                Some(BTreeMap::from([("uids[]".to_string(), uid.to_string())])),
+            )
+            .await
+            .ok()?;
+
+        response
+            .get("data")
+            .and_then(|data| data.get(uid.to_string()))
+            .and_then(|entry| entry.get("uname"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string)
     }
 
     pub async fn get_emoticons(&self, room_id: u64) -> Result<Vec<EmoticonPackage>, String> {

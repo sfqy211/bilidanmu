@@ -36,8 +36,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               title TEXT NOT NULL,
               uname TEXT NOT NULL,
               cover TEXT,
-              is_live INTEGER NOT NULL DEFAULT 0,
-              online INTEGER
+              is_live INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS ai_models (

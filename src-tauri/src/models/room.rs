@@ -8,7 +8,6 @@ pub struct Room {
     pub uname: String,
     pub cover: Option<String>,
     pub is_live: bool,
-    pub online: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -32,7 +31,6 @@ impl RoomInfo {
                 uname: "示例主播".into(),
                 cover: None,
                 is_live: true,
-                online: Some(12000),
             },
             area_name: Some("原神".into()),
             parent_area_name: Some("手游".into()),
@@ -56,7 +54,6 @@ impl From<RoomInfo> for SearchRoomResult {
             title: value.room.title,
             cover: value.room.cover,
             is_live: value.room.is_live,
-            online: value.room.online,
         }
     }
 }
@@ -70,7 +67,6 @@ pub struct SearchRoomResult {
     pub title: String,
     pub cover: Option<String>,
     pub is_live: bool,
-    pub online: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -19,7 +19,6 @@ function toRoom(result: {
   title: string;
   cover?: string;
   isLive: boolean;
-  online?: number;
 }): Room {
   return {
     id: String(result.roomId),
@@ -28,8 +27,7 @@ function toRoom(result: {
     uname: result.uname,
     title: result.title,
     cover: result.cover,
-    isLive: result.isLive,
-    online: result.online ?? (result.isLive ? 12000 : 0)
+    isLive: result.isLive
   };
 }
 
@@ -230,7 +228,7 @@ export function RoomPage() {
                     </div>
                     <p className="truncate text-xs text-slate-600 dark:text-slate-300">{room.title}</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {room.isLive ? `在线 · ${room.online?.toLocaleString() ?? "-"} 人` : "未开播"}
+                      {room.isLive ? "直播中" : "未开播"}
                     </p>
                     <div className="flex gap-2">
                       <button
