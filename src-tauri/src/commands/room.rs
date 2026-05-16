@@ -60,13 +60,6 @@ pub async fn get_room_info(room_id: u64, state: State<'_, AppState>) -> Result<R
 }
 
 #[tauri::command]
-pub async fn get_danmu_info(room_id: u64, state: State<'_, AppState>) -> Result<serde_json::Value, String> {
-    let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
-    api.get_danmu_info(room_id).await
-}
-
-#[tauri::command]
 pub async fn get_rooms(state: State<'_, AppState>) -> Result<Vec<Room>, String> {
     room_store::load_rooms(state.inner())
 }
