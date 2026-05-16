@@ -4,7 +4,6 @@ import type {
   AIModelInput,
   Credential,
   EmoticonPackage,
-  LoginStatus,
   QrLoginResult,
   QrPollResult,
   Room,
@@ -41,10 +40,9 @@ export const tauriCommands = {
     loginByQr: () => invoke<QrLoginResult>("login_by_qr"),
     pollQr: (qrcodeKey: string) => invoke<QrPollResult>("poll_qr", { qrcodeKey }),
     loginByCookie: (cookie: string) => invoke<Credential>("login_by_cookie", { cookie }),
-    checkLoginStatus: () => invoke<LoginStatus>("check_login_status"),
     restoreLogin: () => invoke<Credential | null>("restore_login"),
-    logout: () => invoke<void>("logout"),
-    removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
+    logout: () => invoke<Credential[]>("logout"),
+    removeAccount: (accountId: string) => invoke<string | null>("remove_account", { accountId }),
     switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
     listAccounts: () => invoke<Credential[]>("list_accounts")
   },
@@ -53,7 +51,6 @@ export const tauriCommands = {
       invoke<SearchRoomResult[]>("search_room", { query, mode }),
     add: (roomId: number) => invoke<RoomInfo>("add_room", { roomId }),
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
-    getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId }),
     openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
     getEmoticons: (roomId: number) =>
       invoke<EmoticonPackage[]>("get_emoticons", { roomId })

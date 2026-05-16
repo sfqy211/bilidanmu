@@ -48,6 +48,14 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         _ if id.starts_with("room:") => {
             let room_id_str = &id["room:".len()..];
             if let Ok(room_id) = room_id_str.parse::<u64>() {
+                // 保存为当前房间
+                let state = app.state::<AppState>();
+                let mut entries = serde_json::Map::new();
+                entries.insert("currentRoomId".to_string(), serde_json::json!(room_id));
+                let _ = crate::selections_store::save_values(state.inner(), &entries);
+                let _ = refresh_tray(app);
+                let _ = app.emit("room-switched", room_id);
+
                 let label = format!("danmaku-{room_id}");
                 if let Some(win) = app.get_webview_window(&label) {
                     let _ = win.show();
@@ -63,13 +71,17 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
                 let state = app_clone.state::<AppState>();
+                let uid = account_id.clone();
                 match crate::commands::auth::switch_account(
                     app_clone.clone(),
                     account_id,
                     state,
                 ).await {
-                    Ok(_) => {
-                        let _ = app_clone.emit("account-switched", "ok");
+                    Ok(credential) => {
+                        let _ = app_clone.emit("account-switched", serde_json::json!({
+                            "accountId": uid,
+                            "credential": credential,
+                        }));
                     }
                     Err(e) => {
                         let _ = app_clone.emit("account-switch-error", e);
@@ -122,11 +134,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                 .map(|m| m.username.as_str())
                 .unwrap_or(uid);
 
-            let label = if is_active {
-                format!("✅ {} (当前)", display_name)
-            } else {
-                display_name.to_string()
-            };
+            let label = display_name.to_string();
 
             let item = CheckMenuItem::with_id(
                 app,
@@ -147,16 +155,29 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     // 直播间子菜单
     let rooms = room_store::load_rooms(state.inner()).unwrap_or_default();
+    let current_room_id = crate::selections_store::load_values(
+        state.inner(),
+        &["currentRoomId".to_string()],
+    )
+    .ok()
+    .and_then(|mut m| m.remove("currentRoomId"))
+    .and_then(|v| v.as_u64());
+
     if rooms.is_empty() {
-        let empty = MenuItem::with_id(app, "rooms-empty", "📺 直播间：暂无", false, None::<&str>)?;
+        let empty = MenuItem::with_id(app, "rooms-empty", "直播间：暂无", false, None::<&str>)?;
         menu.append(&empty)?;
     } else {
-        let room_submenu = Submenu::with_id(app, "rooms", "📺 直播间", true)?;
+        let room_submenu = Submenu::with_id(app, "rooms", "直播间", true)?;
         for room in rooms.iter().take(10) {
-            let status = if room.is_live { "🔴" } else { "⚫" };
-            let label = format!("{status} {}", room.uname);
-            let item =
-                MenuItem::with_id(app, format!("room:{}", room.room_id), label, true, None::<&str>)?;
+            let is_current = current_room_id == Some(room.room_id);
+            let item = CheckMenuItem::with_id(
+                app,
+                format!("room:{}", room.room_id),
+                &room.uname,
+                true,
+                is_current,
+                None::<&str>,
+            )?;
             room_submenu.append(&item)?;
         }
         menu.append(&room_submenu)?;
@@ -170,10 +191,10 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         .map(|item| item.id.as_str());
 
     if models.is_empty() {
-        let empty = MenuItem::with_id(app, "ai-empty", "🤖 AI：未配置", false, None::<&str>)?;
+        let empty = MenuItem::with_id(app, "ai-empty", "AI：未配置", false, None::<&str>)?;
         menu.append(&empty)?;
     } else {
-        let ai_submenu = Submenu::with_id(app, "ai-models", "🤖 AI 模型", true)?;
+        let ai_submenu = Submenu::with_id(app, "ai-models", "AI 模型", true)?;
         for model in &models {
             let is_current = Some(model.id.as_str()) == current_id;
             let item = CheckMenuItem::with_id(

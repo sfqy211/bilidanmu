@@ -13,6 +13,7 @@ export function AccountPage() {
     activeAccountId,
     addAccount,
     removeAccount,
+    setAccounts,
     setActiveAccount,
     clearAuth,
   } = useAuth();
@@ -100,8 +101,8 @@ export function AccountPage() {
 
   const handleRemoveAccount = async (accountId: string) => {
     try {
-      await tauriCommands.auth.removeAccount(accountId);
-      removeAccount(accountId);
+      const newActiveId = await tauriCommands.auth.removeAccount(accountId);
+      removeAccount(accountId, newActiveId);
       setSuccess("已移除账号");
       setError(null);
     } catch (e) {
@@ -129,8 +130,14 @@ export function AccountPage() {
     setSuccess(null);
 
     try {
-      await tauriCommands.auth.logout();
-      clearAuth();
+      const remaining = await tauriCommands.auth.logout();
+      if (remaining.length > 0) {
+        // 还有其他账号，更新列表但清除活跃状态
+        setAccounts(remaining);
+        setActiveAccount(null);
+      } else {
+        clearAuth();
+      }
       setSuccess("已退出登录");
     } catch (logoutError) {
       setError(logoutError instanceof Error ? logoutError.message : "退出登录失败");

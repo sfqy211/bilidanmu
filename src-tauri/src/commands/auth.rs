@@ -1,17 +1,15 @@
-use crate::models::account::{Credential, LoginStatus};
+use crate::models::account::Credential;
 use crate::bili::buvid::ensure_buvid;
 use crate::bili::credential::BiliCredential;
 use crate::commands::build_api_client;
 use crate::tray;
 use crate::{credential_store, AppState};
+use log::warn;
 use tauri::State;
 
 #[tauri::command]
-pub async fn login_by_qr() -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0")
-        .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))?;
+pub async fn login_by_qr(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let client = state.proxy_client.clone();
 
     let response = client
         .get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate")
@@ -48,10 +46,7 @@ pub async fn poll_qr(
     qrcode_key: String,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0")
-        .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))?;
+    let client = state.proxy_client.clone();
 
     let response = client
         .get("https://passport.bilibili.com/x/passport-login/web/qrcode/poll")
@@ -176,7 +171,7 @@ async fn complete_login_with_cookie(
             },
             avatar: login_status.account.as_ref().and_then(|a| a.avatar.clone()),
         };
-        let _ = credential_store::save_account_meta(&app, &uid, &meta);
+        credential_store::save_account_meta(&app, &uid, &meta)?;
         let mut account_metas = state.account_metas.lock().unwrap();
         account_metas.insert(uid.clone(), meta);
     }
@@ -185,7 +180,7 @@ async fn complete_login_with_cookie(
     {
         let mut cookies = credential_store::load_all_cookies(&app).unwrap_or_default();
         if cookies.remove("legacy").is_some() {
-            let _ = credential_store::save_all_cookies(&app, &cookies);
+            credential_store::save_all_cookies(&app, &cookies)?;
         }
     }
 
@@ -209,13 +204,6 @@ async fn complete_login_with_cookie(
     credential.cookie = parsed.cookie_header();
     credential.bili_jct = parsed.bili_jct.clone();
     Ok(credential)
-}
-
-#[tauri::command]
-pub async fn check_login_status(state: State<'_, AppState>) -> Result<LoginStatus, String> {
-    let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
-    api.verify_login_status().await
 }
 
 /// 应用启动时尝试恢复已保存的登录状态（所有账号）
@@ -311,7 +299,7 @@ pub async fn restore_login(
             let mut active_id = state.active_account_id.lock().unwrap();
             *active_id = None;
         }
-        let _ = credential_store::clear_active_account_id(&app);
+        if let Err(e) = credential_store::clear_active_account_id(&app) { warn!("清除活跃账号 ID 持久化失败: {e}"); }
         let _ = tray::refresh_tray(&app);
         return Ok(None);
     }
@@ -363,35 +351,56 @@ async fn deactivate_current(state: &AppState) {
     }
 }
 
-/// 退出登录（移除当前活跃账号）
+/// 退出登录（移除当前活跃账号），返回剩余账号列表
 #[tauri::command]
 pub async fn logout(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<Vec<Credential>, String> {
     let active_id = state.active_account_id.lock().unwrap().clone();
 
     deactivate_current(&state).await;
 
     if let Some(uid) = active_id {
-        let _ = credential_store::remove_cookie(&app, &uid);
-        let _ = credential_store::remove_account_meta(&app, &uid);
+        if let Err(e) = credential_store::remove_cookie(&app, &uid) { warn!("移除账号 Cookie 持久化失败: {e}"); }
+        if let Err(e) = credential_store::remove_account_meta(&app, &uid) { warn!("移除账号元数据持久化失败: {e}"); }
         state.credentials.lock().unwrap().remove(&uid);
         state.account_metas.lock().unwrap().remove(&uid);
     }
 
-    let _ = credential_store::clear_active_account_id(&app);
+    if let Err(e) = credential_store::clear_active_account_id(&app) { warn!("清除活跃账号 ID 持久化失败: {e}"); }
     let _ = tray::refresh_tray(&app);
-    Ok(())
+
+    // 返回剩余账号列表，避免前端丢失非活跃账号
+    let remaining = {
+        let credentials = state.credentials.lock().unwrap();
+        let metas = state.account_metas.lock().unwrap();
+        let mut accounts = Vec::new();
+        for (uid, cred) in credentials.iter() {
+            let uid_num = cred.dede_user_id.as_deref().and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
+            let meta = metas.get(uid);
+            accounts.push(Credential {
+                account_id: uid.clone(),
+                uid: uid_num,
+                username: meta.map(|m| m.username.clone()).unwrap_or_else(|| format!("账号 {uid_num}")),
+                avatar: meta.and_then(|m| m.avatar.clone()),
+                cookie: cred.cookie_header(),
+                bili_jct: cred.bili_jct.clone(),
+            });
+        }
+        accounts
+    };
+
+    Ok(remaining)
 }
 
-/// 移除指定账号
+/// 移除指定账号，返回新的活跃账号 ID（如果自动激活了另一个账号）
 #[tauri::command]
 pub async fn remove_account(
     app: tauri::AppHandle,
     account_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let is_active = {
         let active_id = state.active_account_id.lock().unwrap();
         active_id.as_deref() == Some(&account_id)
@@ -401,13 +410,13 @@ pub async fn remove_account(
         deactivate_current(&state).await;
     }
 
-    let _ = credential_store::remove_cookie(&app, &account_id);
-    let _ = credential_store::remove_account_meta(&app, &account_id);
+    if let Err(e) = credential_store::remove_cookie(&app, &account_id) { warn!("移除账号 Cookie 持久化失败: {e}"); }
+    if let Err(e) = credential_store::remove_account_meta(&app, &account_id) { warn!("移除账号元数据持久化失败: {e}"); }
     state.credentials.lock().unwrap().remove(&account_id);
     state.account_metas.lock().unwrap().remove(&account_id);
 
     if is_active {
-        let _ = credential_store::clear_active_account_id(&app);
+        if let Err(e) = credential_store::clear_active_account_id(&app) { warn!("清除活跃账号 ID 持久化失败: {e}"); }
 
         // 如果还有其他账号，自动激活第一个
         let next = {
@@ -423,12 +432,17 @@ pub async fn remove_account(
                 let mut active = state.active_account_id.lock().unwrap();
                 *active = Some(next_uid.clone());
             }
-            let _ = credential_store::save_active_account_id(&app, &next_uid);
+            credential_store::save_active_account_id(&app, &next_uid)?;
+            let _ = tray::refresh_tray(&app);
+            Ok(Some(next_uid))
+        } else {
+            let _ = tray::refresh_tray(&app);
+            Ok(None)
         }
+    } else {
+        let _ = tray::refresh_tray(&app);
+        Ok(None)
     }
-
-    let _ = tray::refresh_tray(&app);
-    Ok(())
 }
 
 /// 切换活跃账号
@@ -494,7 +508,7 @@ pub async fn switch_account(
             },
             avatar: login_status.account.as_ref().and_then(|a| a.avatar.clone()),
         };
-        let _ = credential_store::save_account_meta(&app, &account_id, &meta);
+        credential_store::save_account_meta(&app, &account_id, &meta)?;
         let mut account_metas = state.account_metas.lock().unwrap();
         account_metas.insert(account_id.clone(), meta);
     }

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
+import { listen } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
+import type { Credential } from "@/types/bilibili";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -72,6 +74,30 @@ export default function App() {
       cancelled = true;
     };
   }, [setAccounts, setActiveAccount, setCurrentRoomId, setRooms, setSettings]);
+
+  // 监听托盘事件：房间切换
+  useEffect(() => {
+    const unlisten = listen<number>("room-switched", (event) => {
+      setCurrentRoomId(String(event.payload));
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [setCurrentRoomId]);
+
+  // 监听托盘事件：账号切换
+  useEffect(() => {
+    const unlisten = listen<{ accountId: string; credential: Credential }>(
+      "account-switched",
+      (event) => {
+        const { accountId, credential } = event.payload;
+        setActiveAccount(accountId, credential);
+      }
+    );
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [setActiveAccount]);
 
   return <Outlet />;
 }

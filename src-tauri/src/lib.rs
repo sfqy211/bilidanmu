@@ -101,6 +101,8 @@ pub fn run() {
                         .filter(|id| credentials_map.contains_key(id));
                     if let Some(uid) = active_uid {
                         if let Some(cred) = credentials_map.get(&uid) {
+                            // 在启动阶段使用 try_lock（此时 tokio runtime 尚未完全就绪）
+                            // 如果 try_lock 失败，restore_login 命令会从磁盘重新加载
                             if let Ok(mut credential) = state.credential.try_lock() {
                                 *credential = Some(cred.clone());
                             }
@@ -126,7 +128,6 @@ pub fn run() {
             commands::auth::login_by_qr,
             commands::auth::poll_qr,
             commands::auth::login_by_cookie,
-            commands::auth::check_login_status,
             commands::auth::restore_login,
             commands::auth::logout,
             commands::auth::remove_account,
@@ -136,7 +137,6 @@ pub fn run() {
             commands::room::add_room,
             commands::room::remove_room,
             commands::room::get_room_info,
-            commands::room::get_danmu_info,
             commands::room::get_rooms,
             commands::room::get_emoticons,
             commands::room::open_danmaku_window,

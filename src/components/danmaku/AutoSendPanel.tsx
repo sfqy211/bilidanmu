@@ -115,14 +115,15 @@ function TextTabContent({
     }
   }, [textFill, onTextFillConsumed]);
 
-  const messages = useMemo(
-    () => messagesInput.split("\n").map((s) => s.trim()).filter(Boolean),
+  const entries = useMemo(
+    () => messagesInput.split("\n").map((s) => s.trim()).filter(Boolean)
+      .map((msg) => ({ message: msg, dmType: 0, emoticonOptions: undefined })),
     [messagesInput]
   );
 
   useEffect(() => {
-    onEntriesChange(messages.map((msg) => ({ message: msg, dmType: 0, emoticonOptions: undefined })));
-  }, [messages, onEntriesChange]);
+    onEntriesChange(entries);
+  }, [entries, onEntriesChange]);
 
   return (
     <div>
@@ -133,7 +134,7 @@ function TextTabContent({
         placeholder={"每行一条循环弹幕\n第一条\n第二条\n第三条"}
         className="min-h-28 w-full border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
       />
-      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">共 {messages.length} 条</p>
+      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">共 {entries.length} 条</p>
     </div>
   );
 }
@@ -335,13 +336,14 @@ function FavoritesTabContent({
       if (next.length === 0) {
         const newKey = nextKey;
         setNextKey((k) => k + 1);
+        setActiveKey(newKey);
         return [{ key: newKey, title: `弹幕组 ${newKey}`, msg: "" }];
+      }
+      if (activeKey === key) {
+        setActiveKey(next[0].key);
       }
       return next;
     });
-    if (activeKey === key) {
-      setActiveKey(panels.find((p) => p.key !== key)?.key ?? panels[0]?.key ?? 1);
-    }
   };
 
   const updatePanel = (key: number, field: "title" | "msg", value: string) => {

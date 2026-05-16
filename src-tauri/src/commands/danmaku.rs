@@ -93,6 +93,9 @@ pub async fn start_auto_send(
     auto_sender.shutdown_tx = Some(shutdown_tx);
     drop(auto_sender);
 
+    // 给待处理的 stop_auto_send 调用一个执行窗口，避免刚启动就被外部停止
+    tokio::task::yield_now().await;
+
     tokio::spawn(async move {
         let mut index = 0usize;
         let start_time = std::time::Instant::now();
@@ -105,7 +108,8 @@ pub async fn start_auto_send(
             if let Some(limit) = time_limit {
                 if start_time.elapsed() >= limit {
                     let state = app.state::<AppState>();
-        if let Ok(mut sender) = state.auto_sender.try_lock() {
+                    {
+                        let mut sender = state.auto_sender.lock().await;
                         sender.shutdown_tx = None;
                     }
                     let _ = app.emit(
@@ -163,7 +167,8 @@ pub async fn start_auto_send(
                     if let Some(limit) = time_limit {
                         if start_time.elapsed() >= limit {
                             let state = app.state::<AppState>();
-                            if let Ok(mut sender) = state.auto_sender.try_lock() {
+                            {
+                                let mut sender = state.auto_sender.lock().await;
                                 sender.shutdown_tx = None;
                             }
                             let _ = app.emit(
@@ -181,8 +186,9 @@ pub async fn start_auto_send(
             }
         }
 
-        let state = app.state::<AppState>();
-        if let Ok(mut sender) = state.auto_sender.try_lock() {
+        {
+            let state = app.state::<AppState>();
+            let mut sender = state.auto_sender.lock().await;
             sender.shutdown_tx = None;
         }
         let _ = app.emit(

@@ -6,8 +6,8 @@ interface AuthState {
   activeAccountId: string | null;
   setAccounts: (accounts: Credential[]) => void;
   addAccount: (account: Credential) => void;
-  removeAccount: (accountId: string) => void;
-  setActiveAccount: (accountId: string, account: Credential) => void;
+  removeAccount: (accountId: string, newActiveAccountId?: string | null) => void;
+  setActiveAccount: (accountId: string | null, account?: Credential) => void;
   clearAuth: () => void;
 }
 
@@ -26,15 +26,21 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       return { accounts: next, activeAccountId: account.accountId };
     }),
-  removeAccount: (accountId) =>
+  removeAccount: (accountId, newActiveAccountId) =>
     set((state) => ({
       accounts: state.accounts.filter((a) => a.accountId !== accountId),
-      activeAccountId: state.activeAccountId === accountId ? null : state.activeAccountId,
+      activeAccountId: newActiveAccountId !== undefined
+        ? newActiveAccountId
+        : state.activeAccountId === accountId
+          ? null
+          : state.activeAccountId,
     })),
   setActiveAccount: (accountId, account) =>
     set((state) => ({
       activeAccountId: accountId,
-      accounts: state.accounts.map((a) => (a.accountId === accountId ? account : a)),
+      accounts: account && accountId
+        ? state.accounts.map((a) => (a.accountId === accountId ? account : a))
+        : state.accounts,
     })),
   clearAuth: () => set({ accounts: [], activeAccountId: null }),
 }));

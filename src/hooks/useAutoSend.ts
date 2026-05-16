@@ -28,6 +28,8 @@ export function useAutoSend(roomId: number | null) {
   const [stopReason, setStopReason] = useState<string | null>(null);
   const incrementSentCount = useDanmakuStore((state) => state.incrementSentCount);
   const prevRoomIdRef = useRef<number | null>(roomId);
+  const isRunningRef = useRef(isRunning);
+  isRunningRef.current = isRunning;
 
   const start = useCallback(
     async (entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) => {
@@ -110,10 +112,12 @@ export function useAutoSend(roomId: number | null) {
     }
   }, [isRunning, roomId, stop]);
 
-  // 组件卸载时停止
+  // 组件卸载时停止（仅在确实运行时才发送停止命令）
   useEffect(() => {
     return () => {
-      void tauriCommands.danmaku.stopAutoSend();
+      if (isRunningRef.current) {
+        void tauriCommands.danmaku.stopAutoSend();
+      }
     };
   }, []);
 
