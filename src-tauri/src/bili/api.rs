@@ -3,6 +3,7 @@ use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeyCache, WbiKeys}
 use crate::models::account::LoginStatus;
 use crate::models::response::BiliResponse;
 use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomResult};
+use crate::models::stream::{StreamInfo, UrlInfo};
 use serde_json::Value;
 use regex::Regex;
 use std::collections::BTreeMap;
@@ -310,6 +311,97 @@ impl BiliApiClient {
             .collect::<Result<Vec<_>, _>>()
     }
 
+    /// 调用 v2 播放 API 获取直播流信息
+    ///
+    /// `only_audio=true` 时请求纯音频流（FLV 内仅含 AAC 音频轨）。
+    /// 返回扁平化的 StreamInfo，内部导航 `stream[0].format[0].codec[0]`。
+    pub async fn get_room_play_info(
+        &self,
+        room_id: u64,
+        only_audio: bool,
+    ) -> Result<StreamInfo, String> {
+        let keys = self.get_or_fetch_wbi_keys().await?;
+
+        let mut params = BTreeMap::from([
+            ("room_id".to_string(), room_id.to_string()),
+            ("protocol".to_string(), "0".to_string()),
+            ("format".to_string(), "0".to_string()),
+            ("codec".to_string(), "0,1".to_string()),
+            ("qn".to_string(), "150".to_string()),
+            ("platform".to_string(), "web".to_string()),
+            ("ptype".to_string(), "8".to_string()),
+            ("dolby".to_string(), "5".to_string()),
+            ("panorama".to_string(), "1".to_string()),
+        ]);
+
+        if only_audio {
+            params.insert("only_audio".to_string(), "1".to_string());
+        }
+
+        let signed = sign_wbi(params, &keys.mixin_key());
+
+        let response = self
+            .get_json(
+                "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
+                Some(signed),
+            )
+            .await?;
+
+        ensure_success(&response)?;
+
+        // 导航: data.playurl_info.playurl.stream[0].format[0].codec[0]
+        let codec = response
+            .get("data")
+            .and_then(|v| v.get("playurl_info"))
+            .and_then(|v| v.get("playurl"))
+            .and_then(|v| v.get("stream"))
+            .and_then(Value::as_array)
+            .and_then(|arr| arr.first())
+            .and_then(|s| s.get("format"))
+            .and_then(Value::as_array)
+            .and_then(|arr| arr.first())
+            .and_then(|f| f.get("codec"))
+            .and_then(Value::as_array)
+            .and_then(|arr| arr.first())
+            .ok_or_else(|| "v2 API 响应中缺少流信息".to_string())?;
+
+        let current_qn = codec
+            .get("current_qn")
+            .and_then(value_as_u64)
+            .unwrap_or(150);
+        let accept_qn = codec
+            .get("accept_qn")
+            .and_then(Value::as_array)
+            .map(|arr| arr.iter().filter_map(value_as_u64).collect())
+            .unwrap_or_default();
+        let base_url = codec
+            .get("base_url")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let url_info: Vec<UrlInfo> = codec
+            .get("url_info")
+            .and_then(Value::as_array)
+            .map(|arr| arr.iter().filter_map(parse_url_info).collect())
+            .unwrap_or_default();
+
+        // 完整流 URL: host + base_url + extra
+        let stream_url = if let Some(info) = url_info.first() {
+            format!("{}{}{}", info.host, base_url, info.extra)
+        } else {
+            base_url.clone()
+        };
+
+        Ok(StreamInfo {
+            current_qn,
+            accept_qn,
+            base_url,
+            url_info,
+            stream_url,
+            proxy_url: String::new(), // 由 IPC 命令填充
+        })
+    }
+
     async fn get_json(
         &self,
         url: &str,
@@ -537,5 +629,12 @@ fn parse_emoticon(value: &Value) -> Result<Emoticon, String> {
             .and_then(Value::as_str)
             .map(ToString::to_string),
         emoticon_options: value.get("emoticon_options").cloned(),
+    })
+}
+
+fn parse_url_info(value: &Value) -> Option<UrlInfo> {
+    Some(UrlInfo {
+        host: value.get("host").and_then(Value::as_str)?.to_string(),
+        extra: value.get("extra").and_then(Value::as_str)?.to_string(),
     })
 }
