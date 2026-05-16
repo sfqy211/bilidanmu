@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ArrowDown, Send, Smile, Zap } from "lucide-react";
+import { ArrowDown, Pause, Play, Send, Smile, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
 import { useAutoSend } from "@/hooks/useAutoSend";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -42,6 +43,16 @@ export function DanmakuPage() {
 
   const messages = useDanmakuStore((state) => state.messages);
   const { send, sendEmoticon, sending } = useDanmaku();
+  const {
+    audioRef,
+    isPlaying: audioPlaying,
+    isConnecting: audioConnecting,
+    volume: audioVolume,
+    error: audioError,
+    play: audioPlay,
+    stop: audioStop,
+    setVolume: audioSetVolume,
+  } = useAudioPlayer(roomId);
   const {
     isRunning: autoSendRunning,
     lastSentMessage,
@@ -170,6 +181,65 @@ export function DanmakuPage() {
 
   return (
     <main className="flex h-screen flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
+        {/* 音频控制栏 */}
+        <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <button
+            type="button"
+            onClick={() => void (audioPlaying ? audioStop() : audioPlay())}
+            disabled={!roomId || audioConnecting}
+            className={`flex h-6 w-6 items-center justify-center transition ${
+              audioPlaying
+                ? "text-pink-500 hover:text-pink-400"
+                : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+            } disabled:cursor-not-allowed disabled:opacity-50`}
+            title={audioPlaying ? "停止音频" : "播放音频"}
+          >
+            {audioConnecting ? (
+              <span className="block h-3 w-3 animate-spin rounded-full border-2 border-pink-500 border-t-transparent" />
+            ) : audioPlaying ? (
+              <Pause className="h-3.5 w-3.5" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => audioSetVolume(audioVolume === 0 ? 0.8 : 0)}
+            className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            {audioVolume === 0 ? (
+              <VolumeX className="h-3.5 w-3.5" />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5" />
+            )}
+          </button>
+
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(audioVolume * 100)}
+            onChange={(e) => audioSetVolume(Number(e.target.value) / 100)}
+            className="h-1 w-16 cursor-pointer accent-pink-500"
+          />
+
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            {audioError
+              ? audioError.length > 24
+                ? `${audioError.slice(0, 24)}…`
+                : audioError
+              : audioConnecting
+                ? "连接中…"
+                : audioPlaying
+                  ? "播放中"
+                  : "音频"}
+          </span>
+        </div>
+
+        {/* 隐藏音频元素 */}
+        <audio ref={audioRef} className="hidden" />
+
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
 
           <div
