@@ -1,15 +1,15 @@
 import { create } from "zustand";
-import type { Room, RoomInfo } from "@/types/bilibili";
+import type { Room, RoomInfo, SearchRoomResult } from "@/types/bilibili";
 
 interface RoomState {
   rooms: Room[];
   currentRoomId: string | null;
-  searchResults: Room[];
+  searchResults: SearchRoomResult[];
   setRooms: (rooms: Room[]) => void;
   addRoom: (room: Room | RoomInfo) => void;
   removeRoom: (roomId: number) => void;
   setCurrentRoomId: (id: string | null) => void;
-  setSearchResults: (results: Room[]) => void;
+  setSearchResults: (results: SearchRoomResult[]) => void;
 }
 
 export const useRoomStore = create<RoomState>((set) => ({

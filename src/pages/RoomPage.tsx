@@ -3,7 +3,7 @@ import { MonitorPlay, Plus, Search, Trash2 } from "lucide-react";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
-import type { Room, SearchRoomMode } from "@/types/bilibili";
+import type { SearchRoomMode } from "@/types/bilibili";
 
 const searchModes: Array<{ value: SearchRoomMode; label: string; placeholder: string }> = [
   { value: "name", label: "主播名字", placeholder: "输入主播名字搜索直播间" },
@@ -11,25 +11,6 @@ const searchModes: Array<{ value: SearchRoomMode; label: string; placeholder: st
   { value: "link", label: "直播链接", placeholder: "粘贴 bilibili 直播间链接" },
   { value: "uid", label: "UID", placeholder: "输入主播 UID" }
 ];
-
-function toRoom(result: {
-  roomId: number;
-  uid?: number;
-  uname: string;
-  title: string;
-  cover?: string;
-  isLive: boolean;
-}): Room {
-  return {
-    id: String(result.roomId),
-    roomId: result.roomId,
-    uid: result.uid,
-    uname: result.uname,
-    title: result.title,
-    cover: result.cover,
-    isLive: result.isLive
-  };
-}
 
 export function RoomPage() {
   const { rooms, currentRoomId, searchResults, setSearchResults, addRoom, removeRoom, setCurrentRoomId } =
@@ -40,11 +21,21 @@ export function RoomPage() {
   const [error, setError] = useState<string | null>(null);
   const [addingRoomIds, setAddingRoomIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState("rooms");
+  const [liveStatusMap, setLiveStatusMap] = useState<Record<string, boolean>>({});
 
   const placeholder = useMemo(
     () => searchModes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容",
     [mode]
   );
+
+  const refreshLiveStatus = async () => {
+    try {
+      const status = await tauriCommands.room.getRoomsLiveStatus();
+      setLiveStatusMap(status);
+    } catch {
+      // 忽略刷新失败
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +45,10 @@ export function RoomPage() {
         const savedRooms = await tauriCommands.state.getRooms();
         if (!cancelled) {
           useRoomStore.setState({ rooms: savedRooms });
+        }
+        // 实时查询直播状态
+        if (!cancelled) {
+          await refreshLiveStatus();
         }
       } catch {
         // 忽略初始化读取失败，保留空状态
@@ -65,6 +60,7 @@ export function RoomPage() {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddRoom = async (roomId: number) => {
@@ -72,6 +68,8 @@ export function RoomPage() {
     try {
       const roomInfo = await tauriCommands.room.add(roomId);
       addRoom(roomInfo);
+      // 添加后刷新直播状态
+      void refreshLiveStatus();
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : "添加失败");
     } finally {
@@ -96,7 +94,7 @@ export function RoomPage() {
 
     try {
       const results = await tauriCommands.room.search(trimmed, mode);
-      setSearchResults(results.map(toRoom));
+      setSearchResults(results);
     } catch (searchError) {
       setError(searchError instanceof Error ? searchError.message : "搜索失败");
       setSearchResults([]);
@@ -120,7 +118,10 @@ export function RoomPage() {
           { value: "search", label: "搜索" }
         ]}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab === "rooms") void refreshLiveStatus();
+        }}
       >
         <TabContent value="search" className="flex flex-col gap-4">
           <div className="border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
@@ -219,7 +220,7 @@ export function RoomPage() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 ${room.isLive ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
+                      <span className={`h-2 w-2 ${room.uid != null && liveStatusMap[String(room.uid)] ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
                       <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
                       <span className="text-xs text-slate-500 dark:text-slate-400">{room.roomId}</span>
                       {active ? (
@@ -228,7 +229,7 @@ export function RoomPage() {
                     </div>
                     <p className="truncate text-xs text-slate-600 dark:text-slate-300">{room.title}</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {room.isLive ? "直播中" : "未开播"}
+                      {room.uid != null && liveStatusMap[String(room.uid)] ? "直播中" : "未开播"}
                     </p>
                     <div className="flex gap-2">
                       <button

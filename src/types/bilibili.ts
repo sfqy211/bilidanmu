@@ -27,7 +27,6 @@ export interface Room {
   title: string;
   uname: string;
   cover?: string;
-  isLive: boolean;
 }
 
 export interface RoomInfo extends Room {
