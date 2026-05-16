@@ -52,59 +52,101 @@ pub async fn send_emoticon(
     .await
 }
 
+/// 单条自动发送条目
+#[derive(serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoSendEntry {
+    pub message: String,
+    /// dm_type: 0=文字, 1=表情
+    pub dm_type: u32,
+    /// 表情模式下的 emoticon_options JSON
+    pub emoticon_options: Option<String>,
+}
+
 #[tauri::command]
-pub async fn start_loop_send(
+pub async fn start_auto_send(
     app: tauri::AppHandle,
     room_id: u64,
-    messages: Vec<String>,
+    entries: Vec<AutoSendEntry>,
     interval_ms: u64,
+    time_limit_secs: Option<u64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     if room_id == 0 {
         return Err("room_id 不能为空".to_string());
     }
 
-    if messages.is_empty() {
-        return Err("循环发送内容不能为空".to_string());
+    if entries.is_empty() {
+        return Err("自动发送内容不能为空".to_string());
     }
 
     let interval_ms = interval_ms.max(300);
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state)?;
 
-    let mut loop_sender = state.loop_sender.lock().await;
-    if loop_sender.shutdown_tx.is_some() {
-        return Err("循环发送已在运行中".to_string());
+    let mut auto_sender = state.auto_sender.lock().await;
+    if auto_sender.shutdown_tx.is_some() {
+        return Err("自动发送已在运行中".to_string());
     }
 
     let (shutdown_tx, mut shutdown_rx) = oneshot::channel();
-    loop_sender.shutdown_tx = Some(shutdown_tx);
-    drop(loop_sender);
+    auto_sender.shutdown_tx = Some(shutdown_tx);
+    drop(auto_sender);
 
     tokio::spawn(async move {
         let mut index = 0usize;
+        let start_time = std::time::Instant::now();
+        let time_limit = time_limit_secs
+            .filter(|&secs| secs > 0)
+            .map(Duration::from_secs);
 
         loop {
-            let message = messages[index % messages.len()].clone();
-            let result = api.send_danmaku(room_id, &message, None, None, 0, None).await;
+            // 检查时间限制
+            if let Some(limit) = time_limit {
+                if start_time.elapsed() >= limit {
+                    let state = app.state::<AppState>();
+        if let Ok(mut sender) = state.auto_sender.try_lock() {
+                        sender.shutdown_tx = None;
+                    }
+                    let _ = app.emit(
+                        "auto-send-stopped",
+                        serde_json::json!({"reason": "time_limit"}),
+                    );
+                    return;
+                }
+            }
+
+            let entry = entries[index % entries.len()].clone();
+            let result = api
+                .send_danmaku(
+                    room_id,
+                    &entry.message,
+                    None,
+                    None,
+                    entry.dm_type,
+                    entry.emoticon_options.clone(),
+                )
+                .await;
 
             match result {
                 Ok(_) => {
                     let _ = app.emit(
-                        "loop-send-tick",
+                        "auto-send-tick",
                         serde_json::json!({
                             "roomId": room_id,
-                            "message": message,
+                            "message": entry.message,
+                            "dmType": entry.dm_type,
                             "index": index,
                         }),
                     );
                 }
                 Err(error) => {
                     let _ = app.emit(
-                        "loop-send-error",
+                        "auto-send-error",
                         serde_json::json!({
                             "roomId": room_id,
-                            "message": message,
+                            "message": entry.message,
+                            "dmType": entry.dm_type,
                             "index": index,
                             "error": error,
                         }),
@@ -116,28 +158,46 @@ pub async fn start_loop_send(
             index = index.saturating_add(1);
 
             tokio::select! {
-                _ = sleep(Duration::from_millis(interval_ms)) => {}
+                _ = sleep(Duration::from_millis(interval_ms)) => {
+                    // sleep 后再检查时间限制，避免限制到期后多发一条
+                    if let Some(limit) = time_limit {
+                        if start_time.elapsed() >= limit {
+                            let state = app.state::<AppState>();
+                            if let Ok(mut sender) = state.auto_sender.try_lock() {
+                                sender.shutdown_tx = None;
+                            }
+                            let _ = app.emit(
+                                "auto-send-stopped",
+                                serde_json::json!({"reason": "time_limit"}),
+                            );
+                            return;
+                        }
+                    }
+                }
                 _ = &mut shutdown_rx => {
-                    let _ = app.emit("loop-send-stopped", serde_json::json!({"reason": "manual"}));
+                    let _ = app.emit("auto-send-stopped", serde_json::json!({"reason": "manual"}));
                     return;
                 }
             }
         }
 
         let state = app.state::<AppState>();
-        if let Ok(mut loop_sender) = state.loop_sender.try_lock() {
-            loop_sender.shutdown_tx = None;
+        if let Ok(mut sender) = state.auto_sender.try_lock() {
+            sender.shutdown_tx = None;
         }
-        let _ = app.emit("loop-send-stopped", serde_json::json!({"reason": "error"}));
+        let _ = app.emit(
+            "auto-send-stopped",
+            serde_json::json!({"reason": "error"}),
+        );
     });
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn stop_loop_send(state: State<'_, AppState>) -> Result<(), String> {
-    let mut loop_sender = state.loop_sender.lock().await;
-    if let Some(shutdown_tx) = loop_sender.shutdown_tx.take() {
+pub async fn stop_auto_send(state: State<'_, AppState>) -> Result<(), String> {
+    let mut auto_sender = state.auto_sender.lock().await;
+    if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
         let _ = shutdown_tx.send(());
     }
     Ok(())

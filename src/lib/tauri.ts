@@ -25,6 +25,12 @@ export interface SendEmoticonOptions extends SendOptions {
   emoticonOptions?: string;
 }
 
+export interface AutoSendEntry {
+  message: string;
+  dmType: number;
+  emoticonOptions?: string;
+}
+
 export interface BiliResponse {
   code: number;
   message: string;
@@ -58,9 +64,9 @@ export const tauriCommands = {
         emoticonUnique,
         ...options
       }),
-    startLoop: (roomId: number, messages: string[], intervalMs: number) =>
-      invoke<void>("start_loop_send", { roomId, messages, intervalMs }),
-    stopLoop: () => invoke<void>("stop_loop_send")
+    startAutoSend: (roomId: number, entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) =>
+      invoke<void>("start_auto_send", { roomId, entries, intervalMs, timeLimitSecs: timeLimitSecs ?? null }),
+    stopAutoSend: () => invoke<void>("stop_auto_send")
   },
   ws: {
     connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),

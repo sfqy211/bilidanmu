@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ArrowDown, Repeat2, Send, Smile } from "lucide-react";
-import { LoopSenderPanel } from "@/components/danmaku/LoopSenderPanel";
+import { ArrowDown, Send, Smile, Zap } from "lucide-react";
+import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
-import { useScheduler } from "@/hooks/useScheduler";
+import { useAutoSend } from "@/hooks/useAutoSend";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -38,23 +37,21 @@ export function DanmakuPage() {
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
-  const [loopPanelOpen, setLoopPanelOpen] = useState(false);
-  const [loopMessagesInput, setLoopMessagesInput] = useState("");
-  const [loopIntervalSec, setLoopIntervalSec] = useState("2");
+  const [autoSendOpen, setAutoSendOpen] = useState(false);
   useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
   const { send, sendEmoticon, sending } = useDanmaku();
   const {
-    isRunning: loopRunning,
-    lastSentMessage: lastLoopMessage,
-    lastError: loopError,
-    lastIndex: lastLoopIndex,
-    loopSentCount,
+    isRunning: autoSendRunning,
+    lastSentMessage,
+    lastError: autoSendError,
+    lastIndex,
+    sentCount,
     stopReason,
-    start: startLoop,
-    stop: stopLoop
-  } = useScheduler(roomId);
+    start: startAutoSend,
+    stop: stopAutoSend
+  } = useAutoSend(roomId);
 
   const checkAtBottom = useCallback(() => {
     const container = scrollRef.current;
@@ -93,7 +90,7 @@ export function DanmakuPage() {
       }
 
       setEmoticonPickerOpen(false);
-      setLoopPanelOpen(false);
+      setAutoSendOpen(false);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -129,7 +126,7 @@ export function DanmakuPage() {
   const handleToggleEmoticonPicker = useCallback(async () => {
     const nextOpen = !emoticonPickerOpen;
     if (nextOpen) {
-      setLoopPanelOpen(false);
+      setAutoSendOpen(false);
     }
     setEmoticonPickerOpen(nextOpen);
 
@@ -169,23 +166,7 @@ export function DanmakuPage() {
     setIsAtBottom(true);
   };
 
-  const loopMessages = useMemo(
-    () => loopMessagesInput.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
-    [loopMessagesInput]
-  );
 
-  const handleStartLoop = async () => {
-    const intervalSec = Number(loopIntervalSec);
-    if (!Number.isFinite(intervalSec) || intervalSec < 0.3) {
-      return;
-    }
-
-    try {
-      await startLoop(loopMessages, Math.round(intervalSec * 1000));
-    } catch {
-      // 错误已由 useScheduler 记录并展示，这里只避免未处理的 Promise rejection
-    }
-  };
 
   return (
     <main className="flex h-screen flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
@@ -227,7 +208,7 @@ export function DanmakuPage() {
             <button
               type="button"
               onClick={() => {
-                setLoopPanelOpen((value) => {
+                setAutoSendOpen((value) => {
                   const next = !value;
                   if (next) {
                     setEmoticonPickerOpen(false);
@@ -235,10 +216,14 @@ export function DanmakuPage() {
                   return next;
                 });
               }}
-              className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
-              title="独轮车"
+              className={`flex h-10 w-10 items-center justify-center border transition ${
+                autoSendRunning
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  : "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              }`}
+              title="自动发送"
             >
-              <Repeat2 className="h-4 w-4" />
+              <Zap className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -266,23 +251,19 @@ export function DanmakuPage() {
                 />
               ) : null}
 
-              {loopPanelOpen ? (
-                <LoopSenderPanel
+              {autoSendOpen ? (
+                <AutoSendPanel
                   className="absolute bottom-full left-0 right-0 z-20 mb-2 w-[min(100%,520px)]"
-                  loopRunning={loopRunning}
-                  loopMessages={loopMessages}
-                  loopMessagesInput={loopMessagesInput}
-                  loopIntervalSec={loopIntervalSec}
-                  lastLoopMessage={lastLoopMessage}
-                  lastLoopIndex={lastLoopIndex}
-                  loopSentCount={loopSentCount}
+                  isRunning={autoSendRunning}
+                  lastSentMessage={lastSentMessage}
+                  lastIndex={lastIndex}
+                  sentCount={sentCount}
                   stopReason={stopReason}
-                  loopError={loopError}
-                  onLoopMessagesInputChange={setLoopMessagesInput}
-                  onLoopIntervalSecChange={setLoopIntervalSec}
-                  onStartLoop={() => void handleStartLoop()}
-                  onStopLoop={() => void stopLoop()}
-                  onClose={() => setLoopPanelOpen(false)}
+                  error={autoSendError}
+                  emoticonPackages={emoticonPackages}
+                  onStart={startAutoSend}
+                  onStop={() => void stopAutoSend()}
+                  onClose={() => setAutoSendOpen(false)}
                 />
               ) : null}
 

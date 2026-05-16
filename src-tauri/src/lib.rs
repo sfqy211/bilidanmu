@@ -22,7 +22,7 @@ use tokio::sync::{oneshot, Mutex};
 const PROXY_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
-pub struct LoopSenderState {
+pub struct AutoSenderState {
     pub shutdown_tx: Option<oneshot::Sender<()>>,
 }
 
@@ -30,7 +30,7 @@ pub struct AppState {
     pub credential: Mutex<Option<BiliCredential>>,
     pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
     pub ws_client: Mutex<Option<DanmakuWsClient>>,
-    pub loop_sender: Mutex<LoopSenderState>,
+    pub auto_sender: Mutex<AutoSenderState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
 }
@@ -45,7 +45,7 @@ pub fn run() {
             credential: Mutex::new(None),
             wbi_cache: Arc::new(Mutex::new(WbiKeyCache::default())),
             ws_client: Mutex::new(None),
-            loop_sender: Mutex::new(LoopSenderState { shutdown_tx: None }),
+            auto_sender: Mutex::new(AutoSenderState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
             proxy_client: reqwest::Client::builder()
                 .user_agent(PROXY_USER_AGENT)
@@ -106,8 +106,8 @@ pub fn run() {
             commands::room::open_danmaku_window,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,
-            commands::danmaku::start_loop_send,
-            commands::danmaku::stop_loop_send,
+            commands::danmaku::start_auto_send,
+            commands::danmaku::stop_auto_send,
             commands::ai::add_ai_model,
             commands::ai::get_ai_models,
             commands::ai::test_ai_connection,

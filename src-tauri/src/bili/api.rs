@@ -374,8 +374,15 @@ impl BiliApiClient {
             form.insert("room_type".to_string(), "0".to_string());
         }
 
-        if let Some(emoticon_options) = emoticon_options {
-            form.insert("emoticon_options".to_string(), emoticon_options);
+        if dm_type == 1 {
+            form.insert(
+                "data_extend".to_string(),
+                serde_json::json!({"trackid": "-99998"}).to_string(),
+            );
+            form.insert(
+                "emoticon_options".to_string(),
+                emoticon_options.unwrap_or_else(|| "{}".to_string()),
+            );
         }
 
         let response = self
@@ -396,7 +403,7 @@ impl BiliApiClient {
             Err(if message.is_empty() {
                 format!("发送弹幕失败，错误码 {code}")
             } else {
-                message
+                format!("{message}（错误码 {code}）")
             })
         }
     }

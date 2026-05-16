@@ -27,17 +27,17 @@
 - 房间添加、移除、本地持久化（SQLite）
 - 文字弹幕发送、表情弹幕发送命令
 - 表情列表获取（get_emoticons API + 前端表情选择器）
-- 循环发送后端（start_loop_send / stop_loop_send，oneshot 控制 + 事件通知）
+- 自动发送后端（start_auto_send / stop_auto_send，支持文字/表情统一 AutoSendEntry + 时间限制 + oneshot 控制 + 事件通知）
 - buvid3/4 真实生成（随机 hex + 时间戳，自动补充到 Cookie 缺失字段）
 - WebSocket 弹幕接收、心跳、断线重连
 - DanmakuPage 实时弹幕流、时间戳、人气值、自动滚动、回到底部、Enter 发送、表情选择器
 - 接收增强：礼物消息、进场消息、SC 消息、inline 表情渲染、大表情渲染
-- 自动发送完整版（useScheduler + 循环发送面板）
+- 自动发送完整版（useAutoSend + AutoSendPanel 三 Tab：文字/表情/收藏夹，统一 start/stop，收藏夹→文字填充）
 - AccountPage 真实 UI（扫码登录 + Cookie 登录、本地 QR 生成、过期自动刷新、账号展示、发送/接收标记、退出登录、隐身模式开关）
 - SettingsPage 真实读写（settings_store.rs 持久化 + IPC 命令 + 前端表单）
 - AIPage 最小真实版（ai_store.rs 持久化 + IPC 命令：保存/加载/测试连接/获取模型列表/切换当前/编辑/删除）
 - 系统托盘动态菜单（账号/房间/AI 状态实时展示，状态变化自动刷新）
-- DanmakuPage 组件化拆分：SuperChatCard、DanmakuMessageItem、InlineEmotText、EmoticonPickerPanel、LoopSenderPanel
+- DanmakuPage 组件化拆分：SuperChatCard、DanmakuMessageItem、InlineEmotText、EmoticonPickerPanel、AutoSendPanel
 - 图片代理系统：`proxy_image` 命令 + `useProxyImage` hook + `ProxiedImage` 组件
 - SQLite 持久化迁移：`db.rs` 初始化 + room/ai/emoticon/selections 均使用 SQLite
 - Selections 恢复机制：批量读写 + 前端启动时恢复并校验
@@ -108,8 +108,8 @@
 
 | 功能               | 说明                                                                    |
 | ------------------ | ----------------------------------------------------------------------- |
-| 表情自动发送 Tab   | 规划中 EmotionSpamTab，当前自动发送仅支持文字                           |
-| 收藏夹自动发送 Tab | 规划中 FavoritesSpamTab，收藏标签 + 消息管理                            |
+| 表情自动发送 Tab   | ✅ 已实现，EmotionTab 支持表情选择 + ProxiedImage + 已选预览                     |
+| 收藏夹自动发送 Tab | ✅ 已实现，FavoritesTab 支持多弹幕组 + 时间限制 + 发送到文字                     |
 | 仅音频流拉取       | v2 API `only_audio=1` 支持仅拉取音频流，详见 [research.md](research.md) |
 
 ### 可选增强
