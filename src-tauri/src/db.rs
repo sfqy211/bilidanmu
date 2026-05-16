@@ -35,8 +35,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               uid INTEGER,
               title TEXT NOT NULL,
               uname TEXT NOT NULL,
-              cover TEXT,
-              is_live INTEGER NOT NULL DEFAULT 0
+              cover TEXT
             );
 
             CREATE TABLE IF NOT EXISTS ai_models (
@@ -81,6 +80,10 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
             "#,
         )
         .map_err(|error| format!("初始化 SQLite 数据库失败: {error}"))?;
+
+    // 迁移: 移除 rooms.is_live 列（直播状态改为实时查询，不再持久化）
+    // SQLite 3.35+ 支持 DROP COLUMN，旧版本静默忽略
+    let _ = connection.execute_batch("ALTER TABLE rooms DROP COLUMN is_live");
 
     Ok(())
 }

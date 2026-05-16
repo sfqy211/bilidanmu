@@ -58,7 +58,9 @@ export const tauriCommands = {
     getAudioStreamUrl: (roomId: number) =>
       invoke<StreamInfo>("get_audio_stream_url", { roomId }),
     clearAudioStream: () =>
-      invoke<void>("clear_audio_stream")
+      invoke<void>("clear_audio_stream"),
+    getRoomsLiveStatus: () =>
+      invoke<Record<string, boolean>>("get_rooms_live_status")
   },
   danmaku: {
     send: (roomId: number, msg: string, options?: SendOptions) =>

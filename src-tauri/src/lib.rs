@@ -148,6 +148,7 @@ pub fn run() {
             commands::room::open_danmaku_window,
             commands::room::get_audio_stream_url,
             commands::room::clear_audio_stream,
+            commands::room::get_rooms_live_status,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,
             commands::danmaku::start_auto_send,

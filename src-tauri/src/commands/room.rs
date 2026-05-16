@@ -153,3 +153,17 @@ pub async fn get_audio_stream_url(
 pub async fn clear_audio_stream(state: State<'_, AppState>) -> Result<(), String> {
     state.stream_proxy.clear_stream_url().await
 }
+
+#[tauri::command]
+pub async fn get_rooms_live_status(state: State<'_, AppState>) -> Result<std::collections::HashMap<u64, bool>, String> {
+    let rooms = room_store::load_rooms(state.inner())?;
+    let uids: Vec<u64> = rooms.iter().filter_map(|r| r.uid).collect();
+
+    if uids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+    api.get_rooms_live_status(&uids).await
+}

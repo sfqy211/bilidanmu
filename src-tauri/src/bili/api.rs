@@ -130,11 +130,6 @@ impl BiliApiClient {
                     .or_else(|| data.get("cover"))
                     .and_then(Value::as_str)
                     .map(ToString::to_string),
-                is_live: data
-                    .get("live_status")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(0)
-                    == 1,
             },
             area_name: data
                 .get("area_name")
@@ -147,6 +142,11 @@ impl BiliApiClient {
                 .and_then(Value::as_str)
                 .map(ToString::to_string),
             description: data.get("description").and_then(Value::as_str).map(ToString::to_string),
+            is_live: data
+                .get("live_status")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                == 1,
         })
     }
 
@@ -200,6 +200,50 @@ impl BiliApiClient {
         })
     }
 
+    /// 批量查询多个 UID 的直播状态
+    ///
+    /// 返回 `HashMap<uid, is_live>`，未查到的 UID 不包含在结果中。
+    pub async fn get_rooms_live_status(
+        &self,
+        uids: &[u64],
+    ) -> Result<std::collections::HashMap<u64, bool>, String> {
+        if uids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        // BTreeMap 不支持重复 key，手动拼接 uids[] 参数
+        let query = uids
+            .iter()
+            .map(|uid| format!("uids[]={uid}"))
+            .collect::<Vec<_>>()
+            .join("&");
+        let url = format!(
+            "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?{query}"
+        );
+
+        let response = self.get_json(&url, None).await?;
+        ensure_success(&response)?;
+
+        let data = response
+            .get("data")
+            .and_then(Value::as_object)
+            .ok_or_else(|| "get_status_info_by_uids 响应缺少 data".to_string())?;
+
+        let mut result = std::collections::HashMap::new();
+        for (uid_str, entry) in data {
+            if let Ok(uid) = uid_str.parse::<u64>() {
+                let is_live = entry
+                    .get("live_status")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0)
+                    == 1;
+                result.insert(uid, is_live);
+            }
+        }
+
+        Ok(result)
+    }
+
     pub async fn search_rooms_by_name(&self, keyword: &str, page: u32) -> Result<Vec<SearchRoomResult>, String> {
         let response = self
             .get_json(
@@ -242,7 +286,7 @@ impl BiliApiClient {
                     uname: strip_em_tags(uname),
                     title: strip_em_tags(title),
                     cover,
-                    is_live: true,
+                    is_live: item.get("live_status").and_then(Value::as_u64).unwrap_or(0) == 1,
                 })
             })
             .collect())
