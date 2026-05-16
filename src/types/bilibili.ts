@@ -1,14 +1,5 @@
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
-export interface Account {
-  id: string;
-  uid: number;
-  username: string;
-  avatar?: string;
-  cookie: string;
-  expiresAt?: string;
-}
-
 export interface Credential {
   accountId: string;
   uid: number;
@@ -16,11 +7,6 @@ export interface Credential {
   avatar?: string;
   cookie: string;
   biliJct?: string;
-}
-
-export interface LoginStatus {
-  isLoggedIn: boolean;
-  account?: Account;
 }
 
 export interface QrLoginResult {
