@@ -13,7 +13,7 @@
 | Phase 3：弹幕发送 & API        | ✅ 已完成 | 文字/表情弹幕发送、表情列表获取、房间搜索、房间信息、循环发送后端均为真实调用  |
 | Phase 4：WebSocket 弹幕接收    | ✅ 已完成 | `protocol.rs` 协议解析、`ws_client.rs` 连接/认证/心跳/重连、前端事件监听已接通 |
 | Phase 5：前端页面开发          | ✅ 已完成 | RoomPage、DanmakuPage、AccountPage、SettingsPage、AIPage 全部进入可用态        |
-| Phase 6：完善 & 打包           | 🔧 进行中 | 系统托盘、图片代理、SQLite 迁移、CI/CD 已完成；配置导入导出、账号移除尚未实现  |
+| Phase 6：完善 & 打包           | 🔧 进行中 | 系统托盘、图片代理、SQLite 迁移、CI/CD、多账号支持已完成                       |
 
 ### 当前已实现情况（按代码现状）
 
@@ -86,10 +86,9 @@
 
 - [x] **6.1** 系统托盘（tray.rs）
 - [x] **6.2** 打包发布（GitHub Actions CI/CD）
-- [ ] **6.3** 配置导出/导入（export_config / import_config IPC 命令）
-- [ ] **6.4** 账号移除命令（remove_account，当前仅 logout）
-- [ ] **6.5** 升级直播流 API 至 v2（当前使用 v1，需迁移到 v2 `getRoomPlayInfo`）
-- [ ] **6.6** 仅音频流拉取功能（基于 v2 API 的 `only_audio=1`）
+- [x] **6.3** 账号移除命令（remove_account）
+- [ ] **6.4** 升级直播流 API 至 v2（当前使用 v1，需迁移到 v2 `getRoomPlayInfo`）
+- [ ] **6.5** 仅音频流拉取功能（基于 v2 API 的 `only_audio=1`）
 
 ---
 
@@ -99,17 +98,15 @@
 
 | #   | 项目                 | 说明                                                                                        |
 | --- | -------------------- | ------------------------------------------------------------------------------------------- |
-| 6.3 | 配置导出/导入        | IPC 命令表中 `export_config` / `import_config` 已规划但未实现                               |
-| 6.4 | 账号移除命令         | IPC 命令表中 `remove_account` 已规划但未实现（当前仅 `logout`）                             |
-| 6.5 | 升级直播流 API 至 v2 | 当前使用 v1 `/room/v1/Room/playUrl`，需迁移到 v2 `/xlive/web-room/v2/index/getRoomPlayInfo` |
-| 6.6 | 仅音频流拉取功能     | 基于 v2 API 的 `only_audio=1` 参数获取纯音频流，详见 [research.md](research.md)             |
+| 6.4 | 升级直播流 API 至 v2 | 当前使用 v1 `/room/v1/Room/playUrl`，需迁移到 v2 `/xlive/web-room/v2/index/getRoomPlayInfo` |
+| 6.5 | 仅音频流拉取功能     | 基于 v2 API 的 `only_audio=1` 参数获取纯音频流，详见 [research.md](research.md)             |
 
 ### 可选扩展
 
 | 功能               | 说明                                                                    |
 | ------------------ | ----------------------------------------------------------------------- |
-| 表情自动发送 Tab   | ✅ 已实现，EmotionTab 支持表情选择 + ProxiedImage + 已选预览                     |
-| 收藏夹自动发送 Tab | ✅ 已实现，FavoritesTab 支持多弹幕组 + 时间限制 + 发送到文字                     |
+| 表情自动发送 Tab   | ✅ 已实现，EmotionTab 支持表情选择 + ProxiedImage + 已选预览            |
+| 收藏夹自动发送 Tab | ✅ 已实现，FavoritesTab 支持多弹幕组 + 时间限制 + 发送到文字            |
 | 仅音频流拉取       | v2 API `only_audio=1` 支持仅拉取音频流，详见 [research.md](research.md) |
 
 ### 可选增强

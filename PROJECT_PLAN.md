@@ -30,8 +30,7 @@
 | 消息模板/收藏夹循环发送     | BLSPAM                            | P2     | ✅   |
 | 多直播间支持                | -                                 | P2     | ✅   |
 | 系统托盘                    | cc-switch                         | P2     | ✅   |
-| 配置导出/导入               | -                                 | P2     | 🔲   |
-| 账号移除命令                | -                                 | P2     | 🔲   |
+| 账号移除命令                | -                                 | P2     | ✅   |
 | 升级直播流 API 至 v2        | PiliPlus, bilibili-API-collect    | P2     | 🔲   |
 | 仅音频流拉取                | PiliPlus                          | P2     | 🔲   |
 

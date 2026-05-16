@@ -89,8 +89,6 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `load_selections` | `keys: string[]` | `Record<string, unknown>` | 批量读取选择项 |
 | `save_selections` | `entries: Record<string, unknown>` | void | 批量保存选择项（事务） |
 
-> **计划中但未实现的命令：** `export_config`、`import_config`、`remove_account`
-
 ---
 
 ## 三、事件列表（Rust → 前端）
