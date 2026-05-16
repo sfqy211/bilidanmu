@@ -11,6 +11,7 @@ import type {
   SearchRoomMode,
   SearchRoomResult,
   Settings,
+  StreamInfo,
   TestResult
 } from "@/types/bilibili";
 
@@ -53,7 +54,11 @@ export const tauriCommands = {
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
     openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
     getEmoticons: (roomId: number) =>
-      invoke<EmoticonPackage[]>("get_emoticons", { roomId })
+      invoke<EmoticonPackage[]>("get_emoticons", { roomId }),
+    getAudioStreamUrl: (roomId: number) =>
+      invoke<StreamInfo>("get_audio_stream_url", { roomId }),
+    clearAudioStream: () =>
+      invoke<void>("clear_audio_stream")
   },
   danmaku: {
     send: (roomId: number, msg: string, options?: SendOptions) =>

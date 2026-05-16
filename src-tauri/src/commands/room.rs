@@ -1,5 +1,6 @@
 use crate::commands::build_api_client;
 use crate::models::room::{EmoticonPackage, Room, RoomInfo, SearchRoomResult};
+use crate::models::stream::StreamInfo;
 use crate::room_store;
 use crate::tray;
 use crate::AppState;
@@ -124,4 +125,31 @@ fn extract_number(input: &str, label: &str) -> Result<u64, String> {
 
 fn extract_room_id(input: &str) -> Result<u64, String> {
     extract_number(input, "房间号")
+}
+
+#[tauri::command]
+pub async fn get_audio_stream_url(
+    room_id: u64,
+    state: State<'_, AppState>,
+) -> Result<StreamInfo, String> {
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+
+    let mut stream_info = api.get_room_play_info(room_id, true).await?;
+
+    // 将流 URL 注册到本地代理服务器
+    state
+        .stream_proxy
+        .set_stream_url(stream_info.stream_url.clone())
+        .await?;
+
+    // 填充代理 URL
+    stream_info.proxy_url = state.stream_proxy.proxy_url().await?;
+
+    Ok(stream_info)
+}
+
+#[tauri::command]
+pub async fn clear_audio_stream(state: State<'_, AppState>) -> Result<(), String> {
+    state.stream_proxy.clear_stream_url().await
 }

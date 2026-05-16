@@ -68,6 +68,20 @@ export interface EmoticonPackage {
   emoticons: Emoticon[];
 }
 
+export interface UrlInfo {
+  host: string;
+  extra: string;
+}
+
+export interface StreamInfo {
+  currentQn: number;
+  acceptQn: number[];
+  baseUrl: string;
+  urlInfo: UrlInfo[];
+  streamUrl: string;
+  proxyUrl: string;
+}
+
 export function makePkgKey(pkg: EmoticonPackage): string {
   return `${pkg.pkgId}-${pkg.pkgType ?? 0}`;
 }
