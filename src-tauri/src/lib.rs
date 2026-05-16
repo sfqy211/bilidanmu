@@ -6,6 +6,7 @@ mod db;
 mod emoticon_store;
 mod models;
 mod room_store;
+mod selections_store;
 mod settings_store;
 mod tray;
 
@@ -109,7 +110,9 @@ pub fn run() {
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
             commands::settings::get_settings,
-            commands::settings::update_settings
+            commands::settings::update_settings,
+            commands::selections::load_selections,
+            commands::selections::save_selections
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

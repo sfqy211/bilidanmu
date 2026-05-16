@@ -68,11 +68,11 @@ export const tauriCommands = {
   },
   ai: {
     getModels: () => invoke<AIModel[]>("get_ai_models"),
-    addModel: (input: AIModelInput) => invoke<AIModel>("add_ai_model", { ...input }),
+    addModel: (input: AIModelInput) => invoke<AIModel>("add_ai_model", { input }),
     updateModel: (id: string, input: AIModelInput) =>
-      invoke<AIModel>("update_ai_model", { id, ...input }),
+      invoke<AIModel>("update_ai_model", { id, input }),
     testConnection: (input: AIModelInput) =>
-      invoke<TestResult>("test_ai_connection", { ...input }),
+      invoke<TestResult>("test_ai_connection", { input }),
     fetchModels: (endpoint: string, apiKey: string) =>
       invoke<string[]>("fetch_models", { endpoint, apiKey }),
     setCurrentModel: (id: string) => invoke<void>("set_current_model", { id }),
@@ -84,5 +84,9 @@ export const tauriCommands = {
   },
   state: {
     getRooms: () => invoke<Room[]>("get_rooms")
+  },
+  selections: {
+    load: (keys: string[]) => invoke<Record<string, unknown>>("load_selections", { keys }),
+    save: (entries: Record<string, unknown>) => invoke<void>("save_selections", { entries })
   }
 };

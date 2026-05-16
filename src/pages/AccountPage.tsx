@@ -288,7 +288,10 @@ export function AccountPage() {
 
                   <div className="grid gap-2 text-sm text-slate-600 dark:text-slate-300">
                     <button
-                      onClick={() => setSendAccountId(currentAccount.id)}
+                      onClick={() => {
+                        setSendAccountId(currentAccount.id);
+                        void tauriCommands.selections.save({ sendAccountId: currentAccount.id });
+                      }}
                       className={`border px-4 py-2 text-left transition ${
                         sendAccountId === currentAccount.id
                           ? "border-pink-300 bg-pink-50 text-pink-700 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
@@ -298,7 +301,10 @@ export function AccountPage() {
                       发送账号：{sendAccountId === currentAccount.id ? "当前账号" : "设为当前"}
                     </button>
                     <button
-                      onClick={() => setRecvAccountId(currentAccount.id)}
+                      onClick={() => {
+                        setRecvAccountId(currentAccount.id);
+                        void tauriCommands.selections.save({ recvAccountId: currentAccount.id });
+                      }}
                       className={`border px-4 py-2 text-left transition ${
                         recvAccountId === currentAccount.id
                           ? "border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-500/40 dark:bg-cyan-500/[0.08] dark:text-cyan-200"

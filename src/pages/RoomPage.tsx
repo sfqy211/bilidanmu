@@ -234,7 +234,10 @@ export function RoomPage() {
                     </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setCurrentRoomId(room.id)}
+                        onClick={() => {
+                          setCurrentRoomId(room.id);
+                          void tauriCommands.selections.save({ currentRoomId: room.roomId });
+                        }}
                         className="border border-slate-300 px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
                       >
                         设为当前
@@ -247,7 +250,14 @@ export function RoomPage() {
                         打开弹幕
                       </button>
                       <button
-                        onClick={() => removeRoom(room.roomId)}
+                        onClick={async () => {
+                          const wasCurrent = currentRoomId === room.id;
+                          await tauriCommands.room.remove(room.roomId);
+                          removeRoom(room.roomId);
+                          if (wasCurrent) {
+                            void tauriCommands.selections.save({ currentRoomId: null });
+                          }
+                        }}
                         className="inline-flex items-center gap-1 border border-rose-200 px-3 py-1.5 text-xs text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-3 w-3" />
