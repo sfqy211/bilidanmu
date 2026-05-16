@@ -31,8 +31,8 @@
 | 多直播间支持                | -                                 | P2     | ✅   |
 | 系统托盘                    | cc-switch                         | P2     | ✅   |
 | 账号移除命令                | -                                 | P2     | ✅   |
-| 升级直播流 API 至 v2        | PiliPlus, bilibili-API-collect    | P2     | 🔲   |
-| 仅音频流拉取                | PiliPlus                          | P2     | 🔲   |
+| 升级直播流 API 至 v2        | PiliPlus, bilibili-API-collect    | P2     | ✅   |
+| 仅音频流拉取与播放          | PiliPlus                          | P2     | ✅   |
 
 ---
 

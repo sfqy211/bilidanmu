@@ -70,6 +70,8 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `get_rooms` | - | `Room[]` | 获取已添加房间列表 |
 | `get_emoticons` | `room_id` | `EmoticonPackage[]` | 获取表情列表 |
 | `open_danmaku_window` | `room_id` | void | 打开弹幕子窗口 |
+| `get_audio_stream_url` | `room_id` | `StreamInfo` | 获取音频流（v2 API + 本地代理注册） |
+| `clear_audio_stream` | - | void | 清除当前音频流（断开 CDN 连接） |
 | `send_danmaku` | `room_id, msg, color?, mode?` | `BiliResponse` | 发送文字弹幕 |
 | `send_emoticon` | `room_id, emoticon_unique, emoticon_options?` | `BiliResponse` | 发送表情弹幕 |
 | `start_loop_send` | `room_id, messages[], interval_ms` | void | 开始循环发送（最小 300ms） |
@@ -197,6 +199,9 @@ export const tauriCommands = {
     getEmoticons: (roomId: number) =>
       invoke<EmoticonPackage[]>("get_emoticons", { roomId }),
     openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
+    getAudioStreamUrl: (roomId: number) =>
+      invoke<StreamInfo>("get_audio_stream_url", { roomId }),
+    clearAudioStream: () => invoke<void>("clear_audio_stream"),
   },
   ws: {
     connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),
@@ -230,7 +235,23 @@ export const tauriCommands = {
 };
 ```
 
-### 4.5 速率限制器（Rust，参考 BLSPAM）
+### 4.5 音频流代理架构
+
+B站 CDN (`*.bilivideo.com`) 不返回 CORS 头，WebView2 不原生支持 HLS，因此采用：
+
+```
+DanmakuPage → IPC get_audio_stream_url(room_id)
+  → Rust: WBI签名 → v2 API (protocol=0/FLV, only_audio=1)
+  → 解析 JSON → 提取 base_url + url_info → 构造完整 CDN 流 URL
+  → 启动/复用本地 hyper HTTP 代理 (127.0.0.1:{random_port}/live-audio)
+  → 返回 StreamInfo { stream_url, proxy_url, ... }
+
+前端: mpegts.js 连接 proxy_url → FLV demux → fMP4 → MSE → <audio>
+```
+
+关键实现：`StreamProxyServer`（`proxy/stream_proxy.rs`）使用 `OnceCell` 惰性初始化，`hyper 1.x` HTTP1 服务器透传 reqwest 字节流，`Arc<Mutex<Option<String>>>` 共享流 URL 支持动态切换。
+
+### 4.6 速率限制器（Rust，参考 BLSPAM）
 
 ```rust
 pub struct RateLimiter { min_interval_ms: u64, max_interval_ms: u64, window_limit: usize, window_secs: u64, send_timestamps: Vec<u64> }
