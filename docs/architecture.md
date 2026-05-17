@@ -48,7 +48,7 @@
 
 ```
 bilidanmu/
-├── package.json                        # 前端依赖 & scripts (v0.1.2)
+├── package.json                        # 前端依赖 & scripts (v0.2.0)
 ├── package-lock.json
 ├── vite.config.ts                      # Vite 7 构建配置
 ├── tsconfig.json
@@ -117,7 +117,7 @@ bilidanmu/
 │       └── config.ts                   # 配置类型
 │
 ├── src-tauri/                          # ═══ 后端 (Rust) ═══
-│   ├── Cargo.toml                      # v0.1.2
+│   ├── Cargo.toml                      # v0.2.0
 │   ├── tauri.conf.json
 │   ├── capabilities/
 │   │   └── default.json
@@ -301,7 +301,7 @@ interface SettingsState {
   };
   stt: {
     enabled: boolean;
-    modelId: string;     // "large" | "xlarge"
+    modelId: string; // "large" | "xlarge"
     syncDelayMs: number; // -2000 ~ +2000
   };
 }
