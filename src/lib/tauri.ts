@@ -12,6 +12,7 @@ import type {
   SearchRoomResult,
   Settings,
   StreamInfo,
+  SttTranscript,
   TestResult
 } from "@/types/bilibili";
 
@@ -104,5 +105,10 @@ export const tauriCommands = {
   },
   proxy: {
     image: (url: string) => invoke<string>("proxy_image", { url })
+  },
+  stt: {
+    start: () => invoke<void>("start_stt"),
+    stop: () => invoke<void>("stop_stt"),
+    switchModel: (modelId: string) => invoke<void>("switch_stt_model", { modelId })
   }
 };

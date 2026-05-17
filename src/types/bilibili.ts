@@ -133,4 +133,16 @@ export interface Settings {
     sendSuccess: boolean;
     scAlert: boolean;
   };
+  stt: SttSetting;
+}
+
+export interface SttSetting {
+  enabled: boolean;
+  modelId: string;
+  syncDelayMs: number;
+}
+
+export interface SttTranscript {
+  text: string;
+  isFinal: boolean;
 }

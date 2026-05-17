@@ -81,7 +81,8 @@ export function SettingsPage() {
           { value: "send", label: "弹幕发送" },
           { value: "receive", label: "弹幕接收" },
           { value: "appearance", label: "外观" },
-          { value: "notification", label: "通知" }
+          { value: "notification", label: "通知" },
+          { value: "stt", label: "语音识别" }
         ]}
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -323,6 +324,67 @@ export function SettingsPage() {
                   }
                 />
               </label>
+            </div>
+          </div>
+        </TabContent>
+
+        <TabContent value="stt" className="flex flex-col gap-4">
+          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+            <div className="space-y-4">
+              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+                <span>启用语音识别</span>
+                <input
+                  type="checkbox"
+                  checked={settings.stt.enabled}
+                  onChange={(event) =>
+                    patchSettings({
+                      stt: { ...settings.stt, enabled: event.target.checked }
+                    })
+                  }
+                />
+              </label>
+
+              <label className="block text-sm text-slate-600 dark:text-slate-300">
+                识别模型
+                <select
+                  value={settings.stt.modelId}
+                  onChange={(event) =>
+                    patchSettings({
+                      stt: { ...settings.stt, modelId: event.target.value }
+                    })
+                  }
+                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                >
+                  <option value="large">zipformer-zh-large-int8（150MB，快速）</option>
+                  <option value="xlarge">zipformer-zh-xlarge-int8（250MB，精准）</option>
+                </select>
+              </label>
+
+              <label className="block text-sm text-slate-600 dark:text-slate-300">
+                字幕同步偏移（毫秒，负值=提前，正值=延迟）
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={-2000}
+                    max={2000}
+                    step={100}
+                    value={settings.stt.syncDelayMs}
+                    onChange={(event) =>
+                      patchSettings({
+                        stt: { ...settings.stt, syncDelayMs: Number(event.target.value) }
+                      })
+                    }
+                    className="h-1 flex-1 cursor-pointer accent-pink-500"
+                  />
+                  <span className="w-12 text-right text-xs text-slate-500 dark:text-slate-400">
+                    {settings.stt.syncDelayMs > 0 ? "+" + settings.stt.syncDelayMs : settings.stt.syncDelayMs}
+                  </span>
+                </div>
+              </label>
+
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                模型文件需放置在应用资源目录的 models/stt/[modelId] 下，包含 encoder、decoder、joiner ONNX 文件和 tokens.txt.
+              </p>
             </div>
           </div>
         </TabContent>

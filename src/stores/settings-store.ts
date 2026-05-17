@@ -27,6 +27,11 @@ export const defaultSettings: Settings = {
     cookieExpiry: true,
     sendSuccess: false,
     scAlert: false
+  },
+  stt: {
+    enabled: false,
+    modelId: "large",
+    syncDelayMs: 0
   }
 };
 
@@ -67,6 +72,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         notification: {
           ...state.settings.notification,
           ...partial.notification
+        },
+        stt: {
+          ...state.settings.stt,
+          ...partial.stt
         }
       }
     }))
