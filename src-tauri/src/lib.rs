@@ -9,6 +9,7 @@ mod proxy;
 mod room_store;
 mod selections_store;
 mod settings_store;
+#[cfg(feature = "stt")]
 mod stt;
 mod tray;
 
@@ -41,13 +42,20 @@ pub struct AppState {
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
     pub stream_proxy: Arc<StreamProxyServer>,
+    #[cfg(feature = "stt")]
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Shared reqwest::Client for both stream proxy and BiliApiClient.
+    // Pool params are per-host, so API calls (api.bilibili.com) and
+    // CDN streaming (live-play-url) use independent connection pools.
     let proxy_client = reqwest::Client::builder()
         .user_agent(PROXY_USER_AGENT)
+        .pool_max_idle_per_host(2)
+        .pool_idle_timeout(std::time::Duration::from_secs(30))
+        .tcp_keepalive(std::time::Duration::from_secs(30))
         .build()
         .expect("failed to build proxy HTTP client");
 
@@ -74,6 +82,7 @@ pub fn run() {
             db: Arc::new(StdMutex::new(None)),
             proxy_client: proxy_client.clone(),
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
+            #[cfg(feature = "stt")]
             stt_manager: Arc::new(TokioMutex::new(None)),
         })
         .setup(|app| {
@@ -178,11 +187,17 @@ pub fn run() {
             commands::settings::update_settings,
             commands::selections::load_selections,
             commands::selections::save_selections,
+            #[cfg(feature = "stt")]
             commands::stt::start_stt,
+            #[cfg(feature = "stt")]
             commands::stt::stop_stt,
+            #[cfg(feature = "stt")]
             commands::stt::switch_stt_model,
+            #[cfg(feature = "stt")]
             commands::stt::get_stt_model_dir,
+            #[cfg(feature = "stt")]
             commands::stt::list_stt_models,
+            #[cfg(feature = "stt")]
             commands::stt::open_stt_model_dir
         ])
         .run(tauri::generate_context!())

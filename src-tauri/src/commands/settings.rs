@@ -2,7 +2,6 @@ use tauri::State;
 
 use crate::models::settings::Settings;
 use crate::settings_store;
-use crate::stt::SttManager;
 use crate::AppState;
 
 #[tauri::command]
@@ -17,17 +16,24 @@ pub async fn update_settings(
     settings: Settings,
 ) -> Result<(), String> {
     // Check if STT model changed while pipeline is running
+    #[cfg(feature = "stt")]
     let old_settings = settings_store::load_settings(&app).ok();
+    #[cfg(feature = "stt")]
     let model_changed = old_settings
         .as_ref()
         .map(|s| s.stt.model_id != settings.stt.model_id)
         .unwrap_or(false);
+
+    // Suppress unused variable warnings when STT feature is disabled
+    #[cfg(not(feature = "stt"))]
+    let _ = state;
 
     settings_store::save_settings(&app, &settings)?;
 
     // If STT model changed, restart the pipeline so the user doesn't have
     // to manually restart (#6). The old pipeline is stopped and a new one
     // is started with the updated model.
+    #[cfg(feature = "stt")]
     if model_changed {
         let stt_manager = state.stt_manager.clone();
         let app_clone = app.clone();
@@ -53,7 +59,7 @@ pub async fn update_settings(
                     // Reuse get_model_dir to get path traversal validation (#5)
                     match super::stt::get_model_dir(&app_clone, &model_id) {
                         Ok(model_dir) => {
-                            match SttManager::start(
+                            match crate::stt::SttManager::start(
                                 model_dir,
                                 app_clone.clone(),
                                 stream_proxy,

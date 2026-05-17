@@ -4,14 +4,11 @@ use crate::models::account::LoginStatus;
 use crate::models::response::BiliResponse;
 use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::{StreamInfo, UrlInfo};
-use serde_json::Value;
 use regex::Regex;
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-const USER_AGENT: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
 #[derive(Clone)]
 pub struct BiliApiClient {
@@ -22,16 +19,15 @@ pub struct BiliApiClient {
 
 impl BiliApiClient {
     pub fn new(
+        client: reqwest::Client,
         credential: Option<BiliCredential>,
         wbi_cache: Arc<Mutex<WbiKeyCache>>,
-    ) -> Result<Self, reqwest::Error> {
-        let client = reqwest::Client::builder().user_agent(USER_AGENT).build()?;
-
-        Ok(Self {
+    ) -> Self {
+        Self {
             client,
             credential,
             wbi_cache,
-        })
+        }
     }
 
     pub async fn nav(&self) -> Result<NavInfo, String> {
