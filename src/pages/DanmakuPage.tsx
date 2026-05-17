@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ArrowDown, Pause, Play, Send, Smile, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
+import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
 import { useAutoSend } from "@/hooks/useAutoSend";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
+import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
 import { makePkgKey } from "@/types/bilibili";
 
@@ -39,7 +43,7 @@ export function DanmakuPage() {
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [autoSendOpen, setAutoSendOpen] = useState(false);
-  useDanmakuStream(roomId);
+  const { disconnect } = useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
   const { send, sendEmoticon, sending } = useDanmaku();
@@ -53,6 +57,40 @@ export function DanmakuPage() {
     stop: audioStop,
     setVolume: audioSetVolume,
   } = useAudioPlayer(roomId);
+
+  const sttSettings = useSettingsStore((s) => s.settings.stt);
+  const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttSettings.syncDelayMs);
+
+  const handleAudioPlay = useCallback(async () => {
+    await audioPlay();
+    if (sttSettings.enabled) {
+      try { await tauriCommands.stt.start(); } catch { /* STT may not have models */ }
+    }
+  }, [audioPlay, sttSettings.enabled]);
+
+  const handleAudioStop = useCallback(async () => {
+    await audioStop();
+    try { await tauriCommands.stt.stop(); } catch { /* ignore */ }
+  }, [audioStop]);
+
+  // Cleanup STT pipeline on unmount
+  useEffect(() => {
+    return () => {
+      tauriCommands.stt.stop().catch(() => {});
+    };
+  }, []);
+
+  // Disconnect WebSocket and stop STT when the window close is requested
+  // (the window is hidden via prevent_close(), so React never unmounts)
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onCloseRequested(() => {
+      disconnect();
+      tauriCommands.stt.stop().catch(() => {});
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [disconnect]);
   const {
     isRunning: autoSendRunning,
     lastSentMessage,
@@ -185,7 +223,7 @@ export function DanmakuPage() {
         <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1 dark:border-white/[0.06] dark:bg-[#12141e]">
           <button
             type="button"
-            onClick={() => void (audioPlaying ? audioStop() : audioPlay())}
+            onClick={() => void (audioPlaying ? handleAudioStop() : handleAudioPlay())}
             disabled={!roomId || audioConnecting}
             className={`flex h-6 w-6 items-center justify-center transition ${
               audioPlaying
@@ -271,6 +309,8 @@ export function DanmakuPage() {
               回到底部
             </button>
           )}
+
+          <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />
         </div>
 
         <div className="border-t border-slate-300 bg-white p-3 dark:border-white/[0.06] dark:bg-[#12141e]">

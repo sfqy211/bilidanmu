@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { tauriCommands } from "@/lib/tauri";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -21,43 +21,40 @@ export function useDanmakuStream(roomId: number | null) {
   const setRoomId = useDanmakuStore((state) => state.setRoomId);
   const setPopularity = useDanmakuStore((state) => state.setPopularity);
 
-  const connect = useCallback(async () => {
-    if (!roomId) {
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
+
+  const connectRef = useRef(() => {
+    const rid = roomIdRef.current;
+    if (!rid) {
       return;
     }
 
     setWsStatus("connecting");
     setLastError(null);
-    setRoomId(roomId);
+    setRoomId(rid);
 
-    try {
-      await tauriCommands.ws.connect(roomId);
-    } catch (error) {
-      setWsStatus("error");
-      setWsConnected(false);
-      setLastError(error instanceof Error ? error.message : "连接弹幕流失败");
-    }
-  }, [roomId, setLastError, setRoomId, setWsConnected, setWsStatus]);
+    // Fire-and-forget: actual connection state is tracked via events.
+    tauriCommands.ws.connect(rid).catch(() => {});
+  });
 
-  const disconnect = useCallback(async () => {
-    try {
-      await tauriCommands.ws.disconnect();
-    } finally {
-      setWsConnected(false);
-      setWsStatus("disconnected");
-    }
+  const connect = useCallback(() => connectRef.current(), []);
+  const disconnect = useCallback(() => {
+    tauriCommands.ws.disconnect().catch(() => {});
+    setWsConnected(false);
+    setWsStatus("disconnected");
   }, [setWsConnected, setWsStatus]);
 
   useEffect(() => {
     clearMessages();
     if (roomId) {
-      void connect();
+      void connectRef.current();
     }
 
-    return () => {
-      void disconnect();
-    };
-  }, [clearMessages, connect, disconnect, roomId]);
+    // Don't disconnect in cleanup — Rust's connect() auto-disconnects the
+    // old connection, and cleanup disconnect causes stale ws-disconnected
+    // events that interfere with the new connection.
+  }, [roomId]);
 
   useTauriEvent<DanmakuMessage>("danmaku-received", (payload) => {
     addMessage(payload);
@@ -70,6 +67,11 @@ export function useDanmakuStream(roomId: number | null) {
   });
 
   useTauriEvent<WsDisconnectedPayload>("ws-disconnected", (payload) => {
+    // Ignore stale disconnect events from previous connections
+    // (e.g., from React StrictMode cleanup or HMR)
+    if (useDanmakuStore.getState().wsStatus === "connecting") {
+      return;
+    }
     setWsConnected(false);
     setWsStatus(payload.reason === "manual" ? "disconnected" : "reconnecting");
   });
