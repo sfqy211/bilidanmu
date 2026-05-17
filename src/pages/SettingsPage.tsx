@@ -14,6 +14,7 @@ export function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("send");
   const [modelDir, setModelDir] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +46,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     tauriCommands.stt.getModelDir().then(setModelDir).catch(() => {});
+    tauriCommands.stt.listModels().then(setAvailableModels).catch(() => {});
   }, []);
 
   const handleSave = async () => {
@@ -359,10 +361,16 @@ export function SettingsPage() {
                       stt: { ...settings.stt, modelId: event.target.value }
                     })
                   }
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                  disabled={availableModels.length === 0}
+                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
                 >
-                  <option value="large">zipformer-zh-large-int8（150MB，快速）</option>
-                  <option value="xlarge">zipformer-zh-xlarge-int8（250MB，精准）</option>
+                  {availableModels.length === 0 ? (
+                    <option value="">未检测到模型文件</option>
+                  ) : (
+                    availableModels.map((id) => (
+                      <option key={id} value={id}>{id}</option>
+                    ))
+                  )}
                 </select>
               </label>
 

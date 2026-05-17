@@ -48,6 +48,41 @@ pub fn get_stt_model_dir(app: tauri::AppHandle) -> Result<String, String> {
     Ok(path_str.to_string())
 }
 
+/// List available STT models by scanning the model directory.
+/// Returns model IDs for subdirectories that contain the required files.
+#[tauri::command]
+pub fn list_stt_models(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    let base = get_stt_base_dir(&app)?;
+    if !base.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut models = Vec::new();
+    for entry in std::fs::read_dir(&base).map_err(|e| format!("读取模型目录失败: {e}"))? {
+        let entry = entry.map_err(|e| format!("目录条目错误: {e}"))?;
+        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        let dir = entry.path();
+        // Check if it contains the required model files
+        let has_encoder = dir.read_dir().ok().map_or(false, |mut entries| {
+            entries.any(|e| {
+                e.ok().map_or(false, |e| {
+                    let name = e.file_name();
+                    name.to_string_lossy().starts_with("encoder") && name.to_string_lossy().ends_with(".onnx")
+                })
+            })
+        });
+        let has_tokens = dir.join("tokens.txt").exists();
+        if has_encoder && has_tokens {
+            models.push(entry.file_name().to_string_lossy().to_string());
+        }
+    }
+
+    models.sort();
+    Ok(models)
+}
+
 /// Open the STT model directory in the system file explorer.
 #[tauri::command]
 pub async fn open_stt_model_dir(app: tauri::AppHandle) -> Result<(), String> {

@@ -182,6 +182,7 @@ pub fn run() {
             commands::stt::stop_stt,
             commands::stt::switch_stt_model,
             commands::stt::get_stt_model_dir,
+            commands::stt::list_stt_models,
             commands::stt::open_stt_model_dir
         ])
         .run(tauri::generate_context!())
