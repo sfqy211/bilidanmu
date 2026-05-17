@@ -35,9 +35,7 @@ function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
 function useAutoScroll(messages: DanmakuMessage[]) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  // #4: Track message count instead of array reference to avoid cross-pane
-  // scroll triggers. When gift messages change, danmakuMessages gets a new
-  // array ref but its count stays the same → no unnecessary scroll.
+  const isAtBottomRef = useRef(true);
   const msgCountRef = useRef(messages.length);
 
   const checkAtBottom = useCallback(() => {
@@ -46,29 +44,29 @@ function useAutoScroll(messages: DanmakuMessage[]) {
     const threshold = 80;
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
-    setIsAtBottom(distanceFromBottom <= threshold);
+    const atBottom = distanceFromBottom <= threshold;
+    isAtBottomRef.current = atBottom;
+    setIsAtBottom(atBottom);
   }, []);
 
   useEffect(() => {
-    // Only scroll when this pane actually received new messages
     if (messages.length === msgCountRef.current) return;
     const prevCount = msgCountRef.current;
     msgCountRef.current = messages.length;
 
-    if (!isAtBottom) return;
+    if (!isAtBottomRef.current) return;
     const container = scrollRef.current;
     if (!container) return;
-    // #10: Use "instant" when messages arrive rapidly (>3 at once),
-    // otherwise "smooth" for a nicer feel
     const behavior = messages.length - prevCount > 3 ? "instant" : "smooth";
     container.scrollTo({ top: container.scrollHeight, behavior });
-  }, [messages, isAtBottom]);
+  }, [messages]);
 
   const scrollToBottom = useCallback(() => {
     const container = scrollRef.current;
     if (!container) return;
-    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    isAtBottomRef.current = true;
     setIsAtBottom(true);
+    container.scrollTo({ top: container.scrollHeight, behavior: "instant" });
   }, []);
 
   return { scrollRef, isAtBottom, checkAtBottom, scrollToBottom };
