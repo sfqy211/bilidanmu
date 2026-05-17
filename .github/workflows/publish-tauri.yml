@@ -81,6 +81,6 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: 'BiliDanmu v__VERSION__'
           releaseBody: 'See the assets attached to this release for installers and bundle artifacts.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
