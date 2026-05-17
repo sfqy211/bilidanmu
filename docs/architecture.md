@@ -76,7 +76,8 @@ bilidanmu/
 │   │       ├── SuperChatCard.tsx       # SC 醒目留言卡片（真实颜色 + 背景图）
 │   │       ├── InlineEmotText.tsx      # inline 表情混排（正则替换 + img 渲染）
 │   │       ├── EmoticonPickerPanel.tsx # 表情选择器面板（包切换 + 网格 + 可用性）
-│   │       └── LoopSenderPanel.tsx     # 自动发送面板（多行输入 + 间隔 + 启停）
+│   │       ├── LoopSenderPanel.tsx     # 自动发送面板（多行输入 + 间隔 + 启停）
+│   │       └── SubtitleOverlay.tsx     # 半透明字幕叠加层（渐入/渐出）
 │   │
 │   ├── pages/                          # 页面
 │   │   ├── RoomPage.tsx                # 子页面一：直播间管理
@@ -93,6 +94,8 @@ bilidanmu/
 │   │   ├── useScheduler.ts            # 发送调度（自动发送）
 │   │   ├── useTauriEvent.ts           # Tauri 事件监听通用 Hook
 │   │   ├── useProxyImage.ts           # 图片代理 Hook（LRU 缓存 + 竞态取消）
+│   │   ├── useAudioPlayer.ts          # mpegts.js 音频播放器 Hook（播放/停止/音量/重连）
+│   │   ├── useSttTranscript.ts        # STT 转录延迟缓冲 + 按需 RAF 循环
 │   │   └── useTheme.ts                # 主题切换（light/dark/system）
 │   │
 │   ├── stores/                         # Zustand 状态管理
@@ -126,16 +129,17 @@ bilidanmu/
 │       ├── db.rs                       # SQLite 数据库初始化
 │       ├── tray.rs                     # 系统托盘
 │       │
-│       ├── commands/                   # Tauri IPC 命令（32 个已注册）
+│       ├── commands/                   # Tauri IPC 命令（39 个已注册）
 │       │   ├── mod.rs                  # 模块导出 + build_api_client()
 │       │   ├── auth.rs                 # 认证命令（6 个）
-│       │   ├── room.rs                 # 直播间命令（8 个，含 open_danmaku_window）
+│       │   ├── room.rs                 # 直播间命令（10 个，含 open_danmaku_window/get_rooms_live_status）
 │       │   ├── danmaku.rs              # 弹幕发送命令（4 个）
 │       │   ├── websocket.rs            # WebSocket 控制命令（2 个）
 │       │   ├── ai.rs                   # AI 模型命令（7 个，含 update/delete）
 │       │   ├── settings.rs             # 设置命令（2 个）
 │       │   ├── proxy.rs                # 图片代理命令（1 个，SSRF 白名单 + 5MB 限制）
-│       │   └── selections.rs           # Selections 键值持久化命令（2 个，批量事务）
+│       │   ├── selections.rs           # Selections 键值持久化命令（2 个，批量事务）
+│       │   └── stt.rs                   # STT 命令（6 个：start/stop/switchModel/getModelDir/listModels/openModelDir）
 │       │
 │       ├── bili/                       # B站协议实现
 │       │   ├── mod.rs
@@ -153,7 +157,16 @@ bilidanmu/
 │       │   ├── message.rs              # DanmakuEvent（#[serde(rename="type")]）
 │       │   ├── response.rs             # BiliResponse
 │       │   ├── settings.rs             # Settings
-│       │   └── ai.rs                   # AIModel, AIModelInput, TestResult
+│       │   ├── ai.rs                   # AIModel, AIModelInput, TestResult
+│       │   └── stream.rs               # StreamInfo, UrlInfo（v2 API 响应）
+│       │
+│       ├── stt/                         # STT 语音识别模块
+│       │   ├── mod.rs                   # SttManager 生命周期（Notify 取消机制）
+│       │   ├── pipeline.rs              # FLV 解封装 → AAC 解码（symphonia 0.6）→ 重采样 → sherpa-onnx 识别
+│       │   └── flv_demux.rs             # FLV AAC 帧提取 + ADTS 封装
+│       │
+│       ├── proxy/                       # 代理模块
+│       │   └── stream_proxy.rs          # hyper 1.x 本地 HTTP 代理（OnceCell 懒加载，STT tee）
 │       │
 │       ├── credential_store.rs         # Cookie 持久化（tauri-plugin-store）
 │       ├── room_store.rs               # 房间持久化（SQLite）
@@ -188,6 +201,11 @@ bilidanmu/
 │  ┌───────────────────────┴───────────────────────────────┐   │
 │  │  bili/  ← B站协议实现层                               │   │
 │  │  api.rs · ws_client · credential · wbi               │   │
+│  └───────────────────────────────────────────────────────┘   │
+│  ┌───────────────────────────────────────────────────────┐   │
+│  │  STT Pipeline（语音识别流水线）                       │   │
+│  │  proxy tee → FLV 解封装 → AAC 解码 → 重采样          │   │
+│  │  → sherpa-onnx 识别 → emit 转录事件                  │   │
 │  └───────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -281,6 +299,11 @@ interface SettingsState {
     sendSuccess: boolean;
     scAlert: boolean;
   };
+  stt: {
+    enabled: boolean;
+    modelId: string;     // "large" | "xlarge"
+    syncDelayMs: number; // -2000 ~ +2000
+  };
 }
 ```
 
@@ -310,7 +333,8 @@ interface SettingsState {
     "@radix-ui/react-label": "^2.1",
     "@radix-ui/react-select": "^2.2",
     "@radix-ui/react-slot": "^1.2",
-    "@radix-ui/react-tabs": "^1.1"
+    "@radix-ui/react-tabs": "^1.1",
+    "mpegts.js": "^1.7"
   },
   "devDependencies": {
     "typescript": "^5.8",
@@ -335,6 +359,7 @@ interface SettingsState {
 tauri = { version = "2.8", features = ["tray-icon", "image-png"] }
 tauri-plugin-store = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
 tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -352,6 +377,11 @@ thiserror = "2"
 regex = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 base64 = "0.22"
+hyper = "1"
+hyper-util = "0.1"
+http-body-util = "0.1"
+symphonia = { version = "0.6", features = ["aac"] }
+sherpa-onnx = "1.13"
 
 [profile.release]
 codegen-units = 1

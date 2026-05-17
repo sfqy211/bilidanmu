@@ -12,7 +12,7 @@
 | [页面设计](docs/design.md)       | 管理面板（4 个子页面）、弹幕页面、系统托盘的 UI 规范与交互 |
 | [API 与实现](docs/api.md)        | B站 API、Tauri IPC 命令汇总、事件列表、核心代码片段        |
 | [进度与路线图](docs/roadmap.md)  | 当前进度、各阶段行动清单、未完成项、风险                   |
-| [调研记录](docs/research.md)     | v2 API 与仅音频流调研（及其他技术调研）                    |
+| [调研记录](docs/research.md)     | v2 API 与仅音频流调研、STT 管道技术调研                  |
 
 ---
 
@@ -33,6 +33,7 @@
 | 账号移除命令                | -                                 | P2     | ✅   |
 | 升级直播流 API 至 v2        | PiliPlus, bilibili-API-collect    | P2     | ✅   |
 | 仅音频流拉取与播放          | PiliPlus                          | P2     | ✅   |
+| 实时语音转字幕              | PiliPlus, sherpa-onnx             | P2     | ✅   |
 
 ---
 

@@ -44,6 +44,11 @@
 - 表情包 key 修复：`makePkgKey(pkgId-pkgType)` 复合 key
 - 主题切换（useTheme hook + dark class toggle）
 - 音频流拉取与播放：v2 API `getRoomPlayInfo` + WBI 签名 + 本地 hyper 代理（绕过 CORS）+ mpegts.js（FLV→fMP4→MSE）+ 自动重连
+- STT 实时语音转文字：sherpa-onnx 流式识别 + symphonia 0.6 AAC 解码 + FLV 解复用 + 本地代理字节流 tee
+- 字幕叠加层：SubtitleOverlay 组件 + useSttTranscript 延迟缓冲 + 按需 RAF 循环
+- STT 设置面板：SettingsPage 语音识别标签（开关/模型/延迟滑块）
+- 代码审查修复 15 项（stop 挂起、DC 偏置、路径穿越、FLV 内存暴涨、通道不一致等）
+- 日志过滤：tauri_plugin_log 配置 Info 级别 + 仅 Stdout target
 
 ---
 
@@ -90,6 +95,9 @@
 - [x] **6.3** 账号移除命令（remove_account）
 - [x] **6.4** 升级直播流 API 至 v2（`getRoomPlayInfo`，WBI 签名，FLV 协议）
 - [x] **6.5** 仅音频流拉取与播放（v2 API `only_audio=1` + 本地流代理 + mpegts.js 播放）
+- [x] **6.6** STT 实时语音转文字管道（sherpa-onnx + symphonia 0.6 + FLV 解复用）
+- [x] **6.7** 字幕叠加与 STT 设置 UI
+- [x] **6.8** 代码审查修复与日志过滤
 
 ---
 
@@ -117,6 +125,7 @@
 | Cookie 有效期提醒  | AccountPage 展示了账号信息但未做过期倒计时                                            |
 | 禁言检测与自动停车 | 设置中有 `autoPauseOnMute` 选项但前端未接入禁言事件                                   |
 | 弹幕流左栏         | DanmakuPage 仅实现了右栏弹幕流 + 底部输入栏，左栏直播间信息区/快捷操作/发送统计未实现 |
+| 实时直播音频流播放 + STT | ✅ 已实现 — v2 API + 本地代理 + mpegts.js + sherpa-onnx 流式识别 |
 
 ---
 

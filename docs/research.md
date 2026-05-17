@@ -145,3 +145,66 @@ void setOnlyPlayAudio() {
 | Rust IPC 命令 | `src-tauri/src/commands/` | 新增 `get_audio_stream_url` 命令，返回拼接后的流 URL |
 | 前端 IPC 封装 | `src/lib/tauri.ts` | 在 `tauriCommands` 中添加对应调用 |
 | 前端 UI | DanmakuPage 或独立页面 | 添加音频播放控件 |
+
+---
+
+## 二、STT 管道技术调研：sherpa-onnx + symphonia
+
+> 调研日期：2026-05-17
+> 参考项目：sherpa-onnx 官方示例、symphonia 0.6 文档
+
+### 2.1 核心决策
+
+采用 **sherpa-onnx** (Rust crate `1.13`) 作为流式语音识别引擎，配合 **symphonia 0.6** 进行 AAC 解码。两者均为纯 Rust 绑定，静态链接，无 LLVM/FFI 手写需求。
+
+### 2.2 技术选型对比
+
+| 方案 | 语言绑定 | 静态链接 | 流式识别 | 部署复杂度 |
+|---|---|---|---|---|
+| **sherpa-onnx (Rust)** | 官方 crate | ✅ | ✅ OnlineRecognizer | 低（cargo add 即可） |
+| whisper.cpp (C++) | 绑定 + FFI | ❌ 需编译 | ❌ 仅离线 | 高（CMake + LLVM） |
+| Vosk (Python/C) | Python binding | ❌ | ✅ | 中（需 Python 运行时） |
+| sherpa-onnx (Python) | Python binding | ❌ | ✅ | 中 |
+
+### 2.3 管道架构
+
+```
+FLV 字节流 (from proxy tee)
+  → FlvDemuxer: 提取 AAC 帧 + ADTS 封装 + 解析 AudioSpecificConfig
+  → AacDecoder: symphonia 0.6 ADTS reader + 持久化 AudioDecoder 实例
+  → extract_f32_samples: 10 种音频格式 → f32 单声道混音
+  → LinearResampler: sherpa-onnx 内置，重采样至 16kHz
+  → OnlineRecognizer: 流式识别 + 端点检测（2.4s/1.2s 静音 + 20s 最短语）
+  → SttTranscript { text, isFinal } → Tauri event "stt-transcript"
+```
+
+### 2.4 symphonia 0.6 API 要点（与 0.5 差异）
+
+| 特性 | symphonia 0.5 | symphonia 0.6 |
+|---|---|---|
+| 解码器创建 | `make_decoder()` | `make_audio_decoder(&AudioCodecParameters, &AudioDecoderOptions)` |
+| 音频 buffer 类型 | `AudioBufferRef` | `GenericAudioBufferRef`（10 变体：U8/U16/U24/U32/S8/S16/S24/S32/F32/F64） |
+| 通道访问 | `buf.chan(ch)` | `buf.plane(ch)` → `Option<&[S]>` |
+| 通道数获取 | `.channels` 字段 | `.spec().channels().count()` 方法 |
+| CodecParameters 类型 | struct | enum（`.audio()` → `Option<&AudioCodecParameters>`） |
+
+### 2.5 安全防护
+
+| 风险 | 防护措施 |
+|---|---|
+| 管道挂起（stop 无响应） | `bytes_tx: Option<Sender>`，stop 时设 `None` 关闭 channel |
+| FLV 恶意大 tag | `MAX_TAG_DATA_SIZE = 65536` |
+| ADTS frame_len 溢出 | `checked_add` + 8191 上限 |
+| model_id 路径穿越 | 校验禁止 `..`/`/`/`\` |
+| 无符号音频 DC 偏置 | U8/U16/U24/U32 中心化至 [-1, 1] |
+| 通道数不一致 | 使用解码器输出通道数而非 FLV 头 |
+
+### 2.6 当前项目实现文件
+
+| 文件 | 说明 |
+|---|---|
+| `src-tauri/src/stt/pipeline.rs` | 主管道（FLV demux → AAC decode → resample → recognize） |
+| `src-tauri/src/stt/flv_demux.rs` | FLV 解复用器 + ADTS 封装 + AudioSpecificConfig 解析 |
+| `src-tauri/src/stt/mod.rs` | SttManager 生命周期管理（Notify 即时取消） |
+| `src/hooks/useSttTranscript.ts` | 延迟缓冲 + 按需 RAF 循环（空闲自动停止） |
+| `src/components/danmaku/SubtitleOverlay.tsx` | 半透明黑底白字字幕叠加 |
