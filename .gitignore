@@ -9,3 +9,4 @@ src-tauri/target/
 *.tsbuildinfo
 .idea/
 .vscode/
+src-tauri/models/
