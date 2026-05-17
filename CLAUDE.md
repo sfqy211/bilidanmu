@@ -18,6 +18,10 @@ BiliDanmu — Windows desktop Bilibili live-stream danmaku client. Tauri 2 (Rust
 
 No test framework is configured. Always run `npm run typecheck` and `cargo check` after changes.
 
+## Rules
+
+- **Do not proactively commit to Git**: Unless the user explicitly requests a commit, only make code changes and do not run `git commit`. Commit only when the user says "commit" or "提交".
+
 ## Architecture
 
 ### Data flow
