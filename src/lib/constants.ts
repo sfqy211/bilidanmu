@@ -1,2 +1,11 @@
+import { getVersion } from "@tauri-apps/api/app";
+
 export const APP_NAME = "BiliDanmu";
-export const APP_VERSION = "v0.2.0";
+
+let cachedVersion: string | null = null;
+
+export async function getAppVersion(): Promise<string> {
+  if (cachedVersion) return cachedVersion;
+  cachedVersion = await getVersion();
+  return cachedVersion;
+}

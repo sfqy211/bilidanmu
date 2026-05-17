@@ -19,7 +19,7 @@
 
 **已完成 / 可用：**
 
-- Tauri 2 + React 18 + TypeScript 项目骨架（v0.2.0）
+- Tauri 2 + React 18 + TypeScript 项目骨架
 - 主布局、侧边栏导航、基础路由
 - Cookie 登录、二维码登录、启动恢复登录、登出
 - WBI 签名与缓存

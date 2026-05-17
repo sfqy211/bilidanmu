@@ -48,7 +48,7 @@
 
 ```
 bilidanmu/
-├── package.json                        # 前端依赖 & scripts (v0.2.0)
+├── package.json                        # 前端依赖 & scripts
 ├── package-lock.json
 ├── vite.config.ts                      # Vite 7 构建配置
 ├── tsconfig.json
@@ -117,7 +117,7 @@ bilidanmu/
 │       └── config.ts                   # 配置类型
 │
 ├── src-tauri/                          # ═══ 后端 (Rust) ═══
-│   ├── Cargo.toml                      # v0.2.0
+│   ├── Cargo.toml                      #
 │   ├── tauri.conf.json
 │   ├── capabilities/
 │   │   └── default.json

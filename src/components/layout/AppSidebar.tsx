@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { Bot, MonitorPlay, Settings, UserRound } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { APP_VERSION } from "@/lib/constants";
+import { getAppVersion } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -11,6 +12,12 @@ const navItems = [
 ];
 
 export function AppSidebar() {
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getAppVersion().then(setVersion).catch(() => {});
+  }, []);
+
   return (
     <aside className="flex w-16 flex-col border-r border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#0e1018]">
       <div className="flex h-16 items-center justify-center border-b border-slate-300 text-lg font-semibold text-pink-500 dark:border-white/[0.06] dark:text-pink-400">
@@ -43,7 +50,9 @@ export function AppSidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="border-t border-slate-300 p-3 text-center text-xs text-slate-400 dark:border-white/[0.06] dark:text-slate-500">{APP_VERSION}</div>
+      {version && (
+        <div className="border-t border-slate-300 p-3 text-center text-xs text-slate-400 dark:border-white/[0.06] dark:text-slate-500">{version}</div>
+      )}
     </aside>
   );
 }
