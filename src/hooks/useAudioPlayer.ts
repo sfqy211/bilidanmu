@@ -87,8 +87,8 @@ export function useAudioPlayer(roomId: number | null) {
     setState((prev) => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      // 获取音频流 URL（Rust 端自动注册到本地代理）
       const streamInfo = await tauriCommands.room.getAudioStreamUrl(roomId);
+      console.log("[audio] streamInfo:", streamInfo);
 
       const audio = audioRef.current;
       if (!audio) {
@@ -114,7 +114,8 @@ export function useAudioPlayer(roomId: number | null) {
         }
       );
 
-      player.on(Mpegts.Events.ERROR, (_errorType, _errorDetail, errorInfo) => {
+      player.on(Mpegts.Events.ERROR, (errorType, errorDetail, errorInfo) => {
+        console.error("[audio] mpegts error:", errorType, errorDetail, errorInfo);
         const msg =
           (errorInfo as { msg?: string } | undefined)?.msg || "音频流错误";
 
@@ -151,11 +152,11 @@ export function useAudioPlayer(roomId: number | null) {
       audio.volume = volumeRef.current;
 
       await player.play();
-
-      // 播放成功，重置重连计数
+      console.log("[audio] playback started, proxyUrl:", streamInfo.proxyUrl);
       reconnectAttemptRef.current = 0;
       setState((prev) => ({ ...prev, isPlaying: true, isConnecting: false }));
     } catch (error) {
+      console.error("[audio] play failed:", error);
       setState((prev) => ({
         ...prev,
         isConnecting: false,
