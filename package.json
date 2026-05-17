@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:lite": "tauri build -- --no-default-features",
     "tauri": "tauri",
     "dev:renderer": "vite",
     "build:renderer": "vite build",

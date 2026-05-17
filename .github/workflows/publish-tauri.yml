@@ -77,10 +77,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Default build (with STT)
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
+            variant: default
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            variant: default
+          # Lite build (without STT — smaller binary, lower memory)
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            variant: lite
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            variant: lite
 
     runs-on: ${{ matrix.platform }}
 
@@ -103,7 +113,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
-          key: ${{ matrix.target }}
+          key: ${{ matrix.target }}-${{ matrix.variant }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -118,10 +128,17 @@ jobs:
         run: npm run typecheck
 
       - name: Rust check
-        run: cargo check
+        run: cargo check ${{ matrix.variant == 'lite' && '--no-default-features' || '' }}
         working-directory: src-tauri
 
-      - name: Build and publish Tauri app
+      - name: Rename product for lite build
+        if: matrix.variant == 'lite'
+        shell: bash
+        run: |
+          sed -i 's/"productName": "BiliDanmu"/"productName": "BiliDanmu-Lite"/' src-tauri/tauri.conf.json
+
+      - name: Build and publish Tauri app (default)
+        if: matrix.variant == 'default'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -132,3 +149,16 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
+
+      - name: Build and publish Tauri app (lite)
+        if: matrix.variant == 'lite'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__
+          releaseName: 'BiliDanmu v__VERSION__'
+          releaseBody: ${{ needs.changelog.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }} -- --no-default-features
