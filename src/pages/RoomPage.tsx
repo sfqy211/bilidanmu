@@ -68,7 +68,7 @@ export function RoomPage() {
     try {
       const roomInfo = await tauriCommands.room.add(roomId);
       addRoom(roomInfo);
-      // 添加后刷新直播状态
+      setActiveTab("rooms");
       void refreshLiveStatus();
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : "添加失败");
