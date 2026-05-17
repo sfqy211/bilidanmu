@@ -407,6 +407,7 @@ fn run_pipeline(
 
     // Buffer for decoded f32 audio samples (before resampling)
     let mut f32_buffer: Vec<f32> = Vec::new();
+    let mut chunk_count: u32 = 0;
     log::info!("STT pipeline: waiting for audio bytes...");
 
     loop {
@@ -486,6 +487,13 @@ fn run_pipeline(
                         f32_buffer.drain(..chunk_size);
 
                         if !resampled.is_empty() {
+                            // Log first few chunks for diagnostics
+                            chunk_count += 1;
+                            if chunk_count <= 3 {
+                                log::info!("STT: chunk #{chunk_count} decoded {} samples → resampled {} samples",
+                                    chunk_size, resampled.len());
+                            }
+
                             // Feed to sherpa-onnx
                             state.stream.accept_waveform(16000, &resampled);
 
@@ -519,7 +527,7 @@ fn run_pipeline(
                     }
                 }
                 Err(e) => {
-                    log::debug!("AAC decode error: {e}");
+                    log::trace!("AAC decode error: {e}");
                 }
             }
         }

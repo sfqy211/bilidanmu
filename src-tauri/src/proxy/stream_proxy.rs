@@ -92,7 +92,7 @@ impl StreamProxyServer {
                         .serve_connection(io, service)
                         .await
                     {
-                        log::debug!("流代理连接结束: {err}");
+                        log::trace!("流代理连接结束: {err}");
                     }
                 });
             }

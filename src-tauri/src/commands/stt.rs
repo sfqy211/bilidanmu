@@ -26,7 +26,10 @@ pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, S
         ));
     }
 
-    Ok(model_path.to_string_lossy().to_string())
+    let path_str = model_path.to_string_lossy().to_string();
+    // Strip Windows extended-length prefix (\\?\) which sherpa-onnx may not handle
+    let path_str = path_str.strip_prefix("\\\\?\\").unwrap_or(&path_str);
+    Ok(path_str.to_string())
 }
 
 /// Start the STT pipeline.

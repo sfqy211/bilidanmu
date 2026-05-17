@@ -54,7 +54,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                ])
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .manage(AppState {
             credential: TokioMutex::new(None),
             credentials: std::sync::Mutex::new(HashMap::new()),
