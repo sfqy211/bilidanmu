@@ -149,27 +149,39 @@ impl AacDecoder {
 }
 
 /// Extract f32 samples from decoded audio buffer, converting to mono.
+///
+/// Uses the channel count from the decoded buffer (`actual_channels`) rather
+/// than the FLV header to avoid mixing inconsistencies when the two disagree (#7).
+/// Unsigned types are centered to [-1, 1] to avoid DC bias (#2).
 fn extract_f32_samples(
     audio_buf: &GenericAudioBufferRef<'_>,
-    num_channels: usize,
+    _num_channels: usize, // kept for API compat, unused — see #7
     dest: &mut Vec<f32>,
 ) {
     let frames = audio_buf.frames();
-    if frames == 0 || num_channels == 0 {
+    if frames == 0 {
         return;
     }
 
-    // Convert to f32 planar and mix to mono
+    // Use the decoder's channel count for mixing (#7: channels inconsistency)
+    let actual_channels = audio_buf.spec().channels().count();
+    if actual_channels == 0 {
+        return;
+    }
+
+    // Convert to f32 planar and mix to mono.
+    // Unsigned types are centered to [-1, 1] to avoid DC bias (#2).
+    #[allow(unreachable_patterns)] // _ arm is for future symphonia variants
     match audio_buf {
         GenericAudioBufferRef::U8(buf) => {
             for frame in 0..frames {
                 let mut sum = 0.0f32;
                 for ch in 0..buf.spec().channels().count() {
                     if let Some(plane) = buf.plane(ch) {
-                        sum += plane[frame] as f32 / 255.0;
+                        sum += (plane[frame] as f32 - 128.0) / 128.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::U16(buf) => {
@@ -177,10 +189,10 @@ fn extract_f32_samples(
                 let mut sum = 0.0f32;
                 for ch in 0..buf.spec().channels().count() {
                     if let Some(plane) = buf.plane(ch) {
-                        sum += plane[frame] as f32 / 65535.0;
+                        sum += (plane[frame] as f32 - 32768.0) / 32768.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::U24(buf) => {
@@ -188,10 +200,10 @@ fn extract_f32_samples(
                 let mut sum = 0.0f32;
                 for ch in 0..buf.spec().channels().count() {
                     if let Some(plane) = buf.plane(ch) {
-                        sum += plane[frame].0 as f32 / 16777215.0;
+                        sum += (plane[frame].0 as f32 - 8388608.0) / 8388608.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::U32(buf) => {
@@ -199,10 +211,10 @@ fn extract_f32_samples(
                 let mut sum = 0.0f32;
                 for ch in 0..buf.spec().channels().count() {
                     if let Some(plane) = buf.plane(ch) {
-                        sum += plane[frame] as f32 / 4294967295.0;
+                        sum += (plane[frame] as f32 - 2147483648.0) / 2147483648.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::S8(buf) => {
@@ -213,7 +225,7 @@ fn extract_f32_samples(
                         sum += plane[frame] as f32 / 128.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::S16(buf) => {
@@ -224,7 +236,7 @@ fn extract_f32_samples(
                         sum += plane[frame] as f32 / 32768.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::S24(buf) => {
@@ -235,7 +247,7 @@ fn extract_f32_samples(
                         sum += plane[frame].0 as f32 / 8388608.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::S32(buf) => {
@@ -246,7 +258,7 @@ fn extract_f32_samples(
                         sum += plane[frame] as f32 / 2147483648.0;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::F32(buf) => {
@@ -257,7 +269,7 @@ fn extract_f32_samples(
                         sum += plane[frame];
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
         }
         GenericAudioBufferRef::F64(buf) => {
@@ -268,8 +280,12 @@ fn extract_f32_samples(
                         sum += plane[frame] as f32;
                     }
                 }
-                dest.push(sum / num_channels as f32);
+                dest.push(sum / actual_channels as f32);
             }
+        }
+        // Future-proof: catch any new format symphonia may add (#9)
+        _ => {
+            log::warn!("STT: unsupported audio buffer format, skipping frame");
         }
     }
 }
@@ -325,7 +341,9 @@ impl PipelineState {
 
 /// The main STT pipeline.
 pub struct SttPipeline {
-    bytes_tx: mpsc::Sender<Bytes>,
+    /// Wrapped in `Option` so `stop()` can drop the sender, closing the
+    /// channel and unblocking `blocking_recv()` in the pipeline thread.
+    bytes_tx: Option<mpsc::Sender<Bytes>>,
     cancel: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
 }
@@ -346,20 +364,23 @@ impl SttPipeline {
         });
 
         Ok(Self {
-            bytes_tx,
+            bytes_tx: Some(bytes_tx),
             cancel,
             handle: Some(handle),
         })
     }
 
     /// Get the sender for injecting FLV bytes from the proxy.
+    /// Panics if called after stop (bytes_tx already dropped).
     pub fn get_bytes_sender(&self) -> mpsc::Sender<Bytes> {
-        self.bytes_tx.clone()
+        self.bytes_tx.as_ref().unwrap().clone()
     }
 
     /// Stop the pipeline.
     pub async fn stop(&mut self) {
         self.cancel.store(true, Ordering::Relaxed);
+        // Drop our sender so the channel closes, unblocking blocking_recv().
+        self.bytes_tx = None;
         if let Some(h) = self.handle.take() {
             let _ = h.await;
         }
@@ -406,6 +427,11 @@ fn run_pipeline(
         let current_sample_rate = state.flv_demuxer.sample_rate();
         if current_sample_rate != last_sample_rate {
             log::info!("STT: sample rate changed from {last_sample_rate} to {current_sample_rate}, recreating resampler");
+            // Flush old resampler to avoid losing buffered samples (#11)
+            let leftover = state.resampler.resample(&[], true);
+            if !leftover.is_empty() {
+                state.stream.accept_waveform(16000, &leftover);
+            }
             if let Some(new_resampler) = LinearResampler::create(current_sample_rate as i32, 16000) {
                 state.resampler = new_resampler;
                 last_sample_rate = current_sample_rate;
@@ -433,7 +459,7 @@ fn run_pipeline(
                         state.aac_decoder = Some(decoder);
                     }
                     Err(e) => {
-                        log::debug!("STT: failed to init AAC decoder: {e}");
+                        log::warn!("STT: failed to init AAC decoder: {e}");
                         continue;
                     }
                 }
@@ -454,10 +480,10 @@ fn run_pipeline(
 
                     // Process in chunks of ~20ms
                     while f32_buffer.len() >= chunk_size {
-                        let chunk: Vec<f32> = f32_buffer.drain(..chunk_size).collect();
-
-                        // Resample to 16kHz
-                        let resampled = state.resampler.resample(&chunk, false);
+                        // Use slice directly instead of drain().collect() to avoid
+                        // per-chunk allocation (#10)
+                        let resampled = state.resampler.resample(&f32_buffer[..chunk_size], false);
+                        f32_buffer.drain(..chunk_size);
 
                         if !resampled.is_empty() {
                             // Feed to sherpa-onnx

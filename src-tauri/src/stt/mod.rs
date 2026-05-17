@@ -10,7 +10,7 @@ pub mod pipeline;
 use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Notify};
 
 use crate::proxy::stream_proxy::StreamProxyServer;
 
@@ -26,7 +26,8 @@ pub struct SttTranscript {
 pub struct SttManager {
     pipeline: Option<pipeline::SttPipeline>,
     transcript_handle: Option<tokio::task::JoinHandle<()>>,
-    cancel: Arc<std::sync::atomic::AtomicBool>,
+    /// Notify channel for instant cancellation of the transcript emit loop (#8)
+    cancel_notify: Arc<Notify>,
     stream_proxy: Arc<StreamProxyServer>,
 }
 
@@ -54,16 +55,17 @@ impl SttManager {
             .await
             .map_err(|e| format!("注入 STT 发送器失败: {e}"))?;
 
-        // Spawn a tokio task to emit transcript events to the frontend
-        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let cancel_clone = cancel.clone();
+        // Spawn a tokio task to emit transcript events to the frontend.
+        // Uses Notify for instant cancellation instead of 100ms polling (#8).
+        let cancel_notify = Arc::new(Notify::new());
+        let cancel_wait = cancel_notify.clone();
 
         let transcript_handle = tokio::spawn(async move {
             log::info!("STT transcript emit loop started");
             loop {
                 tokio::select! {
                     biased;
-                    _ = tokio::time::sleep(std::time::Duration::from_millis(100)), if cancel_clone.load(std::sync::atomic::Ordering::Relaxed) => {
+                    _ = cancel_wait.notified() => {
                         log::info!("STT transcript emit loop cancelled");
                         break;
                     }
@@ -86,20 +88,20 @@ impl SttManager {
         Ok(Self {
             pipeline: Some(pipeline),
             transcript_handle: Some(transcript_handle),
-            cancel,
+            cancel_notify,
             stream_proxy,
         })
     }
 
     /// Stop the pipeline and cleanup.
     pub async fn stop(&mut self) -> Result<(), String> {
-        // Signal cancel
-        self.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        // Instantly notify the emit loop to stop (#8)
+        self.cancel_notify.notify_one();
 
         // Clear the STT sender from the proxy
         self.stream_proxy.set_stt_sender(None).await?;
 
-        // Stop the pipeline
+        // Stop the pipeline (drops bytes_tx, unblocking the pipeline thread)
         if let Some(mut pipeline) = self.pipeline.take() {
             pipeline.stop().await;
         }

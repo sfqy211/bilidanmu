@@ -13,6 +13,13 @@ use futures_util::StreamExt;
 pub struct StreamProxyState {
     stream_url: Arc<TokioMutex<Option<String>>>,
     port: u16,
+    /// #15: `stt_sender` is `Arc<Mutex<Option<...>>>` — the outer Arc is shared
+    /// between StreamProxyServer and StreamProxyState (cloned into each hyper
+    /// connection), while the inner Mutex protects the Option that is swapped
+    /// when STT starts/stops. This double-indirection is necessary because:
+    /// 1. The Arc allows cheap cloning for each HTTP connection handler.
+    /// 2. The Mutex allows the sender to be swapped atomically from any task.
+    /// 3. The Option allows clearing the sender when STT stops.
     stt_sender: Arc<TokioMutex<Option<mpsc::Sender<Bytes>>>>,
 }
 

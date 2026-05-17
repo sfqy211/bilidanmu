@@ -56,7 +56,13 @@ fn parse_audio_specific_config(data: &[u8]) -> Option<(u32, u32)> {
 /// - adts_buffer_fullness: 11 bits (0x7FF = VBR)
 /// - number_of_raw_data_blocks: 2 bits (0 = 1 block)
 fn build_adts_header(aac_frame_len: usize, sample_rate_idx: u8, channels: u8) -> [u8; 7] {
-    let total_len = (aac_frame_len + 7) as u16; // total ADTS frame length in bytes
+    // Validate frame length fits in u16 (ADTS frame_length field is 13 bits = max 8191) (#13)
+    let total_len = aac_frame_len.checked_add(7)
+        .and_then(|v| if v <= 8191 { Some(v as u16) } else { None })
+        .unwrap_or_else(|| {
+            log::warn!("ADTS frame too large ({} bytes), clamping to 8191", aac_frame_len + 7);
+            8191
+        });
 
     let mut hdr = [0u8; 7];
 
@@ -112,6 +118,9 @@ const FLV_TAG_AUDIO: u8 = 8;
 
 /// Sound format for AAC in FLV
 const SOUND_FORMAT_AAC: u8 = 10;
+
+/// Maximum allowed tag data_size to prevent memory exhaustion from malicious streams (#3)
+const MAX_TAG_DATA_SIZE: usize = 65536;
 
 /// FLV demuxer that extracts AAC frames from an FLV byte stream.
 ///
@@ -182,6 +191,14 @@ impl FlvDemuxer {
             let data_size = ((self.buffer[1] as usize) << 16)
                           | ((self.buffer[2] as usize) << 8)
                           | (self.buffer[3] as usize);
+
+            // Guard against malicious data_size (#3)
+            if data_size > MAX_TAG_DATA_SIZE {
+                // Skip this bogus tag by draining the header and looking for next sync
+                self.buffer.drain(..11);
+                self.synced = false;
+                break;
+            }
 
             let total_tag_len = 11 + data_size + 4; // header + data + prev_tag_size
 

@@ -5,7 +5,12 @@ use crate::stt::SttManager;
 use crate::AppState;
 
 /// Get the model directory for a given model ID.
-fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, String> {
+pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, String> {
+    // Sanitize model_id against path traversal (#5)
+    if model_id.contains("..") || model_id.contains('/') || model_id.contains('\\') {
+        return Err(format!("Invalid model ID: {model_id}"));
+    }
+
     // Models are stored relative to the app resource directory
     let resource_dir = app
         .path()
@@ -70,8 +75,9 @@ pub async fn switch_stt_model(
     // Validate model directory exists
     let _model_dir = get_model_dir(&app, &model_id)?;
 
-    // Stop current pipeline if running
+    // Stop current pipeline if running — remember whether it was active (#4)
     let mut manager_lock = state.stt_manager.lock().await;
+    let was_running = manager_lock.is_some();
     if let Some(mut manager) = manager_lock.take() {
         manager.stop().await?;
     }
@@ -81,12 +87,14 @@ pub async fn switch_stt_model(
     settings.stt.model_id = model_id;
     settings_store::save_settings(&app, &settings).map_err(|e| format!("保存设置失败: {e}"))?;
 
-    // Start new pipeline
-    let model_dir = get_model_dir(&app, &settings.stt.model_id)?;
-    let stream_proxy = state.stream_proxy.clone();
-    let manager = SttManager::start(model_dir, app, stream_proxy).await?;
-    *manager_lock = Some(manager);
+    // Only restart pipeline if it was previously running (#4)
+    if was_running {
+        let model_dir = get_model_dir(&app, &settings.stt.model_id)?;
+        let stream_proxy = state.stream_proxy.clone();
+        let manager = SttManager::start(model_dir, app, stream_proxy).await?;
+        *manager_lock = Some(manager);
+    }
 
-    log::info!("STT model switched");
+    log::info!("STT model switched (was_running={was_running})");
     Ok(())
 }
