@@ -185,6 +185,7 @@ pub fn run() {
             commands::proxy::proxy_image,
             commands::settings::get_settings,
             commands::settings::update_settings,
+            commands::settings::is_stt_available,
             commands::selections::load_selections,
             commands::selections::save_selections,
             #[cfg(feature = "stt")]

@@ -4,6 +4,13 @@ use crate::models::settings::Settings;
 use crate::settings_store;
 use crate::AppState;
 
+/// Returns whether the STT (Speech-to-Text) feature is available at runtime.
+/// This is determined at compile time by the `stt` feature flag.
+#[tauri::command]
+pub fn is_stt_available() -> bool {
+    cfg!(feature = "stt")
+}
+
 #[tauri::command]
 pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     settings_store::load_settings(&app)

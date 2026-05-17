@@ -101,27 +101,34 @@ export function DanmakuPage() {
   } = useAudioPlayer(roomId);
 
   const sttSettings = useSettingsStore((s) => s.settings.stt);
-  const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttSettings.syncDelayMs);
+  const sttAvailable = useSettingsStore((s) => s.sttAvailable);
+  const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttAvailable ? sttSettings.syncDelayMs : 0);
 
   const handleAudioPlay = useCallback(async () => {
     await audioPlay();
-    if (sttSettings.enabled) {
+    if (sttAvailable && sttSettings.enabled) {
       try { await tauriCommands.stt.start(); } catch { /* STT may not have models */ }
     }
-  }, [audioPlay, sttSettings.enabled]);
+  }, [audioPlay, sttAvailable, sttSettings.enabled]);
 
   const handleAudioStop = useCallback(async () => {
     await audioStop();
-    try { await tauriCommands.stt.stop(); } catch { /* ignore */ }
-  }, [audioStop]);
+    if (sttAvailable) {
+      try { await tauriCommands.stt.stop(); } catch { /* ignore */ }
+    }
+  }, [audioStop, sttAvailable]);
 
   useEffect(() => {
+    if (!sttAvailable) return;
     return () => {
       tauriCommands.stt.stop().catch(() => {});
     };
-  }, []);
+  }, [sttAvailable]);
 
   useEffect(() => {
+    if (!sttAvailable) {
+      return () => {};
+    }
     const unlisten = getCurrentWindow().onCloseRequested(() => {
       disconnect();
       tauriCommands.stt.stop().catch(() => {});
@@ -387,7 +394,7 @@ export function DanmakuPage() {
           )}
         </div>
 
-        <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />
+        {sttAvailable && <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />}
       </div>
 
       {/* 入场信息 */}

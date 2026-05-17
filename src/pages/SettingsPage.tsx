@@ -15,6 +15,15 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState("send");
   const [modelDir, setModelDir] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const sttAvailable = useSettingsStore((state) => state.sttAvailable);
+
+  const tabs = [
+    { value: "send", label: "弹幕发送" },
+    { value: "receive", label: "弹幕接收" },
+    { value: "appearance", label: "外观" },
+    { value: "notification", label: "通知" },
+    ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : [])
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -45,9 +54,10 @@ export function SettingsPage() {
   }, [setSettings]);
 
   useEffect(() => {
+    if (!sttAvailable) return;
     tauriCommands.stt.getModelDir().then(setModelDir).catch(() => {});
     tauriCommands.stt.listModels().then(setAvailableModels).catch(() => {});
-  }, []);
+  }, [sttAvailable]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -85,13 +95,7 @@ export function SettingsPage() {
       </div>
 
       <PageTabs
-        tabs={[
-          { value: "send", label: "弹幕发送" },
-          { value: "receive", label: "弹幕接收" },
-          { value: "appearance", label: "外观" },
-          { value: "notification", label: "通知" },
-          { value: "stt", label: "语音识别" }
-        ]}
+        tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       >

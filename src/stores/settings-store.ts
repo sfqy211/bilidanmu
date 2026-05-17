@@ -37,13 +37,17 @@ export const defaultSettings: Settings = {
 
 interface SettingsState {
   settings: Settings;
+  sttAvailable: boolean;
   setSettings: (settings: Settings) => void;
+  setSttAvailable: (available: boolean) => void;
   patchSettings: (partial: Partial<Settings>) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: defaultSettings,
+  sttAvailable: true, // optimistic default; updated on app init
   setSettings: (settings) => set({ settings }),
+  setSttAvailable: (sttAvailable) => set({ sttAvailable }),
   patchSettings: (partial) =>
     set((state) => ({
       settings: {
