@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tokio::sync::{Mutex as TokioMutex, OnceCell};
+use tokio::sync::{Mutex as TokioMutex, OnceCell, mpsc};
 use tokio::net::TcpListener;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -9,19 +9,22 @@ use http_body_util::{BodyExt, Full, StreamBody, combinators::BoxBody};
 use hyper::body::{Bytes, Frame, Incoming};
 use futures_util::StreamExt;
 
-/// 运行时的流代理状态（端口 + 共享 URL）
+/// 运行时的流代理状态（端口 + 共享 URL + STT 发送器）
 pub struct StreamProxyState {
     stream_url: Arc<TokioMutex<Option<String>>>,
     port: u16,
+    stt_sender: Arc<TokioMutex<Option<mpsc::Sender<Bytes>>>>,
 }
 
 /// 惰性启动的本地 HTTP 流代理服务器
 ///
 /// 在首次 IPC 调用时才绑定端口和启动 hyper 服务，
 /// 避免在 `manage()` 阶段执行异步初始化。
+#[derive(Clone)]
 pub struct StreamProxyServer {
-    state: OnceCell<StreamProxyState>,
+    state: OnceCell<Arc<StreamProxyState>>,
     proxy_client: reqwest::Client,
+    stt_sender: Arc<TokioMutex<Option<mpsc::Sender<Bytes>>>>,
 }
 
 impl StreamProxyServer {
@@ -29,11 +32,15 @@ impl StreamProxyServer {
         Self {
             state: OnceCell::new(),
             proxy_client,
+            stt_sender: Arc::new(TokioMutex::new(None)),
         }
     }
 
-    /// 绑定 127.0.0.1:0、启动 hyper 服务，返回 StreamProxyState
-    async fn start_inner(proxy_client: reqwest::Client) -> Result<StreamProxyState, String> {
+    /// 绑定 127.0.0.1:0、启动 hyper 服务，返回 StreamProxyState（包装在 Arc 中）
+    async fn start_inner(
+        proxy_client: reqwest::Client,
+        stt_sender: Arc<TokioMutex<Option<mpsc::Sender<Bytes>>>>,
+    ) -> Result<Arc<StreamProxyState>, String> {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .map_err(|e| format!("流代理服务器绑定失败: {e}"))?;
@@ -46,6 +53,7 @@ impl StreamProxyServer {
         let stream_url: Arc<TokioMutex<Option<String>>> = Arc::new(TokioMutex::new(None));
         let stream_url_clone = stream_url.clone();
         let proxy_client_clone = proxy_client.clone();
+        let stt_sender_clone = stt_sender.clone();
 
         tokio::spawn(async move {
             loop {
@@ -61,13 +69,15 @@ impl StreamProxyServer {
                 let io = TokioIo::new(tcp_stream);
                 let stream_url = stream_url_clone.clone();
                 let proxy_client = proxy_client_clone.clone();
+                let stt_sender = stt_sender_clone.clone();
 
                 tokio::spawn(async move {
                     let service = service_fn(move |req: Request<Incoming>| {
                         let stream_url = stream_url.clone();
                         let proxy_client = proxy_client.clone();
+                        let stt_sender = stt_sender.clone();
                         async move {
-                            handle_proxy_request(req, stream_url, proxy_client).await
+                            handle_proxy_request(req, stream_url, proxy_client, stt_sender).await
                         }
                     });
 
@@ -81,14 +91,23 @@ impl StreamProxyServer {
             }
         });
 
-        Ok(StreamProxyState { stream_url, port })
+        let state = StreamProxyState {
+            stream_url,
+            port,
+            stt_sender,
+        };
+
+        Ok(Arc::new(state))
     }
 
     /// 确保服务器已启动（惰性初始化）
-    async fn ensure_started(&self) -> Result<&StreamProxyState, String> {
+    async fn ensure_started(&self) -> Result<Arc<StreamProxyState>, String> {
+        let stt_sender = self.stt_sender.clone();
+        let proxy_client = self.proxy_client.clone();
         self.state
-            .get_or_try_init(|| Self::start_inner(self.proxy_client.clone()))
+            .get_or_try_init(|| Self::start_inner(proxy_client, stt_sender))
             .await
+            .map(Arc::clone)
     }
 
     /// 设置当前要代理的 CDN 流 URL
@@ -103,6 +122,13 @@ impl StreamProxyServer {
         if let Some(state) = self.state.get() {
             *state.stream_url.lock().await = None;
         }
+        Ok(())
+    }
+
+    /// 设置 STT 字节发送器（从 SttManager 注入）
+    pub async fn set_stt_sender(&self, sender: Option<mpsc::Sender<Bytes>>) -> Result<(), String> {
+        let state = self.ensure_started().await?;
+        *state.stt_sender.lock().await = sender;
         Ok(())
     }
 
@@ -125,6 +151,7 @@ async fn handle_proxy_request(
     req: Request<Incoming>,
     stream_url: Arc<TokioMutex<Option<String>>>,
     proxy_client: reqwest::Client,
+    stt_sender: Arc<TokioMutex<Option<mpsc::Sender<Bytes>>>>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
     // CORS preflight
     if req.method() == Method::OPTIONS {
@@ -182,11 +209,20 @@ async fn handle_proxy_request(
             .unwrap());
     }
 
-    // 将 reqwest 字节流 → hyper Body 流
-    let stream = response.bytes_stream().map(|result: Result<Bytes, reqwest::Error>| {
-        result
-            .map(|bytes| Frame::data(bytes))
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    // 将 reqwest 字节流 → hyper Body 流，同时 tee 到 STT 管道
+    let stream = response.bytes_stream().map(move |result: Result<Bytes, reqwest::Error>| {
+        match result {
+            Ok(bytes) => {
+                // Tee to STT pipeline (Bytes::clone is reference-counted, zero-copy)
+                if let Ok(guard) = stt_sender.try_lock() {
+                    if let Some(sender) = guard.as_ref() {
+                        let _ = sender.try_send(bytes.clone());
+                    }
+                }
+                Ok(Frame::data(bytes))
+            }
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        }
     });
 
     let body = BodyExt::boxed(StreamBody::new(stream));

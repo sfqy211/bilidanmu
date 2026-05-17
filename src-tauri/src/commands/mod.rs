@@ -10,6 +10,7 @@ pub mod proxy;
 pub mod room;
 pub mod selections;
 pub mod settings;
+pub mod stt;
 pub mod websocket;
 
 pub fn build_api_client(

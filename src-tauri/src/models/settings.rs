@@ -50,6 +50,26 @@ pub struct NotificationSetting {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SttSetting {
+    pub enabled: bool,
+    /// Model ID: "large" or "xlarge"
+    pub model_id: String,
+    /// Sync delay in ms (-2000 ~ +2000)
+    pub sync_delay_ms: i32,
+}
+
+impl Default for SttSetting {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            model_id: "large".to_string(),
+            sync_delay_ms: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub send_interval: RangeSetting,
     pub rate_limit: RateLimitSetting,
@@ -57,6 +77,8 @@ pub struct Settings {
     pub receive: ReceiveSetting,
     pub appearance: AppearanceSetting,
     pub notification: NotificationSetting,
+    #[serde(default)]
+    pub stt: SttSetting,
 }
 
 impl Default for Settings {
@@ -91,6 +113,7 @@ impl Default for Settings {
                 send_success: false,
                 sc_alert: false,
             },
+            stt: SttSetting::default(),
         }
     }
 }

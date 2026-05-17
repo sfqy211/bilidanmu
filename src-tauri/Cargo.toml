@@ -36,6 +36,9 @@ base64 = "0.22"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio", "http1", "server-auto"] }
 http-body-util = "0.1"
+bytes = "1"
+sherpa-onnx = "1.13"
+symphonia = { version = "0.6.0", features = ["aac"] }
 
 [profile.release]
 codegen-units = 1

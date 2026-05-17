@@ -9,6 +9,7 @@ mod proxy;
 mod room_store;
 mod selections_store;
 mod settings_store;
+mod stt;
 mod tray;
 
 use bili::credential::BiliCredential;
@@ -39,7 +40,8 @@ pub struct AppState {
     pub auto_sender: TokioMutex<AutoSenderState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
-    pub stream_proxy: StreamProxyServer,
+    pub stream_proxy: Arc<StreamProxyServer>,
+    pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -63,7 +65,8 @@ pub fn run() {
             auto_sender: TokioMutex::new(AutoSenderState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
             proxy_client: proxy_client.clone(),
-            stream_proxy: StreamProxyServer::new(proxy_client),
+            stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
+            stt_manager: Arc::new(TokioMutex::new(None)),
         })
         .setup(|app| {
             tray::create_tray(app)?;
@@ -166,7 +169,10 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::selections::load_selections,
-            commands::selections::save_selections
+            commands::selections::save_selections,
+            commands::stt::start_stt,
+            commands::stt::stop_stt,
+            commands::stt::switch_stt_model
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
