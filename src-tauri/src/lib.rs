@@ -54,6 +54,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_log::Builder::default()
                 .targets([
@@ -179,7 +180,9 @@ pub fn run() {
             commands::selections::save_selections,
             commands::stt::start_stt,
             commands::stt::stop_stt,
-            commands::stt::switch_stt_model
+            commands::stt::switch_stt_model,
+            commands::stt::get_stt_model_dir,
+            commands::stt::open_stt_model_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

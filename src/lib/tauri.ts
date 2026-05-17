@@ -109,6 +109,8 @@ export const tauriCommands = {
   stt: {
     start: () => invoke<void>("start_stt"),
     stop: () => invoke<void>("stop_stt"),
-    switchModel: (modelId: string) => invoke<void>("switch_stt_model", { modelId })
+    switchModel: (modelId: string) => invoke<void>("switch_stt_model", { modelId }),
+    getModelDir: () => invoke<string>("get_stt_model_dir"),
+    openModelDir: () => invoke<void>("open_stt_model_dir")
   }
 };

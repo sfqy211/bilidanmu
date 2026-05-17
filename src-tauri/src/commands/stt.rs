@@ -1,8 +1,18 @@
 use tauri::{Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::settings_store;
 use crate::stt::SttManager;
 use crate::AppState;
+
+/// Get the base directory for STT models: {app_data_dir}/models/stt/
+fn get_stt_base_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("获取数据目录失败: {e}"))?;
+    Ok(data_dir.join("models").join("stt"))
+}
 
 /// Get the model directory for a given model ID.
 pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, String> {
@@ -11,13 +21,7 @@ pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, S
         return Err(format!("Invalid model ID: {model_id}"));
     }
 
-    // Models are stored relative to the app resource directory
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("获取资源目录失败: {e}"))?;
-
-    let model_path = resource_dir.join("models").join("stt").join(model_id);
+    let model_path = get_stt_base_dir(app)?.join(model_id);
 
     if !model_path.exists() {
         return Err(format!(
@@ -30,6 +34,30 @@ pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, S
     // Strip Windows extended-length prefix (\\?\) which sherpa-onnx may not handle
     let path_str = path_str.strip_prefix("\\\\?\\").unwrap_or(&path_str);
     Ok(path_str.to_string())
+}
+
+/// Get the STT model base directory path (for display in settings).
+#[tauri::command]
+pub fn get_stt_model_dir(app: tauri::AppHandle) -> Result<String, String> {
+    let base = get_stt_base_dir(&app)?;
+    // Auto-create the directory so users know where to put models
+    std::fs::create_dir_all(&base)
+        .map_err(|e| format!("创建模型目录失败: {e}"))?;
+    let path_str = base.to_string_lossy().to_string();
+    let path_str = path_str.strip_prefix("\\\\?\\").unwrap_or(&path_str);
+    Ok(path_str.to_string())
+}
+
+/// Open the STT model directory in the system file explorer.
+#[tauri::command]
+pub async fn open_stt_model_dir(app: tauri::AppHandle) -> Result<(), String> {
+    let base = get_stt_base_dir(&app)?;
+    std::fs::create_dir_all(&base)
+        .map_err(|e| format!("创建模型目录失败: {e}"))?;
+    app.opener()
+        .open_path(base.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| format!("打开目录失败: {e}"))?;
+    Ok(())
 }
 
 /// Start the STT pipeline.

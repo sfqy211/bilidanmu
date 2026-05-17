@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FolderOpen } from "lucide-react";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -12,6 +13,7 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("send");
+  const [modelDir, setModelDir] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +42,10 @@ export function SettingsPage() {
       cancelled = true;
     };
   }, [setSettings]);
+
+  useEffect(() => {
+    tauriCommands.stt.getModelDir().then(setModelDir).catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -382,9 +388,26 @@ export function SettingsPage() {
                 </div>
               </label>
 
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                模型文件需放置在应用资源目录的 models/stt/[modelId] 下，包含 encoder、decoder、joiner ONNX 文件和 tokens.txt.
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  模型文件需放置在以下目录中，每个模型一个子文件夹，包含 encoder、decoder、joiner ONNX 文件和 tokens.txt.
+                </p>
+                {modelDir && (
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 truncate rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-[#0e1018] dark:text-slate-400">
+                      {modelDir}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => void tauriCommands.stt.openModelDir()}
+                      className="flex h-7 w-7 items-center justify-center text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                      title="打开文件夹"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </TabContent>
