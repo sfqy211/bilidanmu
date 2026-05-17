@@ -108,7 +108,7 @@ export function RoomPage() {
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold">直播间</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">添加、管理并切换当前使用的直播间。</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">添加和管理直播间。</p>
         </div>
       </div>
 
@@ -236,13 +236,8 @@ export function RoomPage() {
                         onClick={() => {
                           setCurrentRoomId(room.id);
                           void tauriCommands.selections.save({ currentRoomId: room.roomId });
+                          void tauriCommands.room.openDanmaku(room.roomId);
                         }}
-                        className="border border-slate-300 px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
-                      >
-                        设为当前
-                      </button>
-                      <button
-                        onClick={() => void tauriCommands.room.openDanmaku(room.roomId)}
                         className="inline-flex items-center gap-1 bg-cyan-50 px-3 py-1.5 text-xs text-cyan-700 transition hover:bg-cyan-100 dark:bg-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/30"
                       >
                         <MonitorPlay className="h-3 w-3" />
