@@ -96,6 +96,7 @@ bilidanmu/
 │   │   ├── useProxyImage.ts           # 图片代理 Hook（LRU 缓存 + 竞态取消）
 │   │   ├── useAudioPlayer.ts          # mpegts.js 音频播放器 Hook（播放/停止/音量/重连）
 │   │   ├── useSttTranscript.ts        # STT 转录延迟缓冲 + 按需 RAF 循环
+│   │   ├── useDividerDrag.ts          # 可拖动分割栏 Hook（pointer events + localStorage 持久化）
 │   │   └── useTheme.ts                # 主题切换（light/dark/system）
 │   │
 │   ├── stores/                         # Zustand 状态管理
@@ -108,7 +109,7 @@ bilidanmu/
 │   ├── lib/                            # 工具 & 封装
 │   │   ├── tauri.ts                    # Tauri invoke 类型安全封装（8 命名空间）
 │   │   ├── utils.ts                    # 通用工具（cn 等）
-│   │   ├── constants.ts                # 常量（APP_NAME, APP_VERSION）
+│   │   ├── constants.ts                # 常量（APP_NAME, getAppVersion()）
 │   │   └── query-client.ts             # TanStack Query 客户端实例
 │   │
 │   └── types/                          # TypeScript 类型定义
@@ -356,7 +357,7 @@ interface SettingsState {
 
 ```toml
 [dependencies]
-tauri = { version = "2.8", features = ["tray-icon", "image-png"] }
+tauri = { version = "2.8", features = ["tray-icon", "image-png", "devtools"] }
 tauri-plugin-store = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-opener = "2"
@@ -364,7 +365,7 @@ tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "sync"] }
-reqwest = { version = "0.12", features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", features = ["rustls-tls", "json", "stream"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 brotli = "7"
@@ -377,9 +378,10 @@ thiserror = "2"
 regex = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 base64 = "0.22"
-hyper = "1"
-hyper-util = "0.1"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio", "http1", "server-auto"] }
 http-body-util = "0.1"
+bytes = "1"
 symphonia = { version = "0.6", features = ["aac"] }
 sherpa-onnx = "1.13"
 
