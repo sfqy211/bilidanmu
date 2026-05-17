@@ -3,11 +3,74 @@ name: publish-tauri
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'app-v*'
+    branches: [main]
+    paths:
+      - 'src-tauri/tauri.conf.json'
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check if version tag exists
+        id: check
+        run: |
+          VERSION=$(grep -oP '"version":\s*"\K[^"]+' src-tauri/tauri.conf.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse "app-v$VERSION" >/dev/null 2>&1; then
+            echo "Tag app-v$VERSION already exists, skipping build"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version $VERSION detected"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  changelog:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      body: ${{ steps.changelog.outputs.body }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="$LATEST_TAG..HEAD"
+          fi
+
+          FEAT=$(git log --pretty=format:"%s" "$RANGE" | grep -E "^feat" | sed 's/^feat: */- /; s/^feat(\([^)]*\)): */- [\1] /' || true)
+          FIX=$(git log --pretty=format:"%s" "$RANGE" | grep -E "^fix" | sed 's/^fix: */- /; s/^fix(\([^)]*\)): */- [\1] /' || true)
+          REFACTOR=$(git log --pretty=format:"%s" "$RANGE" | grep -E "^refactor" | sed 's/^refactor: */- /; s/^refactor(\([^)]*\)): */- [\1] /' || true)
+          OTHER=$(git log --pretty=format:"%s" "$RANGE" | grep -vE "^(feat|fix|refactor)" | sed 's/^/- /' || true)
+
+          BODY=""
+          if [ -n "$FEAT" ]; then BODY="$BODY## ✨ 新功能"$'\n'"$FEAT"$'\n\n'; fi
+          if [ -n "$FIX" ]; then BODY="$BODY## 🐛 修复"$'\n'"$FIX"$'\n\n'; fi
+          if [ -n "$REFACTOR" ]; then BODY="$BODY## ♻️ 重构"$'\n'"$REFACTOR"$'\n\n'; fi
+          if [ -n "$OTHER" ]; then BODY="$BODY## 📦 其他"$'\n'"$OTHER"$'\n\n'; fi
+
+          if [ -z "$BODY" ]; then BODY="- 初始版本"; fi
+
+          EOF=$(uuidgen)
+          echo "body<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$BODY" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: [check, changelog]
+    if: needs.check.outputs.should_build == 'true'
     permissions:
       contents: write
     strategy:
@@ -58,29 +121,14 @@ jobs:
         run: cargo check
         working-directory: src-tauri
 
-      # 可选：Windows 代码签名
-      # - name: Import Windows certificate
-      #   if: matrix.platform == 'windows-latest'
-      #   env:
-      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      #     WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      #   run: |
-      #     New-Item -ItemType Directory -Path certificate | Out-Null
-      #     Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
-      #     certutil -decode certificate/tempCert.txt certificate/certificate.pfx
-      #     Remove-Item -LiteralPath certificate/tempCert.txt
-      #     Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
-
       - name: Build and publish Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: app-v__VERSION__
           releaseName: 'BiliDanmu v__VERSION__'
-          releaseBody: 'See the assets attached to this release for installers and bundle artifacts.'
+          releaseBody: ${{ needs.changelog.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
