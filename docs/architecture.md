@@ -130,14 +130,14 @@ bilidanmu/
 │       ├── db.rs                       # SQLite 数据库初始化
 │       ├── tray.rs                     # 系统托盘
 │       │
-│       ├── commands/                   # Tauri IPC 命令（39 个已注册）
+│       ├── commands/                   # Tauri IPC 命令（43 个已注册）
 │       │   ├── mod.rs                  # 模块导出 + build_api_client()
 │       │   ├── auth.rs                 # 认证命令（6 个）
 │       │   ├── room.rs                 # 直播间命令（10 个，含 open_danmaku_window/get_rooms_live_status）
 │       │   ├── danmaku.rs              # 弹幕发送命令（4 个）
 │       │   ├── websocket.rs            # WebSocket 控制命令（2 个）
 │       │   ├── ai.rs                   # AI 模型命令（7 个，含 update/delete）
-│       │   ├── settings.rs             # 设置命令（2 个）
+│       │   ├── settings.rs             # 设置命令（3 个，含 is_stt_available）
 │       │   ├── proxy.rs                # 图片代理命令（1 个，SSRF 白名单 + 5MB 限制）
 │       │   ├── selections.rs           # Selections 键值持久化命令（2 个，批量事务）
 │       │   └── stt.rs                   # STT 命令（6 个：start/stop/switchModel/getModelDir/listModels/openModelDir）
@@ -179,6 +179,8 @@ bilidanmu/
 └── scripts/                           # 预留，当前仓库尚未创建 build 脚本
     └── build.ps1
 ```
+
+> **Feature Gate**：`stt` feature 控制 STT 模块（sherpa-onnx + symphonia）的编译。默认启用，`cargo build --no-default-features` 构建精简版（不含 STT）。精简版中 `stt/` 模块、`commands/stt.rs`、`proxy` 中的 STT tee 逻辑、`AppState.stt_manager` 均不编译。前端通过 `is_stt_available` 命令运行时检测，自动隐藏语音识别功能。
 
 ---
 
@@ -382,8 +384,12 @@ hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio", "http1", "server-auto"] }
 http-body-util = "0.1"
 bytes = "1"
-symphonia = { version = "0.6", features = ["aac"] }
-sherpa-onnx = "1.13"
+sherpa-onnx = { version = "1.13", optional = true }
+symphonia = { version = "0.6", default-features = false, features = ["aac"], optional = true }
+
+[features]
+default = ["stt"]
+stt = ["dep:sherpa-onnx", "dep:symphonia"]
 
 [profile.release]
 codegen-units = 1

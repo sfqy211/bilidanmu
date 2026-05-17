@@ -14,7 +14,9 @@ BiliDanmu — Windows desktop Bilibili live-stream danmaku client. Tauri 2 (Rust
 | Frontend only (Vite on :3000) | `npm run dev:renderer` |
 | Type check frontend | `npm run typecheck` |
 | Rust check | `cd src-tauri && cargo check` |
+| Rust check (lite, no STT) | `cd src-tauri && cargo check --no-default-features` |
 | Build release | `npm run build` |
+| Build release (lite) | `npm run build:lite` |
 
 No test framework is configured. Always run `npm run typecheck` and `cargo check` after changes.
 
@@ -43,21 +45,21 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
 
 ### Backend (Rust)
 
-- **AppState** (`src-tauri/src/lib.rs`): Multi-field struct with `TokioMutex<Option<BiliCredential>>`, `Mutex<HashMap<String, BiliCredential>>` (multi-account), `Mutex<Option<String>>` (active account), `Mutex<HashMap<String, AccountMeta>>`, `Arc<TokioMutex<WbiKeyCache>>`, `TokioMutex<Option<DanmakuWsClient>>`, `TokioMutex<AutoSenderState>`, `Arc<Mutex<Option<rusqlite::Connection>>>` (SQLite DB), `reqwest::Client` (proxy-aware HTTP), `Arc<StreamProxyServer>`, and `Arc<TokioMutex<Option<SttManager>>>`. All IPC commands receive `State<AppState>`.
+- **AppState** (`src-tauri/src/lib.rs`): Multi-field struct with `TokioMutex<Option<BiliCredential>>`, `Mutex<HashMap<String, BiliCredential>>` (multi-account), `Mutex<Option<String>>` (active account), `Mutex<HashMap<String, AccountMeta>>`, `Arc<TokioMutex<WbiKeyCache>>`, `TokioMutex<Option<DanmakuWsClient>>`, `TokioMutex<AutoSenderState>`, `Arc<Mutex<Option<rusqlite::Connection>>>` (SQLite DB), `reqwest::Client` (shared, proxy-aware HTTP), `Arc<StreamProxyServer>`, and `Arc<TokioMutex<Option<SttManager>>>` (`#[cfg(feature = "stt")]`). All IPC commands receive `State<AppState>`.
 - **Bili protocol layer** (`src-tauri/src/bili/`):
   - `credential.rs` — Cookie parsing, SESSDATA percent-encoding, validation
   - `wbi.rs` — WBI signature (MIXIN_KEY_ENC_TAB + MD5), key caching from `/x/web-interface/nav`
   - `protocol.rs` — 16-byte big-endian packet header, Brotli/zlib decompression, message parsing (DANMU_MSG, SEND_GIFT, INTERACT_WORD, SUPER_CHAT_MESSAGE). `parse_danmaku_command` is the main entry point.
   - `ws_client.rs` — WebSocket client with auth (op=7), heartbeat (op=30s), auto-reconnect (5s→10s→30s→60s backoff)
-  - `api.rs` — `BiliApiClient` wrapping reqwest with User-Agent/Referer/Cookie headers
+  - `api.rs` — `BiliApiClient` wrapping shared `reqwest::Client` with Referer/Cookie headers
   - `buvid.rs` — Random hex + timestamp buvid3/buvid4 generation
 - **Models** (`src-tauri/src/models/`): All structs use `serde(rename_all = "camelCase")` for TS interop. `DanmakuEvent` has `#[serde(rename = "type")]` on `event_type` field.
 - **Persistence**: `tauri-plugin-store` for cookie (`cookie.json`) and rooms (`rooms.json`) via `credential_store.rs` and `room_store.rs`.
-- **STT module** (`src-tauri/src/stt/`):
+- **STT module** (`src-tauri/src/stt/`, `#[cfg(feature = "stt")]`):
   - `pipeline.rs` — Main STT pipeline: FLV demux → AAC decode (symphonia 0.6) → resample (sherpa-onnx LinearResampler) → sherpa-onnx OnlineRecognizer → emit transcript events. `bytes_tx` is `Option<Sender>` so `stop()` can drop it to unblock `blocking_recv()`.
   - `flv_demux.rs` — FLV demuxer that extracts AAC frames, wraps in ADTS headers, parses AudioSpecificConfig for sample rate/channels. Has `MAX_TAG_DATA_SIZE` guard against malicious streams.
   - `mod.rs` — `SttManager` lifecycle (start/stop pipeline, transcript emit loop with `Notify` for instant cancellation).
-- **Stream proxy** (`src-tauri/src/proxy/stream_proxy.rs`): hyper 1.x local HTTP proxy on random port, `OnceCell` lazy init, tee bytes to STT pipeline via `Arc<Mutex<Option<Sender>>>`.
+- **Stream proxy** (`src-tauri/src/proxy/stream_proxy.rs`): hyper 1.x local HTTP proxy on random port, `OnceCell` lazy init, tee bytes to STT pipeline via `Arc<Mutex<Option<Sender>>>` (`#[cfg(feature = "stt")]`).
 - **Logging**: `tauri_plugin_log` configured with `LevelFilter::Info` + Stdout target only (no log file, no webview).
 
 ### Key patterns

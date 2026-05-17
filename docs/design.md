@@ -247,7 +247,7 @@
 
 ### 3.4 子页面四：设置（SettingsPage）
 
-**Tab 结构：** `弹幕发送` | `弹幕接收` | `外观` | `通知` | `语音识别`
+**Tab 结构：** `弹幕发送` | `弹幕接收` | `外观` | `通知` | `语音识别`（仅 STT 构建可用）
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -308,10 +308,12 @@
 | 显示勋章       | bool   | true     | 是否显示粉丝勋章              | 外观     |
 | 禁言提醒       | bool   | true     | 禁言时弹出通知                | 通知     |
 | Cookie过期提醒 | bool   | true     | Cookie 即将过期时提醒         | 通知     |
-| 启用语音识别   | bool   | false    | 是否启用 STT                  | 语音识别 |
-| STT 模型       | enum   | "large"  | 模型 ID（"large"/"xlarge"）   | 语音识别 |
-| 同步延迟       | number | 0ms      | 字幕显示偏移（-2000~+2000ms） | 语音识别 |
+| 启用语音识别   | bool   | false    | 是否启用 STT（仅 STT 构建）   | 语音识别 |
+| STT 模型       | enum   | "large"  | 模型 ID（仅 STT 构建）        | 语音识别 |
+| 同步延迟       | number | 0ms      | 字幕显示偏移（仅 STT 构建）   | 语音识别 |
 
+> **STT 条件可用**：「语音识别」Tab 仅在含 STT feature 的构建中显示。精简版（lite）构建通过 `is_stt_available` 命令检测后自动隐藏该 Tab，弹幕页面中也跳过所有 STT 相关调用。
+>
 > **未接入前端但已在 Settings 类型中定义的字段：** `riskControl.autoPauseOnMute`、`riskControl.appendRandomSuffix`、`appearance.showLevel`、`notification.sendSuccess`、`notification.scAlert` — 这些在 SettingsPage 中没有对应的 UI 控件。
 
 ---

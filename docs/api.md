@@ -90,14 +90,15 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `proxy_image` | `url` | `string`（data URI） | 代理图片（SSRF 白名单 + 5MB 限制） |
 | `get_settings` | - | `Settings` | 获取设置 |
 | `update_settings` | `settings` | void | 更新设置（STT 模型变更时自动重启） |
+| `is_stt_available` | - | `bool` | STT feature 是否可用（编译时决定，运行时零开销） |
 | `load_selections` | `keys: string[]` | `Record<string, unknown>` | 批量读取选择项 |
 | `save_selections` | `entries: Record<string, unknown>` | void | 批量保存选择项（事务） |
-| `start_stt` | - | void | 启动 STT 管道 |
-| `stop_stt` | - | void | 停止 STT 管道 |
-| `switch_stt_model` | `model_id` | void | 切换 STT 模型（校验路径穿越，仅在运行中时重启） |
-| `get_stt_model_dir` | - | `string` | 获取 STT 模型目录路径 |
-| `list_stt_models` | - | `string[]` | 列出可用 STT 模型 |
-| `open_stt_model_dir` | - | void | 在资源管理器中打开 STT 模型目录 |
+| `start_stt` | - | void | 启动 STT 管道（仅 STT 构建） |
+| `stop_stt` | - | void | 停止 STT 管道（仅 STT 构建） |
+| `switch_stt_model` | `model_id` | void | 切换 STT 模型（仅 STT 构建） |
+| `get_stt_model_dir` | - | `string` | 获取 STT 模型目录路径（仅 STT 构建） |
+| `list_stt_models` | - | `string[]` | 列出可用 STT 模型（仅 STT 构建） |
+| `open_stt_model_dir` | - | void | 在资源管理器中打开 STT 模型目录（仅 STT 构建） |
 
 ---
 
@@ -117,7 +118,7 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `loop-send-tick` | `{ roomId, message, index }` | 循环发送成功 |
 | `loop-send-error` | `{ roomId, message, index, error }` | 循环发送失败 |
 | `loop-send-stopped` | `{ reason }` | 循环发送停止 |
-| `stt-transcript` | `SttTranscript` | STT 识别结果（`{ text, isFinal }`） |
+| `stt-transcript` | `SttTranscript` | STT 识别结果（`{ text, isFinal }`，仅 STT 构建） |
 
 ---
 
@@ -238,7 +239,8 @@ export const tauriCommands = {
   },
   settings: {
     get: () => invoke<Settings>("get_settings"),
-    update: (settings: Settings) => invoke<void>("update_settings", { settings })
+    update: (settings: Settings) => invoke<void>("update_settings", { settings }),
+    isSttAvailable: () => invoke<boolean>("is_stt_available")
   },
   state: {
     getRooms: () => invoke<Room[]>("get_rooms")
