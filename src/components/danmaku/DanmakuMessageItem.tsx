@@ -51,7 +51,6 @@ export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
   return (
     <div className="text-sm leading-6">
       {item.medal ? <span className="mr-2 text-xs text-cyan-600 dark:text-cyan-300">[{item.medal}]</span> : null}
-      {item.type === "gift" ? <span className="mr-1 text-amber-500 dark:text-amber-300">🎁</span> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       <span
         className={`mr-1 font-bold ${getGuardUsernameClass(item.guardLevel)}`}
@@ -59,7 +58,7 @@ export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
         {item.username}
       </span>
       {item.isAdmin ? <span className="mr-1 text-xs text-amber-600 dark:text-amber-300">房管</span> : null}
-      {item.type === "gift" && item.giftName ? <span className="mr-1 text-amber-600 dark:text-amber-200">{item.giftName}</span> : null}
+      {item.type === "gift" && item.price ? <span className="mr-1 text-amber-600 dark:text-amber-200">¥{(item.price / 1000).toFixed(2)}</span> : null}
       <span
         className={getMessageTextClass(item.type)}
       >
