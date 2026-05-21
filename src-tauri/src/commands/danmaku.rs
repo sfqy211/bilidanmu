@@ -201,6 +201,25 @@ pub async fn start_auto_send(
 }
 
 #[tauri::command]
+pub async fn send_like(
+    room_id: u64,
+    anchor_id: u64,
+    click_time: u32,
+    state: State<'_, AppState>,
+) -> Result<BiliResponse, String> {
+    if !(1..=100).contains(&click_time) {
+        return Err("click_time 必须在 1~100 之间".to_string());
+    }
+    if anchor_id == 0 {
+        return Err("anchor_id 不能为 0".to_string());
+    }
+
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+    api.send_like(room_id, anchor_id, click_time).await
+}
+
+#[tauri::command]
 pub async fn stop_auto_send(state: State<'_, AppState>) -> Result<(), String> {
     let mut auto_sender = state.auto_sender.lock().await;
     if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {

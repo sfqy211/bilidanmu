@@ -72,6 +72,8 @@ export const tauriCommands = {
         emoticonUnique,
         ...options
       }),
+    sendLike: (roomId: number, anchorId: number, clickTime: number) =>
+      invoke<BiliResponse>("send_like", { roomId, anchorId, clickTime }),
     startAutoSend: (roomId: number, entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) =>
       invoke<void>("start_auto_send", { roomId, entries, intervalMs, timeLimitSecs: timeLimitSecs ?? null }),
     stopAutoSend: () => invoke<void>("stop_auto_send")

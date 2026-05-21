@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ArrowDown, Pause, Play, Send, Smile, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowDown, Pause, Play, Send, Smile, ThumbsUp, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
+import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
+import { LikeButton } from "@/components/danmaku/LikeButton";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
@@ -15,6 +17,7 @@ import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
+import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { DanmakuMessage } from "@/types/danmaku";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
@@ -86,6 +89,10 @@ export function DanmakuPage() {
   const { disconnect } = useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
+  const latestLike = useDanmakuStore((state) => state.latestLike);
+  const latestEntry = useDanmakuStore((state) => state.latestEntry);
+  const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
+  const rooms = useRoomStore((state) => state.rooms);
   const { send, sendEmoticon, sending } = useDanmaku();
   const {
     audioRef,
@@ -170,12 +177,10 @@ export function DanmakuPage() {
     }
     return uids.size;
   }, [messages]);
-  const latestEntry = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].type === "entry") return messages[i];
-    }
-    return null;
-  }, [messages]);
+  const anchorId = useMemo(() => {
+    const room = rooms.find((item) => item.roomId === roomId);
+    return room?.uid ?? 0;
+  }, [rooms, roomId]);
 
   // ── 分割栏拖拽 ──
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
@@ -422,18 +427,36 @@ export function DanmakuPage() {
         {sttAvailable && <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />}
       </div>
 
-      {/* 入场信息 */}
-      {latestEntry && (
-        <div className="shrink-0 border-t border-slate-300 bg-white px-5 py-1.5 text-xs text-slate-500 dark:border-white/[0.06] dark:bg-[#12141e] dark:text-slate-400">
-          <span className="mr-1 text-slate-400">↪</span>
-          <span className="mr-1 font-medium text-pink-600 dark:text-pink-300">{latestEntry.username}</span>
-          <span>{latestEntry.content}</span>
+      {/* 活动信息：点赞 + 入场 */}
+      {(latestLike || latestEntry) && (
+        <div className="shrink-0 border-t border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#12141e]">
+          {latestLike && (
+            <BottomActivityBar
+              icon={<ThumbsUp className="h-3 w-3" />}
+              username={latestLike.username}
+              content={latestLike.content}
+              tone="like"
+            />
+          )}
+          {latestEntry && (
+            <BottomActivityBar
+              icon={<span className="text-xs">↪</span>}
+              username={latestEntry.username}
+              content={latestEntry.content}
+              tone="entry"
+            />
+          )}
         </div>
       )}
 
       {/* 发送栏 */}
       <div className="border-t border-slate-300 bg-white p-3 dark:border-white/[0.06] dark:bg-[#12141e]">
         <div ref={inputBarRef} className="relative flex items-center gap-2">
+          <LikeButton
+            roomId={roomId}
+            anchorId={anchorId}
+            totalLikeCount={totalLikeCount}
+          />
           <button
             type="button"
             onClick={() => {

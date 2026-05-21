@@ -132,6 +132,10 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
         return parse_super_chat(command, room_id);
     }
 
+    if cmd.starts_with("LIKE_INFO_V3_CLICK") {
+        return parse_like_info_v3_click(command, room_id);
+    }
+
     None
 }
 
@@ -263,13 +267,15 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         .unwrap_or(0);
     let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
     let msg_type = data.get("msg_type").and_then(value_as_u64).unwrap_or(1);
+    if msg_type == 6 {
+        return None;
+    }
     let content = match msg_type {
         1 => "进入了直播间",
         2 => "关注了主播",
         3 => "分享了直播间",
         4 => "特别关注了主播",
         5 => "和主播互相关注了",
-        6 => "点赞了直播间",
         _ => "触发了互动消息",
     }
     .to_string();
@@ -363,6 +369,49 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
             .get("background_image")
             .and_then(Value::as_str)
             .map(ToString::to_string),
+        emots: None,
+        emoticon_options: None,
+    })
+}
+
+fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    let data = command.get("data")?;
+    let uid = data.get("uid").and_then(value_as_u64).unwrap_or(0);
+    let username = data.get("uname").and_then(Value::as_str)?.to_string();
+    let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
+    let click_time = data.get("click_time").and_then(value_as_u64).unwrap_or(1) as u32;
+
+    let content = data
+        .get("like_text")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("为主播点赞了")
+        .chars()
+        .take(50)
+        .collect::<String>();
+
+    Some(DanmakuEvent {
+        id: format!("like-{room_id}-{uid}-{timestamp}"),
+        room_id,
+        event_type: "like".to_string(),
+        username,
+        content,
+        timestamp,
+        avatar: None,
+        medal: parse_object_medal(data.get("fans_medal")),
+        uid,
+        color: 16_777_215,
+        guard_level: 0,
+        is_admin: false,
+        dm_type: 0,
+        price: None,
+        gift_name: None,
+        count: Some(click_time),
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
         emots: None,
         emoticon_options: None,
     })

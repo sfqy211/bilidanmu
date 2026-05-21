@@ -3,7 +3,13 @@ export type DanmakuMessageType =
   | "gift"
   | "superChat"
   | "entry"
+  | "like"
   | "system";
+
+export interface LikeCountUpdatePayload {
+  roomId: number;
+  clickCount: number;
+}
 
 export interface InlineEmoticon {
   count?: number;

@@ -442,6 +442,82 @@ impl BiliApiClient {
         })
     }
 
+    /// 点赞上报 API URL（未来可切换 WBI 认证）
+    const LIKE_INFO_V3_REPORT_URL: &str =
+        "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3";
+
+    /// 发送点赞
+    ///
+    /// 当前使用 csrf+cookie 认证，结构已预留 WBI 扩展。
+    /// 未来切换 WBI 时只需替换 LIKE_INFO_V3_REPORT_URL 常量
+    /// 并在 build_like_form 中调用 sign_wbi 即可。
+    pub async fn send_like(
+        &self,
+        room_id: u64,
+        anchor_id: u64,
+        click_time: u32,
+    ) -> Result<BiliResponse, String> {
+        let credential = self
+            .credential
+            .as_ref()
+            .ok_or_else(|| "未登录，无法点赞".to_string())?;
+
+        credential.validate_for_send()?;
+        let csrf = credential
+            .csrf()
+            .ok_or_else(|| "Cookie 缺少 bili_jct".to_string())?;
+
+        // 严格解析 uid
+        let uid_str = credential
+            .dede_user_id
+            .as_deref()
+            .ok_or_else(|| "Cookie 缺少 DedeUserID".to_string())?;
+        let uid: u64 = uid_str
+            .parse()
+            .map_err(|_| format!("DedeUserID 无效: {uid_str}"))?;
+
+        let form = Self::build_like_form(room_id, anchor_id, click_time, csrf, uid);
+
+        let response = self.post_form(Self::LIKE_INFO_V3_REPORT_URL, &form).await?;
+
+        let code = response.get("code").and_then(Value::as_i64).unwrap_or(-1) as i32;
+        let message = response
+            .get("message")
+            .or_else(|| response.get("msg"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+
+        if code == 0 {
+            Ok(BiliResponse { code, message })
+        } else {
+            Err(if message.is_empty() {
+                format!("点赞失败，错误码 {code}")
+            } else {
+                format!("{message}（错误码 {code}）")
+            })
+        }
+    }
+
+    /// 构建点赞请求参数（当前 csrf 版，未来可升级为 WBI 签名）
+    fn build_like_form(
+        room_id: u64,
+        anchor_id: u64,
+        click_time: u32,
+        csrf: &str,
+        uid: u64,
+    ) -> BTreeMap<String, String> {
+        BTreeMap::from([
+            ("room_id".to_string(), room_id.to_string()),
+            ("anchor_id".to_string(), anchor_id.to_string()),
+            ("click_time".to_string(), click_time.to_string()),
+            ("uid".to_string(), uid.to_string()),
+            ("web_location".to_string(), "444.8".to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+            ("csrf_token".to_string(), csrf.to_string()),
+        ])
+    }
+
     async fn get_json(
         &self,
         url: &str,

@@ -171,6 +171,7 @@ pub fn run() {
             commands::room::get_rooms_live_status,
             commands::danmaku::send_danmaku,
             commands::danmaku::send_emoticon,
+            commands::danmaku::send_like,
             commands::danmaku::start_auto_send,
             commands::danmaku::stop_auto_send,
             commands::ai::add_ai_model,

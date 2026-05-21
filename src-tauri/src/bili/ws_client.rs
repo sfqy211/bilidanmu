@@ -163,7 +163,27 @@ async fn run_connection(
                     for packet in decode_packets(&bytes)? {
                         match packet {
                             ParsedPacket::Command(command) => {
-                                if let Some(event) = parse_danmaku_command(&command, room_id) {
+                                let cmd = command
+                                    .get("cmd")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("");
+
+                                // LIKE_INFO_V3_UPDATE 单独处理，不交给 parse_danmaku_command
+                                if cmd.starts_with("LIKE_INFO_V3_UPDATE") {
+                                    if let Some(data) = command.get("data") {
+                                        let click_count = data
+                                            .get("click_count")
+                                            .and_then(value_as_u64)
+                                            .unwrap_or(0);
+                                        let _ = app.emit(
+                                            "like-count-update",
+                                            serde_json::json!({
+                                                "roomId": room_id,
+                                                "clickCount": click_count,
+                                            }),
+                                        );
+                                    }
+                                } else if let Some(event) = parse_danmaku_command(&command, room_id) {
                                     let _ = app.emit("danmaku-received", &event);
                                 }
                             }
@@ -194,4 +214,11 @@ async fn run_connection(
         Ok(()) => Ok(()),
         Err(error) => Err(error),
     }
+}
+
+fn value_as_u64(value: &Value) -> Option<u64> {
+    value
+        .as_u64()
+        .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
+        .or_else(|| value.as_str().and_then(|number| number.parse::<u64>().ok()))
 }
