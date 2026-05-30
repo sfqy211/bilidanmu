@@ -227,3 +227,122 @@ pub async fn stop_auto_send(state: State<'_, AppState>) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub async fn start_auto_like(
+    app: tauri::AppHandle,
+    room_id: u64,
+    anchor_id: u64,
+    target_total: u32,
+    batch_size: u32,
+    interval_ms: u64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if room_id == 0 {
+        return Err("room_id 不能为空".to_string());
+    }
+    if anchor_id == 0 {
+        return Err("anchor_id 不能为空".to_string());
+    }
+    if target_total == 0 || target_total > 1000 {
+        return Err("目标总数必须在 1~1000 之间".to_string());
+    }
+    if batch_size == 0 || batch_size > 100 {
+        return Err("批次大小必须在 1~100 之间".to_string());
+    }
+
+    let interval_ms = interval_ms.max(500);
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+
+    let mut auto_like = state.auto_like.lock().await;
+    if auto_like.shutdown_tx.is_some() {
+        return Err("自动点赞已在运行中".to_string());
+    }
+
+    let (shutdown_tx, mut shutdown_rx) = oneshot::channel();
+    auto_like.shutdown_tx = Some(shutdown_tx);
+    drop(auto_like);
+
+    tokio::task::yield_now().await;
+
+    tokio::spawn(async move {
+        let mut sent_total: u32 = 0;
+
+        loop {
+            let remaining = target_total - sent_total;
+            if remaining == 0 {
+                let state = app.state::<AppState>();
+                {
+                    let mut like = state.auto_like.lock().await;
+                    like.shutdown_tx = None;
+                }
+                let _ = app.emit(
+                    "auto-like-stopped",
+                    serde_json::json!({"reason": "completed", "sentTotal": sent_total}),
+                );
+                return;
+            }
+
+            let current_batch = batch_size.min(remaining).min(100);
+            let result = api.send_like(room_id, anchor_id, current_batch).await;
+
+            match result {
+                Ok(_) => {
+                    sent_total += current_batch;
+                    let _ = app.emit(
+                        "auto-like-tick",
+                        serde_json::json!({
+                            "roomId": room_id,
+                            "sentTotal": sent_total,
+                            "targetTotal": target_total,
+                        }),
+                    );
+                }
+                Err(error) => {
+                    let _ = app.emit(
+                        "auto-like-error",
+                        serde_json::json!({
+                            "roomId": room_id,
+                            "sentTotal": sent_total,
+                            "error": error,
+                        }),
+                    );
+                    break;
+                }
+            }
+
+            tokio::select! {
+                _ = sleep(Duration::from_millis(interval_ms)) => {}
+                _ = &mut shutdown_rx => {
+                    let _ = app.emit("auto-like-stopped", serde_json::json!({
+                        "reason": "manual",
+                        "sentTotal": sent_total,
+                    }));
+                    return;
+                }
+            }
+        }
+
+        {
+            let state = app.state::<AppState>();
+            let mut like = state.auto_like.lock().await;
+            like.shutdown_tx = None;
+        }
+        let _ = app.emit(
+            "auto-like-stopped",
+            serde_json::json!({"reason": "error"}),
+        );
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn stop_auto_like(state: State<'_, AppState>) -> Result<(), String> {
+    let mut auto_like = state.auto_like.lock().await;
+    if let Some(shutdown_tx) = auto_like.shutdown_tx.take() {
+        let _ = shutdown_tx.send(());
+    }
+    Ok(())
+}

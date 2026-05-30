@@ -7,6 +7,17 @@ import { makePkgKey } from "@/types/bilibili";
 
 // ─── 共享类型 ───
 
+interface AutoLikeProps {
+  anchorId: number;
+  isRunning: boolean;
+  sentTotal: number;
+  targetTotal: number;
+  error: string | null;
+  stopReason: string | null;
+  onStart: (targetTotal: number, batchSize: number, intervalMs: number) => Promise<void>;
+  onStop: () => void;
+}
+
 interface AutoSendPanelProps {
   isRunning: boolean;
   lastSentMessage: string | null;
@@ -17,11 +28,12 @@ interface AutoSendPanelProps {
   emoticonPackages: EmoticonPackage[];
   onStart: (entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) => Promise<void>;
   onStop: () => void;
+  like: AutoLikeProps;
   onClose?: () => void;
   className?: string;
 }
 
-type TabKey = "text" | "emotion" | "favorites";
+type TabKey = "text" | "emotion" | "favorites" | "like";
 
 // ─── 共享控件：间隔 + 时间限制 + 开始/停止 ───
 
@@ -437,6 +449,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
     emoticonPackages,
     onStart,
     onStop,
+    like,
     onClose,
     className,
   } = props;
@@ -472,10 +485,16 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
     void onStart(currentEntries, Math.round(sec * 1000), limit > 0 ? limit : undefined);
   }, [intervalSec, timeLimitSec, currentEntries, onStart]);
 
+  // 自动点赞参数
+  const [likeTarget, setLikeTarget] = useState("100");
+  const [likeBatchSize, setLikeBatchSize] = useState("5");
+  const [likeIntervalSec, setLikeIntervalSec] = useState("1.5");
+
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: "text", label: "文字" },
     { key: "emotion", label: "表情" },
     { key: "favorites", label: "收藏夹" },
+    { key: "like", label: "点赞" },
   ];
 
   return (
@@ -528,41 +547,146 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
         ))}
       </div>
 
-      {/* Tab 内容区（只负责内容选择，不含控件） */}
+      {/* Tab 内容区 */}
       {activeTab === "text" ? (
         <TextTabContent isRunning={isRunning} textFill={textFill} onTextFillConsumed={handleTextFillConsumed} onEntriesChange={onEntriesChange} />
       ) : activeTab === "emotion" ? (
         <EmotionTabContent isRunning={isRunning} emoticonPackages={emoticonPackages} onEntriesChange={onEntriesChange} />
-      ) : (
+      ) : activeTab === "favorites" ? (
         <FavoritesTabContent isRunning={isRunning} onEntriesChange={onEntriesChange} onFillText={handleFillText} />
+      ) : (
+        /* 点赞 Tab */
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400">目标总数</label>
+              <input
+                value={likeTarget}
+                onChange={(e) => setLikeTarget(e.target.value)}
+                disabled={like.isRunning}
+                inputMode="numeric"
+                placeholder="100"
+                className="h-8 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+              />
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">上限 1000</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400">批次大小</label>
+              <input
+                value={likeBatchSize}
+                onChange={(e) => setLikeBatchSize(e.target.value)}
+                disabled={like.isRunning}
+                inputMode="numeric"
+                placeholder="5"
+                className="h-8 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+              />
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">每批 ≤100</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400">批次间隔</label>
+              <input
+                value={likeIntervalSec}
+                onChange={(e) => setLikeIntervalSec(e.target.value)}
+                disabled={like.isRunning}
+                inputMode="decimal"
+                placeholder="1.5"
+                className="h-8 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+              />
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">秒，最小 0.5</span>
+            </div>
+          </div>
+
+          {/* 进度条 */}
+          {like.targetTotal > 0 && (
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>进度</span>
+                <span>{like.sentTotal} / {like.targetTotal}</span>
+              </div>
+              <div className="h-2 w-full bg-slate-200 dark:bg-white/[0.06]">
+                <div
+                  className="h-full bg-pink-500 transition-all"
+                  style={{ width: `${Math.min(100, (like.sentTotal / like.targetTotal) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 启动/停止 */}
+          {(() => {
+            const target = Number(likeTarget);
+            const batch = Number(likeBatchSize);
+            const interval = Number(likeIntervalSec);
+            const valid = Number.isFinite(target) && target > 0 && target <= 1000
+              && Number.isFinite(batch) && batch > 0 && batch <= 100
+              && Number.isFinite(interval) && interval >= 0.5;
+            return (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => void like.onStart(Math.round(target), Math.round(batch), Math.round(interval * 1000))}
+                  disabled={like.isRunning || !valid || !like.anchorId}
+                  title={!like.anchorId ? "缺少主播信息" : "开始点赞"}
+                  className="flex h-8 items-center gap-1.5 bg-pink-500 px-3 text-xs font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  开始点赞
+                </button>
+                <button
+                  onClick={like.onStop}
+                  disabled={!like.isRunning}
+                  className="flex h-8 items-center gap-1.5 border border-slate-300 px-3 text-xs text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
+                >
+                  <Square className="h-3 w-3" />
+                  停止
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* 状态 */}
+          <div className="space-y-1 text-xs">
+            {like.stopReason === "completed" ? (
+              <p className="text-emerald-600 dark:text-emerald-400">✓ 点赞完成</p>
+            ) : like.stopReason === "manual" ? (
+              <p className="text-slate-400 dark:text-slate-500">已手动停止</p>
+            ) : like.stopReason === "error" ? (
+              <p className="text-rose-500 dark:text-rose-400">已停止（错误）</p>
+            ) : null}
+            {like.error ? <p className="text-rose-500 dark:text-rose-400">错误：{like.error}</p> : null}
+          </div>
+        </div>
       )}
 
-      {/* 全局共享控件 */}
-      <div className="mt-3">
-        <AutoSendControls
-          isRunning={isRunning}
-          entryCount={currentEntries.length}
-          intervalSec={intervalSec}
-          setIntervalSec={setIntervalSec}
-          timeLimitSec={timeLimitSec}
-          setTimeLimitSec={setTimeLimitSec}
-          onStart={handleStart}
-          onStop={onStop}
-        />
-      </div>
+      {/* 全局共享控件（点赞 tab 有独立控件，不显示） */}
+      {activeTab !== "like" && (
+        <div className="mt-3">
+          <AutoSendControls
+            isRunning={isRunning}
+            entryCount={currentEntries.length}
+            intervalSec={intervalSec}
+            setIntervalSec={setIntervalSec}
+            timeLimitSec={timeLimitSec}
+            setTimeLimitSec={setTimeLimitSec}
+            onStart={handleStart}
+            onStop={onStop}
+          />
+        </div>
+      )}
 
-      {/* 运行状态 */}
-      <div className="mt-3 space-y-1 text-xs">
-        {lastSentMessage ? (
-          <p className="text-slate-500 dark:text-slate-400">
-            最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}
-          </p>
-        ) : null}
-        {lastIndex !== null ? <p className="text-slate-400 dark:text-slate-500">当前条目索引：#{lastIndex + 1}</p> : null}
-        <p className="text-slate-400 dark:text-slate-500">累计发送：{sentCount} 条</p>
-        {stopReason ? <p className="text-slate-400 dark:text-slate-500">停止原因：{stopReason}</p> : null}
-        {error ? <p className="text-rose-500 dark:text-rose-400">错误：{error}</p> : null}
-      </div>
+      {/* 运行状态（点赞 tab 有独立状态显示） */}
+      {activeTab !== "like" && (
+        <div className="mt-3 space-y-1 text-xs">
+          {lastSentMessage ? (
+            <p className="text-slate-500 dark:text-slate-400">
+              最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}
+            </p>
+          ) : null}
+          {lastIndex !== null ? <p className="text-slate-400 dark:text-slate-500">当前条目索引：#{lastIndex + 1}</p> : null}
+          <p className="text-slate-400 dark:text-slate-500">累计发送：{sentCount} 条</p>
+          {stopReason ? <p className="text-slate-400 dark:text-slate-500">停止原因：{stopReason}</p> : null}
+          {error ? <p className="text-rose-500 dark:text-rose-400">错误：{error}</p> : null}
+        </div>
+      )}
     </div>
   );
 }

@@ -31,6 +31,10 @@ pub struct AutoSenderState {
     pub shutdown_tx: Option<oneshot::Sender<()>>,
 }
 
+pub struct AutoLikeState {
+    pub shutdown_tx: Option<oneshot::Sender<()>>,
+}
+
 pub struct AppState {
     pub credential: TokioMutex<Option<BiliCredential>>,
     pub credentials: std::sync::Mutex<HashMap<String, BiliCredential>>,
@@ -39,6 +43,7 @@ pub struct AppState {
     pub wbi_cache: Arc<TokioMutex<WbiKeyCache>>,
     pub ws_client: TokioMutex<Option<DanmakuWsClient>>,
     pub auto_sender: TokioMutex<AutoSenderState>,
+    pub auto_like: TokioMutex<AutoLikeState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
     pub stream_proxy: Arc<StreamProxyServer>,
@@ -79,6 +84,7 @@ pub fn run() {
             wbi_cache: Arc::new(TokioMutex::new(WbiKeyCache::default())),
             ws_client: TokioMutex::new(None),
             auto_sender: TokioMutex::new(AutoSenderState { shutdown_tx: None }),
+            auto_like: TokioMutex::new(AutoLikeState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
             proxy_client: proxy_client.clone(),
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
@@ -174,6 +180,8 @@ pub fn run() {
             commands::danmaku::send_like,
             commands::danmaku::start_auto_send,
             commands::danmaku::stop_auto_send,
+            commands::danmaku::start_auto_like,
+            commands::danmaku::stop_auto_like,
             commands::ai::add_ai_model,
             commands::ai::get_ai_models,
             commands::ai::test_ai_connection,

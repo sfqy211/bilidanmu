@@ -10,6 +10,7 @@ import { LikeButton } from "@/components/danmaku/LikeButton";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
+import { useAutoLike } from "@/hooks/useAutoLike";
 import { useAutoSend } from "@/hooks/useAutoSend";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
@@ -153,6 +154,16 @@ export function DanmakuPage() {
     start: startAutoSend,
     stop: stopAutoSend
   } = useAutoSend(roomId);
+
+  const {
+    isRunning: likeIsRunning,
+    sentTotal: likeSentTotal,
+    targetTotal: likeTargetTotal,
+    lastError: likeError,
+    stopReason: likeStopReason,
+    start: startAutoLike,
+    stop: stopAutoLike,
+  } = useAutoLike(roomId);
 
   // ── 消息分流 ──
   const giftMessages = useMemo(() => messages.filter((m) => m.type === "gift"), [messages]);
@@ -525,6 +536,16 @@ export function DanmakuPage() {
                 emoticonPackages={emoticonPackages}
                 onStart={startAutoSend}
                 onStop={() => void stopAutoSend()}
+                like={{
+                  anchorId,
+                  isRunning: likeIsRunning,
+                  sentTotal: likeSentTotal,
+                  targetTotal: likeTargetTotal,
+                  error: likeError,
+                  stopReason: likeStopReason,
+                  onStart: (target, batch, interval) => startAutoLike(anchorId, target, batch, interval),
+                  onStop: () => void stopAutoLike(),
+                }}
                 onClose={() => setAutoSendOpen(false)}
               />
             ) : null}

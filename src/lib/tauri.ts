@@ -76,7 +76,10 @@ export const tauriCommands = {
       invoke<BiliResponse>("send_like", { roomId, anchorId, clickTime }),
     startAutoSend: (roomId: number, entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) =>
       invoke<void>("start_auto_send", { roomId, entries, intervalMs, timeLimitSecs: timeLimitSecs ?? null }),
-    stopAutoSend: () => invoke<void>("stop_auto_send")
+    stopAutoSend: () => invoke<void>("stop_auto_send"),
+    startAutoLike: (roomId: number, anchorId: number, targetTotal: number, batchSize: number, intervalMs: number) =>
+      invoke<void>("start_auto_like", { roomId, anchorId, targetTotal, batchSize, intervalMs }),
+    stopAutoLike: () => invoke<void>("stop_auto_like")
   },
   ws: {
     connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),
