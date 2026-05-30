@@ -316,6 +316,17 @@ export function DanmakuPage() {
                 ? "播放中"
                 : "音频"}
         </span>
+
+        {totalLikeCount > 0 && (
+          <span className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+            <ThumbsUp className="h-3 w-3" />
+            {totalLikeCount >= 10000
+              ? `${(totalLikeCount / 10000).toFixed(1)}万`
+              : totalLikeCount >= 1000
+                ? `${(totalLikeCount / 1000).toFixed(1)}k`
+                : String(totalLikeCount)}
+          </span>
+        )}
       </div>
 
       {/* 隐藏音频元素 */}
@@ -455,7 +466,6 @@ export function DanmakuPage() {
           <LikeButton
             roomId={roomId}
             anchorId={anchorId}
-            totalLikeCount={totalLikeCount}
           />
           <button
             type="button"
