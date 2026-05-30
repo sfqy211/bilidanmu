@@ -16,6 +16,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
+import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useRoomStore } from "@/stores/room-store";
@@ -117,6 +118,13 @@ export function DanmakuPage() {
       void audioPlay();
     }
   }, [roomId, audioSettings.autoPlay]);
+
+  // 连接成功后触发一次点赞，获取当前点赞总数
+  useTauriEvent("ws-connected", () => {
+    if (roomId && anchorId) {
+      tauriCommands.danmaku.sendLike(roomId, anchorId, 1).catch(() => {});
+    }
+  });
 
   const handleAudioPlay = useCallback(async () => {
     await audioPlay();
