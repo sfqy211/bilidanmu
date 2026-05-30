@@ -50,6 +50,24 @@ pub struct NotificationSetting {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AudioSetting {
+    /// 默认音量百分比 (0~100)
+    pub default_volume: u32,
+    /// 进入直播间时自动播放音频
+    pub auto_play: bool,
+}
+
+impl Default for AudioSetting {
+    fn default() -> Self {
+        Self {
+            default_volume: 80,
+            auto_play: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SttSetting {
     pub enabled: bool,
     /// Model ID: "large" or "xlarge"
@@ -77,6 +95,8 @@ pub struct Settings {
     pub receive: ReceiveSetting,
     pub appearance: AppearanceSetting,
     pub notification: NotificationSetting,
+    #[serde(default)]
+    pub audio: AudioSetting,
     #[serde(default)]
     pub stt: SttSetting,
 }
@@ -113,6 +133,7 @@ impl Default for Settings {
                 send_success: false,
                 sc_alert: false,
             },
+            audio: AudioSetting::default(),
             stt: SttSetting::default(),
         }
     }

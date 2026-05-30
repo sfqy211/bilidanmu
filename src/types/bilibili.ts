@@ -133,7 +133,13 @@ export interface Settings {
     sendSuccess: boolean;
     scAlert: boolean;
   };
+  audio: AudioSetting;
   stt: SttSetting;
+}
+
+export interface AudioSetting {
+  defaultVolume: number;
+  autoPlay: boolean;
 }
 
 export interface SttSetting {

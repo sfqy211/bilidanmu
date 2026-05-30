@@ -12,10 +12,10 @@ interface AudioPlayerState {
 const RECONNECT_DELAY_MS = 4000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 
-export function useAudioPlayer(roomId: number | null) {
+export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<Mpegts.Player | null>(null);
-  const volumeRef = useRef(0.8);
+  const volumeRef = useRef(defaultVolume);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const destroyedRef = useRef(false);
@@ -23,9 +23,18 @@ export function useAudioPlayer(roomId: number | null) {
   const [state, setState] = useState<AudioPlayerState>({
     isPlaying: false,
     isConnecting: false,
-    volume: 0.8,
+    volume: defaultVolume,
     error: null,
   });
+
+  // 设置变化时同步音量
+  useEffect(() => {
+    volumeRef.current = defaultVolume;
+    if (audioRef.current) {
+      audioRef.current.volume = defaultVolume;
+    }
+    setState((prev) => ({ ...prev, volume: defaultVolume }));
+  }, [defaultVolume]);
 
   const destroyPlayer = useCallback(() => {
     // 取消待处理的重连

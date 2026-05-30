@@ -28,6 +28,10 @@ export const defaultSettings: Settings = {
     sendSuccess: false,
     scAlert: false
   },
+  audio: {
+    defaultVolume: 80,
+    autoPlay: false
+  },
   stt: {
     enabled: false,
     modelId: "large",
@@ -76,6 +80,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         notification: {
           ...state.settings.notification,
           ...partial.notification
+        },
+        audio: {
+          ...state.settings.audio,
+          ...partial.audio
         },
         stt: {
           ...state.settings.stt,

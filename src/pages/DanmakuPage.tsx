@@ -96,6 +96,9 @@ export function DanmakuPage() {
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
   const rooms = useRoomStore((state) => state.rooms);
   const { send, sendEmoticon, sending } = useDanmaku();
+  const audioSettings = useSettingsStore((s) => s.settings.audio);
+  const sttSettings = useSettingsStore((s) => s.settings.stt);
+  const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const {
     audioRef,
     isPlaying: audioPlaying,
@@ -105,11 +108,15 @@ export function DanmakuPage() {
     play: audioPlay,
     stop: audioStop,
     setVolume: audioSetVolume,
-  } = useAudioPlayer(roomId);
-
-  const sttSettings = useSettingsStore((s) => s.settings.stt);
-  const sttAvailable = useSettingsStore((s) => s.sttAvailable);
+  } = useAudioPlayer(roomId, audioSettings.defaultVolume / 100);
   const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttAvailable ? sttSettings.syncDelayMs : 0);
+
+  // 自动播放音频
+  useEffect(() => {
+    if (roomId && audioSettings.autoPlay) {
+      void audioPlay();
+    }
+  }, [roomId, audioSettings.autoPlay]);
 
   const handleAudioPlay = useCallback(async () => {
     await audioPlay();

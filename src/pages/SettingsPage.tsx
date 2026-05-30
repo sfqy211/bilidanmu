@@ -21,6 +21,7 @@ export function SettingsPage() {
     { value: "send", label: "弹幕发送" },
     { value: "receive", label: "弹幕接收" },
     { value: "appearance", label: "外观" },
+    { value: "audio", label: "音频" },
     { value: "notification", label: "通知" },
     ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : [])
   ];
@@ -293,6 +294,47 @@ export function SettingsPage() {
                       appearance: {
                         ...settings.appearance,
                         showMedal: event.target.checked
+                      }
+                    })
+                  }
+                />
+              </label>
+            </div>
+          </div>
+        </TabContent>
+
+        <TabContent value="audio" className="flex flex-col gap-4">
+          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+            <div className="space-y-4">
+              <label className="text-sm text-slate-600 dark:text-slate-300">
+                默认音量（%）
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={settings.audio.defaultVolume}
+                  onChange={(event) =>
+                    patchSettings({
+                      audio: {
+                        ...settings.audio,
+                        defaultVolume: Math.max(0, Math.min(100, Number(event.target.value)))
+                      }
+                    })
+                  }
+                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                />
+              </label>
+
+              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+                <span>进入直播间时自动播放音频</span>
+                <input
+                  type="checkbox"
+                  checked={settings.audio.autoPlay}
+                  onChange={(event) =>
+                    patchSettings({
+                      audio: {
+                        ...settings.audio,
+                        autoPlay: event.target.checked
                       }
                     })
                   }
