@@ -146,6 +146,12 @@ pub fn run() {
 
             let _ = tray::refresh_tray(app.handle());
 
+            // 后台刷新所有房间信息（标题、封面等）
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                commands::room::refresh_all_rooms(app_handle).await;
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {

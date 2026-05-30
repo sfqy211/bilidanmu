@@ -88,6 +88,21 @@ export default function App() {
     };
   }, [setCurrentRoomId]);
 
+  // 监听房间信息更新（启动时后台刷新标题等）
+  useEffect(() => {
+    const unlisten = listen("rooms-updated", async () => {
+      try {
+        const rooms = await tauriCommands.state.getRooms();
+        setRooms(rooms);
+      } catch {
+        // ignore
+      }
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [setRooms]);
+
   // 监听托盘事件：账号切换
   useEffect(() => {
     const unlisten = listen<{ accountId: string; credential: Credential }>(

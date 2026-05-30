@@ -1,3 +1,4 @@
+use crate::bili::api::BiliApiClient;
 use crate::commands::build_api_client;
 use crate::models::room::{EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::StreamInfo;
@@ -54,10 +55,48 @@ pub async fn remove_room(app: tauri::AppHandle, room_id: u64, state: State<'_, A
 }
 
 #[tauri::command]
-pub async fn get_room_info(room_id: u64, state: State<'_, AppState>) -> Result<RoomInfo, String> {
+/// 后台刷新所有已存储房间的信息（标题、封面等）
+pub async fn refresh_all_rooms(app: tauri::AppHandle) {
+    use tauri::Emitter;
+
+    let state = app.state::<AppState>();
+    let rooms = room_store::load_rooms(state.inner()).unwrap_or_default();
+    if rooms.is_empty() {
+        return;
+    }
+
+    let credential = state.credential.lock().await.clone();
+    let api = BiliApiClient::new(
+        state.proxy_client.clone(),
+        credential,
+        state.wbi_cache.clone(),
+    );
+
+    let mut updated = false;
+    for room in &rooms {
+        if let Ok(info) = api.get_room_info(room.room_id).await {
+            if room_store::upsert_room(state.inner(), &info.room).is_ok() {
+                updated = true;
+            }
+        }
+    }
+
+    if updated {
+        let _ = tray::refresh_tray(&app);
+        let _ = app.emit("rooms-updated", ());
+    }
+}
+
+#[tauri::command]
+pub async fn get_room_info(app: tauri::AppHandle, room_id: u64, state: State<'_, AppState>) -> Result<RoomInfo, String> {
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state)?;
-    api.get_room_info(room_id).await
+    let room_info = api.get_room_info(room_id).await?;
+    // 同步更新存储中的房间信息（标题、封面等）
+    if room_store::upsert_room(state.inner(), &room_info.room).is_ok() {
+        let _ = tray::refresh_tray(&app);
+    }
+    Ok(room_info)
 }
 
 #[tauri::command]
