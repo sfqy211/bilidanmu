@@ -69,6 +69,7 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 
                 let label = format!("danmaku-{room_id}");
                 if let Some(win) = app.get_webview_window(&label) {
+                    let _ = win.unminimize();
                     let _ = win.show();
                     let _ = win.set_focus();
                 } else {

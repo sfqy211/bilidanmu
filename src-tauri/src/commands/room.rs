@@ -88,6 +88,7 @@ pub async fn open_danmaku_window(app: tauri::AppHandle, room_id: u64) -> Result<
     let label = format!("danmaku-{room_id}");
 
     if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
         return Ok(());
@@ -106,7 +107,6 @@ pub async fn open_danmaku_window(app: tauri::AppHandle, room_id: u64) -> Result<
         .decorations(true)
         .transparent(true)
         .always_on_top(true)
-        .skip_taskbar(true)
         .shadow(false)
         .build()
         .map_err(|error| error.to_string())?;
