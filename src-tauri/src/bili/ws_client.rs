@@ -168,7 +168,7 @@ async fn run_connection(
                                     .and_then(Value::as_str)
                                     .unwrap_or("");
 
-                                // LIKE_INFO_V3_UPDATE 单独处理，不交给 parse_danmaku_command
+                                // LIKE_INFO_V3_UPDATE / ONLINE_RANK_COUNT 单独处理
                                 if cmd.starts_with("LIKE_INFO_V3_UPDATE") {
                                     if let Some(data) = command.get("data") {
                                         let click_count = data
@@ -180,6 +180,20 @@ async fn run_connection(
                                             serde_json::json!({
                                                 "roomId": room_id,
                                                 "clickCount": click_count,
+                                            }),
+                                        );
+                                    }
+                                } else if cmd.starts_with("ONLINE_RANK_COUNT") {
+                                    if let Some(data) = command.get("data") {
+                                        let online_count = data
+                                            .get("online_count")
+                                            .and_then(value_as_u64)
+                                            .unwrap_or(0);
+                                        let _ = app.emit(
+                                            "online-count-update",
+                                            serde_json::json!({
+                                                "roomId": room_id,
+                                                "onlineCount": online_count,
                                             }),
                                         );
                                     }

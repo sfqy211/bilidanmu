@@ -15,6 +15,7 @@ interface DanmakuState {
   roomId: number | null;
   popularity: number;
   totalLikeCount: number;
+  onlineCount: number;
   addMessage: (message: DanmakuMessage) => void;
   setLatestLike: (message: DanmakuMessage | null) => void;
   setLatestEntry: (message: DanmakuMessage | null) => void;
@@ -26,6 +27,7 @@ interface DanmakuState {
   setRoomId: (roomId: number | null) => void;
   setPopularity: (popularity: number) => void;
   setTotalLikeCount: (count: number) => void;
+  setOnlineCount: (count: number) => void;
 }
 
 export const useDanmakuStore = create<DanmakuState>((set) => ({
@@ -42,16 +44,18 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   roomId: null,
   popularity: 0,
   totalLikeCount: 0,
+  onlineCount: 0,
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages.slice(-199), message] })),
   setLatestLike: (latestLike) => set({ latestLike }),
   setLatestEntry: (latestEntry) => set({ latestEntry }),
-  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0 }),
+  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0 }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setWsStatus: (wsStatus) => set({ wsStatus }),
   incrementSentCount: () => set((state) => ({ sentCount: state.sentCount + 1 })),
   setLastError: (lastError) => set({ lastError }),
   setRoomId: (roomId) => set({ roomId }),
   setPopularity: (popularity) => set({ popularity }),
-  setTotalLikeCount: (count) => set({ totalLikeCount: count })
+  setTotalLikeCount: (count) => set({ totalLikeCount: count }),
+  setOnlineCount: (count) => set({ onlineCount: count })
 }));

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ArrowDown, Pause, Play, Send, Smile, ThumbsUp, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowDown, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
@@ -93,6 +93,7 @@ export function DanmakuPage() {
   const latestLike = useDanmakuStore((state) => state.latestLike);
   const latestEntry = useDanmakuStore((state) => state.latestEntry);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
+  const onlineCount = useDanmakuStore((state) => state.onlineCount);
   const rooms = useRoomStore((state) => state.rooms);
   const { send, sendEmoticon, sending } = useDanmaku();
   const {
@@ -328,16 +329,28 @@ export function DanmakuPage() {
                 : "音频"}
         </span>
 
-        {totalLikeCount > 0 && (
-          <span className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
-            <ThumbsUp className="h-3 w-3" />
-            {totalLikeCount >= 10000
-              ? `${(totalLikeCount / 10000).toFixed(1)}万`
-              : totalLikeCount >= 1000
-                ? `${(totalLikeCount / 1000).toFixed(1)}k`
-                : String(totalLikeCount)}
-          </span>
-        )}
+        <span className="ml-auto flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500">
+          {onlineCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {onlineCount >= 10000
+                ? `${(onlineCount / 10000).toFixed(1)}万`
+                : onlineCount >= 1000
+                  ? `${(onlineCount / 1000).toFixed(1)}k`
+                  : String(onlineCount)}
+            </span>
+          )}
+          {totalLikeCount > 0 && (
+            <span className="flex items-center gap-1">
+              <ThumbsUp className="h-3 w-3" />
+              {totalLikeCount >= 10000
+                ? `${(totalLikeCount / 10000).toFixed(1)}万`
+                : totalLikeCount >= 1000
+                  ? `${(totalLikeCount / 1000).toFixed(1)}k`
+                  : String(totalLikeCount)}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* 隐藏音频元素 */}
