@@ -73,7 +73,7 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                     let _ = win.show();
                     let _ = win.set_focus();
                 } else {
-                    let _ = crate::commands::room::open_danmaku_window(app.clone(), room_id);
+                    let _ = crate::commands::room::open_danmaku_window(app.clone(), room_id, None, None);
                 }
             }
         }

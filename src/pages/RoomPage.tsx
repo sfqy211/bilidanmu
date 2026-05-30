@@ -236,7 +236,9 @@ export function RoomPage() {
                         onClick={() => {
                           setCurrentRoomId(room.id);
                           void tauriCommands.selections.save({ currentRoomId: room.roomId });
-                          void tauriCommands.room.openDanmaku(room.roomId);
+                          const w = Number(localStorage.getItem("danmaku-window-width")) || undefined;
+                          const h = Number(localStorage.getItem("danmaku-window-height")) || undefined;
+                          void tauriCommands.room.openDanmaku(room.roomId, w, h);
                         }}
                         className="inline-flex items-center gap-1 bg-cyan-50 px-3 py-1.5 text-xs text-cyan-700 transition hover:bg-cyan-100 dark:bg-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/30"
                       >

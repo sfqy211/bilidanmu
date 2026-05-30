@@ -123,7 +123,12 @@ pub async fn get_emoticons(
 }
 
 #[tauri::command]
-pub async fn open_danmaku_window(app: tauri::AppHandle, room_id: u64) -> Result<(), String> {
+pub async fn open_danmaku_window(
+    app: tauri::AppHandle,
+    room_id: u64,
+    width: Option<f64>,
+    height: Option<f64>,
+) -> Result<(), String> {
     let label = format!("danmaku-{room_id}");
 
     if let Some(window) = app.get_webview_window(&label) {
@@ -137,9 +142,12 @@ pub async fn open_danmaku_window(app: tauri::AppHandle, room_id: u64) -> Result<
         .parse()
         .map_err(|error| format!("解析弹幕窗口路由失败: {error}"))?;
 
+    let w = width.filter(|v| *v >= 240.0 && *v <= 1200.0).unwrap_or(420.0);
+    let h = height.filter(|v| *v >= 160.0 && *v <= 900.0).unwrap_or(320.0);
+
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
         .title(format!("弹幕 - 房间 {room_id}"))
-        .inner_size(420.0, 320.0)
+        .inner_size(w, h)
         .min_inner_size(240.0, 160.0)
         .max_inner_size(1200.0, 900.0)
         .resizable(true)

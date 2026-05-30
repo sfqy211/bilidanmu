@@ -147,6 +147,19 @@ export function DanmakuPage() {
     };
   }, [sttAvailable]);
 
+  // 窗口尺寸变化时保存到 localStorage
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onResized(({ payload: size }) => {
+      try {
+        localStorage.setItem("danmaku-window-width", String(size.width));
+        localStorage.setItem("danmaku-window-height", String(size.height));
+      } catch { /* ignore */ }
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
+
   useEffect(() => {
     if (!sttAvailable) {
       return () => {};
