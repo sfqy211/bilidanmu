@@ -252,8 +252,8 @@ export function DanmakuPage() {
 
   const handleSend = async () => {
     if (!roomId || !message.trim()) return;
-
-    await send(roomId, message.trim());
+    const text = message.trim().slice(0, 40);
+    await send(roomId, text);
     setMessage("");
   };
 
@@ -552,14 +552,14 @@ export function DanmakuPage() {
 
             <input
               value={message}
-              onChange={(event) => setMessage(event.target.value.slice(0, 20))}
+              onChange={(event) => setMessage(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
                   void handleSend();
                 }
               }}
-              placeholder="输入要发送的弹幕内容，最多 20 字"
+              placeholder="输入要发送的弹幕内容"
               className="h-10 w-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
