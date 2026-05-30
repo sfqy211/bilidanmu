@@ -2,7 +2,7 @@ use crate::{ai_store, room_store, AppState};
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
-    tray::{TrayIcon, TrayIconBuilder},
+    tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
     App, AppHandle, Emitter, Manager,
 };
 
@@ -14,7 +14,8 @@ pub fn create_tray(app: &App) -> tauri::Result<()> {
     let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .on_menu_event(handle_menu_event)
-        .show_menu_on_left_click(true);
+        .on_tray_icon_event(handle_tray_event)
+        .show_menu_on_left_click(false);
 
     if let Some(icon) = icon {
         builder = builder.icon(icon);
@@ -37,6 +38,16 @@ pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
 
 fn load_tray_icon(app: &App) -> Option<Image<'_>> {
     app.default_window_icon().cloned()
+}
+
+fn handle_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
+    match event {
+        TrayIconEvent::Click { button: MouseButton::Left, .. }
+        | TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } => {
+            show_main_window(tray.app_handle());
+        }
+        _ => {}
+    }
 }
 
 fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
