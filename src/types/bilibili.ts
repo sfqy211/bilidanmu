@@ -27,6 +27,7 @@ export interface Room {
   title: string;
   uname: string;
   cover?: string;
+  avatar?: string;
 }
 
 export interface RoomInfo extends Room {
@@ -41,6 +42,7 @@ export interface SearchRoomResult {
   uname: string;
   title: string;
   cover?: string;
+  avatar?: string;
   isLive: boolean;
 }
 

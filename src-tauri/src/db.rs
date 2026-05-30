@@ -85,6 +85,9 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
     // SQLite 3.35+ 支持 DROP COLUMN，旧版本静默忽略
     let _ = connection.execute_batch("ALTER TABLE rooms DROP COLUMN is_live");
 
+    // 迁移: 添加主播头像列
+    let _ = connection.execute_batch("ALTER TABLE rooms ADD COLUMN avatar TEXT");
+
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MonitorPlay, Plus, Search, Trash2 } from "lucide-react";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
 import type { SearchRoomMode } from "@/types/bilibili";
@@ -207,57 +208,106 @@ export function RoomPage() {
               还没有添加直播间。先从搜索中添加一个。
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               {rooms.map((room) => {
                 const active = currentRoomId === room.id;
+                const isLive = room.uid != null && liveStatusMap[String(room.uid)];
                 return (
                   <div
                     key={room.id}
-                    className={`flex flex-col gap-3 border p-4 transition ${
+                    className={`group overflow-hidden border transition ${
                       active
-                        ? "border-pink-300 bg-pink-50 dark:border-pink-500/40 dark:bg-pink-500/[0.08]"
-                        : "border-slate-200 bg-white dark:border-white/[0.06] dark:bg-[#161822]"
+                        ? "border-pink-300 dark:border-pink-500/40"
+                        : "border-slate-200 dark:border-white/[0.06]"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 ${room.uid != null && liveStatusMap[String(room.uid)] ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">{room.roomId}</span>
-                      {active ? (
-                        <span className="bg-pink-100 px-2 py-0.5 text-xs text-pink-600 dark:bg-pink-500/20 dark:text-pink-300">当前</span>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-xs text-slate-600 dark:text-slate-300">{room.title}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {room.uid != null && liveStatusMap[String(room.uid)] ? "直播中" : "未开播"}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setCurrentRoomId(room.id);
-                          void tauriCommands.selections.save({ currentRoomId: room.roomId });
-                          const w = Number(localStorage.getItem("danmaku-window-width")) || undefined;
-                          const h = Number(localStorage.getItem("danmaku-window-height")) || undefined;
-                          void tauriCommands.room.openDanmaku(room.roomId, w, h);
-                        }}
-                        className="inline-flex items-center gap-1 bg-cyan-50 px-3 py-1.5 text-xs text-cyan-700 transition hover:bg-cyan-100 dark:bg-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/30"
-                      >
-                        <MonitorPlay className="h-3 w-3" />
-                        打开弹幕
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const wasCurrent = currentRoomId === room.id;
-                          await tauriCommands.room.remove(room.roomId);
-                          removeRoom(room.roomId);
-                          if (wasCurrent) {
-                            void tauriCommands.selections.save({ currentRoomId: null });
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 border border-rose-200 px-3 py-1.5 text-xs text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                    {/* 封面区域 */}
+                    <div className="relative aspect-video bg-slate-100 dark:bg-[#0e1018]">
+                      {room.cover ? (
+                        <ProxiedImage
+                          src={room.cover}
+                          alt={room.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-slate-400 dark:text-slate-600">
+                          <MonitorPlay className="h-10 w-10" />
+                        </div>
+                      )}
+
+                      {/* 标题覆盖层 */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 pb-3 pt-10">
+                        <div className="flex items-end justify-between gap-2">
+                          {/* 左下：头像 + 名字 */}
+                          <div className="flex items-center gap-2 min-w-0">
+                            {room.avatar ? (
+                              <ProxiedImage
+                                src={room.avatar}
+                                alt={room.uname}
+                                className="h-8 w-8 shrink-0 rounded-full border border-white/30 object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm text-white/60">
+                                {room.uname.charAt(0)}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-white/90">{room.uname}</p>
+                            </div>
+                          </div>
+
+                          {/* 右下：按钮 */}
+                          <div className="flex shrink-0 gap-1.5 opacity-0 transition group-hover:opacity-100">
+                            <button
+                              onClick={() => {
+                                setCurrentRoomId(room.id);
+                                void tauriCommands.selections.save({ currentRoomId: room.roomId });
+                                const w = Number(localStorage.getItem("danmaku-window-width")) || undefined;
+                                const h = Number(localStorage.getItem("danmaku-window-height")) || undefined;
+                                void tauriCommands.room.openDanmaku(room.roomId, w, h);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center bg-white/20 text-white backdrop-blur transition hover:bg-white/30"
+                              title="打开弹幕"
+                            >
+                              <MonitorPlay className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                const wasCurrent = currentRoomId === room.id;
+                                await tauriCommands.room.remove(room.roomId);
+                                removeRoom(room.roomId);
+                                if (wasCurrent) {
+                                  void tauriCommands.selections.save({ currentRoomId: null });
+                                }
+                              }}
+                              className="flex h-8 w-8 items-center justify-center bg-white/20 text-white backdrop-blur transition hover:bg-rose-500/60"
+                              title="删除"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 左上角标题 */}
+                      <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent px-3 pb-4 pt-2">
+                        <p className="truncate text-sm font-medium text-white">{room.title}</p>
+                      </div>
+
+                      {/* 右上角：标记 */}
+                      <div className="absolute right-2 top-2 flex items-center gap-1.5">
+                        {active && (
+                          <span className="bg-pink-500/80 px-2 py-0.5 text-xs font-medium text-white">当前</span>
+                        )}
+                        <span className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium ${
+                          isLive
+                            ? "bg-rose-500/80 text-white"
+                            : "bg-black/40 text-white/70"
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-white animate-pulse" : "bg-white/50"}`} />
+                          {isLive ? "直播中" : "未开播"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
