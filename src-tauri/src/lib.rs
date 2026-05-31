@@ -1,4 +1,3 @@
-mod ai_store;
 mod bili;
 mod commands;
 mod credential_store;
@@ -46,7 +45,10 @@ pub struct AppState {
     pub auto_like: TokioMutex<AutoLikeState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub proxy_client: reqwest::Client,
+    pub astrbot_client: reqwest::Client,
     pub stream_proxy: Arc<StreamProxyServer>,
+    pub astrbot_config: TokioMutex<Option<commands::ai_proxy::AstrbotConfig>>,
+    pub astrbot_callback_port: Arc<TokioMutex<u16>>,
     #[cfg(feature = "stt")]
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
 }
@@ -63,6 +65,12 @@ pub fn run() {
         .tcp_keepalive(std::time::Duration::from_secs(30))
         .build()
         .expect("failed to build proxy HTTP client");
+
+    // AstrBot 专用客户端，不使用代理（本地连接）
+    let astrbot_client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .expect("failed to build astrbot HTTP client");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -87,7 +95,10 @@ pub fn run() {
             auto_like: TokioMutex::new(AutoLikeState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
             proxy_client: proxy_client.clone(),
+            astrbot_client,
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
+            astrbot_config: TokioMutex::new(None),
+            astrbot_callback_port: Arc::new(TokioMutex::new(0)),
             #[cfg(feature = "stt")]
             stt_manager: Arc::new(TokioMutex::new(None)),
         })
@@ -144,6 +155,29 @@ pub fn run() {
                 }
             }
 
+            // 启动 AstrBot 回调 HTTP 服务
+            {
+                let app_handle = app.handle().clone();
+                let state = app.state::<AppState>();
+                // 从配置读取用户指定的回调端口，0=随机
+                let desired_port = {
+                    let cfg = state.astrbot_config.try_lock();
+                    cfg.ok().and_then(|c| c.as_ref().map(|c| c.callback_port)).unwrap_or(0)
+                };
+                let port_state = state.inner().astrbot_callback_port.clone();
+                tauri::async_runtime::spawn(async move {
+                    match commands::ai_proxy::start_callback_server(app_handle, desired_port).await {
+                        Ok(port) => {
+                            // port_state is Arc<TokioMutex<u16>>, lock to write
+                            let mut p = port_state.lock().await;
+                            *p = port;
+                            log::info!("AstrBot 回调服务已启动: http://127.0.0.1:{port}/astrbot/callback");
+                        }
+                        Err(e) => log::error!("启动 AstrBot 回调服务失败: {e}"),
+                    }
+                });
+            }
+
             let _ = tray::refresh_tray(app.handle());
 
             // 后台刷新所有房间信息（标题、封面等）
@@ -189,13 +223,12 @@ pub fn run() {
             commands::danmaku::stop_auto_send,
             commands::danmaku::start_auto_like,
             commands::danmaku::stop_auto_like,
-            commands::ai::add_ai_model,
-            commands::ai::get_ai_models,
-            commands::ai::test_ai_connection,
-            commands::ai::fetch_models,
-            commands::ai::set_current_model,
-            commands::ai::update_ai_model,
-            commands::ai::delete_ai_model,
+            commands::ai_proxy::configure_astrbot,
+            commands::ai_proxy::get_astrbot_config,
+            commands::ai_proxy::switch_astrbot_room,
+            commands::ai_proxy::trigger_astrbot,
+            commands::ai_proxy::get_astrbot_status,
+            commands::ai_proxy::get_callback_port,
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
             commands::proxy::proxy_image,

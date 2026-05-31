@@ -1,4 +1,4 @@
-use crate::{ai_store, room_store, AppState};
+use crate::{room_store, AppState};
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
@@ -101,17 +101,6 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 }
             });
         }
-        _ if id.starts_with("ai:") => {
-            let model_id = &id["ai:".len()..];
-            let state = app.state::<AppState>();
-            if let Ok(mut models) = ai_store::load_models(state.inner()) {
-                for model in &mut models {
-                    model.is_current = Some(model.id == model_id);
-                }
-                let _ = ai_store::save_models(state.inner(), &models);
-                let _ = refresh_tray(app);
-            }
-        }
         _ => {}
     }
 }
@@ -193,33 +182,6 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             room_submenu.append(&item)?;
         }
         menu.append(&room_submenu)?;
-    }
-
-    // AI 模型子菜单
-    let models = ai_store::load_models(state.inner()).unwrap_or_default();
-    let current_id = models
-        .iter()
-        .find(|item| item.is_current == Some(true))
-        .map(|item| item.id.as_str());
-
-    if models.is_empty() {
-        let empty = MenuItem::with_id(app, "ai-empty", "AI：未配置", false, None::<&str>)?;
-        menu.append(&empty)?;
-    } else {
-        let ai_submenu = Submenu::with_id(app, "ai-models", "AI 模型", true)?;
-        for model in &models {
-            let is_current = Some(model.id.as_str()) == current_id;
-            let item = CheckMenuItem::with_id(
-                app,
-                format!("ai:{}", model.id),
-                &model.model_name,
-                true,
-                is_current,
-                None::<&str>,
-            )?;
-            ai_submenu.append(&item)?;
-        }
-        menu.append(&ai_submenu)?;
     }
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;

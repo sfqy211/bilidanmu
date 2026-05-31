@@ -1,345 +1,216 @@
 import { useEffect, useState } from "react";
-import { PageTabs, TabContent } from "@/components/ui/PageTabs";
+import { Bot, RefreshCw } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
-import { useAIStore } from "@/stores/ai-store";
-import type { AIModelInput } from "@/types/bilibili";
-
-const emptyInput: AIModelInput = {
-  endpoint: "https://api.openai.com/v1",
-  apiKey: "",
-  modelName: "gpt-4o-mini",
-  notes: ""
-};
+import type { AstrbotConfig } from "@/types/bilibili";
 
 export function AIPage() {
-  const models = useAIStore((state) => state.models);
-  const currentModelId = useAIStore((state) => state.currentModelId);
-  const setModels = useAIStore((state) => state.setModels);
-  const setCurrentModelId = useAIStore((state) => state.setCurrentModelId);
-  const [form, setForm] = useState<AIModelInput>(emptyInput);
+  const [config, setConfig] = useState<AstrbotConfig | null>(null);
+  const [host, setHost] = useState("127.0.0.1");
+  const [httpPort, setHttpPort] = useState("18080");
+  const [callbackPort, setCallbackPort] = useState("0");
+  const [status, setStatus] = useState<Record<string, unknown> | null>(null);
+  const [actualCallbackPort, setActualCallbackPort] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [fetchingModels, setFetchingModels] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [testMessage, setTestMessage] = useState<string | null>(null);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [editingModelId, setEditingModelId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("add");
-  const canSaveModel = Boolean(form.endpoint && form.modelName && (editingModelId || form.apiKey));
 
   useEffect(() => {
     let cancelled = false;
-
     const load = async () => {
       try {
-        const loaded = await tauriCommands.ai.getModels();
+        const [cfg, port] = await Promise.all([
+          tauriCommands.ai.getConfig(),
+          tauriCommands.ai.getCallbackPort(),
+        ]);
         if (!cancelled) {
-          setModels(loaded);
-          setCurrentModelId(loaded.find((item) => item.isCurrent)?.id ?? null);
+          if (cfg) {
+            setConfig(cfg);
+            setHost(cfg.host);
+            setHttpPort(String(cfg.httpPort));
+            setCallbackPort(String(cfg.callbackPort));
+          }
+          setActualCallbackPort(port);
         }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "加载 AI 模型失败");
-        }
+      } catch {
+        // 首次使用，无配置
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
-
     void load();
+    return () => { cancelled = true; };
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [setCurrentModelId, setModels]);
-
-  const handleSaveModel = async () => {
+  const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSuccess(null);
-
     try {
-      const model = editingModelId
-        ? await tauriCommands.ai.updateModel(editingModelId, form)
-        : await tauriCommands.ai.addModel(form);
-
-      const nextModels = editingModelId
-        ? models.map((item) => (item.id === editingModelId ? model : item))
-        : [...models.map((item) => ({ ...item, isCurrent: model.isCurrent ? false : item.isCurrent })), model];
-
-      setModels(nextModels);
-      if (model.isCurrent) {
-        setCurrentModelId(model.id);
-      }
-      setEditingModelId(null);
-      setForm(emptyInput);
-      setSuccess(editingModelId ? "模型已更新" : "模型已保存");
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "保存模型失败");
+      const cfg: AstrbotConfig = {
+        host,
+        httpPort: Number(httpPort),
+        callbackPort: Number(callbackPort),
+      };
+      await tauriCommands.ai.configure(cfg.host, cfg.httpPort, cfg.callbackPort);
+      setConfig(cfg);
+      setSuccess("AstrBot 配置已保存");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存失败");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleTestConnection = async () => {
-    setTesting(true);
+  const handleTestStatus = async () => {
     setError(null);
-    setTestMessage(null);
-
     try {
-      const result = await tauriCommands.ai.testConnection(form);
-      setTestMessage(result.success ? `连接成功（${result.latencyMs ?? 0}ms）` : result.message ?? "连接失败");
-    } catch (testError) {
-      setError(testError instanceof Error ? testError.message : "测试连接失败");
-    } finally {
-      setTesting(false);
+      const s = await tauriCommands.ai.getStatus();
+      setStatus(s);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "连接 AstrBot 失败");
+      setStatus(null);
     }
   };
 
-  const handleFetchModels = async () => {
-    setFetchingModels(true);
-    setError(null);
-
-    try {
-      const nextModels = await tauriCommands.ai.fetchModels(form.endpoint, form.apiKey);
-      setAvailableModels(nextModels);
-      if (nextModels.length > 0) {
-        setForm((current) => ({ ...current, modelName: nextModels[0] }));
-      }
-    } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : "获取模型列表失败");
-    } finally {
-      setFetchingModels(false);
-    }
-  };
-
-  const handleSetCurrent = async (id: string) => {
-    setError(null);
-
-    try {
-      await tauriCommands.ai.setCurrentModel(id);
-      setCurrentModelId(id);
-      setModels(models.map((item) => ({ ...item, isCurrent: item.id === id })));
-    } catch (setErrorObj) {
-      setError(setErrorObj instanceof Error ? setErrorObj.message : "切换当前模型失败");
-    }
-  };
-
-  const handleEditModel = (id: string) => {
-    const model = models.find((item) => item.id === id);
-    if (!model) {
-      return;
-    }
-
-    setEditingModelId(id);
-    setForm({
-      endpoint: model.endpoint,
-      apiKey: "",
-      modelName: model.modelName,
-      notes: model.notes ?? ""
-    });
-    setSuccess(null);
-    setError(null);
-    setActiveTab("add");
-  };
-
-  const handleDeleteModel = async (id: string) => {
-    setError(null);
-    setSuccess(null);
-
-    try {
-      await tauriCommands.ai.deleteModel(id);
-      const nextModels = models.filter((item) => item.id !== id);
-      setModels(nextModels);
-      const nextCurrent = nextModels.find((item) => item.isCurrent)?.id ?? null;
-      setCurrentModelId(nextCurrent);
-      if (editingModelId === id) {
-        setEditingModelId(null);
-        setForm(emptyInput);
-      }
-      setSuccess("模型已删除");
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "删除模型失败");
-    }
-  };
+  if (loading) {
+    return (
+      <section className="flex h-full items-center justify-center">
+        <p className="text-sm text-slate-400">加载中...</p>
+      </section>
+    );
+  }
 
   return (
     <section className="flex h-full flex-col">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">AI 接入</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">OpenAI 兼容接口的配置、测试与模型切换。</p>
+          <h2 className="text-2xl font-semibold">AI 代理</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            连接 AstrBot 实现 AI 弹幕回复与总结。
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          {error ? <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p> : null}
-          {success ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p> : null}
-          {testMessage ? <p className="text-sm text-cyan-600 dark:text-cyan-300">{testMessage}</p> : null}
+          {error && <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p>}
+          {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>}
         </div>
       </div>
 
-      <PageTabs
-        tabs={[
-          { value: "add", label: editingModelId ? "编辑模型" : "添加模型" },
-          { value: "models", label: `已保存 (${models.length})` }
-        ]}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      >
-        <TabContent value="add" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white">{editingModelId ? "编辑模型" : "添加模型"}</h3>
-              {editingModelId ? (
-                <button
-                  onClick={() => {
-                    setEditingModelId(null);
-                    setForm(emptyInput);
-                  }}
-                  className="border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.03]"
-                >
-                  取消编辑
-                </button>
-              ) : null}
+      {/* AstrBot 连接配置 */}
+      <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+        <h3 className="mb-4 text-lg font-medium text-slate-900 dark:text-white">
+          AstrBot 连接
+        </h3>
+        <div className="grid gap-4 md:grid-cols-3">
+          <label className="text-sm text-slate-600 dark:text-slate-300">
+            AstrBot 地址
+            <input
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              placeholder="127.0.0.1"
+              className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+            />
+          </label>
+          <label className="text-sm text-slate-600 dark:text-slate-300">
+            HTTP API 端口
+            <input
+              value={httpPort}
+              onChange={(e) => setHttpPort(e.target.value)}
+              placeholder="18080"
+              className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+            />
+          </label>
+          <label className="text-sm text-slate-600 dark:text-slate-300">
+            回调端口（BiliDanmu 监听）
+            <input
+              value={callbackPort}
+              onChange={(e) => setCallbackPort(e.target.value)}
+              placeholder="0 = 自动"
+              className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+            />
+          </label>
+        </div>
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving || !host || !httpPort}
+            className="bg-pink-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "保存中..." : "保存配置"}
+          </button>
+          <button
+            onClick={() => void handleTestStatus()}
+            disabled={!config}
+            className="inline-flex items-center gap-1.5 border border-cyan-200 px-4 py-3 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            测试连接
+          </button>
+        </div>
+      </div>
+
+      {/* 回调地址 */}
+      {actualCallbackPort > 0 && (
+        <div className="mt-4 border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <h3 className="mb-2 text-lg font-medium text-slate-900 dark:text-white">
+            回调地址
+          </h3>
+          <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
+            在 AstrBot 插件的「LLM 聊天回调 — 回调地址」中填入：
+          </p>
+          <code className="block bg-slate-100 px-4 py-2 text-sm text-pink-600 dark:bg-[#0e1018] dark:text-pink-400">
+            http://127.0.0.1:{actualCallbackPort}/astrbot/callback
+          </code>
+        </div>
+      )}
+
+      {/* 状态显示 */}
+      {status && (
+        <div className="mt-4 border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <h3 className="mb-3 text-lg font-medium text-slate-900 dark:text-white">
+            <Bot className="mr-1.5 inline h-4 w-4" />
+            AstrBot 状态
+          </h3>
+          <div className="grid gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 dark:text-slate-400">当前房间：</span>
+              <span className="font-mono text-slate-900 dark:text-white">
+                {String(status.room_id ?? "-")}
+              </span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="text-sm text-slate-600 dark:text-slate-300">
-                Endpoint
-                <input
-                  value={form.endpoint}
-                  onChange={(event) => setForm((current) => ({ ...current, endpoint: event.target.value }))}
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
-                />
-              </label>
-
-              <label className="text-sm text-slate-600 dark:text-slate-300">
-                API Key
-                <input
-                  value={form.apiKey}
-                  onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
-                />
-                {editingModelId ? (
-                  <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">编辑时可留空，当前实现不会保存密钥到本地。</p>
-                ) : null}
-              </label>
-
-              <label className="text-sm text-slate-600 dark:text-slate-300">
-                模型名
-                <input
-                  value={form.modelName}
-                  onChange={(event) => setForm((current) => ({ ...current, modelName: event.target.value }))}
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
-                />
-              </label>
-
-              <label className="text-sm text-slate-600 dark:text-slate-300">
-                备注
-                <input
-                  value={form.notes ?? ""}
-                  onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
-                />
-              </label>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 dark:text-slate-400">运行状态：</span>
+              <span
+                className={`${
+                  status.is_running
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-slate-400 dark:text-slate-500"
+                }`}
+              >
+                {status.is_running ? "运行中" : "未连接"}
+              </span>
             </div>
-
-            {availableModels.length > 0 ? (
-              <div className="mt-4 border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
-                <p className="mb-2 text-slate-500 dark:text-slate-400">可用模型</p>
-                <div className="flex flex-wrap gap-2">
-                  {availableModels.map((model) => (
-                    <button
-                      key={model}
-                      onClick={() => setForm((current) => ({ ...current, modelName: model }))}
-                      className="border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
-                    >
-                      {model}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                onClick={() => void handleFetchModels()}
-                disabled={fetchingModels || !form.endpoint || !form.apiKey}
-                className="border border-slate-300 px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.03]"
-              >
-                {fetchingModels ? "获取中..." : "获取模型列表"}
-              </button>
-              <button
-                onClick={() => void handleTestConnection()}
-                disabled={testing || !form.endpoint || !form.apiKey}
-                className="border border-cyan-200 px-4 py-3 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
-              >
-                {testing ? "测试中..." : "测试连接"}
-              </button>
-              <button
-                onClick={() => void handleSaveModel()}
-                disabled={saving || !canSaveModel}
-                className="bg-pink-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? "保存中..." : editingModelId ? "更新模型" : "保存模型"}
-              </button>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 dark:text-slate-400">HTTP 端口：</span>
+              <span className="font-mono text-slate-900 dark:text-white">
+                {String(status.http_port ?? "-")}
+              </span>
             </div>
           </div>
-        </TabContent>
+        </div>
+      )}
 
-        <TabContent value="models" className="min-h-0 flex-1 overflow-y-auto">
-          {models.length === 0 ? (
-            <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
-              还没有保存任何模型配置。
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {models.map((model) => (
-                <div
-                  key={model.id}
-                  className={`flex flex-col gap-2 border p-4 transition ${
-                    currentModelId === model.id
-                      ? "border-pink-300 bg-pink-50 dark:border-pink-500/40 dark:bg-pink-500/[0.08]"
-                      : "border-slate-200 bg-white dark:border-white/[0.06] dark:bg-[#161822]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{model.modelName}</p>
-                    {currentModelId === model.id ? (
-                      <span className="shrink-0 bg-pink-100 px-2 py-0.5 text-xs text-pink-600 dark:bg-pink-500/20 dark:text-pink-300">当前</span>
-                    ) : null}
-                  </div>
-                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">{model.endpoint}</p>
-                  {model.notes ? <p className="truncate text-xs text-slate-400 dark:text-slate-500">{model.notes}</p> : null}
-                  <div className="mt-auto flex gap-2 pt-1">
-                    <button
-                      onClick={() => handleEditModel(model.id)}
-                      className="border border-slate-300 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => void handleSetCurrent(model.id)}
-                      disabled={currentModelId === model.id}
-                      className="border border-slate-300 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
-                    >
-                      设为当前
-                    </button>
-                    <button
-                      onClick={() => void handleDeleteModel(model.id)}
-                      className="border border-rose-200 px-3 py-1.5 text-xs text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabContent>
-      </PageTabs>
+      {/* 使用说明 */}
+      <div className="mt-4 border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+        <h3 className="mb-3 text-lg font-medium text-slate-900 dark:text-white">使用说明</h3>
+        <ol className="list-inside list-decimal space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <li>部署 AstrBot 并安装 <code className="bg-slate-100 px-1 dark:bg-[#0e1018]">astrbot_plugin_bilibili_live</code> 插件</li>
+          <li>在 AstrBot 中配置 LLM 提供商（OpenAI / Ollama 等）</li>
+          <li>在插件配置中设置工作模式为 <code className="bg-slate-100 px-1 dark:bg-[#0e1018]">llm_chat_callback</code></li>
+          <li>在上方填入 AstrBot 的 HTTP API 端口并保存</li>
+          <li>在弹幕页面中使用 AI 回复 / AI 总结按钮</li>
+        </ol>
+      </div>
     </section>
   );
 }

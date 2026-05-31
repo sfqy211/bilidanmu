@@ -1,5 +1,18 @@
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
+export interface AiSuggestion {
+  roomId: number;
+  sender: string;
+  senderName: string;
+  message: string;
+}
+
+export interface AstrbotConfig {
+  host: string;
+  httpPort: number;
+  callbackPort: number;
+}
+
 export interface Credential {
   accountId: string;
   uid: number;
@@ -85,27 +98,6 @@ export interface StreamInfo {
 
 export function makePkgKey(pkg: EmoticonPackage): string {
   return `${pkg.pkgId}-${pkg.pkgType ?? 0}`;
-}
-
-export interface AIModel {
-  id: string;
-  endpoint: string;
-  modelName: string;
-  notes?: string;
-  isCurrent?: boolean;
-}
-
-export interface AIModelInput {
-  endpoint: string;
-  apiKey: string;
-  modelName: string;
-  notes?: string;
-}
-
-export interface TestResult {
-  success: boolean;
-  latencyMs?: number;
-  message?: string;
 }
 
 export interface Settings {

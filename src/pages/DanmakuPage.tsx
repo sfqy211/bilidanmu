@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ArrowDown, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
+import { AiSuggestionCard } from "@/components/danmaku/AiSuggestionCard";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
@@ -145,6 +146,15 @@ export function DanmakuPage() {
     if (h > 0) return `${h}h${m}m`;
     return `${m}m`;
   }, [liveTime, now]);
+
+  // 切房时通知 AstrBot
+  useEffect(() => {
+    if (!roomId) return;
+    tauriCommands.ai.switchRoom(roomId).catch(() => {
+      // AstrBot 未配置时静默忽略
+    });
+  }, [roomId]);
+
   const { send, sendEmoticon, sending } = useDanmaku();
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
@@ -328,6 +338,14 @@ export function DanmakuPage() {
     await send(roomId, text);
     setMessage("");
   };
+
+  const handleSendText = useCallback(
+    async (text: string) => {
+      if (!roomId || !text.trim()) return;
+      await send(roomId, text.trim().slice(0, 40));
+    },
+    [roomId, send]
+  );
 
   const handleSendEmoticon = useCallback(
     async (emoticon: Emoticon) => {
@@ -558,6 +576,18 @@ export function DanmakuPage() {
               tone="entry"
             />
           )}
+        </div>
+      )}
+
+      {/* AI 建议栏 */}
+      {roomId && (
+        <div className="border-t border-slate-300 bg-white px-3 py-2 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <AiSuggestionCard
+            roomId={roomId}
+            onSend={(msg) => {
+              void handleSendText(msg);
+            }}
+          />
         </div>
       )}
 

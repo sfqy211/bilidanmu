@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AIModel,
-  AIModelInput,
+  AiSuggestion,
+  AstrbotConfig,
   Credential,
   EmoticonPackage,
   QrLoginResult,
@@ -12,8 +12,7 @@ import type {
   SearchRoomResult,
   Settings,
   StreamInfo,
-  SttTranscript,
-  TestResult
+  SttTranscript
 } from "@/types/bilibili";
 
 export interface SendOptions {
@@ -89,16 +88,15 @@ export const tauriCommands = {
     disconnect: () => invoke<void>("disconnect_danmaku_stream")
   },
   ai: {
-    getModels: () => invoke<AIModel[]>("get_ai_models"),
-    addModel: (input: AIModelInput) => invoke<AIModel>("add_ai_model", { input }),
-    updateModel: (id: string, input: AIModelInput) =>
-      invoke<AIModel>("update_ai_model", { id, input }),
-    testConnection: (input: AIModelInput) =>
-      invoke<TestResult>("test_ai_connection", { input }),
-    fetchModels: (endpoint: string, apiKey: string) =>
-      invoke<string[]>("fetch_models", { endpoint, apiKey }),
-    setCurrentModel: (id: string) => invoke<void>("set_current_model", { id }),
-    deleteModel: (id: string) => invoke<void>("delete_ai_model", { id })
+    configure: (host: string, httpPort: number, callbackPort: number) =>
+      invoke<void>("configure_astrbot", { host, httpPort, callbackPort }),
+    getConfig: () => invoke<AstrbotConfig | null>("get_astrbot_config"),
+    switchRoom: (roomId: number) =>
+      invoke<void>("switch_astrbot_room", { roomId }),
+    trigger: (action: string, context: string) =>
+      invoke<string>("trigger_astrbot", { action, context }),
+    getStatus: () => invoke<Record<string, unknown>>("get_astrbot_status"),
+    getCallbackPort: () => invoke<number>("get_callback_port"),
   },
   settings: {
     get: () => invoke<Settings>("get_settings"),
