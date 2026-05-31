@@ -76,7 +76,9 @@ bilidanmu/
 │   │       ├── SuperChatCard.tsx       # SC 醒目留言卡片（真实颜色 + 背景图）
 │   │       ├── InlineEmotText.tsx      # inline 表情混排（正则替换 + img 渲染）
 │   │       ├── EmoticonPickerPanel.tsx # 表情选择器面板（包切换 + 网格 + 可用性）
-│   │       ├── LoopSenderPanel.tsx     # 自动发送面板（多行输入 + 间隔 + 启停）
+│   │       ├── AutoSendPanel.tsx       # 自动发送面板（文字/表情/收藏夹/点赞四 Tab）
+│   │       ├── LikeButton.tsx          # 长按点赞按钮
+│   │       ├── BottomActivityBar.tsx   # 底部活动信息栏
 │   │       └── SubtitleOverlay.tsx     # 半透明字幕叠加层（渐入/渐出）
 │   │
 │   ├── pages/                          # 页面
@@ -87,11 +89,10 @@ bilidanmu/
 │   │   └── DanmakuPage.tsx             # 发送弹幕页面（独立全屏布局）
 │   │
 │   ├── hooks/                          # React Hooks
-│   │   ├── useAuth.ts                  # 认证状态（re-export auth-store）
-│   │   ├── useRoom.ts                  # 直播间状态（re-export room-store）
 │   │   ├── useDanmaku.ts              # 弹幕发送逻辑
 │   │   ├── useDanmakuStream.ts        # WebSocket 弹幕流监听
-│   │   ├── useScheduler.ts            # 发送调度（自动发送）
+│   │   ├── useAutoSend.ts             # 自动发送生命周期（start/stop/事件/卸载条件停止）
+│   │   ├── useAutoLike.ts             # 自动点赞生命周期
 │   │   ├── useTauriEvent.ts           # Tauri 事件监听通用 Hook
 │   │   ├── useProxyImage.ts           # 图片代理 Hook（LRU 缓存 + 竞态取消）
 │   │   ├── useAudioPlayer.ts          # mpegts.js 音频播放器 Hook（播放/停止/音量/重连）
@@ -114,8 +115,7 @@ bilidanmu/
 │   │
 │   └── types/                          # TypeScript 类型定义
 │       ├── bilibili.ts                  # B站 API 类型 + makePkgKey 工具函数
-│       ├── danmaku.ts                  # 弹幕类型
-│       └── config.ts                   # 配置类型
+│       └── danmaku.ts                  # 弹幕类型
 │
 ├── src-tauri/                          # ═══ 后端 (Rust) ═══
 │   ├── Cargo.toml                      #
@@ -242,20 +242,23 @@ bilidanmu/
 ```typescript
 // auth-store.ts
 interface AuthState {
-  accounts: Account[];
-  sendAccountId: string | null; // 当前发送账号
-  recvAccountId: string | null; // 当前接收账号
-  stealthMode: boolean; // 隐身模式
+  accounts: Credential[];
+  activeAccountId: string | null;
+  setAccounts: (accounts: Credential[]) => void;
+  addAccount: (account: Credential) => void;
+  removeAccount: (accountId: string, newActiveAccountId?: string | null) => void;
+  setActiveAccount: (accountId: string | null, account?: Credential) => void;
 }
 
 // room-store.ts
 interface RoomState {
   rooms: Room[];
   currentRoomId: string | null;
-  roomStatus: Record<
-    string,
-    { isLive: boolean; online: number; title: string }
-  >;
+  searchResults: SearchRoomResult[];
+  setRooms: (rooms: Room[]) => void;
+  addRoom: (room: Room | RoomInfo) => void;
+  removeRoom: (roomId: number) => void;
+  setCurrentRoomId: (id: string | null) => void;
 }
 
 // danmaku-store.ts
@@ -263,50 +266,10 @@ interface DanmakuState {
   messages: DanmakuMessage[];
   wsConnected: boolean;
   sentCount: number;
-  isMuted: boolean;
-  muteRemainSec: number;
-  autoSpamRunning: boolean;
-}
-
-// ai-store.ts
-interface AIState {
-  models: AIModel[];
-  currentModelId: string | null;
-}
-
-// settings-store.ts
-interface SettingsState {
-  sendInterval: { min: number; max: number };
-  rateLimit: { maxPerWindow: number; windowSec: number };
-  riskControl: {
-    randomInterval: boolean;
-    jitter: boolean;
-    autoPauseOnMute: boolean;
-    appendRandomSuffix: boolean;
-  };
-  receive: {
-    autoConnect: boolean;
-    autoReconnect: boolean;
-    reconnectInterval: number;
-    maxReconnectInterval: number;
-  };
-  appearance: {
-    theme: "light" | "dark" | "system";
-    fontSize: number;
-    showMedal: boolean;
-    showLevel: boolean;
-  };
-  notification: {
-    muteAlert: boolean;
-    cookieExpiry: boolean;
-    sendSuccess: boolean;
-    scAlert: boolean;
-  };
-  stt: {
-    enabled: boolean;
-    modelId: string; // "large" | "xlarge"
-    syncDelayMs: number; // -2000 ~ +2000
-  };
+  onlineCount: number;
+  totalLikeCount: number;
+  latestLike: LikeMessage | null;
+  latestEntry: EntryMessage | null;
 }
 ```
 

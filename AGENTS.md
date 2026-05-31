@@ -19,7 +19,7 @@
 - Path alias `@/*` points to `src/*`.
 
 ## Architecture facts that affect edits
-- Frontend boots from `src/main.tsx` with React Router + React Query; `src/App.tsx` restores login, settings, rooms, and the saved room on startup.
+- Frontend boots from `src/main.tsx` with React Router + Zustand; `src/App.tsx` restores login, settings, rooms, and the saved room on startup. Also listens for tray events (`room-switched`, `account-switched`) to sync state.
 - All frontend-to-Rust IPC goes through `src/lib/tauri.ts`. When adding a new Tauri command, add the TS wrapper there instead of calling `invoke()` ad hoc.
 - Rust commands are registered centrally in `src-tauri/src/lib.rs` via `tauri::generate_handler!`. New commands must be added there.
 - Window close is intercepted in `src-tauri/src/lib.rs`; closing the main window hides it to tray instead of exiting. Do not treat close as app shutdown.

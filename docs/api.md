@@ -74,6 +74,7 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `get_audio_stream_url` | `room_id` | `StreamInfo` | 获取音频流（v2 API + 本地代理） |
 | `clear_audio_stream` | - | void | 清除当前音频流 |
 | `get_rooms_live_status` | - | `Record<string, boolean>` | 批量查询直播状态 |
+| `get_live_time` | `room_id` | `number \| null` | 获取开播时间戳（Unix 秒，未开播返回 null） |
 | `send_danmaku` | `room_id, msg, color?, mode?, dm_type?` | `BiliResponse` | 发送文字弹幕 |
 | `send_emoticon` | `room_id, emoticon_unique, emoticon_options?, ...` | `BiliResponse` | 发送表情弹幕 |
 | `start_auto_send` | `room_id, entries[], interval_ms, time_limit_secs?` | void | 开始自动发送（统一文字/表情条目） |
@@ -115,9 +116,14 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `ws-connected` | `{ room_id }` | 弹幕流已连接 |
 | `ws-disconnected` | `{ reason }` | 弹幕流断开 |
 | `ws-heartbeat` | `{ popularity }` | 心跳/人气值 |
-| `loop-send-tick` | `{ roomId, message, index }` | 循环发送成功 |
-| `loop-send-error` | `{ roomId, message, index, error }` | 循环发送失败 |
-| `loop-send-stopped` | `{ reason }` | 循环发送停止 |
+| `auto-send-tick` | `{ roomId, message, dmType, index }` | 自动发送成功 |
+| `auto-send-error` | `{ roomId, message, dmType, index, error }` | 自动发送失败 |
+| `auto-send-stopped` | `{ reason }` | 自动发送停止 |
+| `auto-like-tick` | `{ roomId, sentTotal }` | 自动点赞进度 |
+| `auto-like-error` | `{ roomId, error }` | 自动点赞失败 |
+| `auto-like-stopped` | `{ reason?, sentTotal? }` | 自动点赞停止 |
+| `room-switched` | `number`（room_id） | 托盘切换房间 |
+| `account-switched` | `{ accountId, credential }` | 托盘切换账号 |
 | `stt-transcript` | `SttTranscript` | STT 识别结果（`{ text, isFinal }`，仅 STT 构建） |
 
 ---
@@ -181,85 +187,32 @@ impl PacketHeader {
 ### 4.4 前端 Tauri IPC 封装
 
 ```typescript
-// src/lib/tauri.ts
+// src/lib/tauri.ts — 以实际代码为准，此处仅作快速参考
 export const tauriCommands = {
   auth: {
-    loginByQr: () => invoke<QrLoginResult>("login_by_qr"),
-    pollQr: (qrcodeKey: string) => invoke<QrPollResult>("poll_qr", { qrcodeKey }),
-    loginByCookie: (cookie: string) => invoke<Credential>("login_by_cookie", { cookie }),
-    restoreLogin: () => invoke<Credential | null>("restore_login"),
-    logout: () => invoke<Credential[]>("logout"),
-    removeAccount: (accountId: string) => invoke<string | null>("remove_account", { accountId }),
-    switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
-    listAccounts: () => invoke<Credential[]>("list_accounts")
+    loginByQr, pollQr, loginByCookie, restoreLogin,
+    logout,            // → Credential[]
+    removeAccount,     // → string | null
+    switchAccount,     // → Credential
+    listAccounts       // → Credential[]
   },
   room: {
-    search: (query: string, mode: SearchRoomMode) =>
-      invoke<SearchRoomResult[]>("search_room", { query, mode }),
-    add: (roomId: number) => invoke<RoomInfo>("add_room", { roomId }),
-    remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
-    openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
-    getEmoticons: (roomId: number) =>
-      invoke<EmoticonPackage[]>("get_emoticons", { roomId }),
-    getAudioStreamUrl: (roomId: number) =>
-      invoke<StreamInfo>("get_audio_stream_url", { roomId }),
-    clearAudioStream: () =>
-      invoke<void>("clear_audio_stream"),
-    getRoomsLiveStatus: () =>
-      invoke<Record<string, boolean>>("get_rooms_live_status")
+    search, add, remove, openDanmaku,
+    getEmoticons, getAudioStreamUrl, clearAudioStream,
+    getRoomsLiveStatus, getLiveTime  // → number | null (Unix 秒)
   },
   danmaku: {
-    send: (roomId: number, msg: string, options?: SendOptions) =>
-      invoke<BiliResponse>("send_danmaku", { roomId, msg, ...options }),
-    sendEmoticon: (roomId: number, emoticonUnique: string, options?: SendEmoticonOptions) =>
-      invoke<BiliResponse>("send_emoticon", {
-        roomId,
-        emoticonUnique,
-        ...options
-      }),
-    startAutoSend: (roomId: number, entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) =>
-      invoke<void>("start_auto_send", { roomId, entries, intervalMs, timeLimitSecs: timeLimitSecs ?? null }),
-    stopAutoSend: () => invoke<void>("stop_auto_send")
+    send, sendEmoticon, sendLike,
+    startAutoSend, stopAutoSend,
+    startAutoLike, stopAutoLike
   },
-  ws: {
-    connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),
-    disconnect: () => invoke<void>("disconnect_danmaku_stream")
-  },
-  ai: {
-    getModels: () => invoke<AIModel[]>("get_ai_models"),
-    addModel: (input: AIModelInput) => invoke<AIModel>("add_ai_model", { input }),
-    updateModel: (id: string, input: AIModelInput) =>
-      invoke<AIModel>("update_ai_model", { id, input }),
-    testConnection: (input: AIModelInput) =>
-      invoke<TestResult>("test_ai_connection", { input }),
-    fetchModels: (endpoint: string, apiKey: string) =>
-      invoke<string[]>("fetch_models", { endpoint, apiKey }),
-    setCurrentModel: (id: string) => invoke<void>("set_current_model", { id }),
-    deleteModel: (id: string) => invoke<void>("delete_ai_model", { id })
-  },
-  settings: {
-    get: () => invoke<Settings>("get_settings"),
-    update: (settings: Settings) => invoke<void>("update_settings", { settings }),
-    isSttAvailable: () => invoke<boolean>("is_stt_available")
-  },
-  state: {
-    getRooms: () => invoke<Room[]>("get_rooms")
-  },
-  selections: {
-    load: (keys: string[]) => invoke<Record<string, unknown>>("load_selections", { keys }),
-    save: (entries: Record<string, unknown>) => invoke<void>("save_selections", { entries })
-  },
-  proxy: {
-    image: (url: string) => invoke<string>("proxy_image", { url })
-  },
-  stt: {
-    start: () => invoke<void>("start_stt"),
-    stop: () => invoke<void>("stop_stt"),
-    switchModel: (modelId: string) => invoke<void>("switch_stt_model", { modelId }),
-    getModelDir: () => invoke<string>("get_stt_model_dir"),
-    listModels: () => invoke<string[]>("list_stt_models"),
-    openModelDir: () => invoke<void>("open_stt_model_dir")
-  }
+  ws: { connect, disconnect },
+  ai: { getModels, addModel, updateModel, testConnection, fetchModels, setCurrentModel, deleteModel },
+  settings: { get, update, isSttAvailable },
+  state: { getRooms },
+  selections: { load, save },
+  proxy: { image },
+  stt: { start, stop, switchModel, getModelDir, listModels, openModelDir }
 };
 ```
 
