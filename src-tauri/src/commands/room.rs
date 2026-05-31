@@ -105,6 +105,13 @@ pub async fn get_rooms(state: State<'_, AppState>) -> Result<Vec<Room>, String> 
 }
 
 #[tauri::command]
+pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state)?;
+    api.get_live_time(room_id).await
+}
+
+#[tauri::command]
 pub async fn get_emoticons(
     room_id: u64,
     state: State<'_, AppState>,

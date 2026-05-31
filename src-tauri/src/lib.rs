@@ -176,6 +176,7 @@ pub fn run() {
             commands::room::remove_room,
             commands::room::get_room_info,
             commands::room::get_rooms,
+            commands::room::get_live_time,
             commands::room::get_emoticons,
             commands::room::open_danmaku_window,
             commands::room::get_audio_stream_url,

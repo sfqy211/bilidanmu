@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ArrowDown, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowDown, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
@@ -96,6 +96,55 @@ export function DanmakuPage() {
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
   const rooms = useRoomStore((state) => state.rooms);
+
+  // 开播时长
+  const [liveTime, setLiveTime] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!roomId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const fetchLiveTime = async () => {
+      try {
+        const ts = await tauriCommands.room.getLiveTime(roomId);
+        if (!cancelled) {
+          setLiveTime(ts);
+        }
+      } catch {
+        // 忽略
+      }
+    };
+
+    void fetchLiveTime();
+    // 每 5 分钟刷新一次开播时间
+    timer = setInterval(() => void fetchLiveTime(), 5 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [roomId]);
+
+  // 每分钟更新一次当前时间，刷新时长显示
+  useEffect(() => {
+    if (liveTime == null) return;
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [liveTime]);
+
+  const liveDuration = useMemo(() => {
+    if (liveTime == null) return null;
+    const ms = now - liveTime * 1000;
+    if (ms < 0) return null;
+    const totalMin = Math.floor(ms / 60000);
+    if (totalMin < 1) return "刚刚开播";
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h > 0) return `${h}h${m}m`;
+    return `${m}m`;
+  }, [liveTime, now]);
   const { send, sendEmoticon, sending } = useDanmaku();
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
@@ -358,6 +407,12 @@ export function DanmakuPage() {
         </span>
 
         <span className="ml-auto flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500">
+          {liveDuration && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {liveDuration}
+            </span>
+          )}
           {onlineCount > 0 && (
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />

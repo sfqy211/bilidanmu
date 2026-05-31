@@ -460,6 +460,48 @@ impl BiliApiClient {
         })
     }
 
+    /// 获取开播时间戳（Unix 秒），未开播返回 None
+    pub async fn get_live_time(&self, room_id: u64) -> Result<Option<u64>, String> {
+        let keys = self.get_or_fetch_wbi_keys().await?;
+
+        let params = BTreeMap::from([
+            ("room_id".to_string(), room_id.to_string()),
+            ("protocol".to_string(), "0".to_string()),
+            ("format".to_string(), "0".to_string()),
+            ("codec".to_string(), "0,1".to_string()),
+            ("qn".to_string(), "0".to_string()),
+            ("platform".to_string(), "web".to_string()),
+            ("ptype".to_string(), "8".to_string()),
+            ("dolby".to_string(), "5".to_string()),
+            ("panorama".to_string(), "1".to_string()),
+        ]);
+
+        let signed = sign_wbi(params, &keys.mixin_key());
+
+        let response = self
+            .get_json(
+                "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
+                Some(signed),
+            )
+            .await?;
+
+        ensure_success(&response)?;
+
+        let data = response
+            .get("data")
+            .ok_or_else(|| "getRoomPlayInfo 缺少 data 字段".to_string())?;
+
+        let live_time = data.get("live_time").and_then(value_as_u64);
+        let live_status = data.get("live_status").and_then(Value::as_u64).unwrap_or(0);
+
+        // live_status: 1=直播中, 2=轮播中
+        if live_status == 1 {
+            Ok(live_time)
+        } else {
+            Ok(None)
+        }
+    }
+
     /// 点赞上报 API URL（未来可切换 WBI 认证）
     const LIKE_INFO_V3_REPORT_URL: &str =
         "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3";
