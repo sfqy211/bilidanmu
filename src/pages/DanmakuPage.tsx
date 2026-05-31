@@ -168,12 +168,6 @@ export function DanmakuPage() {
     }
   }, [roomId, audioSettings.autoPlay]);
 
-  // 连接成功后触发一次点赞，获取当前点赞总数
-  useTauriEvent("ws-connected", () => {
-    if (roomId && anchorId) {
-      tauriCommands.danmaku.sendLike(roomId, anchorId, 1).catch(() => {});
-    }
-  });
 
   const handleAudioPlay = useCallback(async () => {
     await audioPlay();
