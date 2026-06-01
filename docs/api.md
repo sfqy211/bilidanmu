@@ -100,6 +100,16 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `get_stt_model_dir` | - | `string` | 获取 STT 模型目录路径（仅 STT 构建） |
 | `list_stt_models` | - | `string[]` | 列出可用 STT 模型（仅 STT 构建） |
 | `open_stt_model_dir` | - | void | 在资源管理器中打开 STT 模型目录（仅 STT 构建） |
+| `configure_astrbot` | `host, httpPort, callbackPort` | void | 配置 AstrBot 连接地址 |
+| `get_astrbot_config` | - | `AstrbotConfig \| null` | 获取 AstrBot 配置 |
+| `switch_astrbot_room` | `roomId, callbackUrl?, uname?, title?` | void | 切换 AstrBot 直播间 |
+| `disconnect_astrbot` | - | void | 断开 AstrBot 连接 |
+| `trigger_astrbot` | `action, context` | `string[]` | 手动触发 AI 回复/总结 |
+| `learn_astrbot` | `chosen, options` | void | 后台学习用户偏好 |
+| `get_ai_summaries` | - | `AiSuggestion[]` | 获取缓存的 AI 总结 |
+| `clear_ai_summaries` | - | void | 清空缓存的 AI 总结 |
+| `get_callback_port` | - | `number` | 获取回调服务端口 |
+| `is_ai_available` | - | `bool` | AI feature 是否可用（编译时决定） |
 
 ---
 

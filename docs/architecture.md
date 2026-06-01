@@ -84,9 +84,10 @@ bilidanmu/
 │   ├── pages/                          # 页面
 │   │   ├── RoomPage.tsx                # 子页面一：直播间管理
 │   │   ├── AccountPage.tsx             # 子页面二：账号管理
-│   │   ├── AIPage.tsx                  # 子页面三：AI 接入
+│   │   ├── AIPage.tsx                  # 子页面三：AI 代理配置
 │   │   ├── SettingsPage.tsx            # 子页面四：设置
-│   │   └── DanmakuPage.tsx             # 发送弹幕页面（独立全屏布局）
+│   │   ├── DanmakuPage.tsx             # 发送弹幕页面（独立全屏布局）
+│   │   └── AiAssistantPage.tsx         # AI 助手页面（独立窗口）
 │   │
 │   ├── hooks/                          # React Hooks
 │   │   ├── useDanmaku.ts              # 弹幕发送逻辑
@@ -98,13 +99,14 @@ bilidanmu/
 │   │   ├── useAudioPlayer.ts          # mpegts.js 音频播放器 Hook（播放/停止/音量/重连）
 │   │   ├── useSttTranscript.ts        # STT 转录延迟缓冲 + 按需 RAF 循环
 │   │   ├── useDividerDrag.ts          # 可拖动分割栏 Hook（pointer events + localStorage 持久化）
+│   │   ├── useWindowPersistence.ts    # 窗口尺寸持久化 Hook + loadWindowSize
 │   │   └── useTheme.ts                # 主题切换（light/dark/system）
 │   │
 │   ├── stores/                         # Zustand 状态管理
 │   │   ├── auth-store.ts               # 认证状态
 │   │   ├── room-store.ts               # 直播间状态
 │   │   ├── danmaku-store.ts            # 弹幕数据
-│   │   ├── ai-store.ts                 # AI 模型状态
+│   │   ├── ai-store.ts                 # AI 总结缓存
 │   │   └── settings-store.ts           # 应用设置
 │   │
 │   ├── lib/                            # 工具 & 封装

@@ -14,11 +14,13 @@ BiliDanmu — Windows desktop Bilibili live-stream danmaku client. Tauri 2 (Rust
 | Frontend only (Vite on :3000) | `npm run dev:renderer` |
 | Type check frontend | `npm run typecheck` |
 | Rust check | `cd src-tauri && cargo check` |
-| Rust check (lite, no STT) | `cd src-tauri && cargo check --no-default-features` |
+| Rust check (lite, no STT + AI) | `cd src-tauri && cargo check --no-default-features` |
 | Build release | `npm run build` |
 | Build release (lite) | `npm run build:lite` |
 
 No test framework is configured. Always run `npm run typecheck` and `cargo check` after changes.
+
+**Feature gates**: `stt` feature controls STT module. `ai` feature controls AI proxy module. Both are in `default`. Use `cargo check --no-default-features` to verify lite build.
 
 ## Rules
 
@@ -39,13 +41,13 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
 
 - **IPC layer**: `src/lib/tauri.ts` — all Tauri invoke calls go through `tauriCommands` object, namespaced by domain (auth, room, danmaku, ws, ai, settings, state, stt). Always add new IPC calls here.
 - **State**: Zustand stores in `src/stores/` (auth, room, danmaku, ai, settings). State is flat; actions are inline.
-- **Hooks**: `src/hooks/` — `useDanmakuStream` manages WebSocket lifecycle (connect on mount, disconnect on unmount, event listeners for danmaku-received/ws-connected/ws-disconnected/danmaku-error/ws-heartbeat). `useAutoSend` manages auto-send lifecycle (start/stop, room change reset, conditional unmount stop via `isRunningRef`). `useAutoLike` manages auto-like lifecycle. `useAudioPlayer` manages mpegts.js FLV→fMP4→MSE playback lifecycle (play/stop/volume/reconnect/clearStream). `useSttTranscript` listens for `stt-transcript` events, applies sync delay buffer, and drives `SubtitleOverlay` with on-demand RAF loop (stops when idle).
+- **Hooks**: `src/hooks/` — `useDanmakuStream` manages WebSocket lifecycle (connect on mount, disconnect on unmount, event listeners for danmaku-received/ws-connected/ws-disconnected/danmaku-error/ws-heartbeat). `useAutoSend` manages auto-send lifecycle (start/stop, room change reset, conditional unmount stop via `isRunningRef`). `useAutoLike` manages auto-like lifecycle. `useAudioPlayer` manages mpegts.js FLV→fMP4→MSE playback lifecycle (play/stop/volume/reconnect/clearStream). `useSttTranscript` listens for `stt-transcript` events, applies sync delay buffer, and drives `SubtitleOverlay` with on-demand RAF loop (stops when idle). `useDividerDrag` manages draggable split divider with localStorage persistence. `useWindowPersistence` saves window size to localStorage on resize.
 - **Path alias**: `@/*` → `./src/*`
 - **Dev server**: Vite on port 3000 (strictPort)
 
 ### Backend (Rust)
 
-- **AppState** (`src-tauri/src/lib.rs`): Multi-field struct with `TokioMutex<Option<BiliCredential>>` (active credential), `std::sync::Mutex<HashMap<String, BiliCredential>>` (multi-account map), `std::sync::Mutex<Option<String>>` (active account ID), `std::sync::Mutex<HashMap<String, AccountMeta>>` (account metadata for tray), `Arc<TokioMutex<WbiKeyCache>>`, `TokioMutex<Option<DanmakuWsClient>>`, `TokioMutex<AutoSenderState>`, `Arc<StdMutex<Option<rusqlite::Connection>>>` (SQLite DB), `reqwest::Client` (shared, proxy-aware HTTP), `Arc<StreamProxyServer>`, and `Arc<TokioMutex<Option<SttManager>>>` (`#[cfg(feature = "stt")]`). All IPC commands receive `State<AppState>`. Note: `credentials`/`active_account_id`/`account_metas` use `std::sync::Mutex` (never held across await), while `credential`/`wbi_cache`/`ws_client`/`auto_sender` use `TokioMutex`.
+- **AppState** (`src-tauri/src/lib.rs`): Multi-field struct with `TokioMutex<Option<BiliCredential>>` (active credential), `std::sync::Mutex<HashMap<String, BiliCredential>>` (multi-account map), `std::sync::Mutex<Option<String>>` (active account ID), `std::sync::Mutex<HashMap<String, AccountMeta>>` (account metadata for tray), `Arc<TokioMutex<WbiKeyCache>>`, `TokioMutex<Option<DanmakuWsClient>>`, `TokioMutex<AutoSenderState>`, `Arc<StdMutex<Option<rusqlite::Connection>>>` (SQLite DB), `reqwest::Client` (shared, proxy-aware HTTP), `reqwest::Client` (astrbot, no-proxy), `Arc<StreamProxyServer>`, `TokioMutex<Option<AstrbotConfig>>`, `Arc<TokioMutex<u16>>` (callback port), `Arc<StdMutex<Vec<AiSuggestion>>>` (AI summaries), and `Arc<TokioMutex<Option<SttManager>>>` (`#[cfg(feature = "stt")]`). All IPC commands receive `State<AppState>`. Note: `credentials`/`active_account_id`/`account_metas` use `std::sync::Mutex` (never held across await), while `credential`/`wbi_cache`/`ws_client`/`auto_sender`/`astrbot_config`/`astrbot_callback_port` use `TokioMutex`.
 - **Bili protocol layer** (`src-tauri/src/bili/`):
   - `credential.rs` — Cookie parsing, SESSDATA percent-encoding, validation
   - `wbi.rs` — WBI signature (MIXIN_KEY_ENC_TAB + MD5), key caching from `/x/web-interface/nav`
@@ -54,7 +56,7 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
   - `api.rs` — `BiliApiClient` wrapping shared `reqwest::Client` with Referer/Cookie headers
   - `buvid.rs` — Random hex + timestamp buvid3/buvid4 generation
 - **Models** (`src-tauri/src/models/`): All structs use `serde(rename_all = "camelCase")` for TS interop. `DanmakuEvent` has `#[serde(rename = "type")]` on `event_type` field.
-- **Persistence**: SQLite (rusqlite) for rooms, AI models, emoticons, selections (`db.rs` + `room_store.rs` + `ai_store.rs` + `emoticon_store.rs` + `selections_store.rs`). `tauri-plugin-store` for cookies (`credential_store.rs`) and settings (`settings_store.rs`). Multi-account support: `credential_store.rs` manages `HashMap<String, String>` cookie map + `AccountMeta` (username/avatar) + active account ID.
+- **Persistence**: SQLite (rusqlite) for rooms, emoticons, selections (`db.rs` + `room_store.rs` + `emoticon_store.rs` + `selections_store.rs`). `tauri-plugin-store` for cookies (`credential_store.rs`) and settings (`settings_store.rs`). Multi-account support: `credential_store.rs` manages `HashMap<String, String>` cookie map + `AccountMeta` (username/avatar) + active account ID.
 - **STT module** (`src-tauri/src/stt/`, `#[cfg(feature = "stt")]`):
   - `pipeline.rs` — Main STT pipeline: FLV demux → AAC decode (symphonia 0.6) → resample (sherpa-onnx LinearResampler) → sherpa-onnx OnlineRecognizer → emit transcript events. `bytes_tx` is `Option<Sender>` so `stop()` can drop it to unblock `blocking_recv()`.
   - `flv_demux.rs` — FLV demuxer that extracts AAC frames, wraps in ADTS headers, parses AudioSpecificConfig for sample rate/channels. Has `MAX_TAG_DATA_SIZE` guard against malicious streams.

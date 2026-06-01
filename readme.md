@@ -14,11 +14,12 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 - 弹幕流内联表情渲染（`[表情名]` → 图片）
 - 醒目留言真实颜色还原（两段式卡片 + 背景图）
 - 开播时长实时显示（v2 API 获取直播时间戳，自动刷新）
-- 系统托盘常驻（直播间/账号/AI 模型 CheckMenuItem 切换，状态同步）
+- 系统托盘常驻（直播间/账号 CheckMenuItem 切换，状态同步）
 - 图片代理（SSRF 白名单 + LRU 缓存，绕过 CDN Referer 防盗链）
 - 实时直播音频流播放（v2 API + 本地代理绕过 CORS + mpegts.js FLV 播放）
 - 实时语音转字幕（sherpa-onnx 流式识别 + 字幕叠加层）
-- 精简构建支持：`npm run build:lite` 构建不含 STT 的版本，二进制更小、内存占用更低
+- AI 助手（对接 AstrBot，多条回复选项/自定义输入/自动总结/记忆学习）
+- 精简构建支持：`npm run build:lite` 构建不含 STT + AI 的版本
 
 ## 技术栈
 
@@ -57,32 +58,37 @@ npm run dev
 
 ### 常用命令
 
-| 命令                          | 说明                         |
-| ----------------------------- | ---------------------------- |
-| `npm run dev`                 | 完整开发模式（前端 + Tauri） |
-| `npm run dev:renderer`        | 仅前端（Vite）               |
-| `npm run typecheck`           | TypeScript 类型检查          |
-| `cargo check` (在 src-tauri/) | Rust 编译检查                |
-| `npm run build`               | 构建发布包（含 STT）         |
-| `npm run build:lite`          | 构建精简包（不含 STT）       |
+| 命令 | 说明 |
+| ---- | ---- |
+| `npm run dev` | 完整开发模式（前端 + Tauri） |
+| `npm run dev:renderer` | 仅前端（Vite） |
+| `npm run typecheck` | TypeScript 类型检查 |
+| `cargo check` (在 src-tauri/) | Rust 编译检查 |
+| `npm run build` | 构建发布包（含 STT + AI） |
+| `npm run build:lite` | 构建精简包（不含 STT + AI） |
+| `.\scripts\bump-version.ps1 0.3.1` | 更新所有版本号 |
 
 ## 项目结构
 
 ```
 src/                          前端 (React + TypeScript)
-├── pages/                    页面（RoomPage, DanmakuPage, AccountPage, AIPage, SettingsPage）
-├── hooks/                    React Hooks（useDanmakuStream, useScheduler, useAuth...）
-├── stores/                   Zustand 状态管理
+├── pages/                    页面（RoomPage, DanmakuPage, AiAssistantPage, AccountPage, AIPage, SettingsPage）
+├── components/               组件（danmaku/, layout/SplitLayout, ui/）
+├── hooks/                    React Hooks（useDanmakuStream, useAutoSend, useAutoLike, useDividerDrag...）
+├── stores/                   Zustand 状态管理（auth, room, danmaku, ai, settings）
 ├── lib/tauri.ts              Tauri IPC 调用封装
 └── types/                    TypeScript 类型定义
 
 src-tauri/                    后端 (Rust)
 ├── src/bili/                 B站协议实现（API、WebSocket、WBI 签名、协议解析）
-├── src/commands/             Tauri IPC 命令处理
+├── src/commands/             Tauri IPC 命令处理（auth, room, danmaku, ai_proxy, settings...）
 ├── src/models/               数据模型
 ├── src/stt/                  语音识别模块（FLV 解复用、AAC 解码、sherpa-onnx 流式识别）
 ├── src/proxy/                本地 HTTP 流代理（hyper 1.x，STT 字节流 tee）
 └── src/lib.rs                应用入口 + AppState
+
+scripts/                      工具脚本
+└── bump-version.ps1          版本号更新脚本
 ```
 
 ## 截图
