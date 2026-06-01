@@ -1,23 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const STORAGE_KEY = "danmaku-divider-ratio";
-const DEFAULT_RATIO = 0.35;
+const DEFAULT_RATIO = 0.5;
 const COLLAPSE_THRESHOLD = 0.05;
 
-function loadRatio(): number {
+function loadRatio(storageKey: string, fallback: number): number {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       const val = Number(stored);
       if (val >= 0 && val <= 1) return val;
     }
   } catch { /* ignore */ }
-  return DEFAULT_RATIO;
+  return fallback;
 }
 
-function saveRatio(ratio: number): void {
+function saveRatio(storageKey: string, ratio: number): void {
   try {
-    localStorage.setItem(STORAGE_KEY, String(ratio));
+    localStorage.setItem(storageKey, String(ratio));
   } catch { /* ignore */ }
 }
 
@@ -26,9 +25,26 @@ function saveRatio(ratio: number): void {
  * Returns the ratio (0~1) for the top panel; bottom panel gets `1 - ratio`.
  * Dragging to extremes (<0.05) collapses one side.
  */
-export function useDividerDrag(containerRef: React.RefObject<HTMLDivElement | null>) {
-  const [ratio, setRatio] = useState(loadRatio);
+export function useDividerDrag(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  options?: { storageKey?: string; defaultRatio?: number }
+) {
+  const storageKey = options?.storageKey ?? "danmaku-divider-ratio";
+  const fallback = options?.defaultRatio ?? DEFAULT_RATIO;
+
+  const [ratio, _setRatio] = useState(() => loadRatio(storageKey, fallback));
   const draggingRef = useRef(false);
+  const storageKeyRef = useRef(storageKey);
+  storageKeyRef.current = storageKey;
+
+  // 包装 setRatio，始终同步保存到 localStorage
+  const setRatio = useCallback((value: number | ((prev: number) => number)) => {
+    _setRatio((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      saveRatio(storageKeyRef.current, next);
+      return next;
+    });
+  }, []);
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
     if (!draggingRef.current) return;
@@ -40,7 +56,7 @@ export function useDividerDrag(containerRef: React.RefObject<HTMLDivElement | nu
     const newRatio = Math.max(0, Math.min(1, y / rect.height));
 
     setRatio(newRatio);
-  }, [containerRef]);
+  }, [containerRef, setRatio]);
 
   const handlePointerUp = useCallback(() => {
     if (!draggingRef.current) return;
@@ -48,10 +64,9 @@ export function useDividerDrag(containerRef: React.RefObject<HTMLDivElement | nu
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
 
-    // Read the latest ratio from state via a functional update
-    setRatio((prev) => {
+    _setRatio((prev) => {
       const final = prev < COLLAPSE_THRESHOLD ? 0 : prev > 1 - COLLAPSE_THRESHOLD ? 1 : prev;
-      saveRatio(final);
+      saveRatio(storageKeyRef.current, final);
       return final;
     });
   }, []);
@@ -62,7 +77,6 @@ export function useDividerDrag(containerRef: React.RefObject<HTMLDivElement | nu
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
-      // #2: Reset body styles if component unmounts mid-drag
       if (draggingRef.current) {
         draggingRef.current = false;
         document.body.style.userSelect = "";
@@ -76,13 +90,11 @@ export function useDividerDrag(containerRef: React.RefObject<HTMLDivElement | nu
     draggingRef.current = true;
     document.body.style.userSelect = "none";
     document.body.style.cursor = "row-resize";
-    // #5: Removed setPointerCapture — window-level listeners are sufficient
   }, []);
 
   const resetDivider = useCallback(() => {
-    setRatio(DEFAULT_RATIO);
-    saveRatio(DEFAULT_RATIO);
-  }, []);
+    setRatio(fallback);
+  }, [setRatio, fallback]);
 
   return { ratio, setRatio, onDividerPointerDown, resetDivider };
 }
