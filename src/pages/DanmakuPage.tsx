@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ArrowDown, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
-import { AiSuggestionCard } from "@/components/danmaku/AiSuggestionCard";
+import { useWindowPersistence } from "@/hooks/useWindowPersistence";
+import { ArrowDown, Bot, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
-import { LikeButton } from "@/components/danmaku/LikeButton";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
@@ -19,6 +18,7 @@ import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
+import { loadWindowSize } from "@/hooks/useWindowPersistence";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -73,6 +73,12 @@ function useAutoScroll(messages: DanmakuMessage[]) {
     isAtBottomRef.current = true;
     setIsAtBottom(true);
     container.scrollTo({ top: container.scrollHeight, behavior: "instant" });
+    // scrollTo 触发的 scroll 事件中 scrollHeight 可能还未更新，
+    // 延迟一帧重新确认底部状态
+    requestAnimationFrame(() => {
+      isAtBottomRef.current = true;
+      setIsAtBottom(true);
+    });
   }, []);
 
   return { scrollRef, isAtBottom, checkAtBottom, scrollToBottom };
@@ -92,7 +98,6 @@ export function DanmakuPage() {
   const { disconnect } = useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
-  const latestLike = useDanmakuStore((state) => state.latestLike);
   const latestEntry = useDanmakuStore((state) => state.latestEntry);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
@@ -147,9 +152,11 @@ export function DanmakuPage() {
     return `${m}m`;
   }, [liveTime, now]);
 
-  // 切房时通知 AstrBot
+  // 切房时通知 AstrBot（用 ref 防止 StrictMode 双重调用）
+  const switchedRoomRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || switchedRoomRef.current === roomId) return;
+    switchedRoomRef.current = roomId;
     tauriCommands.ai.switchRoom(roomId).catch(() => {
       // AstrBot 未配置时静默忽略
     });
@@ -201,17 +208,7 @@ export function DanmakuPage() {
   }, [sttAvailable]);
 
   // 窗口尺寸变化时保存到 localStorage
-  useEffect(() => {
-    const unlisten = getCurrentWindow().onResized(({ payload: size }) => {
-      try {
-        localStorage.setItem("danmaku-window-width", String(size.width));
-        localStorage.setItem("danmaku-window-height", String(size.height));
-      } catch { /* ignore */ }
-    });
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, []);
+  useWindowPersistence("danmaku-window");
 
   useEffect(() => {
     if (!sttAvailable) {
@@ -277,7 +274,7 @@ export function DanmakuPage() {
 
   // ── 分割栏拖拽 ──
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
-  const { ratio, setRatio, onDividerPointerDown, resetDivider } = useDividerDrag(splitContainerRef);
+  const { ratio, setRatio, onDividerPointerDown, resetDivider } = useDividerDrag(splitContainerRef, { defaultRatio: 0.35 });
 
   // ── 各栏自动滚动 ──
   const giftScroll = useAutoScroll(giftMessages);
@@ -461,7 +458,7 @@ export function DanmakuPage() {
               <div
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
-                className="flex h-full flex-col gap-1 overflow-y-auto px-5 pt-3 pb-1"
+                className="flex h-full flex-col gap-1 overflow-y-auto px-5 pt-0 pb-1"
               >
                 {giftTotal > 0 && (
                   <div className="sticky top-0 z-10 -mx-5 mb-1 flex items-center bg-amber-50 px-5 py-1.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
@@ -557,36 +554,14 @@ export function DanmakuPage() {
         {sttAvailable && <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />}
       </div>
 
-      {/* 活动信息：点赞 + 入场 */}
-      {(latestLike || latestEntry) && (
+      {/* 活动信息：入场 */}
+      {latestEntry && (
         <div className="shrink-0 border-t border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#12141e]">
-          {latestLike && (
-            <BottomActivityBar
-              icon={<ThumbsUp className="h-3 w-3" />}
-              username={latestLike.username}
-              content={latestLike.content}
-              tone="like"
-            />
-          )}
-          {latestEntry && (
-            <BottomActivityBar
-              icon={<span className="text-xs">↪</span>}
-              username={latestEntry.username}
-              content={latestEntry.content}
-              tone="entry"
-            />
-          )}
-        </div>
-      )}
-
-      {/* AI 建议栏 */}
-      {roomId && (
-        <div className="border-t border-slate-300 bg-white px-3 py-2 dark:border-white/[0.06] dark:bg-[#12141e]">
-          <AiSuggestionCard
-            roomId={roomId}
-            onSend={(msg) => {
-              void handleSendText(msg);
-            }}
+          <BottomActivityBar
+            icon={<span className="text-xs">↪</span>}
+            username={latestEntry.username}
+            content={latestEntry.content}
+            tone="entry"
           />
         </div>
       )}
@@ -594,10 +569,6 @@ export function DanmakuPage() {
       {/* 发送栏 */}
       <div className="border-t border-slate-300 bg-white p-3 dark:border-white/[0.06] dark:bg-[#12141e]">
         <div ref={inputBarRef} className="relative flex items-center gap-2">
-          <LikeButton
-            roomId={roomId}
-            anchorId={anchorId}
-          />
           <button
             type="button"
             onClick={() => {
@@ -626,6 +597,17 @@ export function DanmakuPage() {
             title="表情"
           >
             <Smile className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const { width, height } = loadWindowSize("ai-window");
+              void tauriCommands.room.openAiWindow(width, height);
+            }}
+            className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
+            title="AI 助手"
+          >
+            <Bot className="h-4 w-4" />
           </button>
 
           <div className="min-w-0 flex-1">

@@ -3,6 +3,7 @@ import { MonitorPlay, Plus, Search, Trash2 } from "lucide-react";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
+import { loadWindowSize } from "@/hooks/useWindowPersistence";
 import { useRoomStore } from "@/stores/room-store";
 import type { SearchRoomMode } from "@/types/bilibili";
 
@@ -262,9 +263,8 @@ export function RoomPage() {
                               onClick={() => {
                                 setCurrentRoomId(room.id);
                                 void tauriCommands.selections.save({ currentRoomId: room.roomId });
-                                const w = Number(localStorage.getItem("danmaku-window-width")) || undefined;
-                                const h = Number(localStorage.getItem("danmaku-window-height")) || undefined;
-                                void tauriCommands.room.openDanmaku(room.roomId, w, h);
+                                const { width, height } = loadWindowSize("danmaku-window");
+                                void tauriCommands.room.openDanmaku(room.roomId, width, height);
                               }}
                               className="flex h-8 w-8 items-center justify-center bg-white/20 text-white backdrop-blur transition hover:bg-white/30"
                               title="打开弹幕"
