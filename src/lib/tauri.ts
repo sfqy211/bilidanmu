@@ -103,7 +103,8 @@ export const tauriCommands = {
   settings: {
     get: () => invoke<Settings>("get_settings"),
     update: (settings: Settings) => invoke<void>("update_settings", { settings }),
-    isSttAvailable: () => invoke<boolean>("is_stt_available")
+    isSttAvailable: () => invoke<boolean>("is_stt_available"),
+    isAiAvailable: () => invoke<boolean>("is_ai_available")
   },
   state: {
     getRooms: () => invoke<Room[]>("get_rooms")

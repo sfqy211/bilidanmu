@@ -166,6 +166,7 @@ export function DanmakuPage() {
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
+  const aiAvailable = useSettingsStore((s) => s.aiAvailable);
   const {
     audioRef,
     isPlaying: audioPlaying,
@@ -598,17 +599,19 @@ export function DanmakuPage() {
           >
             <Smile className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              const { width, height } = loadWindowSize("ai-window");
-              void tauriCommands.room.openAiWindow(width, height);
-            }}
-            className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
-            title="AI 助手"
-          >
-            <Bot className="h-4 w-4" />
-          </button>
+          {aiAvailable && (
+            <button
+              type="button"
+              onClick={() => {
+                const { width, height } = loadWindowSize("ai-window");
+                void tauriCommands.room.openAiWindow(width, height);
+              }}
+              className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
+              title="AI 助手"
+            >
+              <Bot className="h-4 w-4" />
+            </button>
+          )}
 
           <div className="min-w-0 flex-1">
             {emoticonPickerOpen ? (

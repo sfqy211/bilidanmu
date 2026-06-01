@@ -11,6 +11,13 @@ pub fn is_stt_available() -> bool {
     cfg!(feature = "stt")
 }
 
+/// Whether AI features are available in this build.
+/// This is determined at compile time by the `ai` feature flag.
+#[tauri::command]
+pub fn is_ai_available() -> bool {
+    cfg!(feature = "ai")
+}
+
 #[tauri::command]
 pub async fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     settings_store::load_settings(&app)

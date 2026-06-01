@@ -3,6 +3,7 @@ use crate::bili::credential::BiliCredential;
 use crate::AppState;
 use tauri::State;
 
+#[cfg(feature = "ai")]
 pub mod ai_proxy;
 pub mod auth;
 pub mod danmaku;

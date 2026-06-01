@@ -42,8 +42,9 @@ sherpa-onnx = { version = "1.13", optional = true }
 symphonia = { version = "0.6.0", default-features = false, features = ["aac"], optional = true }
 
 [features]
-default = ["stt"]
+default = ["stt", "ai"]
 stt = ["dep:sherpa-onnx", "dep:symphonia"]
+ai = []
 
 [profile.release]
 codegen-units = 1

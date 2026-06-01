@@ -15,17 +15,19 @@ export default function App() {
   const setRooms = useRoomStore((state) => state.setRooms);
   const setSettings = useSettingsStore((state) => state.setSettings);
   const setSttAvailable = useSettingsStore((state) => state.setSttAvailable);
+  const setAiAvailable = useSettingsStore((state) => state.setAiAvailable);
 
   useEffect(() => {
     let cancelled = false;
 
     const restore = async () => {
       try {
-        const [activeCredential, settings, rooms, sttAvailable] = await Promise.all([
+        const [activeCredential, settings, rooms, sttAvailable, aiAvailable] = await Promise.all([
           tauriCommands.auth.restoreLogin(),
           tauriCommands.settings.get(),
           tauriCommands.state.getRooms(),
-          tauriCommands.settings.isSttAvailable()
+          tauriCommands.settings.isSttAvailable(),
+          tauriCommands.settings.isAiAvailable()
         ]);
 
         if (cancelled) {
@@ -34,6 +36,7 @@ export default function App() {
 
         setSettings(settings);
         setSttAvailable(sttAvailable);
+        setAiAvailable(aiAvailable);
         setRooms(rooms);
 
         // 恢复活跃账号
@@ -76,7 +79,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [setAccounts, setActiveAccount, setCurrentRoomId, setRooms, setSettings, setSttAvailable]);
+  }, [setAccounts, setActiveAccount, setCurrentRoomId, setRooms, setSettings, setSttAvailable, setAiAvailable]);
 
   // 监听托盘事件：房间切换
   useEffect(() => {
