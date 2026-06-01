@@ -213,6 +213,7 @@ pub fn run() {
             commands::room::get_live_time,
             commands::room::get_emoticons,
             commands::room::open_danmaku_window,
+            commands::room::open_ai_window,
             commands::room::get_audio_stream_url,
             commands::room::clear_audio_stream,
             commands::room::get_rooms_live_status,

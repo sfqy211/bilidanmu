@@ -1,7 +1,7 @@
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
 export interface AiSuggestion {
-  roomId: number;
+  roomId?: number;
   sender: string;
   senderName: string;
   message: string;

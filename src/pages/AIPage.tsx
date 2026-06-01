@@ -7,9 +7,7 @@ export function AIPage() {
   const [config, setConfig] = useState<AstrbotConfig | null>(null);
   const [host, setHost] = useState("127.0.0.1");
   const [httpPort, setHttpPort] = useState("18080");
-  const [callbackPort, setCallbackPort] = useState("0");
   const [status, setStatus] = useState<Record<string, unknown> | null>(null);
-  const [actualCallbackPort, setActualCallbackPort] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,18 +17,11 @@ export function AIPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const [cfg, port] = await Promise.all([
-          tauriCommands.ai.getConfig(),
-          tauriCommands.ai.getCallbackPort(),
-        ]);
-        if (!cancelled) {
-          if (cfg) {
-            setConfig(cfg);
-            setHost(cfg.host);
-            setHttpPort(String(cfg.httpPort));
-            setCallbackPort(String(cfg.callbackPort));
-          }
-          setActualCallbackPort(port);
+        const cfg = await tauriCommands.ai.getConfig();
+        if (!cancelled && cfg) {
+          setConfig(cfg);
+          setHost(cfg.host);
+          setHttpPort(String(cfg.httpPort));
         }
       } catch {
         // 首次使用，无配置
@@ -50,7 +41,7 @@ export function AIPage() {
       const cfg: AstrbotConfig = {
         host,
         httpPort: Number(httpPort),
-        callbackPort: Number(callbackPort),
+        callbackPort: 0,
       };
       await tauriCommands.ai.configure(cfg.host, cfg.httpPort, cfg.callbackPort);
       setConfig(cfg);
@@ -101,7 +92,7 @@ export function AIPage() {
         <h3 className="mb-4 text-lg font-medium text-slate-900 dark:text-white">
           AstrBot 连接
         </h3>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <label className="text-sm text-slate-600 dark:text-slate-300">
             AstrBot 地址
             <input
@@ -117,15 +108,6 @@ export function AIPage() {
               value={httpPort}
               onChange={(e) => setHttpPort(e.target.value)}
               placeholder="18080"
-              className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
-            />
-          </label>
-          <label className="text-sm text-slate-600 dark:text-slate-300">
-            回调端口（BiliDanmu 监听）
-            <input
-              value={callbackPort}
-              onChange={(e) => setCallbackPort(e.target.value)}
-              placeholder="0 = 自动"
               className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
             />
           </label>
@@ -148,21 +130,6 @@ export function AIPage() {
           </button>
         </div>
       </div>
-
-      {/* 回调地址 */}
-      {actualCallbackPort > 0 && (
-        <div className="mt-4 border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
-          <h3 className="mb-2 text-lg font-medium text-slate-900 dark:text-white">
-            回调地址
-          </h3>
-          <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
-            在 AstrBot 插件的「LLM 聊天回调 — 回调地址」中填入：
-          </p>
-          <code className="block bg-slate-100 px-4 py-2 text-sm text-pink-600 dark:bg-[#0e1018] dark:text-pink-400">
-            http://127.0.0.1:{actualCallbackPort}/astrbot/callback
-          </code>
-        </div>
-      )}
 
       {/* 状态显示 */}
       {status && (
@@ -206,9 +173,9 @@ export function AIPage() {
         <ol className="list-inside list-decimal space-y-2 text-sm text-slate-600 dark:text-slate-300">
           <li>部署 AstrBot 并安装 <code className="bg-slate-100 px-1 dark:bg-[#0e1018]">astrbot_plugin_bilibili_live</code> 插件</li>
           <li>在 AstrBot 中配置 LLM 提供商（OpenAI / Ollama 等）</li>
-          <li>在插件配置中设置工作模式为 <code className="bg-slate-100 px-1 dark:bg-[#0e1018]">llm_chat_callback</code></li>
+          <li>在插件配置中填入 B 站 Cookie</li>
           <li>在上方填入 AstrBot 的 HTTP API 端口并保存</li>
-          <li>在弹幕页面中使用 AI 回复 / AI 总结按钮</li>
+          <li>打开直播间弹幕页面，在 AI 助手窗口中使用「AI 回复」或「AI 总结」</li>
         </ol>
       </div>
     </section>

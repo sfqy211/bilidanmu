@@ -130,6 +130,41 @@ pub async fn get_emoticons(
 }
 
 #[tauri::command]
+pub async fn open_ai_window(
+    app: tauri::AppHandle,
+    width: Option<f64>,
+    height: Option<f64>,
+) -> Result<(), String> {
+    let label = "ai-assistant";
+
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    let path = "/ai-assistant"
+        .parse()
+        .map_err(|error| format!("解析 AI 窗口路由失败: {error}"))?;
+
+    let w = width.filter(|v| *v >= 300.0 && *v <= 1200.0).unwrap_or(400.0);
+    let h = height.filter(|v| *v >= 300.0 && *v <= 900.0).unwrap_or(500.0);
+
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path))
+        .title("AI 助手")
+        .inner_size(w, h)
+        .min_inner_size(300.0, 300.0)
+        .resizable(true)
+        .decorations(true)
+        .always_on_top(true)
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn open_danmaku_window(
     app: tauri::AppHandle,
     room_id: u64,

@@ -54,6 +54,8 @@ export const tauriCommands = {
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
     openDanmaku: (roomId: number, width?: number, height?: number) =>
       invoke<void>("open_danmaku_window", { roomId, width: width ?? null, height: height ?? null }),
+    openAiWindow: (width?: number, height?: number) =>
+      invoke<void>("open_ai_window", { width: width ?? null, height: height ?? null }),
     getEmoticons: (roomId: number) =>
       invoke<EmoticonPackage[]>("get_emoticons", { roomId }),
     getAudioStreamUrl: (roomId: number) =>
