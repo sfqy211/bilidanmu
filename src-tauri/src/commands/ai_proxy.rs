@@ -96,6 +96,8 @@ pub async fn get_callback_port(state: State<'_, AppState>) -> Result<u16, String
 pub async fn switch_astrbot_room(
     room_id: u64,
     callback_url: Option<String>,
+    uname: Option<String>,
+    title: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let config = get_or_load_config(&state).await.ok_or("AstrBot 未配置")?;
@@ -106,6 +108,12 @@ pub async fn switch_astrbot_room(
         if !cb.is_empty() {
             payload["callback_url"] = serde_json::json!(cb);
         }
+    }
+    if let Some(u) = uname {
+        payload["uname"] = serde_json::json!(u);
+    }
+    if let Some(t) = title {
+        payload["title"] = serde_json::json!(t);
     }
 
     let resp = state.astrbot_client

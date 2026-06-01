@@ -93,8 +93,8 @@ export const tauriCommands = {
     configure: (host: string, httpPort: number, callbackPort: number) =>
       invoke<void>("configure_astrbot", { host, httpPort, callbackPort }),
     getConfig: () => invoke<AstrbotConfig | null>("get_astrbot_config"),
-    switchRoom: (roomId: number, callbackUrl?: string) =>
-      invoke<void>("switch_astrbot_room", { roomId, callbackUrl: callbackUrl ?? null }),
+    switchRoom: (roomId: number, callbackUrl?: string, uname?: string, title?: string) =>
+      invoke<void>("switch_astrbot_room", { roomId, callbackUrl: callbackUrl ?? null, uname: uname ?? null, title: title ?? null }),
     disconnect: () => invoke<void>("disconnect_astrbot"),
     trigger: (action: string, context: string) =>
       invoke<string[]>("trigger_astrbot", { action, context }),
