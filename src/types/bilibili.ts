@@ -1,10 +1,10 @@
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
 export interface AiSuggestion {
-  roomId?: number;
-  sender: string;
-  senderName: string;
+  type: "reply" | "summary";
+  roomId: number;
   message: string;
+  timestamp: number;
 }
 
 export interface AstrbotConfig {

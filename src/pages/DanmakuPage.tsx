@@ -157,7 +157,10 @@ export function DanmakuPage() {
   useEffect(() => {
     if (!roomId || switchedRoomRef.current === roomId) return;
     switchedRoomRef.current = roomId;
-    tauriCommands.ai.switchRoom(roomId).catch(() => {
+    tauriCommands.ai.getCallbackPort().then((port) => {
+      const callbackUrl = port > 0 ? `http://127.0.0.1:${port}/astrbot/callback` : undefined;
+      return tauriCommands.ai.switchRoom(roomId, callbackUrl);
+    }).catch(() => {
       // AstrBot 未配置时静默忽略
     });
   }, [roomId]);

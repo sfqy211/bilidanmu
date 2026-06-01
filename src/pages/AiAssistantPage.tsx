@@ -1,49 +1,73 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Check, Loader2, Send, Trash2 } from "lucide-react";
 import { SplitLayout } from "@/components/layout/SplitLayout";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { tauriCommands } from "@/lib/tauri";
 import type { AiSuggestion } from "@/types/bilibili";
-import { useTauriEvent } from "@/hooks/useTauriEvent";
+import { useAiStore } from "@/stores/ai-store";
 
-const MAX_SUGGESTIONS = 40;
+const MAX_REPLIES = 40;
 
 export function AiAssistantPage() {
   useWindowPersistence("ai-window");
 
+  const summaries = useAiStore((s) => s.summaries);
+  const addSummary = useAiStore((s) => s.addSummary);
+
   const [replies, setReplies] = useState<AiSuggestion[]>([]);
-  const [summaries, setSummaries] = useState<AiSuggestion[]>([]);
   const [sentSet, setSentSet] = useState<Set<string>>(new Set());
   const [triggering, setTriggering] = useState<"reply" | "summary" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [customText, setCustomText] = useState("");
 
   const replyEndRef = useRef<HTMLDivElement>(null);
   const summaryEndRef = useRef<HTMLDivElement>(null);
+  const lastCountRef = useRef(0);
 
-  // 监听 AstrBot 回调事件（自动触发的回复）
-  useTauriEvent<AiSuggestion>("ai-suggestion", (payload) => {
-    setReplies((prev) => {
-      const next = [...prev, payload];
-      return next.length > MAX_SUGGESTIONS ? next.slice(-MAX_SUGGESTIONS) : next;
-    });
-  });
+  // 启动时拉取 + 每 10 秒轮询
+  useEffect(() => {
+    lastCountRef.current = 0;
+    const fetchSummaries = async () => {
+      try {
+        const data = await tauriCommands.ai.getSummaries();
+        if (data.length > lastCountRef.current) {
+          data.slice(lastCountRef.current).forEach((s) => addSummary(s));
+          lastCountRef.current = data.length;
+        }
+      } catch { /* ignore */ }
+    };
+
+    void fetchSummaries();
+    const timer = setInterval(() => void fetchSummaries(), 10_000);
+    return () => {
+      clearInterval(timer);
+      lastCountRef.current = 0;
+    };
+  }, [addSummary]);
 
   const handleTrigger = useCallback(
     async (action: "reply" | "summary") => {
       setTriggering(action);
       setError(null);
       try {
-        const result = await tauriCommands.ai.trigger(action, "");
-        const suggestion: AiSuggestion = {
-          roomId: 0,
-          sender: "ai",
-          senderName: action === "summary" ? "AI 总结" : "AI 回复",
-          message: result,
-        };
+        const results = await tauriCommands.ai.trigger(action, "");
+        const now = Math.floor(Date.now() / 1000);
+        // 获取当前房间号
+        let roomId = 0;
+        try {
+          const selections = await tauriCommands.selections.load(["currentRoomId"]);
+          roomId = (selections.currentRoomId as number) ?? 0;
+        } catch { /* ignore */ }
+        const suggestions: AiSuggestion[] = results.map((text) => ({
+          type: action,
+          roomId,
+          message: text,
+          timestamp: now,
+        }));
         if (action === "summary") {
-          setSummaries((prev) => [...prev, suggestion].slice(-MAX_SUGGESTIONS));
+          suggestions.forEach((s) => addSummary(s));
         } else {
-          setReplies((prev) => [...prev, suggestion].slice(-MAX_SUGGESTIONS));
+          setReplies((prev) => [...prev, ...suggestions].slice(-MAX_REPLIES));
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "触发失败");
@@ -51,29 +75,47 @@ export function AiAssistantPage() {
         setTriggering(null);
       }
     },
-    []
+    [addSummary]
   );
 
-  const handleSend = useCallback(async (message: string) => {
+  const handleSend = useCallback(async (message: string, allOptions?: string[]) => {
     const text = message.trim().slice(0, 40);
     if (!text) return;
-    // 发送到当前活跃的弹幕窗口（通过 AstrBot 转发）
-    await tauriCommands.ai.trigger("send", text);
-    setSentSet((prev) => new Set(prev).add(message));
+
+    // 从 selections 获取当前房间号
+    try {
+      const selections = await tauriCommands.selections.load(["currentRoomId"]);
+      const roomId = selections.currentRoomId as number | undefined;
+      if (!roomId) return;
+      await tauriCommands.danmaku.send(roomId, text);
+      setSentSet((prev) => new Set(prev).add(message));
+    } catch { /* ignore */ }
+
+    if (allOptions && allOptions.length > 1) {
+      tauriCommands.ai.learn(text, allOptions).catch(() => {});
+    }
   }, []);
 
   const handleDismiss = useCallback((message: string, type: "reply" | "summary") => {
     if (type === "reply") {
       setReplies((prev) => prev.filter((s) => s.message !== message));
-    } else {
-      setSummaries((prev) => prev.filter((s) => s.message !== message));
     }
-    setSentSet((prev) => {
-      const next = new Set(prev);
-      next.delete(message);
-      return next;
-    });
+    // summary 由 store 管理，暂不支持单条删除
   }, []);
+
+  const handleCustomSend = useCallback(async () => {
+    const text = customText.trim().slice(0, 40);
+    if (!text) return;
+    try {
+      const selections = await tauriCommands.selections.load(["currentRoomId"]);
+      const roomId = selections.currentRoomId as number | undefined;
+      if (!roomId) return;
+      await tauriCommands.danmaku.send(roomId, text);
+      setCustomText("");
+    } catch { /* ignore */ }
+  }, [customText]);
+
+  const allReplyOptions = replies.map((r) => r.message);
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-[#12141e]">
@@ -99,7 +141,8 @@ export function AiAssistantPage() {
                       suggestion={s}
                       isSent={sentSet.has(s.message)}
                       type="reply"
-                      onSend={() => void handleSend(s.message)}
+                      allOptions={allReplyOptions}
+                      onSend={(msg) => void handleSend(msg, allReplyOptions)}
                       onDismiss={() => handleDismiss(s.message, "reply")}
                     />
                   ))}
@@ -108,35 +151,62 @@ export function AiAssistantPage() {
               ) : (
                 <EmptyState text="点击「获取回复」让 AI 根据弹幕生成回复" />
               )}
+
+              {/* 自定义输入框 */}
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={customText}
+                  onChange={(e) => setCustomText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleCustomSend();
+                  }}
+                  placeholder="输入自定义回复..."
+                  className="flex-1 border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                />
+                <button
+                  onClick={() => void handleCustomSend()}
+                  disabled={!customText.trim()}
+                  className="inline-flex items-center gap-1 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-500/20 dark:text-violet-300"
+                >
+                  <Send className="h-3 w-3" />
+                  发送
+                </button>
+              </div>
             </div>
           </>
         }
         bottom={
           <>
             <PanelHeader title="AI 总结">
-              <TriggerButton
-                action="summary"
-                triggering={triggering}
-                onClick={() => void handleTrigger("summary")}
-              />
+              <div className="flex items-center gap-2">
+                {summaries.length > 0 && (
+                  <button
+                    onClick={() => {
+                      tauriCommands.ai.clearSummaries().catch(() => {});
+                      useAiStore.getState().clearSummaries();
+                    }}
+                    className="text-xs text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    清空
+                  </button>
+                )}
+                <TriggerButton
+                  action="summary"
+                  triggering={triggering}
+                  onClick={() => void handleTrigger("summary")}
+                />
+              </div>
             </PanelHeader>
             <div className="flex-1 overflow-y-auto px-3 py-2">
               {summaries.length > 0 ? (
                 <div className="space-y-1.5">
                   {summaries.map((s, i) => (
-                    <SuggestionItem
-                      key={`summary-${i}`}
-                      suggestion={s}
-                      isSent={false}
-                      type="summary"
-                      onSend={() => void handleSend(s.message)}
-                      onDismiss={() => handleDismiss(s.message, "summary")}
-                    />
+                    <SummaryItem key={`summary-${i}`} suggestion={s} />
                   ))}
                   <div ref={summaryEndRef} />
                 </div>
               ) : (
-                <EmptyState text="点击「获取总结」让 AI 总结当前弹幕内容" />
+                <EmptyState text="点击「获取总结」或等待自动总结" />
               )}
             </div>
           </>
@@ -196,13 +266,15 @@ function SuggestionItem({
   suggestion,
   isSent,
   type,
+  allOptions,
   onSend,
   onDismiss,
 }: {
   suggestion: AiSuggestion;
   isSent: boolean;
   type: "reply" | "summary";
-  onSend: () => void;
+  allOptions?: string[];
+  onSend: (message: string) => void;
   onDismiss: () => void;
 }) {
   return (
@@ -222,7 +294,7 @@ function SuggestionItem({
             </span>
           ) : (
             <button
-              onClick={onSend}
+              onClick={() => onSend(suggestion.message)}
               title="发送到弹幕"
               className="p-1 text-violet-500 transition hover:bg-violet-100 dark:text-violet-400 dark:hover:bg-violet-500/20"
             >
@@ -237,6 +309,26 @@ function SuggestionItem({
         >
           <Trash2 className="h-3 w-3" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SummaryItem({ suggestion }: { suggestion: AiSuggestion }) {
+  const date = new Date(suggestion.timestamp * 1000);
+  const timeStr = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className="flex items-start gap-2 bg-slate-50 px-2.5 py-2 dark:bg-white/[0.03]">
+      <Bot className="mt-0.5 h-3 w-3 shrink-0 text-cyan-500 dark:text-cyan-400" />
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
+          {suggestion.roomId > 0 && <span>房间 {suggestion.roomId}</span>}
+          <span>{timeStr}</span>
+        </div>
+        <p className="break-words whitespace-pre-wrap text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+          {suggestion.message}
+        </p>
       </div>
     </div>
   );

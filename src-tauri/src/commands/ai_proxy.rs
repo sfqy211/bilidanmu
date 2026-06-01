@@ -1,17 +1,22 @@
 use crate::{selections_store, AppState};
 use http_body_util::BodyExt;
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use std::sync::{Arc, Mutex as StdMutex};
+use tauri::{Manager, State};
 
 /// AstrBot 回调消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiSuggestion {
+    #[serde(rename = "type")]
+    pub suggestion_type: String,
     pub room_id: u64,
-    pub sender: String,
-    pub sender_name: String,
     pub message: String,
+    pub timestamp: u64,
 }
+
+/// AI 总结缓存（跨窗口共享）
+pub type SummaryStore = Arc<StdMutex<Vec<AiSuggestion>>>;
 
 /// AstrBot 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,14 +89,25 @@ pub async fn get_callback_port(state: State<'_, AppState>) -> Result<u16, String
 
 /// 切换 AstrBot 直播间
 #[tauri::command]
-pub async fn switch_astrbot_room(room_id: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn switch_astrbot_room(
+    room_id: u64,
+    callback_url: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let config = state.astrbot_config.lock().await;
     let config = config.as_ref().ok_or("AstrBot 未配置")?;
     let url = format!("http://{}:{}/api/switch-room", config.host, config.http_port);
 
+    let mut payload = serde_json::json!({ "room_id": room_id });
+    if let Some(cb) = callback_url {
+        if !cb.is_empty() {
+            payload["callback_url"] = serde_json::json!(cb);
+        }
+    }
+
     let resp = state.astrbot_client
         .post(&url)
-        .json(&serde_json::json!({ "room_id": room_id }))
+        .json(&payload)
         .send()
         .await
         .map_err(|e| format!("连接 AstrBot 失败: {e}"))?;
@@ -109,7 +125,7 @@ pub async fn trigger_astrbot(
     action: String,
     context: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<Vec<String>, String> {
     if action != "reply" && action != "summary" {
         return Err(format!("无效的 action: {action}，只支持 reply 或 summary"));
     }
@@ -135,10 +151,52 @@ pub async fn trigger_astrbot(
         .await
         .map_err(|e| format!("解析 AstrBot 响应失败: {e}"))?;
 
-    json.get("reply")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .ok_or_else(|| "AstrBot 响应缺少 reply 字段".to_string())
+    json.get("replies")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .ok_or_else(|| "AstrBot 响应缺少 replies 字段".to_string())
+}
+
+/// 后台学习用户偏好
+#[tauri::command]
+pub async fn learn_astrbot(
+    chosen: String,
+    options: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config = state.astrbot_config.lock().await;
+    let config = config.as_ref().ok_or("AstrBot 未配置")?;
+    let url = format!("http://{}:{}/api/learn", config.host, config.http_port);
+
+    let resp = state.astrbot_client
+        .post(&url)
+        .json(&serde_json::json!({ "chosen": chosen, "options": options }))
+        .send()
+        .await
+        .map_err(|e| format!("连接 AstrBot 失败: {e}"))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("AstrBot 学习触发失败: {body}"));
+    }
+    Ok(())
+}
+
+/// 获取缓存的 AI 总结
+#[tauri::command]
+pub async fn get_ai_summaries(state: State<'_, AppState>) -> Result<Vec<AiSuggestion>, String> {
+    let summaries = state.ai_summaries.lock()
+        .map_err(|_| "获取总结锁失败".to_string())?;
+    Ok(summaries.clone())
+}
+
+/// 清空缓存的 AI 总结
+#[tauri::command]
+pub async fn clear_ai_summaries(state: State<'_, AppState>) -> Result<(), String> {
+    let mut summaries = state.ai_summaries.lock()
+        .map_err(|_| "获取总结锁失败".to_string())?;
+    summaries.clear();
+    Ok(())
 }
 
 /// 获取 AstrBot 状态
@@ -204,8 +262,22 @@ pub async fn start_callback_server(app_handle: tauri::AppHandle, port: u16) -> R
                                 .map(|c: http_body_util::Collected<bytes::Bytes>| c.to_bytes())
                                 .unwrap_or_default();
 
-                            if let Ok(suggestion) = serde_json::from_slice::<AiSuggestion>(&body) {
-                                let _ = app_handle.emit("ai-suggestion", &suggestion);
+                            match serde_json::from_slice::<AiSuggestion>(&body) {
+                                Ok(suggestion) => {
+                                    log::info!("[AI回调] 收到: type={}, room={}", suggestion.suggestion_type, suggestion.room_id);
+                                    // 存储到 AppState
+                                    let state = app_handle.state::<AppState>();
+                                    let mut summaries = state.ai_summaries.lock().unwrap();
+                                    summaries.push(suggestion);
+                                    if summaries.len() > 100 {
+                                        let drain_count = summaries.len() - 100;
+                                        summaries.drain(..drain_count);
+                                    }
+                                    drop(summaries);
+                                }
+                                Err(e) => {
+                                    log::error!("AstrBot 回调解析失败: {e}, body={}", String::from_utf8_lossy(&body));
+                                }
                             }
 
                             Ok::<_, hyper::Error>(

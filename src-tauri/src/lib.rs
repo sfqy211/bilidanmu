@@ -52,6 +52,8 @@ pub struct AppState {
     pub astrbot_config: TokioMutex<Option<commands::ai_proxy::AstrbotConfig>>,
     #[cfg(feature = "ai")]
     pub astrbot_callback_port: Arc<TokioMutex<u16>>,
+    #[cfg(feature = "ai")]
+    pub ai_summaries: commands::ai_proxy::SummaryStore,
     #[cfg(feature = "stt")]
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
 }
@@ -106,6 +108,8 @@ pub fn run() {
             astrbot_config: TokioMutex::new(None),
             #[cfg(feature = "ai")]
             astrbot_callback_port: Arc::new(TokioMutex::new(0)),
+            #[cfg(feature = "ai")]
+            ai_summaries: Arc::new(StdMutex::new(Vec::new())),
             #[cfg(feature = "stt")]
             stt_manager: Arc::new(TokioMutex::new(None)),
         })
@@ -245,6 +249,12 @@ pub fn run() {
             commands::ai_proxy::get_astrbot_status,
             #[cfg(feature = "ai")]
             commands::ai_proxy::get_callback_port,
+            #[cfg(feature = "ai")]
+            commands::ai_proxy::learn_astrbot,
+            #[cfg(feature = "ai")]
+            commands::ai_proxy::get_ai_summaries,
+            #[cfg(feature = "ai")]
+            commands::ai_proxy::clear_ai_summaries,
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
             commands::proxy::proxy_image,
