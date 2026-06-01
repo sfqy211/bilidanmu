@@ -214,18 +214,19 @@ export function DanmakuPage() {
   // 窗口尺寸变化时保存到 localStorage
   useWindowPersistence("danmaku-window");
 
+  // 关闭窗口时断开连接
   useEffect(() => {
-    if (!sttAvailable) {
-      return () => {};
-    }
     const unlisten = getCurrentWindow().onCloseRequested(() => {
       disconnect();
-      tauriCommands.stt.stop().catch(() => {});
+      if (sttAvailable) {
+        tauriCommands.stt.stop().catch(() => {});
+      }
+      tauriCommands.ai.disconnect().catch(() => {});
     });
     return () => {
       void unlisten.then((fn) => fn());
     };
-  }, [disconnect]);
+  }, [disconnect, sttAvailable]);
 
   const {
     isRunning: autoSendRunning,

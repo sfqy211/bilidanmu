@@ -122,6 +122,26 @@ pub async fn switch_astrbot_room(
     Ok(())
 }
 
+/// 断开 AstrBot 连接
+#[tauri::command]
+pub async fn disconnect_astrbot(state: State<'_, AppState>) -> Result<(), String> {
+    let config = get_or_load_config(&state).await;
+    let Some(config) = config else { return Ok(()) };
+    let url = format!("http://{}:{}/api/disconnect", config.host, config.http_port);
+
+    let resp = state.astrbot_client
+        .post(&url)
+        .send()
+        .await
+        .map_err(|e| format!("连接 AstrBot 失败: {e}"))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("AstrBot 断开失败: {body}"));
+    }
+    Ok(())
+}
+
 /// 手动触发 AI 回复/总结
 #[tauri::command]
 pub async fn trigger_astrbot(

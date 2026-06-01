@@ -250,6 +250,8 @@ pub fn run() {
             #[cfg(feature = "ai")]
             commands::ai_proxy::get_callback_port,
             #[cfg(feature = "ai")]
+            commands::ai_proxy::disconnect_astrbot,
+            #[cfg(feature = "ai")]
             commands::ai_proxy::learn_astrbot,
             #[cfg(feature = "ai")]
             commands::ai_proxy::get_ai_summaries,
