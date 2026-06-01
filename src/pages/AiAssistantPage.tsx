@@ -88,9 +88,13 @@ export function AiAssistantPage() {
       const roomId = selections.currentRoomId as number | undefined;
       if (!roomId) return;
       await tauriCommands.danmaku.send(roomId, text);
-      setSentSet((prev) => new Set(prev).add(message));
     } catch { /* ignore */ }
 
+    // 清空当前回复列表
+    setReplies([]);
+    setSentSet(new Set());
+
+    // 后台学习用户偏好
     if (allOptions && allOptions.length > 1) {
       tauriCommands.ai.learn(text, allOptions).catch(() => {});
     }
@@ -112,6 +116,8 @@ export function AiAssistantPage() {
       if (!roomId) return;
       await tauriCommands.danmaku.send(roomId, text);
       setCustomText("");
+      setReplies([]);
+      setSentSet(new Set());
     } catch { /* ignore */ }
   }, [customText]);
 
