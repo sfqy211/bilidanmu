@@ -63,21 +63,25 @@ pub async fn configure_astrbot(
     Ok(())
 }
 
-/// 获取 AstrBot 配置
+/// 获取 AstrBot 配置（自动从磁盘加载）
 #[tauri::command]
 pub async fn get_astrbot_config(state: State<'_, AppState>) -> Result<Option<AstrbotConfig>, String> {
+    Ok(get_or_load_config(&state).await)
+}
+
+/// 确保配置已加载（内存优先，否则从磁盘读取）
+async fn get_or_load_config(state: &State<'_, AppState>) -> Option<AstrbotConfig> {
     let cfg = state.astrbot_config.lock().await;
     if cfg.is_some() {
-        return Ok(cfg.clone());
+        return cfg.clone();
     }
     drop(cfg);
-    // 从磁盘加载
     let loaded = load_config_from_store(state.inner());
     if let Some(ref config) = loaded {
         let mut cfg = state.astrbot_config.lock().await;
         *cfg = Some(config.clone());
     }
-    Ok(loaded)
+    loaded
 }
 
 /// 获取回调服务实际端口
@@ -94,8 +98,7 @@ pub async fn switch_astrbot_room(
     callback_url: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let config = state.astrbot_config.lock().await;
-    let config = config.as_ref().ok_or("AstrBot 未配置")?;
+    let config = get_or_load_config(&state).await.ok_or("AstrBot 未配置")?;
     let url = format!("http://{}:{}/api/switch-room", config.host, config.http_port);
 
     let mut payload = serde_json::json!({ "room_id": room_id });
@@ -130,8 +133,7 @@ pub async fn trigger_astrbot(
         return Err(format!("无效的 action: {action}，只支持 reply 或 summary"));
     }
 
-    let config = state.astrbot_config.lock().await;
-    let config = config.as_ref().ok_or("AstrBot 未配置")?;
+    let config = get_or_load_config(&state).await.ok_or("AstrBot 未配置")?;
     let url = format!("http://{}:{}/api/trigger", config.host, config.http_port);
 
     let resp = state.astrbot_client
@@ -164,8 +166,7 @@ pub async fn learn_astrbot(
     options: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let config = state.astrbot_config.lock().await;
-    let config = config.as_ref().ok_or("AstrBot 未配置")?;
+    let config = get_or_load_config(&state).await.ok_or("AstrBot 未配置")?;
     let url = format!("http://{}:{}/api/learn", config.host, config.http_port);
 
     let resp = state.astrbot_client
@@ -202,8 +203,7 @@ pub async fn clear_ai_summaries(state: State<'_, AppState>) -> Result<(), String
 /// 获取 AstrBot 状态
 #[tauri::command]
 pub async fn get_astrbot_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
-    let config = state.astrbot_config.lock().await;
-    let config = config.as_ref().ok_or("AstrBot 未配置")?;
+    let config = get_or_load_config(&state).await.ok_or("AstrBot 未配置")?;
     let url = format!("http://{}:{}/api/status", config.host, config.http_port);
 
     let resp = state.astrbot_client
