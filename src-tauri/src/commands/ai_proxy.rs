@@ -47,6 +47,7 @@ fn save_config_to_store(state: &AppState, config: &AstrbotConfig) -> Result<(), 
 /// 配置 AstrBot 连接地址
 #[tauri::command]
 pub async fn configure_astrbot(
+    app: tauri::AppHandle,
     host: String,
     http_port: u16,
     callback_port: u16,
@@ -60,6 +61,23 @@ pub async fn configure_astrbot(
     save_config_to_store(state.inner(), &config)?;
     let mut cfg = state.astrbot_config.lock().await;
     *cfg = Some(config);
+    drop(cfg);
+
+    // 如果回调端口变化，重启回调服务
+    let current_port = *state.astrbot_callback_port.lock().await;
+    if callback_port > 0 && current_port != callback_port {
+        let port_state = state.astrbot_callback_port.clone();
+        tokio::spawn(async move {
+            match start_callback_server(app, callback_port).await {
+                Ok(port) => {
+                    *port_state.lock().await = port;
+                    log::info!("AstrBot 回调服务已重启: http://127.0.0.1:{port}/astrbot/callback");
+                }
+                Err(e) => log::error!("重启回调服务失败: {e}"),
+            }
+        });
+    }
+
     Ok(())
 }
 
@@ -109,10 +127,10 @@ pub async fn switch_astrbot_room(
             payload["callback_url"] = serde_json::json!(cb);
         }
     }
-    if let Some(u) = uname {
+    if let Some(u) = uname.filter(|v| !v.is_empty()) {
         payload["uname"] = serde_json::json!(u);
     }
-    if let Some(t) = title {
+    if let Some(t) = title.filter(|v| !v.is_empty()) {
         payload["title"] = serde_json::json!(t);
     }
 
