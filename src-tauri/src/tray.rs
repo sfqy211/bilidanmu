@@ -56,11 +56,13 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     match id {
         "show" => show_main_window(app),
         "quit" => {
-            // 退出前断开 AstrBot
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
-                let state = app_clone.state::<crate::AppState>();
-                let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
+                #[cfg(feature = "ai")]
+                {
+                    let state = app_clone.state::<crate::AppState>();
+                    let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
+                }
                 app_clone.exit(0);
             });
         }
