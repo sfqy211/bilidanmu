@@ -17,7 +17,7 @@ pub async fn send_danmaku(
     state: State<'_, AppState>,
 ) -> Result<BiliResponse, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     api.send_danmaku(room_id, &msg, color, mode, dm_type.unwrap_or(0), None)
         .await
 }
@@ -33,7 +33,7 @@ pub async fn send_emoticon(
     state: State<'_, AppState>,
 ) -> Result<BiliResponse, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     let emoticon_options = emoticon_options.unwrap_or_else(|| {
         serde_json::json!({
             "emoticon_unique": emoticon_unique,
@@ -82,7 +82,7 @@ pub async fn start_auto_send(
 
     let interval_ms = interval_ms.max(300);
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
 
     let mut auto_sender = state.auto_sender.lock().await;
     if auto_sender.shutdown_tx.is_some() {
@@ -145,6 +145,11 @@ pub async fn start_auto_send(
                     );
                 }
                 Err(error) => {
+                    {
+                        let state = app.state::<AppState>();
+                        let mut sender = state.auto_sender.lock().await;
+                        sender.shutdown_tx = None;
+                    }
                     let _ = app.emit(
                         "auto-send-error",
                         serde_json::json!({
@@ -155,7 +160,8 @@ pub async fn start_auto_send(
                             "error": error,
                         }),
                     );
-                    break;
+                    let _ = app.emit("auto-send-stopped", serde_json::json!({"reason": "error"}));
+                    return;
                 }
             }
 
@@ -180,21 +186,16 @@ pub async fn start_auto_send(
                     }
                 }
                 _ = &mut shutdown_rx => {
+                    {
+                        let state = app.state::<AppState>();
+                        let mut sender = state.auto_sender.lock().await;
+                        sender.shutdown_tx = None;
+                    }
                     let _ = app.emit("auto-send-stopped", serde_json::json!({"reason": "manual"}));
                     return;
                 }
             }
         }
-
-        {
-            let state = app.state::<AppState>();
-            let mut sender = state.auto_sender.lock().await;
-            sender.shutdown_tx = None;
-        }
-        let _ = app.emit(
-            "auto-send-stopped",
-            serde_json::json!({"reason": "error"}),
-        );
     });
 
     Ok(())
@@ -215,7 +216,7 @@ pub async fn send_like(
     }
 
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     api.send_like(room_id, anchor_id, click_time).await
 }
 
@@ -253,7 +254,7 @@ pub async fn start_auto_like(
 
     let interval_ms = interval_ms.max(500);
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
 
     let mut auto_like = state.auto_like.lock().await;
     if auto_like.shutdown_tx.is_some() {
@@ -300,6 +301,11 @@ pub async fn start_auto_like(
                     );
                 }
                 Err(error) => {
+                    {
+                        let state = app.state::<AppState>();
+                        let mut like = state.auto_like.lock().await;
+                        like.shutdown_tx = None;
+                    }
                     let _ = app.emit(
                         "auto-like-error",
                         serde_json::json!({
@@ -308,13 +314,22 @@ pub async fn start_auto_like(
                             "error": error,
                         }),
                     );
-                    break;
+                    let _ = app.emit("auto-like-stopped", serde_json::json!({
+                        "reason": "error",
+                        "sentTotal": sent_total,
+                    }));
+                    return;
                 }
             }
 
             tokio::select! {
                 _ = sleep(Duration::from_millis(interval_ms)) => {}
                 _ = &mut shutdown_rx => {
+                    {
+                        let state = app.state::<AppState>();
+                        let mut like = state.auto_like.lock().await;
+                        like.shutdown_tx = None;
+                    }
                     let _ = app.emit("auto-like-stopped", serde_json::json!({
                         "reason": "manual",
                         "sentTotal": sent_total,
@@ -323,16 +338,6 @@ pub async fn start_auto_like(
                 }
             }
         }
-
-        {
-            let state = app.state::<AppState>();
-            let mut like = state.auto_like.lock().await;
-            like.shutdown_tx = None;
-        }
-        let _ = app.emit(
-            "auto-like-stopped",
-            serde_json::json!({"reason": "error"}),
-        );
     });
 
     Ok(())
