@@ -127,7 +127,7 @@ async fn complete_login_with_cookie(
     parsed.validate_for_send()?;
 
     // 先通过 API 获取账号信息，确认 uid
-    let api = build_api_client(Some(parsed.clone()), &state)?;
+    let api = build_api_client(Some(parsed.clone()), &state);
     let login_status = api.verify_login_status().await?;
 
     let uid = if let Some(ref account) = login_status.account {
@@ -285,7 +285,7 @@ pub async fn restore_login(
     };
 
     // 验证活跃账号的登录状态是否仍然有效
-    let api = build_api_client(Some(parsed.clone()), &state)?;
+    let api = build_api_client(Some(parsed.clone()), &state);
     let login_status = api.verify_login_status().await?;
 
     if !login_status.is_logged_in {
@@ -478,7 +478,7 @@ pub async fn switch_account(
     }
 
     // 验证新账号登录状态
-    let api = build_api_client(Some(cred.clone()), &state)?;
+    let api = build_api_client(Some(cred.clone()), &state);
     let login_status = api.verify_login_status().await?;
 
     if !login_status.is_logged_in {

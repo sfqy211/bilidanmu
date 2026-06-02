@@ -9,7 +9,7 @@ pub async fn connect_danmaku_stream(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential.clone(), &state)?;
+    let api = build_api_client(credential.clone(), &state);
 
     let mut ws_client = state.ws_client.lock().await;
     let client = ws_client.get_or_insert_with(crate::bili::ws_client::DanmakuWsClient::new);

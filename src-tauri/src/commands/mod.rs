@@ -18,10 +18,10 @@ pub mod websocket;
 pub fn build_api_client(
     credential: Option<BiliCredential>,
     state: &State<'_, AppState>,
-) -> Result<BiliApiClient, String> {
-    Ok(BiliApiClient::new(
+) -> BiliApiClient {
+    BiliApiClient::new(
         state.proxy_client.clone(),
         credential,
         state.wbi_cache.clone(),
-    ))
+    )
 }

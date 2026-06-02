@@ -14,7 +14,7 @@ pub async fn search_room(
     state: State<'_, AppState>,
 ) -> Result<Vec<SearchRoomResult>, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
 
     match mode.as_str() {
         "roomId" | "link" => {
@@ -40,7 +40,7 @@ pub async fn add_room(
     state: State<'_, AppState>,
 ) -> Result<RoomInfo, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     let room = api.get_room_info(room_id).await?;
     room_store::upsert_room(state.inner(), &room.room)?;
     let _ = tray::refresh_tray(&app);
@@ -90,7 +90,7 @@ pub async fn refresh_all_rooms(app: tauri::AppHandle) {
 #[tauri::command]
 pub async fn get_room_info(app: tauri::AppHandle, room_id: u64, state: State<'_, AppState>) -> Result<RoomInfo, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     let room_info = api.get_room_info(room_id).await?;
     // 同步更新存储中的房间信息（标题、封面等）
     if room_store::upsert_room(state.inner(), &room_info.room).is_ok() {
@@ -107,7 +107,7 @@ pub async fn get_rooms(state: State<'_, AppState>) -> Result<Vec<Room>, String> 
 #[tauri::command]
 pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     api.get_live_time(room_id).await
 }
 
@@ -123,7 +123,7 @@ pub async fn get_emoticons(
     }
 
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     let packages = api.get_emoticons(room_id).await?;
     let _ = crate::emoticon_store::save_packages(state.inner(), room_id, &packages);
     Ok(packages)
@@ -223,7 +223,7 @@ pub async fn get_audio_stream_url(
     state: State<'_, AppState>,
 ) -> Result<StreamInfo, String> {
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
 
     let mut stream_info = api.get_room_play_info(room_id, true).await?;
 
@@ -254,6 +254,6 @@ pub async fn get_rooms_live_status(state: State<'_, AppState>) -> Result<std::co
     }
 
     let credential = state.credential.lock().await.clone();
-    let api = build_api_client(credential, &state)?;
+    let api = build_api_client(credential, &state);
     api.get_rooms_live_status(&uids).await
 }

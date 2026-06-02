@@ -224,10 +224,7 @@ async fn run_connection(
 
     heartbeat_task.abort();
 
-    match result {
-        Ok(()) => Ok(()),
-        Err(error) => Err(error),
-    }
+    result
 }
 
 fn value_as_u64(value: &Value) -> Option<u64> {
