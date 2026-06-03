@@ -169,6 +169,7 @@ export function DanmakuPage() {
   const { send, sendEmoticon, sending } = useDanmaku();
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
+  const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const aiAvailable = useSettingsStore((s) => s.aiAvailable);
   const {
@@ -529,6 +530,7 @@ export function DanmakuPage() {
                 ref={danmakuScroll.scrollRef}
                 onScroll={danmakuScroll.checkAtBottom}
                 className="flex h-full flex-col gap-2 overflow-y-auto px-5 pt-3 pb-1"
+                style={{ fontSize: `${fontSize}px` }}
               >
                 {danmakuMessages.length === 0 ? (
                   <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
@@ -539,7 +541,7 @@ export function DanmakuPage() {
                     item.type === "superChat" ? (
                       <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
                     ) : (
-                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
+                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} />
                     )
                   )
                 )}

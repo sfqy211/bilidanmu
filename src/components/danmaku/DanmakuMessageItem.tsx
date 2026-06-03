@@ -4,14 +4,14 @@ import type { DanmakuMessage } from "@/types/danmaku";
 
 function getMessageTextClass(type: string): string {
   if (type === "gift") {
-    return "break-words text-sm text-amber-700 dark:text-amber-100";
+    return "break-words text-amber-700 dark:text-amber-100";
   }
 
   if (type === "entry") {
-    return "break-words text-sm text-slate-500 dark:text-slate-300";
+    return "break-words text-slate-500 dark:text-slate-300";
   }
 
-  return "break-words text-sm text-[#1d1d1f] dark:text-[#ffffff]";
+  return "break-words text-[#1d1d1f] dark:text-[#ffffff]";
 }
 
 function getGuardUsernameClass(guardLevel?: number): string {
@@ -27,37 +27,39 @@ function getGuardUsernameClass(guardLevel?: number): string {
   }
 }
 
-function getBigEmoticonSize(emoticon?: DanmakuMessage["emoticonOptions"]) {
+function getBigEmoticonSize(emoticon?: DanmakuMessage["emoticonOptions"], scale = 1) {
+  const base = { width: Math.round(48 * scale), height: Math.round(48 * scale) };
   if (!emoticon) {
-    return { width: 48, height: 48 };
+    return base;
   }
 
   if (emoticon.emoticonUnique?.startsWith("official_")) {
     return {
-      width: Math.min(emoticon.width ?? 48, 56),
-      height: Math.min(emoticon.height ?? 48, 56),
+      width: Math.round(Math.min(emoticon.width ?? 48, 56) * scale),
+      height: Math.round(Math.min(emoticon.height ?? 48, 56) * scale),
     };
   }
 
-  return { width: 48, height: 48 };
+  return base;
 }
 
-export function DanmakuMessageItem({ item }: { item: DanmakuMessage }) {
+export function DanmakuMessageItem({ item, fontSize = 14 }: { item: DanmakuMessage; fontSize?: number }) {
+  const scale = fontSize / 14;
   const bigEmoticonSize =
     item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
-      ? getBigEmoticonSize(item.emoticonOptions)
+      ? getBigEmoticonSize(item.emoticonOptions, scale)
       : null;
 
   return (
-    <div className="text-sm leading-6">
-      {item.medal ? <span className="mr-2 text-xs text-cyan-600 dark:text-cyan-300">[{item.medal}]</span> : null}
+    <div className="leading-6">
+      {item.medal ? <span className="mr-2 text-cyan-600 dark:text-cyan-300">[{item.medal}]</span> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       <span
         className={`mr-1 font-bold ${getGuardUsernameClass(item.guardLevel)}`}
       >
         {item.username}
       </span>
-      {item.isAdmin ? <span className="mr-1 text-xs text-amber-600 dark:text-amber-300">房管</span> : null}
+      {item.isAdmin ? <span className="mr-1 text-amber-600 dark:text-amber-300">房管</span> : null}
       {item.type === "gift" && item.price ? <span className="mr-1 text-amber-600 dark:text-amber-200">¥{(item.price / 1000).toFixed(2)}</span> : null}
       <span
         className={getMessageTextClass(item.type)}
