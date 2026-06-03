@@ -7,6 +7,7 @@ mod models;
 mod proxy;
 mod room_store;
 mod selections_store;
+mod send_queue;
 mod settings_store;
 #[cfg(feature = "stt")]
 mod stt;
@@ -44,6 +45,7 @@ pub struct AppState {
     pub auto_sender: TokioMutex<AutoSenderState>,
     pub auto_like: TokioMutex<AutoLikeState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
+    pub send_queue: Arc<TokioMutex<Option<send_queue::SendQueue>>>,
     pub proxy_client: reqwest::Client,
     #[cfg(feature = "ai")]
     pub astrbot_client: reqwest::Client,
@@ -90,16 +92,20 @@ pub fn run() {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
-        .manage(AppState {
+        .manage({
+            // 提前创建 wbi_cache，AppState 和 SendQueue 共享同一实例
+            let wbi_cache = Arc::new(TokioMutex::new(WbiKeyCache::default()));
+            AppState {
             credential: TokioMutex::new(None),
             credentials: std::sync::Mutex::new(HashMap::new()),
             active_account_id: std::sync::Mutex::new(None),
             account_metas: std::sync::Mutex::new(HashMap::new()),
-            wbi_cache: Arc::new(TokioMutex::new(WbiKeyCache::default())),
+            wbi_cache: wbi_cache.clone(),
             ws_client: TokioMutex::new(None),
             auto_sender: TokioMutex::new(AutoSenderState { shutdown_tx: None }),
             auto_like: TokioMutex::new(AutoLikeState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
+            send_queue: Arc::new(TokioMutex::new(None)),
             proxy_client: proxy_client.clone(),
             #[cfg(feature = "ai")]
             astrbot_client,
@@ -112,6 +118,7 @@ pub fn run() {
             ai_summaries: Arc::new(StdMutex::new(Vec::new())),
             #[cfg(feature = "stt")]
             stt_manager: Arc::new(TokioMutex::new(None)),
+        }
         })
         .setup(|app| {
             tray::create_tray(app)?;
@@ -122,6 +129,20 @@ pub fn run() {
                 if let Ok(mut db) = state.db.lock() {
                     *db = Some(connection);
                 }
+            }
+
+            // 初始化发送队列（异步，等待 Tokio 运行时就绪）
+            {
+                let state = app.state::<AppState>();
+                let proxy_client = state.proxy_client.clone();
+                let wbi_cache = state.wbi_cache.clone();
+                let send_queue_slot = state.send_queue.clone();
+                drop(state);
+                tauri::async_runtime::spawn(async move {
+                    let queue = send_queue::SendQueue::new(proxy_client, wbi_cache, 1000);
+                    *send_queue_slot.lock().await = Some(queue);
+                    log::info!("发送队列已初始化");
+                });
             }
 
             // 尝试从本地存储恢复所有登录凭据
