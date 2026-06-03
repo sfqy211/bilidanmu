@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
-import type { Credential } from "@/types/bilibili";
+import type { Credential, Settings } from "@/types/bilibili";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -119,6 +119,16 @@ export default function App() {
       void unlisten.then((fn) => fn());
     };
   }, [setActiveAccount]);
+
+  // 监听跨窗口设置同步
+  useEffect(() => {
+    const unlisten = listen<Settings>("settings-updated", (event) => {
+      setSettings(event.payload);
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [setSettings]);
 
   return <Outlet />;
 }

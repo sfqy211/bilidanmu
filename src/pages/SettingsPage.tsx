@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { FolderOpen } from "lucide-react";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
+import type { Settings } from "@/types/bilibili";
 
 export function SettingsPage() {
   const settings = useSettingsStore((state) => state.settings);
@@ -67,6 +69,9 @@ export function SettingsPage() {
 
     try {
       await tauriCommands.settings.update(settings);
+      patchSettings(settings);
+      // 通知其他窗口同步设置
+      await getCurrentWindow().emit("settings-updated", settings);
       setSuccess("设置已保存");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "保存设置失败");
