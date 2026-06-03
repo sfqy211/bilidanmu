@@ -612,8 +612,12 @@ export function DanmakuPage() {
             <button
               type="button"
               onClick={() => {
-                const { width, height } = loadWindowSize("ai-window");
-                void tauriCommands.room.openAiWindow(width, height);
+                tauriCommands.ai.getStatus().then(() => {
+                  const { width, height } = loadWindowSize("ai-window");
+                  void tauriCommands.room.openAiWindow(width, height);
+                }).catch(() => {
+                  import("sonner").then(({ toast }) => toast.error("未连接 AstrBot，请先配置 AI 代理"));
+                });
               }}
               className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
               title="AI 助手"
