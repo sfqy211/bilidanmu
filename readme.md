@@ -19,7 +19,7 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 - 实时直播音频流播放（v2 API + 本地代理绕过 CORS + mpegts.js FLV 播放）
 - 实时语音转字幕（sherpa-onnx 流式识别 + 字幕叠加层）
 - AI 助手（对接 AstrBot，多条回复选项/自定义输入/自动总结/记忆学习）
-- 精简构建支持：`npm run build:lite` 构建不含 STT + AI 的版本
+- STT 和 AI 功能内置，可在设置中按需开启/关闭
 
 ## 技术栈
 
@@ -64,8 +64,7 @@ npm run dev
 | `npm run dev:renderer` | 仅前端（Vite） |
 | `npm run typecheck` | TypeScript 类型检查 |
 | `cargo check` (在 src-tauri/) | Rust 编译检查 |
-| `npm run build` | 构建发布包（含 STT + AI） |
-| `npm run build:lite` | 构建精简包（不含 STT + AI） |
+| `npm run build` | 构建发布包 |
 | `.\scripts\bump-version.ps1 0.3.1` | 更新所有版本号 |
 
 ## 项目结构

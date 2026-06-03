@@ -182,7 +182,7 @@ bilidanmu/
     └── build.ps1
 ```
 
-> **Feature Gate**：`stt` feature 控制 STT 模块（sherpa-onnx + symphonia）的编译。默认启用，`cargo build --no-default-features` 构建精简版（不含 STT）。精简版中 `stt/` 模块、`commands/stt.rs`、`proxy` 中的 STT tee 逻辑、`AppState.stt_manager` 均不编译。前端通过 `is_stt_available` 命令运行时检测，自动隐藏语音识别功能。
+> **运行时开关**：STT 和 AI 功能始终编译进二进制，用户可在设置中按需开启/关闭。`is_stt_available()` 和 `is_ai_available()` 始终返回 `true`。
 
 ---
 

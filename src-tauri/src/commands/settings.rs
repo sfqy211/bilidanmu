@@ -4,18 +4,16 @@ use crate::models::settings::Settings;
 use crate::settings_store;
 use crate::AppState;
 
-/// Returns whether the STT (Speech-to-Text) feature is available at runtime.
-/// This is determined at compile time by the `stt` feature flag.
+/// STT is always available in this build.
 #[tauri::command]
 pub fn is_stt_available() -> bool {
-    cfg!(feature = "stt")
+    true
 }
 
-/// Whether AI features are available in this build.
-/// This is determined at compile time by the `ai` feature flag.
+/// AI features are always available in this build.
 #[tauri::command]
 pub fn is_ai_available() -> bool {
-    cfg!(feature = "ai")
+    true
 }
 
 #[tauri::command]
@@ -30,24 +28,15 @@ pub async fn update_settings(
     settings: Settings,
 ) -> Result<(), String> {
     // Check if STT model changed while pipeline is running
-    #[cfg(feature = "stt")]
     let old_settings = settings_store::load_settings(&app).ok();
-    #[cfg(feature = "stt")]
     let model_changed = old_settings
         .as_ref()
         .map(|s| s.stt.model_id != settings.stt.model_id)
         .unwrap_or(false);
 
-    // Suppress unused variable warnings when STT feature is disabled
-    #[cfg(not(feature = "stt"))]
-    let _ = state;
-
     settings_store::save_settings(&app, &settings)?;
 
-    // If STT model changed, restart the pipeline so the user doesn't have
-    // to manually restart (#6). The old pipeline is stopped and a new one
-    // is started with the updated model.
-    #[cfg(feature = "stt")]
+    // If STT model changed, restart the pipeline
     if model_changed {
         let stt_manager = state.stt_manager.clone();
         let app_clone = app.clone();

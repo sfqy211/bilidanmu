@@ -129,7 +129,6 @@ pub async fn get_emoticons(
     Ok(packages)
 }
 
-#[cfg(feature = "ai")]
 #[tauri::command]
 pub async fn open_ai_window(
     app: tauri::AppHandle,

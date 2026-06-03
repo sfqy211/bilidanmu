@@ -38,13 +38,8 @@ hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio", "http1", "server-auto"] }
 http-body-util = "0.1"
 bytes = "1"
-sherpa-onnx = { version = "1.13", optional = true }
-symphonia = { version = "0.6.0", default-features = false, features = ["aac"], optional = true }
-
-[features]
-default = ["stt", "ai"]
-stt = ["dep:sherpa-onnx", "dep:symphonia"]
-ai = []
+sherpa-onnx = "1.13"
+symphonia = { version = "0.6.0", default-features = false, features = ["aac"] }
 
 [profile.release]
 codegen-units = 1

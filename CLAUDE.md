@@ -14,13 +14,11 @@ BiliDanmu — Windows desktop Bilibili live-stream danmaku client. Tauri 2 (Rust
 | Frontend only (Vite on :3000) | `npm run dev:renderer` |
 | Type check frontend | `npm run typecheck` |
 | Rust check | `cd src-tauri && cargo check` |
-| Rust check (lite, no STT + AI) | `cd src-tauri && cargo check --no-default-features` |
 | Build release | `npm run build` |
-| Build release (lite) | `npm run build:lite` |
 
 No test framework is configured. Always run `npm run typecheck` and `cargo check` after changes.
 
-**Feature gates**: `stt` feature controls STT module. `ai` feature controls AI proxy module. Both are in `default`. Use `cargo check --no-default-features` to verify lite build.
+**Runtime toggles**: STT and AI features are always compiled in. Users can enable/disable them in Settings. `is_stt_available()` and `is_ai_available()` always return `true`.
 
 ## Rules
 
@@ -47,7 +45,7 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
 
 ### Backend (Rust)
 
-- **AppState** (`src-tauri/src/lib.rs`): Multi-field struct with `TokioMutex<Option<BiliCredential>>` (active credential), `std::sync::Mutex<HashMap<String, BiliCredential>>` (multi-account map), `std::sync::Mutex<Option<String>>` (active account ID), `std::sync::Mutex<HashMap<String, AccountMeta>>` (account metadata for tray), `Arc<TokioMutex<WbiKeyCache>>`, `TokioMutex<Option<DanmakuWsClient>>`, `TokioMutex<AutoSenderState>`, `Arc<StdMutex<Option<rusqlite::Connection>>>` (SQLite DB), `reqwest::Client` (shared, proxy-aware HTTP), `reqwest::Client` (astrbot, no-proxy), `Arc<StreamProxyServer>`, `TokioMutex<Option<AstrbotConfig>>`, `Arc<TokioMutex<u16>>` (callback port), `Arc<StdMutex<Vec<AiSuggestion>>>` (AI summaries), and `Arc<TokioMutex<Option<SttManager>>>` (`#[cfg(feature = "stt")]`). All IPC commands receive `State<AppState>`. Note: `credentials`/`active_account_id`/`account_metas` use `std::sync::Mutex` (never held across await), while `credential`/`wbi_cache`/`ws_client`/`auto_sender`/`astrbot_config`/`astrbot_callback_port` use `TokioMutex`.
+- **AppState** (`src-tauri/src/lib.rs`): Multi-field struct with `TokioMutex<Option<BiliCredential>>` (active credential), `std::sync::Mutex<HashMap<String, BiliCredential>>` (multi-account map), `std::sync::Mutex<Option<String>>` (active account ID), `std::sync::Mutex<HashMap<String, AccountMeta>>` (account metadata for tray), `Arc<TokioMutex<WbiKeyCache>>`, `TokioMutex<Option<DanmakuWsClient>>`, `TokioMutex<AutoSenderState>`, `Arc<StdMutex<Option<rusqlite::Connection>>>` (SQLite DB), `reqwest::Client` (shared, proxy-aware HTTP), `reqwest::Client` (astrbot, no-proxy), `Arc<StreamProxyServer>`, `TokioMutex<Option<AstrbotConfig>>`, `Arc<TokioMutex<u16>>` (callback port), `Arc<StdMutex<Vec<AiSuggestion>>>` (AI summaries), and `Arc<TokioMutex<Option<SttManager>>>`. All IPC commands receive `State<AppState>`. Note: `credentials`/`active_account_id`/`account_metas` use `std::sync::Mutex` (never held across await), while `credential`/`wbi_cache`/`ws_client`/`auto_sender`/`astrbot_config`/`astrbot_callback_port` use `TokioMutex`.
 - **Bili protocol layer** (`src-tauri/src/bili/`):
   - `credential.rs` — Cookie parsing, SESSDATA percent-encoding, validation
   - `wbi.rs` — WBI signature (MIXIN_KEY_ENC_TAB + MD5), key caching from `/x/web-interface/nav`
@@ -57,11 +55,11 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
   - `buvid.rs` — Random hex + timestamp buvid3/buvid4 generation
 - **Models** (`src-tauri/src/models/`): All structs use `serde(rename_all = "camelCase")` for TS interop. `DanmakuEvent` has `#[serde(rename = "type")]` on `event_type` field.
 - **Persistence**: SQLite (rusqlite) for rooms, emoticons, selections (`db.rs` + `room_store.rs` + `emoticon_store.rs` + `selections_store.rs`). `tauri-plugin-store` for cookies (`credential_store.rs`) and settings (`settings_store.rs`). Multi-account support: `credential_store.rs` manages `HashMap<String, String>` cookie map + `AccountMeta` (username/avatar) + active account ID.
-- **STT module** (`src-tauri/src/stt/`, `#[cfg(feature = "stt")]`):
+- **STT module** (`src-tauri/src/stt/`):
   - `pipeline.rs` — Main STT pipeline: FLV demux → AAC decode (symphonia 0.6) → resample (sherpa-onnx LinearResampler) → sherpa-onnx OnlineRecognizer → emit transcript events. `bytes_tx` is `Option<Sender>` so `stop()` can drop it to unblock `blocking_recv()`.
   - `flv_demux.rs` — FLV demuxer that extracts AAC frames, wraps in ADTS headers, parses AudioSpecificConfig for sample rate/channels. Has `MAX_TAG_DATA_SIZE` guard against malicious streams.
   - `mod.rs` — `SttManager` lifecycle (start/stop pipeline, transcript emit loop with `Notify` for instant cancellation).
-- **Stream proxy** (`src-tauri/src/proxy/stream_proxy.rs`): hyper 1.x local HTTP proxy on random port, `OnceCell` lazy init, tee bytes to STT pipeline via `Arc<Mutex<Option<Sender>>>` (`#[cfg(feature = "stt")]`).
+- **Stream proxy** (`src-tauri/src/proxy/stream_proxy.rs`): hyper 1.x local HTTP proxy on random port, `OnceCell` lazy init, tee bytes to STT pipeline via `Arc<Mutex<Option<Sender>>>`.
 - **Logging**: `tauri_plugin_log` configured with `LevelFilter::Info` + Stdout target only (no log file, no webview).
 
 ### Key patterns

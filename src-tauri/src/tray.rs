@@ -58,11 +58,8 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         "quit" => {
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
-                #[cfg(feature = "ai")]
-                {
-                    let state = app_clone.state::<crate::AppState>();
-                    let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
-                }
+                let state = app_clone.state::<crate::AppState>();
+                let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
                 app_clone.exit(0);
             });
         }

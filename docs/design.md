@@ -309,7 +309,7 @@
 | STT 模型       | enum   | "large"  | 模型 ID（仅 STT 构建）      | 语音识别 |
 | 同步延迟       | number | 0ms      | 字幕显示偏移（仅 STT 构建） | 语音识别 |
 
-> **STT 条件可用**：「语音识别」Tab 仅在含 STT feature 的构建中显示。精简版（lite）构建通过 `is_stt_available` 命令检测后自动隐藏该 Tab，弹幕页面中也跳过所有 STT 相关调用。
+> **运行时开关**：STT 和 AI 功能始终编译进二进制，用户可在设置中按需开启/关闭。
 >
 > **未接入前端但已在 Settings 类型中定义的字段：** `riskControl.autoPauseOnMute`、`riskControl.appendRandomSuffix`、`appearance.showLevel`、`notification.sendSuccess`、`notification.scAlert` — 这些在 SettingsPage 中没有对应的 UI 控件。
 

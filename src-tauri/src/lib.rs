@@ -9,7 +9,6 @@ mod room_store;
 mod selections_store;
 mod send_queue;
 mod settings_store;
-#[cfg(feature = "stt")]
 mod stt;
 mod tray;
 
@@ -47,16 +46,11 @@ pub struct AppState {
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub send_queue: Arc<TokioMutex<Option<send_queue::SendQueue>>>,
     pub proxy_client: reqwest::Client,
-    #[cfg(feature = "ai")]
     pub astrbot_client: reqwest::Client,
     pub stream_proxy: Arc<StreamProxyServer>,
-    #[cfg(feature = "ai")]
     pub astrbot_config: TokioMutex<Option<commands::ai_proxy::AstrbotConfig>>,
-    #[cfg(feature = "ai")]
     pub astrbot_callback_port: Arc<TokioMutex<u16>>,
-    #[cfg(feature = "ai")]
     pub ai_summaries: commands::ai_proxy::SummaryStore,
-    #[cfg(feature = "stt")]
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
 }
 
@@ -74,7 +68,6 @@ pub fn run() {
         .expect("failed to build proxy HTTP client");
 
     // AstrBot 专用客户端，不使用代理（本地连接）
-    #[cfg(feature = "ai")]
     let astrbot_client = reqwest::Client::builder()
         .no_proxy()
         .build()
@@ -107,16 +100,11 @@ pub fn run() {
             db: Arc::new(StdMutex::new(None)),
             send_queue: Arc::new(TokioMutex::new(None)),
             proxy_client: proxy_client.clone(),
-            #[cfg(feature = "ai")]
             astrbot_client,
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
-            #[cfg(feature = "ai")]
             astrbot_config: TokioMutex::new(None),
-            #[cfg(feature = "ai")]
             astrbot_callback_port: Arc::new(TokioMutex::new(0)),
-            #[cfg(feature = "ai")]
             ai_summaries: Arc::new(StdMutex::new(Vec::new())),
-            #[cfg(feature = "stt")]
             stt_manager: Arc::new(TokioMutex::new(None)),
         }
         })
@@ -188,7 +176,6 @@ pub fn run() {
             }
 
             // 启动 AstrBot 回调 HTTP 服务
-            #[cfg(feature = "ai")]
             {
                 let app_handle = app.handle().clone();
                 let state = app.state::<AppState>();
@@ -246,7 +233,6 @@ pub fn run() {
             commands::room::get_live_time,
             commands::room::get_emoticons,
             commands::room::open_danmaku_window,
-            #[cfg(feature = "ai")]
             commands::room::open_ai_window,
             commands::room::get_audio_stream_url,
             commands::room::clear_audio_stream,
@@ -258,25 +244,15 @@ pub fn run() {
             commands::danmaku::stop_auto_send,
             commands::danmaku::start_auto_like,
             commands::danmaku::stop_auto_like,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::configure_astrbot,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::get_astrbot_config,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::switch_astrbot_room,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::trigger_astrbot,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::get_astrbot_status,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::get_callback_port,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::disconnect_astrbot,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::learn_astrbot,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::get_ai_summaries,
-            #[cfg(feature = "ai")]
             commands::ai_proxy::clear_ai_summaries,
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
@@ -287,17 +263,11 @@ pub fn run() {
             commands::settings::is_ai_available,
             commands::selections::load_selections,
             commands::selections::save_selections,
-            #[cfg(feature = "stt")]
             commands::stt::start_stt,
-            #[cfg(feature = "stt")]
             commands::stt::stop_stt,
-            #[cfg(feature = "stt")]
             commands::stt::switch_stt_model,
-            #[cfg(feature = "stt")]
             commands::stt::get_stt_model_dir,
-            #[cfg(feature = "stt")]
             commands::stt::list_stt_models,
-            #[cfg(feature = "stt")]
             commands::stt::open_stt_model_dir
         ])
         .run(tauri::generate_context!())
