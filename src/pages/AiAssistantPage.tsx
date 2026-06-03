@@ -2,17 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Check, Loader2, Send, Trash2 } from "lucide-react";
 import { SplitLayout } from "@/components/layout/SplitLayout";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
+import { useZoom } from "@/hooks/useZoom";
 import { tauriCommands } from "@/lib/tauri";
 import type { AiSuggestion } from "@/types/bilibili";
 import { useAiStore } from "@/stores/ai-store";
+import { useSettingsStore } from "@/stores/settings-store";
 
 const MAX_REPLIES = 40;
 
 export function AiAssistantPage() {
   useWindowPersistence("ai-window");
+  useZoom();
 
   const summaries = useAiStore((s) => s.summaries);
   const addSummary = useAiStore((s) => s.addSummary);
+  const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
 
   const [replies, setReplies] = useState<AiSuggestion[]>([]);
   const [sentSet, setSentSet] = useState<Set<string>>(new Set());
@@ -147,6 +151,7 @@ export function AiAssistantPage() {
                       suggestion={s}
                       isSent={sentSet.has(s.message)}
                       type="reply"
+                      fontSize={fontSize}
                       allOptions={allReplyOptions}
                       onSend={(msg) => void handleSend(msg, allReplyOptions)}
                       onDismiss={() => handleDismiss(s.message, "reply")}
@@ -207,7 +212,7 @@ export function AiAssistantPage() {
               {summaries.length > 0 ? (
                 <div className="space-y-1.5">
                   {summaries.map((s, i) => (
-                    <SummaryItem key={`summary-${i}`} suggestion={s} />
+                    <SummaryItem key={`summary-${i}`} suggestion={s} fontSize={fontSize} />
                   ))}
                   <div ref={summaryEndRef} />
                 </div>
@@ -272,6 +277,7 @@ function SuggestionItem({
   suggestion,
   isSent,
   type,
+  fontSize,
   allOptions,
   onSend,
   onDismiss,
@@ -279,6 +285,7 @@ function SuggestionItem({
   suggestion: AiSuggestion;
   isSent: boolean;
   type: "reply" | "summary";
+  fontSize: number;
   allOptions?: string[];
   onSend: (message: string) => void;
   onDismiss: () => void;
@@ -288,7 +295,8 @@ function SuggestionItem({
       isSent ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-slate-50 dark:bg-white/[0.03]"
     }`}>
       <Bot className="mt-0.5 h-3 w-3 shrink-0 text-violet-500 dark:text-violet-400" />
-      <p className="min-w-0 flex-1 break-words whitespace-pre-wrap text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+      <p className="min-w-0 flex-1 break-words whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-200"
+        style={{ fontSize: `${fontSize}px` }}>
         {suggestion.message}
       </p>
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
@@ -320,7 +328,7 @@ function SuggestionItem({
   );
 }
 
-function SummaryItem({ suggestion }: { suggestion: AiSuggestion }) {
+function SummaryItem({ suggestion, fontSize }: { suggestion: AiSuggestion; fontSize: number }) {
   const date = new Date(suggestion.timestamp * 1000);
   const timeStr = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 
@@ -332,7 +340,8 @@ function SummaryItem({ suggestion }: { suggestion: AiSuggestion }) {
           {suggestion.roomId > 0 && <span>房间 {suggestion.roomId}</span>}
           <span>{timeStr}</span>
         </div>
-        <p className="break-words whitespace-pre-wrap text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+        <p className="break-words whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-200"
+          style={{ fontSize: `${fontSize}px` }}>
           {suggestion.message}
         </p>
       </div>

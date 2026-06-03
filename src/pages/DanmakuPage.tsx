@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
+import { useZoom } from "@/hooks/useZoom";
 import { ArrowDown, Bot, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
@@ -215,6 +216,7 @@ export function DanmakuPage() {
 
   // 窗口尺寸变化时保存到 localStorage
   useWindowPersistence("danmaku-window");
+  useZoom();
 
   // 关闭窗口时断开连接
   useEffect(() => {

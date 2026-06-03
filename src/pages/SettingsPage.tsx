@@ -287,7 +287,17 @@ export function SettingsPage() {
                   }
                   className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
                 />
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                  快捷键：Ctrl + 滚轮 调整弹幕/AI 文字大小
+                </p>
               </label>
+
+              <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-400">
+                <p className="mb-1 font-medium">快捷键</p>
+                <p>Ctrl + - / +：UI 整体缩放（全局）</p>
+                <p>Ctrl + 滚轮：弹幕/AI 文字大小</p>
+                <p>Ctrl + 0：UI 重置</p>
+              </div>
 
               <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
                 <span>显示勋章</span>

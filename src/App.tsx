@@ -7,9 +7,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useTheme } from "@/hooks/useTheme";
+import { useUiScale } from "@/hooks/useUiScale";
 
 export default function App() {
   useTheme();
+  useUiScale();
   const { setAccounts, setActiveAccount } = useAuthStore();
   const setCurrentRoomId = useRoomStore((state) => state.setCurrentRoomId);
   const setRooms = useRoomStore((state) => state.setRooms);
