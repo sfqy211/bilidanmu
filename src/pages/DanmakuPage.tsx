@@ -368,7 +368,7 @@ export function DanmakuPage() {
   const showDanmaku = ratio < 0.98;
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
+    <main className="flex h-full flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
       {/* 音频控制栏 */}
       <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1 dark:border-white/[0.06] dark:bg-[#12141e]">
         <button
