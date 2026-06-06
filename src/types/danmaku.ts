@@ -1,3 +1,10 @@
+export interface Medal {
+  name: string;
+  level: number;
+  /** 是否点亮（1=点亮, 0=熄灭） */
+  isLight: number;
+}
+
 export type DanmakuMessageType =
   | "danmaku"
   | "gift"
@@ -40,7 +47,7 @@ export interface DanmakuMessage {
   content: string;
   timestamp: number;
   avatar?: string;
-  medal?: string;
+  medal?: Medal;
   price?: number;
   giftName?: string;
   count?: number;

@@ -1,5 +1,14 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Medal {
+    pub name: String,
+    pub level: u64,
+    /// 是否点亮（1=点亮, 0=熄灭）
+    pub is_light: u8,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DanmakuEvent {
     pub id: String,
     pub room_id: u64,
@@ -9,7 +18,7 @@ pub struct DanmakuEvent {
     pub content: String,
     pub timestamp: u64,
     pub avatar: Option<String>,
-    pub medal: Option<String>,
+    pub medal: Option<Medal>,
     pub uid: u64,
     pub color: u32,
     pub guard_level: u8,

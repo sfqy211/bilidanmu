@@ -1,6 +1,8 @@
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
+import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { DanmakuMessage } from "@/types/danmaku";
+import { useSettingsStore } from "@/stores/settings-store";
 
 function getMessageTextClass(type: string): string {
   if (type === "gift") {
@@ -52,6 +54,7 @@ export function DanmakuMessageItem({
   fontSize?: number;
   cachedEmotUrls?: Set<string>;
 }) {
+  const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
   const scale = fontSize / 14;
   const bigEmoticonSize =
     item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
@@ -66,7 +69,7 @@ export function DanmakuMessageItem({
 
   return (
     <div className="leading-6">
-      {item.medal ? <span className="mr-2 text-cyan-600 dark:text-cyan-300">[{item.medal}]</span> : null}
+      {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       <span
         className={`mr-1 font-bold ${getGuardUsernameClass(item.guardLevel)}`}

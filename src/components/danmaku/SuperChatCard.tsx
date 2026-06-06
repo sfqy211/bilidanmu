@@ -1,6 +1,8 @@
+import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { useProxyImage } from "@/hooks/useProxyImage";
 import type { DanmakuMessage } from "@/types/danmaku";
+import { useSettingsStore } from "@/stores/settings-store";
 
 function normalizeHexColor(color?: string, fallback?: string): string | undefined {
   if (!color) {
@@ -26,6 +28,7 @@ function formatTime(ts: number): string {
 }
 
 export function SuperChatCard({ item }: { item: DanmakuMessage }) {
+  const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
   const headerBg = normalizeHexColor(item.backgroundColor, "#EDF5FF");
   const bottomBg = normalizeHexColor(item.backgroundBottomColor, "#2A60B2");
   const priceColor = normalizeHexColor(item.backgroundPriceColor, "#7497CD");
@@ -61,7 +64,7 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
           <div className="flex items-center gap-2 text-xs text-slate-600">
             {item.timestamp > 0 ? <span className="text-slate-500">{formatTime(item.timestamp)}</span> : null}
             <span className="truncate font-medium text-slate-800">{item.username}</span>
-            {item.medal ? <span className="text-cyan-700">[{item.medal}]</span> : null}
+            {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
           </div>
         </div>
 

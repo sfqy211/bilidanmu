@@ -1,4 +1,4 @@
-use crate::models::message::DanmakuEvent;
+use crate::models::message::{DanmakuEvent, Medal};
 use brotli::Decompressor;
 use flate2::read::ZlibDecoder;
 use serde_json::Value;
@@ -152,7 +152,15 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let dm_type = basic.get(12).and_then(value_as_u64).unwrap_or(0) as u8;
     let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
     let guard_level = info.get(7).and_then(value_as_u64).unwrap_or(0) as u8;
-    let medal = parse_array_medal(info.get(3));
+    // 优先从 v2 格式解析勋章（basic[15].user.medal），fallback 到旧数组格式（info[3]）
+    let medal = basic
+        .get(15)
+        .and_then(Value::as_object)
+        .and_then(|mode_info| mode_info.get("user"))
+        .and_then(Value::as_object)
+        .and_then(|user| user.get("medal"))
+        .and_then(|m| parse_object_medal(Some(m)))
+        .or_else(|| parse_array_medal(info.get(3)));
     let emots = basic
         .get(15)
         .and_then(|value| value.get("extra"))
@@ -417,26 +425,22 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
     })
 }
 
-fn parse_array_medal(value: Option<&Value>) -> Option<String> {
-    value
-        .and_then(Value::as_array)
-        .filter(|medal| !medal.is_empty())
-        .map(|medal| {
-            format!(
-                "{} {}",
-                medal.get(1).and_then(Value::as_str).unwrap_or_default(),
-                medal.get(0).and_then(value_as_u64).unwrap_or_default()
-            )
-        })
-        .filter(|value| !value.trim().is_empty())
+fn parse_array_medal(value: Option<&Value>) -> Option<Medal> {
+    let arr = value.and_then(Value::as_array).filter(|a| !a.is_empty())?;
+    let name = arr.get(1).and_then(Value::as_str).unwrap_or_default().to_string();
+    let level = arr.get(0).and_then(value_as_u64).unwrap_or_default();
+    let is_light = arr.get(11).and_then(value_as_u64).unwrap_or(0) as u8;
+    (!name.trim().is_empty()).then_some(Medal { name, level, is_light })
 }
 
-fn parse_object_medal(value: Option<&Value>) -> Option<String> {
+fn parse_object_medal(value: Option<&Value>) -> Option<Medal> {
     let value = value?;
-    let medal_name = value.get("medal_name").and_then(Value::as_str).unwrap_or_default();
-    let medal_level = value.get("medal_level").and_then(value_as_u64).unwrap_or_default();
-    let display = format!("{} {}", medal_name, medal_level);
-    (!display.trim().is_empty() && !medal_name.trim().is_empty()).then_some(display)
+    let name = value.get("medal_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    let level = value.get("medal_level").and_then(value_as_u64).unwrap_or_default();
+    let is_light = value.get("is_lighted").and_then(value_as_u64)
+        .or_else(|| value.get("is_light").and_then(value_as_u64))
+        .unwrap_or(0) as u8;
+    (!name.trim().is_empty()).then_some(Medal { name, level, is_light })
 }
 
 fn make_packet(body: &[u8], operation: u32) -> Result<Vec<u8>, String> {
