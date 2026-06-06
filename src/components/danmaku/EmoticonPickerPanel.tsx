@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
@@ -57,6 +57,12 @@ export function EmoticonPickerPanel({
   );
 
   const activePackage = sortedPackages.find((pkg) => makePkgKey(pkg) === activePkgKey) ?? sortedPackages[0];
+  const activeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // 切换表情包时自动居中滚动
+  useEffect(() => {
+    activeBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activePkgKey]);
 
   return (
     <div
@@ -102,10 +108,11 @@ export function EmoticonPickerPanel({
               return (
                 <button
                   key={`${pkg.pkgId}-${pkg.pkgType ?? 0}-${index}`}
+                  ref={active ? activeBtnRef : undefined}
                   type="button"
                   onClick={() => onSelectPackage(makePkgKey(pkg))}
                   title={getPackageLabel(pkg)}
-                  className={`flex h-12 w-12 items-center justify-center border transition ${
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center border transition ${
                     active
                       ? "border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
                       : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-400 dark:hover:bg-white/[0.04]"
@@ -127,7 +134,7 @@ export function EmoticonPickerPanel({
             </div>
           </div>
 
-          <div className="grid max-h-64 grid-cols-4 gap-2 overflow-y-auto">
+          <div className="grid h-[208px] grid-cols-4 gap-2 overflow-y-auto">
             {activePackage?.emoticons.map((emoticon, index) => {
               const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
               return (
