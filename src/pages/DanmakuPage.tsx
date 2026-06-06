@@ -90,6 +90,7 @@ export function DanmakuPage() {
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
   const [message, setMessage] = useState("");
   const inputBarRef = useRef<HTMLDivElement | null>(null);
+  const composingRef = useRef(false);
   const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
   const [emoticonPackages, setEmoticonPackages] = useState<EmoticonPackage[]>([]);
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
@@ -577,8 +578,9 @@ export function DanmakuPage() {
       )}
 
       {/* 发送栏 */}
-      <div className="border-t border-slate-300 bg-white p-3 dark:border-white/[0.06] dark:bg-[#12141e]">
-        <div ref={inputBarRef} className="relative flex items-center gap-2">
+      <div className="relative border-t border-slate-300 bg-white px-3 py-2 dark:border-white/[0.06] dark:bg-[#12141e]">
+        {/* 功能按钮行 */}
+        <div ref={inputBarRef} className="mb-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => {
@@ -590,23 +592,23 @@ export function DanmakuPage() {
                 return next;
               });
             }}
-            className={`flex h-10 w-10 items-center justify-center border transition ${
+            className={`inline-flex items-center gap-1 border px-2.5 py-1 text-xs transition ${
               autoSendRunning
                 ? "border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300"
                 : "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
-            title="自动发送"
           >
-            <Zap className="h-4 w-4" />
+            <Zap className="h-3.5 w-3.5" />
+            自动发送
           </button>
           <button
             type="button"
             onClick={() => void handleToggleEmoticonPicker()}
             disabled={!roomId || sending}
-            className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
-            title="表情"
+            className="inline-flex items-center gap-1 border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
-            <Smile className="h-4 w-4" />
+            <Smile className="h-3.5 w-3.5" />
+            表情
           </button>
           {aiAvailable && (
             <button
@@ -619,76 +621,99 @@ export function DanmakuPage() {
                   import("sonner").then(({ toast }) => toast.error("未连接 AstrBot，请先配置 AI 代理"));
                 });
               }}
-              className="flex h-10 w-10 items-center justify-center border border-slate-300 bg-white text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
-              title="AI 助手"
+              className="inline-flex items-center gap-1 border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
             >
-              <Bot className="h-4 w-4" />
+              <Bot className="h-3.5 w-3.5" />
+              AI 助手
             </button>
           )}
+        </div>
 
-          <div className="min-w-0 flex-1">
-            {emoticonPickerOpen ? (
-              <EmoticonPickerPanel
-                className="absolute bottom-full left-0 right-0 z-20 mb-2 w-[min(100%,520px)]"
-                loading={loadingEmoticons}
-                error={emoticonError}
-                packages={emoticonPackages}
-                activePkgKey={activePkgKey}
-                sending={sending}
-                onClose={() => setEmoticonPickerOpen(false)}
-                onReload={() => void loadEmoticons()}
-                onSelectPackage={setActivePkgKey}
-                onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
-              />
-            ) : null}
+        {/* 弹幕输入行 */}
+        <div>
+          {emoticonPickerOpen ? (
+            <EmoticonPickerPanel
+              className="absolute bottom-full left-0 z-20 mb-2 w-[min(100%,520px)]"
+              loading={loadingEmoticons}
+              error={emoticonError}
+              packages={emoticonPackages}
+              activePkgKey={activePkgKey}
+              sending={sending}
+              onClose={() => setEmoticonPickerOpen(false)}
+              onReload={() => void loadEmoticons()}
+              onSelectPackage={setActivePkgKey}
+              onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
+            />
+          ) : null}
 
-            {autoSendOpen ? (
-              <AutoSendPanel
-                className="absolute bottom-full left-0 right-0 z-20 mb-2 w-[min(100%,520px)]"
-                isRunning={autoSendRunning}
-                lastSentMessage={lastSentMessage}
-                lastIndex={lastIndex}
-                sentCount={sentCount}
-                stopReason={stopReason}
-                error={autoSendError}
-                emoticonPackages={emoticonPackages}
-                onStart={startAutoSend}
-                onStop={() => void stopAutoSend()}
-                like={{
-                  anchorId,
-                  isRunning: likeIsRunning,
-                  sentTotal: likeSentTotal,
-                  targetTotal: likeTargetTotal,
-                  error: likeError,
-                  stopReason: likeStopReason,
-                  onStart: (target, batch, interval) => startAutoLike(anchorId, target, batch, interval),
-                  onStop: () => void stopAutoLike(),
-                }}
-                onClose={() => setAutoSendOpen(false)}
-              />
-            ) : null}
+          {autoSendOpen ? (
+            <AutoSendPanel
+              className="absolute bottom-full left-0 z-20 mb-2 w-[min(100%,520px)]"
+              isRunning={autoSendRunning}
+              lastSentMessage={lastSentMessage}
+              lastIndex={lastIndex}
+              sentCount={sentCount}
+              stopReason={stopReason}
+              error={autoSendError}
+              emoticonPackages={emoticonPackages}
+              onStart={startAutoSend}
+              onStop={() => void stopAutoSend()}
+              like={{
+                anchorId,
+                isRunning: likeIsRunning,
+                sentTotal: likeSentTotal,
+                targetTotal: likeTargetTotal,
+                error: likeError,
+                stopReason: likeStopReason,
+                onStart: (target, batch, interval) => startAutoLike(anchorId, target, batch, interval),
+                onStop: () => void stopAutoLike(),
+              }}
+              onClose={() => setAutoSendOpen(false)}
+            />
+          ) : null}
 
-            <input
+          <div className="flex items-center border border-slate-300 bg-white pr-1 dark:border-white/[0.06] dark:bg-[#0e1018]">
+            <textarea
               value={message}
-              onChange={(event) => setMessage(event.target.value)}
+              onCompositionStart={() => { composingRef.current = true; }}
+              onCompositionEnd={(event) => {
+                composingRef.current = false;
+                const text = event.currentTarget.value.slice(0, 40);
+                setMessage(text);
+                event.currentTarget.style.height = "auto";
+                event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`;
+              }}
+              onChange={(event) => {
+                const val = event.target.value;
+                // 拼音输入中允许超出，结束后截断
+                if (composingRef.current) {
+                  setMessage(val);
+                } else {
+                  setMessage(val.slice(0, 40));
+                }
+                event.target.style.height = "auto";
+                event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`;
+              }}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
+                if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   void handleSend();
                 }
               }}
-              placeholder="输入要发送的弹幕内容"
-              className="h-10 w-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+              placeholder="发送弹幕（Shift+Enter 换行）"
+              rows={1}
+              className="min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+              style={{ maxHeight: "120px" }}
             />
+            <button
+              onClick={() => void handleSend()}
+              disabled={!roomId || !message.trim() || sending}
+              className="m-1 flex h-8 w-8 shrink-0 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              title={sending ? "发送中" : "发送"}
+            >
+              <Send className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            onClick={() => void handleSend()}
-            disabled={!roomId || !message.trim() || sending}
-            className="flex h-10 w-10 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-            title={sending ? "发送中" : "发送"}
-          >
-            <Send className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </main>
