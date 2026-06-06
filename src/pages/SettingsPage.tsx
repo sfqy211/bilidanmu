@@ -30,7 +30,6 @@ export function SettingsPage() {
     { value: "receive", label: "弹幕接收" },
     { value: "appearance", label: "外观" },
     { value: "audio", label: "音频" },
-    { value: "notification", label: "通知" },
     ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : []),
     { value: "cache" as const, label: "缓存管理" }
   ];
@@ -251,6 +250,40 @@ export function SettingsPage() {
                   />
                 </label>
               </div>
+
+              <div className="my-2 border-t border-slate-200 dark:border-white/[0.06]" />
+
+              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+                <span>禁言提醒</span>
+                <input
+                  type="checkbox"
+                  checked={settings.notification.muteAlert}
+                  onChange={(event) =>
+                    patchSettings({
+                      notification: {
+                        ...settings.notification,
+                        muteAlert: event.target.checked
+                      }
+                    })
+                  }
+                />
+              </label>
+
+              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+                <span>Cookie 过期提醒</span>
+                <input
+                  type="checkbox"
+                  checked={settings.notification.cookieExpiry}
+                  onChange={(event) =>
+                    patchSettings({
+                      notification: {
+                        ...settings.notification,
+                        cookieExpiry: event.target.checked
+                      }
+                    })
+                  }
+                />
+              </label>
             </div>
           </div>
         </TabContent>
@@ -356,44 +389,6 @@ export function SettingsPage() {
                       audio: {
                         ...settings.audio,
                         autoPlay: event.target.checked
-                      }
-                    })
-                  }
-                />
-              </label>
-            </div>
-          </div>
-        </TabContent>
-
-        <TabContent value="notification" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
-            <div className="space-y-4">
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
-                <span>禁言提醒</span>
-                <input
-                  type="checkbox"
-                  checked={settings.notification.muteAlert}
-                  onChange={(event) =>
-                    patchSettings({
-                      notification: {
-                        ...settings.notification,
-                        muteAlert: event.target.checked
-                      }
-                    })
-                  }
-                />
-              </label>
-
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
-                <span>Cookie 过期提醒</span>
-                <input
-                  type="checkbox"
-                  checked={settings.notification.cookieExpiry}
-                  onChange={(event) =>
-                    patchSettings({
-                      notification: {
-                        ...settings.notification,
-                        cookieExpiry: event.target.checked
                       }
                     })
                   }
