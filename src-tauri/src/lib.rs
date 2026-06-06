@@ -229,7 +229,6 @@ pub fn run() {
             commands::auth::poll_qr,
             commands::auth::login_by_cookie,
             commands::auth::restore_login,
-            commands::auth::logout,
             commands::auth::remove_account,
             commands::auth::switch_account,
             commands::auth::switch_sending_account,

@@ -349,49 +349,12 @@ async fn deactivate_current(state: &AppState) {
         let mut active = state.active_account_id.lock().unwrap();
         *active = None;
     }
-}
 
-/// 退出登录（移除当前活跃账号），返回剩余账号列表
-#[tauri::command]
-pub async fn logout(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> Result<Vec<Credential>, String> {
-    let active_id = state.active_account_id.lock().unwrap().clone();
-
-    deactivate_current(&state).await;
-
-    if let Some(uid) = active_id {
-        if let Err(e) = credential_store::remove_cookie(&app, &uid) { warn!("移除账号 Cookie 持久化失败: {e}"); }
-        if let Err(e) = credential_store::remove_account_meta(&app, &uid) { warn!("移除账号元数据持久化失败: {e}"); }
-        state.credentials.lock().unwrap().remove(&uid);
-        state.account_metas.lock().unwrap().remove(&uid);
+    // 清除发送凭证
+    {
+        let mut sending = state.sending_credential.lock().await;
+        *sending = None;
     }
-
-    if let Err(e) = credential_store::clear_active_account_id(&app) { warn!("清除活跃账号 ID 持久化失败: {e}"); }
-    let _ = tray::refresh_tray(&app);
-
-    // 返回剩余账号列表，避免前端丢失非活跃账号
-    let remaining = {
-        let credentials = state.credentials.lock().unwrap();
-        let metas = state.account_metas.lock().unwrap();
-        let mut accounts = Vec::new();
-        for (uid, cred) in credentials.iter() {
-            let uid_num = cred.dede_user_id.as_deref().and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
-            let meta = metas.get(uid);
-            accounts.push(Credential {
-                account_id: uid.clone(),
-                uid: uid_num,
-                username: meta.map(|m| m.username.clone()).unwrap_or_else(|| format!("账号 {uid_num}")),
-                avatar: meta.and_then(|m| m.avatar.clone()),
-                cookie: cred.cookie_header(),
-                bili_jct: cred.bili_jct.clone(),
-            });
-        }
-        accounts
-    };
-
-    Ok(remaining)
 }
 
 /// 移除指定账号，返回新的活跃账号 ID（如果自动激活了另一个账号）
@@ -493,6 +456,12 @@ pub async fn switch_account(
     {
         let mut active = state.active_account_id.lock().unwrap();
         *active = Some(account_id.clone());
+    }
+
+    // 清除发送凭证（下次打开弹幕窗口时会 fallback 到新的主凭证）
+    {
+        let mut sending = state.sending_credential.lock().await;
+        *sending = None;
     }
 
     // 持久化活跃账号

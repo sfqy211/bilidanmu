@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, LogOut, UserRound } from "lucide-react";
+import { getAllWindows } from "@tauri-apps/api/window";
 import { toDataURL } from "qrcode";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
@@ -13,9 +14,7 @@ export function AccountPage() {
     activeAccountId,
     addAccount,
     removeAccount,
-    setAccounts,
     setActiveAccount,
-    clearAuth,
   } = useAuth();
 
   const [cookie, setCookie] = useState("");
@@ -28,11 +27,6 @@ export function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("login");
-
-  const activeAccount = useMemo(
-    () => accounts.find((a) => a.accountId === activeAccountId) ?? null,
-    [accounts, activeAccountId]
-  );
 
   useEffect(() => {
     if (!qrKey) return;
@@ -100,6 +94,18 @@ export function AccountPage() {
   };
 
   const handleRemoveAccount = async (accountId: string) => {
+    // 检查是否有弹幕窗口打开，有则禁止移除
+    try {
+      const windows = await getAllWindows();
+      const hasDanmaku = windows.some((w) => w.label.startsWith("danmaku-"));
+      if (hasDanmaku) {
+        setError("请先关闭所有弹幕窗口后再移除账号");
+        return;
+      }
+    } catch {
+      // 检查失败时放行
+    }
+
     try {
       const newActiveId = await tauriCommands.auth.removeAccount(accountId);
       removeAccount(accountId, newActiveId);
@@ -111,6 +117,18 @@ export function AccountPage() {
   };
 
   const handleSwitchAccount = async (accountId: string) => {
+    // 检查是否有弹幕窗口打开，有则禁止切换
+    try {
+      const windows = await getAllWindows();
+      const hasDanmaku = windows.some((w) => w.label.startsWith("danmaku-"));
+      if (hasDanmaku) {
+        setError("请先关闭所有弹幕窗口后再切换账号");
+        return;
+      }
+    } catch {
+      // 检查失败时放行，不阻塞用户操作
+    }
+
     setSwitchingId(accountId);
     setError(null);
     try {
@@ -121,28 +139,6 @@ export function AccountPage() {
       setError(e instanceof Error ? e.message : "切换账号失败");
     } finally {
       setSwitchingId(null);
-    }
-  };
-
-  const handleLogout = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const remaining = await tauriCommands.auth.logout();
-      if (remaining.length > 0) {
-        // 还有其他账号，更新列表但清除活跃状态
-        setAccounts(remaining);
-        setActiveAccount(null);
-      } else {
-        clearAuth();
-      }
-      setSuccess("已退出登录");
-    } catch (logoutError) {
-      setError(logoutError instanceof Error ? logoutError.message : "退出登录失败");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -323,24 +319,6 @@ export function AccountPage() {
             </div>
           )}
 
-          {activeAccount ? (
-            <div className="border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-medium text-slate-900 dark:text-white">快捷操作</h3>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">退出当前账号将从列表中移除并断开连接。</p>
-                </div>
-                <button
-                  onClick={() => void handleLogout()}
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 border border-rose-200 px-4 py-2 text-sm text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {loading ? "退出中..." : "退出当前账号"}
-                </button>
-              </div>
-            </div>
-          ) : null}
         </TabContent>
       </PageTabs>
     </section>

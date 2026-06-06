@@ -42,7 +42,6 @@ export const tauriCommands = {
     pollQr: (qrcodeKey: string) => invoke<QrPollResult>("poll_qr", { qrcodeKey }),
     loginByCookie: (cookie: string) => invoke<Credential>("login_by_cookie", { cookie }),
     restoreLogin: () => invoke<Credential | null>("restore_login"),
-    logout: () => invoke<Credential[]>("logout"),
     removeAccount: (accountId: string) => invoke<string | null>("remove_account", { accountId }),
     switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
     switchSendingAccount: (accountId: string) => invoke<Credential>("switch_sending_account", { accountId }),
