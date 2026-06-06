@@ -30,6 +30,19 @@ pub fn load_rooms(state: &AppState) -> Result<Vec<Room>, String> {
     })
 }
 
+pub fn get_room_display_info(state: &AppState, room_id: u64) -> Option<(String, String)> {
+    db::with_connection(state, |connection| {
+        connection
+            .query_row(
+                "SELECT uname, title FROM rooms WHERE room_id = ?1",
+                params![room_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .map_err(|error| format!("查询房间信息失败: {error}"))
+    })
+    .ok()
+}
+
 pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
     db::with_connection(state, |connection| {
         connection

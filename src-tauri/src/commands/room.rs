@@ -218,6 +218,7 @@ pub async fn open_danmaku_window(
     room_id: u64,
     width: Option<f64>,
     height: Option<f64>,
+    state: State<'_, AppState>,
 ) -> Result<(), String> {
     let label = format!("danmaku-{room_id}");
 
@@ -235,8 +236,12 @@ pub async fn open_danmaku_window(
     let w = width.filter(|v| *v >= 240.0 && *v <= 1200.0).unwrap_or(420.0);
     let h = height.filter(|v| *v >= 160.0 && *v <= 900.0).unwrap_or(320.0);
 
+    let title = room_store::get_room_display_info(state.inner(), room_id)
+        .map(|(uname, room_title)| format!("{uname} - {room_title}"))
+        .unwrap_or_else(|| format!("房间 {room_id}"));
+
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
-        .title(format!("弹幕 - 房间 {room_id}"))
+        .title(title)
         .inner_size(w, h)
         .min_inner_size(240.0, 160.0)
         .max_inner_size(1200.0, 900.0)
