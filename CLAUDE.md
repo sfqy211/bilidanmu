@@ -6,19 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BiliDanmu — Windows desktop Bilibili live-stream danmaku client. Tauri 2 (Rust backend) + React 18 + TypeScript (frontend).
 
+## Environment
+
+- Node.js 18+
+- Rust (rustup)
+- Windows 10+ (WebView2 runtime)
+
 ## Commands
 
 | Task | Command |
 |---|---|
+| Install dependencies | `npm ci` |
 | Full dev (frontend + Tauri) | `npm run dev` |
 | Frontend only (Vite on :3000) | `npm run dev:renderer` |
 | Type check frontend | `npm run typecheck` |
 | Rust check | `cd src-tauri && cargo check` |
 | Build release | `npm run build` |
+| Version bump | `.\scripts\bump-version.ps1 <version>` |
 
-No test framework is configured. Always run `npm run typecheck` and `cargo check` after changes.
+No test framework or linter is configured. Always run `npm run typecheck` and `cargo check` after changes.
 
-**Runtime toggles**: STT and AI features are always compiled in. Users can enable/disable them in Settings. `is_stt_available()` and `is_ai_available()` always return `true`.
+**Runtime toggles**: STT and AI features are always compiled in (no feature gates). Users can enable/disable them in Settings. `is_stt_available()` and `is_ai_available()` always return `true`.
+
+## CI/CD
+
+`.github/workflows/publish-tauri.yml` triggers on push to `main` when `tauri.conf.json` version changes. It builds on Windows (`x86_64-pc-windows-msvc`) and publishes a GitHub release tagged `app-v<version>` using conventional-commit changelogs.
 
 ## Rules
 
@@ -38,10 +50,11 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
 ### Frontend
 
 - **IPC layer**: `src/lib/tauri.ts` — all Tauri invoke calls go through `tauriCommands` object, namespaced by domain (auth, room, danmaku, ws, ai, settings, state, stt). Always add new IPC calls here.
-- **State**: Zustand stores in `src/stores/` (auth, room, danmaku, ai, settings). State is flat; actions are inline.
+- **State**: Zustand stores in `src/stores/` (auth, room, danmaku, ai, settings). State is flat; actions are inline. `@tanstack/react-query` is also used for data fetching.
 - **Hooks**: `src/hooks/` — `useDanmakuStream` manages WebSocket lifecycle (connect on mount, disconnect on unmount, event listeners for danmaku-received/ws-connected/ws-disconnected/danmaku-error/ws-heartbeat). `useAutoSend` manages auto-send lifecycle (start/stop, room change reset, conditional unmount stop via `isRunningRef`). `useAutoLike` manages auto-like lifecycle. `useAudioPlayer` manages mpegts.js FLV→fMP4→MSE playback lifecycle (play/stop/volume/reconnect/clearStream). `useSttTranscript` listens for `stt-transcript` events, applies sync delay buffer, and drives `SubtitleOverlay` with on-demand RAF loop (stops when idle). `useDividerDrag` manages draggable split divider with localStorage persistence. `useWindowPersistence` saves window size to localStorage on resize.
 - **Path alias**: `@/*` → `./src/*`
 - **Dev server**: Vite on port 3000 (strictPort)
+- **UI**: shadcn/ui components (Radix primitives + TailwindCSS + CSS variables). Components live in `src/components/ui/`; use `npx shadcn@latest add <component>` to add new ones.
 
 ### Backend (Rust)
 
@@ -67,6 +80,7 @@ React component → tauriCommands.xxx (src/lib/tauri.ts) → invoke() IPC
 - Frontend types in `src/types/danmaku.ts` and `src/types/bilibili.ts` must mirror Rust model structs in `src-tauri/src/models/`. Field names use camelCase (serde rename).
 - New IPC commands: add Rust `#[tauri::command]` in `commands/*.rs`, register in `lib.rs` `.invoke_handler()`, add TS wrapper in `src/lib/tauri.ts`.
 - New event types: emit via `app.emit("event-name", payload)` in Rust, listen via `useTauriEvent<T>("event-name", callback)` in frontend.
+- Vite root is `src/`, output is `dist/`, dev server fixed to `http://localhost:3000` (`strictPort: true`). `tauri.conf.json` uses `beforeDevCommand: npm run dev:renderer` and `beforeBuildCommand: npm run build:renderer`.
 - Window close hides to tray (does not exit). System tray in `src-tauri/src/tray.rs`.
 - STT pipeline runs in `spawn_blocking` to avoid blocking the tokio runtime. Pipeline cancellation: `bytes_tx = None` closes channel (unblocks `blocking_recv`) + `cancel` AtomicBool + `Notify` for transcript emit loop.
 - `model_id` is an enum-like string (e.g., "large", "xlarge") — never an absolute path. `get_model_dir()` validates against path traversal (`..`/`/`\`) and resolves against `app_data_dir/models/stt/{model_id}`.
