@@ -161,6 +161,8 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         .and_then(|user| user.get("medal"))
         .and_then(|m| parse_object_medal(Some(m)))
         .or_else(|| parse_array_medal(info.get(3)));
+    // info[16] = [wealth_level, ...] 荣耀等级
+    let wealth_level = info.get(16).and_then(Value::as_array).and_then(|a| a.first()).and_then(value_as_u64);
     let emots = basic
         .get(15)
         .and_then(|value| value.get("extra"))
@@ -199,6 +201,7 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         timestamp,
         avatar,
         medal,
+        wealth_level,
         uid,
         color,
         guard_level,
@@ -241,6 +244,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         timestamp,
         avatar: data.get("face").and_then(Value::as_str).map(ToString::to_string),
         medal: parse_object_medal(data.get("medal_info")),
+        wealth_level: None,
         uid,
         color: 16_777_215,
         guard_level: data.get("guard_level").and_then(value_as_u64).unwrap_or(0) as u8,
@@ -300,6 +304,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
             .and_then(Value::as_str)
             .map(ToString::to_string),
         medal: parse_object_medal(data.get("fans_medal")),
+        wealth_level: None,
         uid,
         color: 16_777_215,
         guard_level: data
@@ -345,6 +350,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         timestamp,
         avatar: user_info.get("face").and_then(Value::as_str).map(ToString::to_string),
         medal: parse_object_medal(data.get("medal_info")),
+        wealth_level: None,
         uid,
         color: 16_777_215,
         guard_level: user_info.get("guard_level").and_then(value_as_u64).unwrap_or(0) as u8,
@@ -407,6 +413,7 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
         timestamp,
         avatar: None,
         medal: parse_object_medal(data.get("fans_medal")),
+        wealth_level: None,
         uid,
         color: 16_777_215,
         guard_level: 0,

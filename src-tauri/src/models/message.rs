@@ -19,6 +19,7 @@ pub struct DanmakuEvent {
     pub timestamp: u64,
     pub avatar: Option<String>,
     pub medal: Option<Medal>,
+    pub wealth_level: Option<u64>,
     pub uid: u64,
     pub color: u32,
     pub guard_level: u8,

@@ -18,7 +18,7 @@ function cacheSet(key: string, value: string) {
 }
 
 function needsProxy(url: string): boolean {
-  return BILI_CDN_PATTERN.test(url);
+  return BILI_CDN_PATTERN.test(url) || url.startsWith("wealth-level://");
 }
 
 /**

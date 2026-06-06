@@ -1,6 +1,6 @@
 use crate::AppState;
 use rusqlite::params;
-use tauri::State;
+use tauri::{Manager, State};
 
 const BILI_REFERER: &str = "https://www.bilibili.com/";
 const MAX_BODY_BYTES: usize = 5 * 1024 * 1024; // 5 MB
@@ -57,6 +57,12 @@ pub async fn proxy_image(
     persistent: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    // wealth-level:// 协议：直接从 SQLite 缓存读取（启动时已预加载）
+    if url.starts_with("wealth-level://") {
+        return load_from_cache(state.inner(), &url)
+            .ok_or_else(|| format!("荣耀等级图标未缓存: {url}"));
+    }
+
     if !url.starts_with("https://") && !url.starts_with("http://") {
         return Err(format!("无效的图片 URL: {url}"));
     }
@@ -134,4 +140,39 @@ pub async fn clear_image_cache(state: State<'_, AppState>) -> Result<(), String>
             .map_err(|e| format!("清理图片缓存失败: {e}"))?;
         Ok(())
     })
+}
+
+/// 预加载荣耀等级图标到 SQLite 缓存（启动时调用，仅首次执行）
+pub fn preload_wealth_level_images(app: &tauri::AppHandle, state: &AppState) {
+    use base64::Engine;
+
+    // 检查是否已缓存（查 level 1 即可判断）
+    let already_cached = load_from_cache(state, "wealth-level://1").is_some();
+    if already_cached {
+        return;
+    }
+
+    let resource_dir = match app.path().resource_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            log::warn!("获取资源目录失败: {e}");
+            return;
+        }
+    };
+    let wealth_dir = resource_dir.join("resources").join("wealth-level");
+
+    let mut loaded = 0;
+    for level in 1..=80u8 {
+        let path = wealth_dir.join(format!("{level}.webp"));
+        let Ok(bytes) = std::fs::read(&path) else { continue };
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        let data_url = format!("data:image/webp;base64,{encoded}");
+        save_to_cache(state, &format!("wealth-level://{level}"), &data_url);
+        loaded += 1;
+    }
+    if loaded == 0 {
+        log::warn!("荣耀等级图标预加载失败：未找到任何资源文件");
+    } else {
+        log::info!("已预加载 {loaded} 个荣耀等级图标");
+    }
 }

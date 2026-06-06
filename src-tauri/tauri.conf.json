@@ -36,6 +36,6 @@
       "icons/128x128.png",
       "icons/icon.ico"
     ],
-    "resources": []
+    "resources": ["resources/wealth-level/*"]
   }
 }

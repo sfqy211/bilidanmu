@@ -69,6 +69,13 @@ export function DanmakuMessageItem({
 
   return (
     <div className="leading-6">
+      {item.wealthLevel && showMedal ? (
+        <ProxiedImage
+          src={`wealth-level://${item.wealthLevel}`}
+          persistent
+          className="mr-1 inline-block h-[18px] w-auto align-middle"
+        />
+      ) : null}
       {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       <span

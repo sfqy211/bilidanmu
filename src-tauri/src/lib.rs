@@ -119,6 +119,12 @@ pub fn run() {
                 }
             }
 
+            // 预加载荣耀等级图标到缓存
+            {
+                let state = app.state::<AppState>();
+                commands::proxy::preload_wealth_level_images(app.handle(), state.inner());
+            }
+
             // 初始化发送队列（异步，等待 Tokio 运行时就绪）
             {
                 let state = app.state::<AppState>();

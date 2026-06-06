@@ -48,6 +48,7 @@ export interface DanmakuMessage {
   timestamp: number;
   avatar?: string;
   medal?: Medal;
+  wealthLevel?: number;
   price?: number;
   giftName?: string;
   count?: number;
