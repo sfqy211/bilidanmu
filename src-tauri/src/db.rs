@@ -56,8 +56,9 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
 
             CREATE TABLE IF NOT EXISTS room_emoticon_packages (
               room_id INTEGER NOT NULL,
+              account_id TEXT NOT NULL DEFAULT '',
               pkg_id INTEGER NOT NULL,
-              PRIMARY KEY (room_id, pkg_id),
+              PRIMARY KEY (room_id, account_id, pkg_id),
               FOREIGN KEY(pkg_id) REFERENCES emoticon_packages(pkg_id) ON DELETE CASCADE
             );
 

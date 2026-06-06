@@ -4,7 +4,7 @@ use crate::AppState;
 use rusqlite::params;
 
 /// 批量加载房间已缓存的表情包（含表情列表），单次查询避免 N+1
-pub fn load_room_packages(state: &AppState, room_id: u64) -> Vec<EmoticonPackage> {
+pub fn load_room_packages(state: &AppState, room_id: u64, account_id: &str) -> Vec<EmoticonPackage> {
     db::with_connection(state, |connection| {
         // 一次性查出该房间所有包的元数据
         let mut pkg_stmt = connection
@@ -12,12 +12,12 @@ pub fn load_room_packages(state: &AppState, room_id: u64) -> Vec<EmoticonPackage
                 "SELECT p.pkg_id, p.pkg_name, p.pkg_type, p.current_cover \
                  FROM emoticon_packages p \
                  INNER JOIN room_emoticon_packages r ON r.pkg_id = p.pkg_id \
-                 WHERE r.room_id = ?1",
+                 WHERE r.room_id = ?1 AND r.account_id = ?2",
             )
             .map_err(|e| format!("准备查询表情包失败: {e}"))?;
 
         let pkg_rows: Vec<EmoticonPackage> = pkg_stmt
-            .query_map(params![room_id], |row| {
+            .query_map(params![room_id, account_id], |row| {
                 Ok(EmoticonPackage {
                     pkg_id: row.get(0)?,
                     pkg_name: row.get(1)?,
@@ -103,13 +103,13 @@ pub fn load_room_packages(state: &AppState, room_id: u64) -> Vec<EmoticonPackage
 }
 
 /// 清理房间的非房间专属表情包映射（刷新时调用，保留 pkg_type 2/3）
-pub fn clear_non_room_specific_mappings(state: &AppState, room_id: u64) {
+pub fn clear_non_room_specific_mappings(state: &AppState, room_id: u64, account_id: &str) {
     if let Err(e) = db::with_connection(state, |connection| {
         connection
             .execute(
-                "DELETE FROM room_emoticon_packages WHERE room_id = ?1 \
+                "DELETE FROM room_emoticon_packages WHERE room_id = ?1 AND account_id = ?2 \
                  AND pkg_id IN (SELECT pkg_id FROM emoticon_packages WHERE pkg_type NOT IN (2, 3))",
-                params![room_id],
+                params![room_id, account_id],
             )
             .map_err(|e| format!("清理旧映射失败: {e}"))?;
         Ok(())
@@ -239,7 +239,7 @@ pub fn save_packages(state: &AppState, packages: &[EmoticonPackage]) -> Result<(
 }
 
 /// 保存房间-表情包映射
-pub fn save_room_packages(state: &AppState, room_id: u64, packages: &[EmoticonPackage]) -> Result<(), String> {
+pub fn save_room_packages(state: &AppState, room_id: u64, account_id: &str, packages: &[EmoticonPackage]) -> Result<(), String> {
     if packages.is_empty() {
         return Ok(());
     }
@@ -247,8 +247,8 @@ pub fn save_room_packages(state: &AppState, room_id: u64, packages: &[EmoticonPa
     db::with_connection(state, |connection| {
         for package in packages {
             connection.execute(
-                "INSERT OR IGNORE INTO room_emoticon_packages (room_id, pkg_id) VALUES (?1, ?2)",
-                params![room_id, package.pkg_id],
+                "INSERT OR IGNORE INTO room_emoticon_packages (room_id, account_id, pkg_id) VALUES (?1, ?2, ?3)",
+                params![room_id, account_id, package.pkg_id],
             ).map_err(|error| format!("保存房间表情映射失败: {error}"))?;
         }
         Ok(())

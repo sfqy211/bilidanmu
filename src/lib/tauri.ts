@@ -45,6 +45,8 @@ export const tauriCommands = {
     logout: () => invoke<Credential[]>("logout"),
     removeAccount: (accountId: string) => invoke<string | null>("remove_account", { accountId }),
     switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
+    switchSendingAccount: (accountId: string) => invoke<Credential>("switch_sending_account", { accountId }),
+    getSendingAccountId: () => invoke<string | null>("get_sending_account_id"),
     listAccounts: () => invoke<Credential[]>("list_accounts")
   },
   room: {
@@ -56,8 +58,8 @@ export const tauriCommands = {
       invoke<void>("open_danmaku_window", { roomId, width: width ?? null, height: height ?? null }),
     openAiWindow: (width?: number, height?: number) =>
       invoke<void>("open_ai_window", { width: width ?? null, height: height ?? null }),
-    getEmoticons: (roomId: number, force?: boolean) =>
-      invoke<EmoticonPackage[]>("get_emoticons", { roomId, force: force ?? false }),
+    getEmoticons: (roomId: number, force?: boolean, accountId?: string) =>
+      invoke<EmoticonPackage[]>("get_emoticons", { roomId, force: force ?? false, accountId: accountId ?? null }),
     clearEmoticonCache: () => invoke<void>("clear_emoticon_cache"),
     clearRoomEmoticonCache: (roomId: number) => invoke<void>("clear_room_emoticon_cache", { roomId }),
     clearRoomSpecificEmoticons: () => invoke<void>("clear_room_specific_emoticons"),

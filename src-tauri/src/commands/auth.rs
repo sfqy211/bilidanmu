@@ -562,3 +562,60 @@ pub async fn list_accounts(state: State<'_, AppState>) -> Result<Vec<Credential>
 
     Ok(accounts)
 }
+
+/// 切换发送弹幕使用的账号（不断开 WS / 音频流）
+#[tauri::command]
+pub async fn switch_sending_account(
+    account_id: String,
+    state: State<'_, AppState>,
+) -> Result<Credential, String> {
+    // 查找目标账号凭据
+    let cred = {
+        let credentials = state.credentials.lock().unwrap();
+        credentials
+            .get(&account_id)
+            .cloned()
+            .ok_or_else(|| format!("账号 {account_id} 未找到"))?
+    };
+
+    // 验证登录状态
+    let api = build_api_client(Some(cred.clone()), &state);
+    let login_status = api.verify_login_status().await?;
+
+    if !login_status.is_logged_in {
+        return Err("该账号登录已过期，请重新登录".to_string());
+    }
+
+    // 设置发送凭据
+    {
+        let mut sending = state.sending_credential.lock().await;
+        *sending = Some(cred.clone());
+    }
+
+    log::info!("已切换发送账号为: {account_id}");
+
+    // 构建返回的 Credential
+    let mut credential = Credential::mock();
+    if let Some(account) = login_status.account {
+        credential.account_id = account.id;
+        credential.uid = account.uid;
+        credential.username = account.username;
+        credential.avatar = account.avatar;
+    } else {
+        credential.uid = cred
+            .dede_user_id
+            .as_deref()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+    }
+    credential.cookie = cred.cookie_header();
+    credential.bili_jct = cred.bili_jct.clone();
+    Ok(credential)
+}
+
+/// 获取当前发送账号 ID（未设置时返回 None）
+#[tauri::command]
+pub async fn get_sending_account_id(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let sending = state.sending_credential.lock().await;
+    Ok(sending.as_ref().and_then(|c| c.dede_user_id.clone()))
+}

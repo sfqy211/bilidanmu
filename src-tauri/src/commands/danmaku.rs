@@ -1,4 +1,4 @@
-use crate::commands::build_api_client;
+use crate::commands::{build_api_client, get_sending_credential};
 use crate::models::response::BiliResponse;
 use crate::AppState;
 use tauri::Emitter;
@@ -16,7 +16,7 @@ pub async fn send_danmaku(
     dm_type: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<BiliResponse, String> {
-    let credential = state.credential.lock().await.clone();
+    let credential = get_sending_credential(state.inner()).await;
     let api = build_api_client(credential, &state);
     api.send_danmaku(room_id, &msg, color, mode, dm_type.unwrap_or(0), None)
         .await
@@ -32,7 +32,7 @@ pub async fn send_emoticon(
     dm_type: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<BiliResponse, String> {
-    let credential = state.credential.lock().await.clone();
+    let credential = get_sending_credential(state.inner()).await;
     let api = build_api_client(credential, &state);
     let emoticon_options = emoticon_options.unwrap_or_else(|| {
         serde_json::json!({
@@ -81,7 +81,7 @@ pub async fn start_auto_send(
     }
 
     let interval_ms = interval_ms.max(300);
-    let credential = state.credential.lock().await.clone();
+    let credential = get_sending_credential(state.inner()).await;
     let api = build_api_client(credential, &state);
 
     let mut auto_sender = state.auto_sender.lock().await;
@@ -215,7 +215,7 @@ pub async fn send_like(
         return Err("anchor_id 不能为 0".to_string());
     }
 
-    let credential = state.credential.lock().await.clone();
+    let credential = get_sending_credential(state.inner()).await;
     let api = build_api_client(credential, &state);
     api.send_like(room_id, anchor_id, click_time).await
 }
@@ -253,7 +253,7 @@ pub async fn start_auto_like(
     }
 
     let interval_ms = interval_ms.max(500);
-    let credential = state.credential.lock().await.clone();
+    let credential = get_sending_credential(state.inner()).await;
     let api = build_api_client(credential, &state);
 
     let mut auto_like = state.auto_like.lock().await;

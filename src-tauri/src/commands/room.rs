@@ -1,5 +1,5 @@
 use crate::bili::api::BiliApiClient;
-use crate::commands::build_api_client;
+use crate::commands::{build_api_client, get_sending_credential};
 use crate::models::room::{EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::StreamInfo;
 use crate::room_store;
@@ -116,13 +116,26 @@ pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<O
 pub async fn get_emoticons(
     room_id: u64,
     force: Option<bool>,
+    account_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<EmoticonPackage>, String> {
     let force = force.unwrap_or(false);
+    // 使用传入的 account_id，或从发送凭据获取，或 fallback 到主凭据
+    let account_id = account_id
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            let sending = state.sending_credential.try_lock().ok()?;
+            sending.as_ref().and_then(|c| c.dede_user_id.clone())
+        })
+        .or_else(|| {
+            let cred = state.credential.try_lock().ok()?;
+            cred.as_ref().and_then(|c| c.dede_user_id.clone())
+        })
+        .unwrap_or_default();
 
     // 优先使用缓存（除非强制刷新）
     if !force {
-        let cached = crate::emoticon_store::load_room_packages(state.inner(), room_id);
+        let cached = crate::emoticon_store::load_room_packages(state.inner(), room_id, &account_id);
         if !cached.is_empty() {
             let mut sorted = cached;
             sorted.sort_by_key(|pkg| emoticon_sort_priority(pkg.pkg_type));
@@ -131,19 +144,19 @@ pub async fn get_emoticons(
     }
 
     // 缓存为空或强制刷新，从 API 拉取
-    let credential = state.credential.lock().await.clone();
+    let credential = get_sending_credential(state.inner()).await;
     let api = build_api_client(credential, &state);
     let fresh_packages = api.get_emoticons(room_id).await?;
 
     // 清理旧的非房间专属映射（保留 pkg_type 2/3）
-    crate::emoticon_store::clear_non_room_specific_mappings(state.inner(), room_id);
+    crate::emoticon_store::clear_non_room_specific_mappings(state.inner(), room_id, &account_id);
 
     // 批量缓存所有包（单次事务）
     crate::emoticon_store::save_packages(state.inner(), &fresh_packages)?;
     let mut result = fresh_packages;
 
     // 更新房间-包映射
-    crate::emoticon_store::save_room_packages(state.inner(), room_id, &result)?;
+    crate::emoticon_store::save_room_packages(state.inner(), room_id, &account_id, &result)?;
 
     // 按类型排序：系统表情/emoji → UP主大表情/房间通用 → 装扮表情
     result.sort_by_key(|pkg| emoticon_sort_priority(pkg.pkg_type));

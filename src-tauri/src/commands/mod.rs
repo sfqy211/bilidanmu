@@ -23,3 +23,12 @@ pub fn build_api_client(
         state.wbi_cache.clone(),
     )
 }
+
+/// 获取发送凭证：优先 sending_credential，fallback 到主 credential
+pub async fn get_sending_credential(state: &AppState) -> Option<BiliCredential> {
+    let sending = state.sending_credential.lock().await;
+    if sending.is_some() {
+        return sending.clone();
+    }
+    state.credential.lock().await.clone()
+}

@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { useZoom } from "@/hooks/useZoom";
 import { ArrowDown, Bot, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
+import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
@@ -20,6 +21,7 @@ import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import { loadWindowSize } from "@/hooks/useWindowPersistence";
+import { useAuthStore } from "@/stores/auth-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -92,17 +94,8 @@ export function DanmakuPage() {
   const inputBarRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
   const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
-  const [emoticonPackages, setEmoticonPackages] = useState<EmoticonPackage[]>([]);
-  // 已加载表情包中所有表情 URL 集合，用于弹幕表情优先复用本地缓存
-  const cachedEmotUrls = useMemo(() => {
-    const urls = new Set<string>();
-    for (const pkg of emoticonPackages) {
-      for (const emot of pkg.emoticons) {
-        if (emot.url) urls.add(emot.url);
-      }
-    }
-    return urls;
-  }, [emoticonPackages]);
+  // 按账号维护的表情包缓存（key = accountId, value = 该账号的表情包列表）
+  const [emoticonPkgMap, setEmoticonPkgMap] = useState<Map<string, EmoticonPackage[]>>(new Map());
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
@@ -114,6 +107,25 @@ export function DanmakuPage() {
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
   const rooms = useRoomStore((state) => state.rooms);
+  const activeAccountId = useAuthStore((state) => state.activeAccountId);
+
+  // 当前有效的发送账号 ID（AccountSwitcher 切换时会更新 activeAccountId）
+  const effectiveSendingId = activeAccountId;
+  // 当前账号的表情包列表
+  const emoticonPackages = useMemo(
+    () => (effectiveSendingId ? emoticonPkgMap.get(effectiveSendingId) ?? [] : []),
+    [emoticonPkgMap, effectiveSendingId],
+  );
+  // 已加载表情包中所有表情 URL 集合，用于弹幕表情优先复用本地缓存
+  const cachedEmotUrls = useMemo(() => {
+    const urls = new Set<string>();
+    for (const pkg of emoticonPackages) {
+      for (const emot of pkg.emoticons) {
+        if (emot.url) urls.add(emot.url);
+      }
+    }
+    return urls;
+  }, [emoticonPackages]);
 
   // 开播时长
   const [liveTime, setLiveTime] = useState<number | null>(null);
@@ -315,15 +327,21 @@ export function DanmakuPage() {
     };
   }, []);
 
-  const loadEmoticons = useCallback(async () => {
+  const loadEmoticons = useCallback(async (forceAccountId?: string) => {
     if (!roomId) return;
 
     setLoadingEmoticons(true);
     setEmoticonError(null);
 
+    const accountId = forceAccountId ?? activeAccountId ?? undefined;
+
     try {
-      const packages = await tauriCommands.room.getEmoticons(roomId);
-      setEmoticonPackages(packages);
+      const packages = await tauriCommands.room.getEmoticons(roomId, false, accountId);
+      setEmoticonPkgMap((prev) => {
+        const next = new Map(prev);
+        next.set(accountId ?? "", packages);
+        return next;
+      });
       setActivePkgKey((current) => {
         if (current && packages.some((pkg) => makePkgKey(pkg) === current)) {
           return current;
@@ -335,7 +353,16 @@ export function DanmakuPage() {
     } finally {
       setLoadingEmoticons(false);
     }
-  }, [roomId]);
+  }, [roomId, activeAccountId]);
+
+  // 当发送账号变化时，如果当前账号没有缓存的表情包，自动加载
+  useEffect(() => {
+    if (!roomId || !emoticonPickerOpen) return;
+    const key = effectiveSendingId ?? "";
+    if (!emoticonPkgMap.has(key) && !loadingEmoticons) {
+      void loadEmoticons();
+    }
+  }, [effectiveSendingId, roomId, emoticonPickerOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleEmoticonPicker = useCallback(async () => {
     const nextOpen = !emoticonPickerOpen;
@@ -620,6 +647,7 @@ export function DanmakuPage() {
             <Smile className="h-3.5 w-3.5" />
             表情
           </button>
+          <AccountSwitcher viewingAccountId={activeAccountId} />
           {aiAvailable && (
             <button
               type="button"
@@ -645,6 +673,7 @@ export function DanmakuPage() {
             <EmoticonPickerPanel
               className="absolute bottom-full left-0 z-20 mb-2 w-[min(100%,520px)]"
               roomId={roomId ?? 0}
+              accountId={effectiveSendingId}
               loading={loadingEmoticons}
               error={emoticonError}
               packages={emoticonPackages}

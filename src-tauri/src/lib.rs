@@ -36,6 +36,7 @@ pub struct AutoLikeState {
 
 pub struct AppState {
     pub credential: TokioMutex<Option<BiliCredential>>,
+    pub sending_credential: TokioMutex<Option<BiliCredential>>,
     pub credentials: std::sync::Mutex<HashMap<String, BiliCredential>>,
     pub active_account_id: std::sync::Mutex<Option<String>>,
     pub account_metas: std::sync::Mutex<HashMap<String, credential_store::AccountMeta>>,
@@ -90,6 +91,7 @@ pub fn run() {
             let wbi_cache = Arc::new(TokioMutex::new(WbiKeyCache::default()));
             AppState {
             credential: TokioMutex::new(None),
+            sending_credential: TokioMutex::new(None),
             credentials: std::sync::Mutex::new(HashMap::new()),
             active_account_id: std::sync::Mutex::new(None),
             account_metas: std::sync::Mutex::new(HashMap::new()),
@@ -230,6 +232,8 @@ pub fn run() {
             commands::auth::logout,
             commands::auth::remove_account,
             commands::auth::switch_account,
+            commands::auth::switch_sending_account,
+            commands::auth::get_sending_account_id,
             commands::auth::list_accounts,
             commands::room::search_room,
             commands::room::add_room,

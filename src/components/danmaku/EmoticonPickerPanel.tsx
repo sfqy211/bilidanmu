@@ -35,24 +35,18 @@ function getEmoticonLabel(emoticon: Emoticon): string {
 const HIDDEN_ROOM_PREFIX = "emoticon_hidden_room_";
 const HIDDEN_GLOBAL_KEY = "emoticon_hidden_global";
 
-function loadHiddenPkgIds(): { global: Set<number>; room: Set<number> } {
+function hiddenKey(roomId: number, accountId?: string | null): string {
+  const suffix = accountId ? `_${accountId}` : "";
+  return roomId ? `${HIDDEN_ROOM_PREFIX}${roomId}${suffix}` : `${HIDDEN_GLOBAL_KEY}${suffix}`;
+}
+
+function loadHiddenPkgIds(roomId: number, accountId?: string | null): { global: Set<number>; room: Set<number> } {
   try {
-    const globalRaw = localStorage.getItem(HIDDEN_GLOBAL_KEY);
+    const globalRaw = localStorage.getItem(hiddenKey(0, accountId));
     const global = new Set<number>(globalRaw ? (JSON.parse(globalRaw) as number[]) : []);
 
-    // 加载所有 room 级别的隐藏项
-    const room = new Set<number>();
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith(HIDDEN_ROOM_PREFIX)) {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          for (const id of JSON.parse(raw) as number[]) {
-            room.add(id);
-          }
-        }
-      }
-    }
+    const roomRaw = localStorage.getItem(hiddenKey(roomId, accountId));
+    const room = new Set<number>(roomRaw ? (JSON.parse(roomRaw) as number[]) : []);
 
     return { global, room };
   } catch {
@@ -64,20 +58,22 @@ function toggleHiddenPkg(
   pkgId: number,
   roomSpecific: boolean,
   roomId: number,
+  accountId: string | undefined | null,
   hidden: { global: Set<number>; room: Set<number> },
 ): { global: Set<number>; room: Set<number> } {
   if (roomSpecific) {
-    const key = `${HIDDEN_ROOM_PREFIX}${roomId}`;
+    const key = hiddenKey(roomId, accountId);
     const next = new Set(hidden.room);
     if (next.has(pkgId)) next.delete(pkgId);
     else next.add(pkgId);
     localStorage.setItem(key, JSON.stringify([...next]));
     return { ...hidden, room: next };
   } else {
+    const key = hiddenKey(0, accountId);
     const next = new Set(hidden.global);
     if (next.has(pkgId)) next.delete(pkgId);
     else next.add(pkgId);
-    localStorage.setItem(HIDDEN_GLOBAL_KEY, JSON.stringify([...next]));
+    localStorage.setItem(key, JSON.stringify([...next]));
     return { ...hidden, global: next };
   }
 }
@@ -95,6 +91,7 @@ function isPkgHidden(
 
 export function EmoticonPickerPanel({
   roomId,
+  accountId,
   loading,
   error,
   packages,
@@ -107,6 +104,7 @@ export function EmoticonPickerPanel({
   className,
 }: {
   roomId: number;
+  accountId?: string | null;
   loading: boolean;
   error: string | null;
   packages: EmoticonPackage[];
@@ -119,11 +117,18 @@ export function EmoticonPickerPanel({
   className?: string;
 }) {
   const [managing, setManaging] = useState(false);
-  const [hidden, setHidden] = useState<{ global: Set<number>; room: Set<number> }>(loadHiddenPkgIds);
+  const [hidden, setHidden] = useState<{ global: Set<number>; room: Set<number> }>(
+    () => loadHiddenPkgIds(roomId, accountId),
+  );
+
+  // 账号变化时重新加载隐藏状态
+  useEffect(() => {
+    setHidden(loadHiddenPkgIds(roomId, accountId));
+  }, [roomId, accountId]);
 
   const handleToggle = useCallback((pkg: EmoticonPackage) => {
-    setHidden((prev) => toggleHiddenPkg(pkg.pkgId, isRoomSpecific(pkg.pkgType), roomId, prev));
-  }, [roomId]);
+    setHidden((prev) => toggleHiddenPkg(pkg.pkgId, isRoomSpecific(pkg.pkgType), roomId, accountId, prev));
+  }, [roomId, accountId]);
 
   const sortedPackages = useMemo(
     () => [...packages].sort((a, b) => getPackageSortPriority(a.pkgType) - getPackageSortPriority(b.pkgType)),
