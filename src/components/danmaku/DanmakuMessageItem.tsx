@@ -73,10 +73,11 @@ export function DanmakuMessageItem({
         <ProxiedImage
           src={`wealth-level://${item.wealthLevel}`}
           persistent
-          className="mr-1 inline-block h-[18px] w-auto align-middle"
+          className="mr-1 inline-block w-auto align-middle"
+          style={{ height: Math.round(18 * scale) }}
         />
       ) : null}
-      {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
+      {item.medal && showMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       <span
         className={`mr-1 font-bold ${getGuardUsernameClass(item.guardLevel)}`}

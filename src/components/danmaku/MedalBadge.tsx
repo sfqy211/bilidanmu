@@ -28,16 +28,18 @@ function getTierColor(level: number): string {
  * 颜色根据等级分档，不依赖 API 返回的颜色值。
  * 未点亮时显示灰色。
  */
-export function MedalBadge({ medal }: { medal: Medal }) {
+export function MedalBadge({ medal, scale = 1 }: { medal: Medal; scale?: number }) {
   const bgColor = medal.isLight ? getTierColor(medal.level) : UNLIGHTED_COLOR;
 
   return (
     <span
-      className="mr-2 inline-flex items-center border px-1.5 py-0.5 text-[11px] leading-tight"
+      className="mr-2 inline-flex items-center border leading-tight"
       style={{
         backgroundColor: bgColor,
         borderColor: bgColor,
         color: "#fff",
+        fontSize: Math.round(11 * scale),
+        padding: `${2 * scale}px ${6 * scale}px`,
       }}
     >
       <span>{medal.name}</span>
