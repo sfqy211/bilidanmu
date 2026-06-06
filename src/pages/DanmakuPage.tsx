@@ -644,6 +644,7 @@ export function DanmakuPage() {
           {emoticonPickerOpen ? (
             <EmoticonPickerPanel
               className="absolute bottom-full left-0 z-20 mb-2 w-[min(100%,520px)]"
+              roomId={roomId ?? 0}
               loading={loadingEmoticons}
               error={emoticonError}
               packages={emoticonPackages}

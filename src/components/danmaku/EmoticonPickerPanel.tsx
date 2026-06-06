@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Eye, EyeOff, Settings2, X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
 import { makePkgKey } from "@/types/bilibili";
@@ -16,11 +16,15 @@ function getPackageSortPriority(pkgType?: number): number {
   }
 }
 
+/** 房间专属/UP主大表情（pkg_type 2/3）需要按房间存储 */
+function isRoomSpecific(pkgType?: number): boolean {
+  return pkgType === 2 || pkgType === 3;
+}
+
 function getEmoticonLabel(emoticon: Emoticon): string {
   if (emoticon.descript) return emoticon.descript;
   if (emoticon.emoji) return emoticon.emoji;
   if (emoticon.emoticonUnique) {
-    // 从 emoticon_unique 提取可读名称，如 "official_123_doge" → "doge"
     const parts = emoticon.emoticonUnique.split("_");
     const last = parts[parts.length - 1];
     if (last && last.length > 1) return last;
@@ -28,7 +32,69 @@ function getEmoticonLabel(emoticon: Emoticon): string {
   return "表情";
 }
 
+const HIDDEN_ROOM_PREFIX = "emoticon_hidden_room_";
+const HIDDEN_GLOBAL_KEY = "emoticon_hidden_global";
+
+function loadHiddenPkgIds(): { global: Set<number>; room: Set<number> } {
+  try {
+    const globalRaw = localStorage.getItem(HIDDEN_GLOBAL_KEY);
+    const global = new Set<number>(globalRaw ? (JSON.parse(globalRaw) as number[]) : []);
+
+    // 加载所有 room 级别的隐藏项
+    const room = new Set<number>();
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(HIDDEN_ROOM_PREFIX)) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          for (const id of JSON.parse(raw) as number[]) {
+            room.add(id);
+          }
+        }
+      }
+    }
+
+    return { global, room };
+  } catch {
+    return { global: new Set(), room: new Set() };
+  }
+}
+
+function toggleHiddenPkg(
+  pkgId: number,
+  roomSpecific: boolean,
+  roomId: number,
+  hidden: { global: Set<number>; room: Set<number> },
+): { global: Set<number>; room: Set<number> } {
+  if (roomSpecific) {
+    const key = `${HIDDEN_ROOM_PREFIX}${roomId}`;
+    const next = new Set(hidden.room);
+    if (next.has(pkgId)) next.delete(pkgId);
+    else next.add(pkgId);
+    localStorage.setItem(key, JSON.stringify([...next]));
+    return { ...hidden, room: next };
+  } else {
+    const next = new Set(hidden.global);
+    if (next.has(pkgId)) next.delete(pkgId);
+    else next.add(pkgId);
+    localStorage.setItem(HIDDEN_GLOBAL_KEY, JSON.stringify([...next]));
+    return { ...hidden, global: next };
+  }
+}
+
+function isPkgHidden(
+  pkg: EmoticonPackage,
+  roomId: number,
+  hidden: { global: Set<number>; room: Set<number> },
+): boolean {
+  if (isRoomSpecific(pkg.pkgType)) {
+    return hidden.room.has(pkg.pkgId);
+  }
+  return hidden.global.has(pkg.pkgId);
+}
+
 export function EmoticonPickerPanel({
+  roomId,
   loading,
   error,
   packages,
@@ -40,6 +106,7 @@ export function EmoticonPickerPanel({
   onSelectEmoticon,
   className,
 }: {
+  roomId: number;
   loading: boolean;
   error: string | null;
   packages: EmoticonPackage[];
@@ -51,18 +118,31 @@ export function EmoticonPickerPanel({
   onSelectEmoticon: (emoticon: Emoticon) => void;
   className?: string;
 }) {
+  const [managing, setManaging] = useState(false);
+  const [hidden, setHidden] = useState<{ global: Set<number>; room: Set<number> }>(loadHiddenPkgIds);
+
+  const handleToggle = useCallback((pkg: EmoticonPackage) => {
+    setHidden((prev) => toggleHiddenPkg(pkg.pkgId, isRoomSpecific(pkg.pkgType), roomId, prev));
+  }, [roomId]);
+
   const sortedPackages = useMemo(
     () => [...packages].sort((a, b) => getPackageSortPriority(a.pkgType) - getPackageSortPriority(b.pkgType)),
     [packages]
   );
 
-  const activePackage = sortedPackages.find((pkg) => makePkgKey(pkg) === activePkgKey) ?? sortedPackages[0];
+  const visiblePackages = useMemo(
+    () => sortedPackages.filter((pkg) => !isPkgHidden(pkg, roomId, hidden)),
+    [sortedPackages, roomId, hidden]
+  );
+
+  const activePackage = visiblePackages.find((pkg) => makePkgKey(pkg) === activePkgKey) ?? visiblePackages[0];
   const activeBtnRef = useRef<HTMLButtonElement>(null);
 
-  // 切换表情包时自动居中滚动
   useEffect(() => {
     activeBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [activePkgKey]);
+
+  const displayPackages = managing ? sortedPackages : visiblePackages;
 
   return (
     <div
@@ -72,15 +152,34 @@ export function EmoticonPickerPanel({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-slate-900 dark:text-white">表情选择器</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">点击大表情后直接发送</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {managing ? "点击表情包切换显示/隐藏" : "点击大表情后直接发送"}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setManaging((v) => !v)}
+            className={`p-1 transition ${
+              managing
+                ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
+                : "text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
+            }`}
+            title={managing ? "完成管理" : "管理表情包"}
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setManaging(false);
+              onClose();
+            }}
+            className="p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -102,20 +201,31 @@ export function EmoticonPickerPanel({
         <>
           <div className="mb-3 overflow-x-auto pb-1">
             <div className="flex min-w-max gap-2">
-            {sortedPackages.map((pkg, index) => {
-              const active = pkg === activePackage;
+            {displayPackages.map((pkg, index) => {
+              const active = !managing && pkg === activePackage;
+              const pkgHidden = isPkgHidden(pkg, roomId, hidden);
               const preview = pkg.emoticons[0];
               return (
                 <button
                   key={`${pkg.pkgId}-${pkg.pkgType ?? 0}-${index}`}
                   ref={active ? activeBtnRef : undefined}
                   type="button"
-                  onClick={() => onSelectPackage(makePkgKey(pkg))}
-                  title={getPackageLabel(pkg)}
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center border transition ${
-                    active
-                      ? "border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
-                      : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-400 dark:hover:bg-white/[0.04]"
+                  onClick={() => {
+                    if (managing) {
+                      handleToggle(pkg);
+                    } else {
+                      onSelectPackage(makePkgKey(pkg));
+                    }
+                  }}
+                  title={managing ? (pkgHidden ? `显示 ${getPackageLabel(pkg)}` : `隐藏 ${getPackageLabel(pkg)}`) : getPackageLabel(pkg)}
+                  className={`relative flex h-12 w-12 shrink-0 items-center justify-center border transition ${
+                    managing
+                      ? pkgHidden
+                        ? "border-slate-200 bg-slate-100 opacity-50 dark:border-white/[0.06] dark:bg-[#0e1018]"
+                        : "border-pink-300 bg-white dark:border-pink-500/40 dark:bg-[#0e1018]"
+                      : active
+                        ? "border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
+                        : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-400 dark:hover:bg-white/[0.04]"
                   }`}
                 >
                   {preview ? (
@@ -123,10 +233,19 @@ export function EmoticonPickerPanel({
                       src={preview.url}
                       alt={getPackageLabel(pkg)}
                       persistent
-                      className="h-8 w-8 object-contain"
+                      className={`h-8 w-8 object-contain ${pkgHidden ? "grayscale" : ""}`}
                     />
                   ) : (
                     <span className="text-[10px]">包</span>
+                  )}
+                  {managing && (
+                    <span className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 shadow-sm dark:bg-[#1a1c2e]">
+                      {pkgHidden ? (
+                        <EyeOff className="h-3 w-3 text-slate-400" />
+                      ) : (
+                        <Eye className="h-3 w-3 text-pink-500" />
+                      )}
+                    </span>
                   )}
                 </button>
               );
@@ -134,35 +253,37 @@ export function EmoticonPickerPanel({
             </div>
           </div>
 
-          <div className="grid h-[208px] grid-cols-4 gap-2 overflow-y-auto">
-            {activePackage?.emoticons.map((emoticon, index) => {
-              const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
-              return (
-                <button
-                  key={`${activePackage.pkgId}-${emoticon.emoticonUnique ?? emoticon.emoticonId ?? index}`}
-                  type="button"
-                  disabled={!available || sending}
-                  onClick={() => onSelectEmoticon(emoticon)}
-                  title={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                  className={`flex flex-col items-center border p-2 text-center transition ${
-                    available
-                      ? "border-slate-200 bg-white hover:border-pink-300 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#161822] dark:hover:border-pink-500/40 dark:hover:bg-white/[0.04]"
-                      : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-50 dark:border-white/[0.04] dark:bg-[#0c0e18]"
-                  }`}
-                >
-                  <ProxiedImage
-                    src={emoticon.url}
-                    alt={getEmoticonLabel(emoticon)}
-                    persistent
-                    className="h-12 w-12 object-contain"
-                  />
-                  <span className="mt-2 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-300">
-                    {getEmoticonLabel(emoticon)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {!managing && (
+            <div className="grid h-[208px] grid-cols-4 gap-2 overflow-y-auto">
+              {activePackage?.emoticons.map((emoticon, index) => {
+                const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
+                return (
+                  <button
+                    key={`${activePackage.pkgId}-${emoticon.emoticonUnique ?? emoticon.emoticonId ?? index}`}
+                    type="button"
+                    disabled={!available || sending}
+                    onClick={() => onSelectEmoticon(emoticon)}
+                    title={emoticon.descript ?? emoticon.emoji ?? "表情"}
+                    className={`flex flex-col items-center border p-2 text-center transition ${
+                      available
+                        ? "border-slate-200 bg-white hover:border-pink-300 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#161822] dark:hover:border-pink-500/40 dark:hover:bg-white/[0.04]"
+                        : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-50 dark:border-white/[0.04] dark:bg-[#0c0e18]"
+                    }`}
+                  >
+                    <ProxiedImage
+                      src={emoticon.url}
+                      alt={getEmoticonLabel(emoticon)}
+                      persistent
+                      className="h-12 w-12 object-contain"
+                    />
+                    <span className="mt-2 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-300">
+                      {getEmoticonLabel(emoticon)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
     </div>
