@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Pause, Pin, PinOff, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -103,6 +103,7 @@ export function DanmakuPage() {
   const [aiErrorKey, setAiErrorKey] = useState(0);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [autoSendOpen, setAutoSendOpen] = useState(false);
+  const [pinned, setPinned] = useState(true);
   const { disconnect } = useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
@@ -493,6 +494,19 @@ export function DanmakuPage() {
             </span>
           )}
         </span>
+
+        <button
+          type="button"
+          onClick={() => {
+            const next = !pinned;
+            setPinned(next);
+            void getCurrentWindow().setAlwaysOnTop(next);
+          }}
+          className="ml-1 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          title={pinned ? "取消置顶" : "置顶"}
+        >
+          {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
       {/* 隐藏音频元素 */}
