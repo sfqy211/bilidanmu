@@ -8,6 +8,8 @@ interface DanmakuState {
   wsConnected: boolean;
   wsStatus: "idle" | "connecting" | "connected" | "reconnecting" | "disconnected" | "error";
   sentCount: number;
+  danmakuCount: number;
+  superChatCount: number;
   isMuted: boolean;
   muteRemainSec: number;
   autoSpamRunning: boolean;
@@ -37,6 +39,8 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   wsConnected: false,
   wsStatus: "idle",
   sentCount: 0,
+  danmakuCount: 0,
+  superChatCount: 0,
   isMuted: false,
   muteRemainSec: 0,
   autoSpamRunning: false,
@@ -46,10 +50,14 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   totalLikeCount: 0,
   onlineCount: 0,
   addMessage: (message) =>
-    set((state) => ({ messages: [...state.messages.slice(-199), message] })),
+    set((state) => ({
+      messages: [...state.messages.slice(-199), message],
+      danmakuCount: message.type === "danmaku" ? state.danmakuCount + 1 : state.danmakuCount,
+      superChatCount: message.type === "superChat" ? state.superChatCount + 1 : state.superChatCount,
+    })),
   setLatestLike: (latestLike) => set({ latestLike }),
   setLatestEntry: (latestEntry) => set({ latestEntry }),
-  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0 }),
+  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0 }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setWsStatus: (wsStatus) => set({ wsStatus }),
   incrementSentCount: () => set((state) => ({ sentCount: state.sentCount + 1 })),

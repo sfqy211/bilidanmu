@@ -110,6 +110,8 @@ export function DanmakuPage() {
   const latestEntry = useDanmakuStore((state) => state.latestEntry);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
+  const danmakuCount = useDanmakuStore((state) => state.danmakuCount);
+  const superChatCount = useDanmakuStore((state) => state.superChatCount);
   const rooms = useRoomStore((state) => state.rooms);
   const activeAccountId = useAuthStore((state) => state.activeAccountId);
 
@@ -516,21 +518,25 @@ export function DanmakuPage() {
       <div ref={splitContainerRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
 
         {/* 礼物栏 — 始终渲染，flex=ratio 控制大小 */}
-        <div className="relative min-h-0 overflow-hidden" style={{ flex: ratio }}>
+        <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ flex: ratio }}>
           {showGifts && (
             <>
+              {(giftTotal > 0 || danmakuCount > 0) && (
+                <div className="shrink-0 flex items-center bg-amber-50 px-5 py-1.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                  <span className="flex-1 text-center">弹幕 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{danmakuCount}</span></span>
+                  <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
+                  <span className="flex-1 text-center">SC <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{superChatCount}</span></span>
+                  <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
+                  <span className="flex-1 text-center">礼物统计 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">¥{giftTotal.toFixed(2)}</span></span>
+                  <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
+                  <span className="flex-1 text-center">送礼人数 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{giftSenderCount}</span></span>
+                </div>
+              )}
               <div
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
-                className="flex h-full flex-col gap-1 overflow-y-auto px-5 pt-0 pb-1"
+                className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-5 pt-0 pb-1"
               >
-                {giftTotal > 0 && (
-                  <div className="sticky top-0 z-10 -mx-5 mb-1 flex items-center bg-amber-50 px-5 py-1.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                    <span className="flex-1 text-center">礼物统计 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">¥{giftTotal.toFixed(2)}</span></span>
-                    <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
-                    <span className="flex-1 text-center">送礼人数 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{giftSenderCount}</span></span>
-                  </div>
-                )}
                 {giftMessages.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
                     暂无礼物信息
