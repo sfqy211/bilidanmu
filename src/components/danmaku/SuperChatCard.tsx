@@ -30,7 +30,7 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const bottomBg = normalizeHexColor(item.backgroundBottomColor, "#2A60B2");
   const priceColor = normalizeHexColor(item.backgroundPriceColor, "#7497CD");
   const messageColor = normalizeHexColor(item.messageFontColor, "#FFFFFF");
-  const bgImage = useProxyImage(item.backgroundImage);
+  const bgImage = useProxyImage(item.backgroundImage, true);
 
   return (
     <div className="overflow-hidden">

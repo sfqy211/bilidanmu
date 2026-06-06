@@ -93,6 +93,16 @@ export function DanmakuPage() {
   const composingRef = useRef(false);
   const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
   const [emoticonPackages, setEmoticonPackages] = useState<EmoticonPackage[]>([]);
+  // 已加载表情包中所有表情 URL 集合，用于弹幕表情优先复用本地缓存
+  const cachedEmotUrls = useMemo(() => {
+    const urls = new Set<string>();
+    for (const pkg of emoticonPackages) {
+      for (const emot of pkg.emoticons) {
+        if (emot.url) urls.add(emot.url);
+      }
+    }
+    return urls;
+  }, [emoticonPackages]);
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
@@ -544,7 +554,7 @@ export function DanmakuPage() {
                     item.type === "superChat" ? (
                       <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
                     ) : (
-                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} />
+                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} />
                     )
                   )
                 )}

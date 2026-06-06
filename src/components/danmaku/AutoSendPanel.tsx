@@ -224,7 +224,7 @@ function EmotionTabContent({
                   title={entry.message}
                 >
                   {emotUrl ? (
-                    <ProxiedImage src={emotUrl} alt={entry.message} className="h-7 w-7 object-contain" />
+                    <ProxiedImage src={emotUrl} alt={entry.message} persistent className="h-7 w-7 object-contain" />
                   ) : (
                     <span className="px-1 text-xs">{entry.message}</span>
                   )}
@@ -257,7 +257,7 @@ function EmotionTabContent({
                   title={pkg.pkgName || `包 ${pkg.pkgId}`}
                 >
                   {preview ? (
-                    <ProxiedImage src={preview.url} alt={pkg.pkgName} className="h-7 w-7 object-contain" />
+                    <ProxiedImage src={preview.url} alt={pkg.pkgName} persistent className="h-7 w-7 object-contain" />
                   ) : (
                     <span className="px-1 text-xs text-slate-500 dark:text-slate-400">{pkg.pkgName || `包 ${pkg.pkgId}`}</span>
                   )}
@@ -283,7 +283,7 @@ function EmotionTabContent({
                         : "border-slate-200 hover:border-slate-300 dark:border-white/[0.06] dark:hover:border-white/[0.1]"
                     }`}
                   >
-                    <ProxiedImage src={emot.url} alt={emot.descript ?? emot.emoji ?? ""} className="h-7 w-7 object-contain" />
+                    <ProxiedImage src={emot.url} alt={emot.descript ?? emot.emoji ?? ""} persistent className="h-7 w-7 object-contain" />
                   </button>
                 );
               })}

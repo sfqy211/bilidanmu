@@ -43,12 +43,26 @@ function getBigEmoticonSize(emoticon?: DanmakuMessage["emoticonOptions"], scale 
   return base;
 }
 
-export function DanmakuMessageItem({ item, fontSize = 14 }: { item: DanmakuMessage; fontSize?: number }) {
+export function DanmakuMessageItem({
+  item,
+  fontSize = 14,
+  cachedEmotUrls,
+}: {
+  item: DanmakuMessage;
+  fontSize?: number;
+  cachedEmotUrls?: Set<string>;
+}) {
   const scale = fontSize / 14;
   const bigEmoticonSize =
     item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
       ? getBigEmoticonSize(item.emoticonOptions, scale)
       : null;
+
+  // 大表情是否在已加载的表情包中（优先本地缓存）
+  const bigEmotPersistent =
+    bigEmoticonSize && item.emoticonOptions?.url
+      ? cachedEmotUrls?.has(item.emoticonOptions.url) ?? false
+      : false;
 
   return (
     <div className="leading-6">
@@ -69,12 +83,13 @@ export function DanmakuMessageItem({ item, fontSize = 14 }: { item: DanmakuMessa
             <ProxiedImage
               src={item.emoticonOptions.url}
               alt={item.emoticonOptions.emoticonUnique}
+              persistent={bigEmotPersistent}
               className="object-contain"
               style={{ width: bigEmoticonSize.width, height: bigEmoticonSize.height }}
             />
           </span>
         ) : item.type === "danmaku" ? (
-          <InlineEmotText content={item.content} emots={item.emots} />
+          <InlineEmotText content={item.content} emots={item.emots} cachedEmotUrls={cachedEmotUrls} />
         ) : (
           item.content
         )}

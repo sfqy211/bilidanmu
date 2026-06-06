@@ -1,29 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { tauriCommands } from "@/lib/tauri";
 
 const BILI_CDN_PATTERN = /^https?:\/\/[a-z0-9]+\.hdslb\.com\//;
-const CACHE_LIMIT = 200;
+const CACHE_LIMIT = 500;
 
-const cache = new Map<string, string>();
+// L1 内存缓存，避免同一 URL 重复走 IPC
+const memoryCache = new Map<string, string>();
 
 function cacheSet(key: string, value: string) {
-  if (cache.size >= CACHE_LIMIT) {
-    const oldest = cache.keys().next().value;
+  if (memoryCache.size >= CACHE_LIMIT) {
+    const oldest = memoryCache.keys().next().value;
     if (oldest !== undefined) {
-      cache.delete(oldest);
+      memoryCache.delete(oldest);
     }
   }
-  cache.set(key, value);
+  memoryCache.set(key, value);
 }
 
 function needsProxy(url: string): boolean {
   return BILI_CDN_PATTERN.test(url);
 }
 
-export function useProxyImage(url: string | undefined) {
+/**
+ * @param persistent true = L1 内存 + L2 SQLite 持久化（封面/头像/表情包图片）
+ *                   false = 仅 L1 内存（弹幕表情/醒目留言头像等临时图片）
+ */
+export function useProxyImage(url: string | undefined, persistent = false) {
+  const persistentRef = useRef(persistent);
+  persistentRef.current = persistent;
+
   const [src, setSrc] = useState<string | undefined>(() => {
     if (!url) return undefined;
-    return cache.get(url) ?? (needsProxy(url) ? undefined : url);
+    return memoryCache.get(url) ?? (needsProxy(url) ? undefined : url);
   });
 
   useEffect(() => {
@@ -32,9 +40,10 @@ export function useProxyImage(url: string | undefined) {
       return;
     }
 
-    const cached = cache.get(url);
-    if (cached) {
-      setSrc(cached);
+    // L1 命中
+    const memHit = memoryCache.get(url);
+    if (memHit) {
+      setSrc(memHit);
       return;
     }
 
@@ -46,7 +55,7 @@ export function useProxyImage(url: string | undefined) {
     let cancelled = false;
 
     tauriCommands.proxy
-      .image(url)
+      .image(url, persistentRef.current)
       .then((dataUrl) => {
         if (!cancelled) {
           cacheSet(url, dataUrl);

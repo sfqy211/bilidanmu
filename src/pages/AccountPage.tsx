@@ -277,6 +277,7 @@ export function AccountPage() {
                           <ProxiedImage
                             src={account.avatar}
                             alt={account.username}
+                            persistent
                             className="h-12 w-12 shrink-0 border border-slate-200 object-cover dark:border-white/[0.06]"
                           />
                         ) : (

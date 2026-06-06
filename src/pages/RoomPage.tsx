@@ -228,6 +228,7 @@ export function RoomPage() {
                         <ProxiedImage
                           src={room.cover}
                           alt={room.title}
+                          persistent
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -245,6 +246,7 @@ export function RoomPage() {
                               <ProxiedImage
                                 src={room.avatar}
                                 alt={room.uname}
+                                persistent
                                 className="h-8 w-8 shrink-0 rounded-full border border-white/30 object-cover"
                               />
                             ) : (

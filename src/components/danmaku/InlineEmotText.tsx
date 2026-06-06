@@ -9,9 +9,11 @@ function escapeRegExp(input: string): string {
 export function InlineEmotText({
   content,
   emots,
+  cachedEmotUrls,
 }: {
   content: string;
   emots?: Record<string, InlineEmoticon>;
+  cachedEmotUrls?: Set<string>;
 }) {
   if (!emots || Object.keys(emots).length === 0) {
     return <>{content}</>;
@@ -39,12 +41,15 @@ export function InlineEmotText({
     const token = match[0];
     const emot = emots[token];
     if (emot?.url) {
+      // 优先检查是否在已加载的表情包中（本地缓存优先）
+      const persistent = cachedEmotUrls?.has(emot.url) ?? false;
       parts.push(
         <ProxiedImage
           key={`${token}-${index}`}
           src={emot.url}
           alt={emot.emoji ?? token}
           title={emot.descript ?? token}
+          persistent={persistent}
           className="mx-0.5 inline-block align-middle"
           style={{ width: emot.width ?? 20, height: emot.height ?? 20 }}
         />
