@@ -6,6 +6,7 @@ import { useZoom } from "@/hooks/useZoom";
 import { ArrowDown, Bot, Clock, Pause, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
@@ -98,6 +99,8 @@ export function DanmakuPage() {
   const [emoticonPkgMap, setEmoticonPkgMap] = useState<Map<string, EmoticonPackage[]>>(new Map());
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiErrorKey, setAiErrorKey] = useState(0);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [autoSendOpen, setAutoSendOpen] = useState(false);
   const { disconnect } = useDanmakuStream(roomId);
@@ -616,6 +619,10 @@ export function DanmakuPage() {
 
       {/* 发送栏 */}
       <div className="relative border-t border-slate-300 bg-white px-3 py-2 dark:border-white/[0.06] dark:bg-[#12141e]">
+        {aiError && (
+          <InlineMessage key={aiErrorKey} type="error" className="mb-2">{aiError}</InlineMessage>
+        )}
+
         {/* 功能按钮行 */}
         <div ref={inputBarRef} className="mb-2 flex items-center gap-2">
           <button
@@ -656,7 +663,8 @@ export function DanmakuPage() {
                   const { width, height } = loadWindowSize("ai-window");
                   void tauriCommands.room.openAiWindow(width, height);
                 }).catch(() => {
-                  import("sonner").then(({ toast }) => toast.error("未连接 AstrBot，请先配置 AI 代理"));
+                  setAiError("未连接 AstrBot，请先配置 AI 代理");
+                  setAiErrorKey((k) => k + 1);
                 });
               }}
               className="inline-flex items-center gap-1 border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bot, RefreshCw } from "lucide-react";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { tauriCommands } from "@/lib/tauri";
 import type { AstrbotConfig } from "@/types/bilibili";
 
@@ -12,6 +13,11 @@ export function AIPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [msgKey, setMsgKey] = useState(0);
+
+  const showError = (msg: string) => { setError(msg); setSuccess(null); setMsgKey((k) => k + 1); };
+  const showSuccess = (msg: string) => { setSuccess(msg); setError(null); setMsgKey((k) => k + 1); };
+  const clearMessage = () => { setError(null); setSuccess(null); };
 
   useEffect(() => {
     let cancelled = false;
@@ -35,8 +41,7 @@ export function AIPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null);
-    setSuccess(null);
+    clearMessage();
     try {
       const cfg: AstrbotConfig = {
         host,
@@ -45,21 +50,21 @@ export function AIPage() {
       };
       await tauriCommands.ai.configure(cfg.host, cfg.httpPort, cfg.callbackPort);
       setConfig(cfg);
-      setSuccess("AstrBot 配置已保存");
+      showSuccess("AstrBot 配置已保存");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
+      showError(e instanceof Error ? e.message : "保存失败");
     } finally {
       setSaving(false);
     }
   };
 
   const handleTestStatus = async () => {
-    setError(null);
+    clearMessage();
     try {
       const s = await tauriCommands.ai.getStatus();
       setStatus(s);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "连接 AstrBot 失败");
+      showError(e instanceof Error ? e.message : "连接 AstrBot 失败");
       setStatus(null);
     }
   };
@@ -82,8 +87,8 @@ export function AIPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {error && <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p>}
-          {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>}
+          {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
+          {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
         </div>
       </div>
 

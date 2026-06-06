@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, LogOut, UserRound } from "lucide-react";
 import { getAllWindows } from "@tauri-apps/api/window";
 import { toDataURL } from "qrcode";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
@@ -26,7 +27,12 @@ export function AccountPage() {
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [msgKey, setMsgKey] = useState(0);
   const [activeTab, setActiveTab] = useState("login");
+
+  const showError = (msg: string) => { setError(msg); setSuccess(null); setMsgKey((k) => k + 1); };
+  const showSuccess = (msg: string) => { setSuccess(msg); setError(null); setMsgKey((k) => k + 1); };
+  const clearMessage = () => { setError(null); setSuccess(null); };
 
   useEffect(() => {
     if (!qrKey) return;
@@ -41,8 +47,7 @@ export function AccountPage() {
 
         if (result.status === "success" && result.credential) {
           addAccount(result.credential);
-          setSuccess("扫码登录成功");
-          setError(null);
+          showSuccess("扫码登录成功");
           setQrKey(null);
           setQrUrl(null);
           setQrImageUrl(null);
@@ -56,7 +61,7 @@ export function AccountPage() {
         }
       } catch (pollError) {
         if (!cancelled) {
-          setError(pollError instanceof Error ? pollError.message : "轮询二维码失败");
+          showError(pollError instanceof Error ? pollError.message : "轮询二维码失败");
           setQrKey(null);
           setQrStatus("二维码轮询失败");
         }
@@ -72,22 +77,20 @@ export function AccountPage() {
   const handleLogin = async () => {
     const trimmed = cookie.trim();
     if (!trimmed) {
-      setError("请先粘贴 Cookie");
-      setSuccess(null);
+      showError("请先粘贴 Cookie");
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    clearMessage();
 
     try {
       const credential = await tauriCommands.auth.loginByCookie(trimmed);
       addAccount(credential);
       setCookie("");
-      setSuccess("Cookie 登录成功");
+      showSuccess("Cookie 登录成功");
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Cookie 登录失败");
+      showError(loginError instanceof Error ? loginError.message : "Cookie 登录失败");
     } finally {
       setLoading(false);
     }
@@ -99,7 +102,7 @@ export function AccountPage() {
       const windows = await getAllWindows();
       const hasDanmaku = windows.some((w) => w.label.startsWith("danmaku-"));
       if (hasDanmaku) {
-        setError("请先关闭所有弹幕窗口后再移除账号");
+        showError("请先关闭所有弹幕窗口后再移除账号");
         return;
       }
     } catch {
@@ -109,10 +112,9 @@ export function AccountPage() {
     try {
       const newActiveId = await tauriCommands.auth.removeAccount(accountId);
       removeAccount(accountId, newActiveId);
-      setSuccess("已移除账号");
-      setError(null);
+      showSuccess("已移除账号");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "移除账号失败");
+      showError(e instanceof Error ? e.message : "移除账号失败");
     }
   };
 
@@ -122,7 +124,7 @@ export function AccountPage() {
       const windows = await getAllWindows();
       const hasDanmaku = windows.some((w) => w.label.startsWith("danmaku-"));
       if (hasDanmaku) {
-        setError("请先关闭所有弹幕窗口后再切换账号");
+        showError("请先关闭所有弹幕窗口后再切换账号");
         return;
       }
     } catch {
@@ -130,13 +132,13 @@ export function AccountPage() {
     }
 
     setSwitchingId(accountId);
-    setError(null);
+    clearMessage();
     try {
       const credential = await tauriCommands.auth.switchAccount(accountId);
       setActiveAccount(accountId, credential);
-      setSuccess(`已切换到 ${credential.username}`);
+      showSuccess(`已切换到 ${credential.username}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "切换账号失败");
+      showError(e instanceof Error ? e.message : "切换账号失败");
     } finally {
       setSwitchingId(null);
     }
@@ -145,8 +147,7 @@ export function AccountPage() {
   const handleCreateQr = async (silent = false) => {
     setLoading(true);
     if (!silent) {
-      setError(null);
-      setSuccess(null);
+      clearMessage();
     }
 
     try {
@@ -164,7 +165,7 @@ export function AccountPage() {
       setQrKey(result.qrcodeKey);
       setQrStatus("请使用哔哩哔哩 App 扫码登录，并在手机端确认");
     } catch (qrError) {
-      setError(qrError instanceof Error ? qrError.message : "获取二维码失败");
+      showError(qrError instanceof Error ? qrError.message : "获取二维码失败");
       setQrStatus("获取二维码失败");
     } finally {
       setLoading(false);
@@ -178,8 +179,8 @@ export function AccountPage() {
           <h2 className="text-2xl font-semibold">账号</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码或 Cookie 登录，支持多账号切换。</p>
         </div>
-        {error ? <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p> : null}
-        {success ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p> : null}
+        {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
+        {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
       </div>
 
       <PageTabs

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MonitorPlay, Plus, Search, Trash2 } from "lucide-react";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
@@ -21,7 +22,11 @@ export function RoomPage() {
   const [mode, setMode] = useState<SearchRoomMode>("name");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [msgKey, setMsgKey] = useState(0);
   const [addingRoomIds, setAddingRoomIds] = useState<Set<number>>(new Set());
+
+  const showError = (msg: string) => { setError(msg); setMsgKey((k) => k + 1); };
+  const clearMessage = () => { setError(null); };
   const [activeTab, setActiveTab] = useState("rooms");
   const [liveStatusMap, setLiveStatusMap] = useState<Record<string, boolean>>({});
 
@@ -73,7 +78,7 @@ export function RoomPage() {
       setActiveTab("rooms");
       void refreshLiveStatus();
     } catch (addError) {
-      setError(addError instanceof Error ? addError.message : "添加失败");
+      showError(addError instanceof Error ? addError.message : "添加失败");
     } finally {
       setAddingRoomIds((prev) => {
         const next = new Set(prev);
@@ -86,19 +91,19 @@ export function RoomPage() {
   const handleSearch = async () => {
     const trimmed = query.trim();
     if (!trimmed) {
-      setError("请输入搜索内容");
+      showError("请输入搜索内容");
       setSearchResults([]);
       return;
     }
 
     setLoading(true);
-    setError(null);
+    clearMessage();
 
     try {
       const results = await tauriCommands.room.search(trimmed, mode);
       setSearchResults(results);
     } catch (searchError) {
-      setError(searchError instanceof Error ? searchError.message : "搜索失败");
+      showError(searchError instanceof Error ? searchError.message : "搜索失败");
       setSearchResults([]);
     } finally {
       setLoading(false);
@@ -161,7 +166,7 @@ export function RoomPage() {
                 {loading ? "搜索中..." : "搜索"}
               </button>
             </div>
-            {error ? <p className="mt-3 text-sm text-rose-500 dark:text-rose-400">{error}</p> : null}
+            {error && <InlineMessage key={msgKey} type="error" className="mt-3">{error}</InlineMessage>}
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">

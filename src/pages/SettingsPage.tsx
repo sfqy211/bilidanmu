@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { FolderOpen } from "lucide-react";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -14,7 +15,12 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [msgKey, setMsgKey] = useState(0);
   const [activeTab, setActiveTab] = useState("send");
+
+  const showError = (msg: string) => { setError(msg); setSuccess(null); setMsgKey((k) => k + 1); };
+  const showSuccess = (msg: string) => { setSuccess(msg); setError(null); setMsgKey((k) => k + 1); };
+  const clearMessage = () => { setError(null); setSuccess(null); };
   const [modelDir, setModelDir] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const sttAvailable = useSettingsStore((state) => state.sttAvailable);
@@ -41,7 +47,7 @@ export function SettingsPage() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "加载设置失败");
+          showError(loadError instanceof Error ? loadError.message : "加载设置失败");
         }
       } finally {
         if (!cancelled) {
@@ -65,17 +71,16 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null);
-    setSuccess(null);
+    clearMessage();
 
     try {
       await tauriCommands.settings.update(settings);
       patchSettings(settings);
       // 通知其他窗口同步设置
       await getCurrentWindow().emit("settings-updated", settings);
-      setSuccess("设置已保存");
+      showSuccess("设置已保存");
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "保存设置失败");
+      showError(saveError instanceof Error ? saveError.message : "保存设置失败");
     } finally {
       setSaving(false);
     }
@@ -89,8 +94,8 @@ export function SettingsPage() {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">发送、接收与外观的核心设置。</p>
         </div>
         <div className="flex items-center gap-3">
-          {error ? <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p> : null}
-          {success ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p> : null}
+          {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
+          {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
           <button
             onClick={() => void handleSave()}
             disabled={loading || saving}

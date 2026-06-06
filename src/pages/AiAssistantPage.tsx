@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Check, Loader2, Send, Trash2 } from "lucide-react";
 import { SplitLayout } from "@/components/layout/SplitLayout";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { useZoom } from "@/hooks/useZoom";
 import { tauriCommands } from "@/lib/tauri";
@@ -22,7 +23,11 @@ export function AiAssistantPage() {
   const [sentSet, setSentSet] = useState<Set<string>>(new Set());
   const [triggering, setTriggering] = useState<"reply" | "summary" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [msgKey, setMsgKey] = useState(0);
   const [customText, setCustomText] = useState("");
+
+  const showError = (msg: string) => { setError(msg); setMsgKey((k) => k + 1); };
+  const clearMessage = () => { setError(null); };
 
   const replyEndRef = useRef<HTMLDivElement>(null);
   const summaryEndRef = useRef<HTMLDivElement>(null);
@@ -52,7 +57,7 @@ export function AiAssistantPage() {
   const handleTrigger = useCallback(
     async (action: "reply" | "summary") => {
       setTriggering(action);
-      setError(null);
+      clearMessage();
       try {
         const results = await tauriCommands.ai.trigger(action, "");
         const now = Math.floor(Date.now() / 1000);
@@ -74,7 +79,7 @@ export function AiAssistantPage() {
           setReplies((prev) => [...prev, ...suggestions].slice(-MAX_REPLIES));
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "触发失败");
+        showError(e instanceof Error ? e.message : "触发失败");
       } finally {
         setTriggering(null);
       }
@@ -226,9 +231,9 @@ export function AiAssistantPage() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="shrink-0 border-t border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
+        <InlineMessage key={msgKey} type="error" className="shrink-0 border-t border-x-0 border-b-0">
           {error}
-        </div>
+        </InlineMessage>
       )}
     </div>
   );
