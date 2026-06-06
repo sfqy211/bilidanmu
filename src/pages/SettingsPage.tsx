@@ -25,7 +25,8 @@ export function SettingsPage() {
     { value: "appearance", label: "外观" },
     { value: "audio", label: "音频" },
     { value: "notification", label: "通知" },
-    ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : [])
+    ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : []),
+    { value: "cache" as const, label: "缓存管理" }
   ];
 
   useEffect(() => {
@@ -476,6 +477,66 @@ export function SettingsPage() {
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </TabContent>
+
+        <TabContent value="cache" className="flex flex-col gap-4">
+          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                分类清理本地缓存。图片缓存包含封面、头像和醒目留言背景；表情缓存包含表情包数据。
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    if (!window.confirm("确定要清除图片缓存吗？封面、头像和醒目留言背景将在下次显示时重新下载。")) return;
+                    tauriCommands.proxy.clearImageCache().then(() => {
+                      import("sonner").then(({ toast }) => toast.success("图片缓存已清理"));
+                    }).catch(() => {
+                      import("sonner").then(({ toast }) => toast.error("清理失败"));
+                    });
+                  }}
+                  className="border border-slate-300 px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                >
+                  清除图片缓存
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!window.confirm("确定要清除所有房间专属表情吗？下次进入房间时会重新拉取。")) return;
+                    tauriCommands.room.clearRoomSpecificEmoticons().then(() => {
+                      import("sonner").then(({ toast }) => toast.success("房间专属表情已清理"));
+                    }).catch(() => {
+                      import("sonner").then(({ toast }) => toast.error("清理失败"));
+                    });
+                  }}
+                  className="border border-slate-300 px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                >
+                  清除房间专属表情
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!window.confirm("确定要清除所有缓存吗？这将删除所有已缓存的图片和表情数据。")) return;
+                    Promise.allSettled([
+                      tauriCommands.proxy.clearImageCache(),
+                      tauriCommands.room.clearEmoticonCache(),
+                    ]).then((results) => {
+                      const failed = results.filter((r) => r.status === "rejected");
+                      if (failed.length) {
+                        import("sonner").then(({ toast }) => toast.error("部分缓存清理失败"));
+                      } else {
+                        import("sonner").then(({ toast }) => toast.success("所有缓存已清理"));
+                      }
+                    });
+                  }}
+                  className="border border-red-300 px-5 py-3 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/[0.04]"
+                >
+                  清除所有缓存
+                </button>
               </div>
             </div>
           </div>

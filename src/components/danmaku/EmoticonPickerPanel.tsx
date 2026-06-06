@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
@@ -5,6 +6,26 @@ import { makePkgKey } from "@/types/bilibili";
 
 function getPackageLabel(pkg: EmoticonPackage): string {
   return pkg.pkgName || `表情包 ${pkg.pkgId}`;
+}
+
+function getPackageSortPriority(pkgType?: number): number {
+  switch (pkgType) {
+    case 0: case 1: return 0;  // 系统表情、emoji
+    case 2: case 3: return 1;  // 房间专属、UP主大表情
+    default: return 2;          // 装扮表情
+  }
+}
+
+function getEmoticonLabel(emoticon: Emoticon): string {
+  if (emoticon.descript) return emoticon.descript;
+  if (emoticon.emoji) return emoticon.emoji;
+  if (emoticon.emoticonUnique) {
+    // 从 emoticon_unique 提取可读名称，如 "official_123_doge" → "doge"
+    const parts = emoticon.emoticonUnique.split("_");
+    const last = parts[parts.length - 1];
+    if (last && last.length > 1) return last;
+  }
+  return "表情";
 }
 
 export function EmoticonPickerPanel({
@@ -30,7 +51,12 @@ export function EmoticonPickerPanel({
   onSelectEmoticon: (emoticon: Emoticon) => void;
   className?: string;
 }) {
-  const activePackage = packages.find((pkg) => makePkgKey(pkg) === activePkgKey) ?? packages[0];
+  const sortedPackages = useMemo(
+    () => [...packages].sort((a, b) => getPackageSortPriority(a.pkgType) - getPackageSortPriority(b.pkgType)),
+    [packages]
+  );
+
+  const activePackage = sortedPackages.find((pkg) => makePkgKey(pkg) === activePkgKey) ?? sortedPackages[0];
 
   return (
     <div
@@ -70,7 +96,7 @@ export function EmoticonPickerPanel({
         <>
           <div className="mb-3 overflow-x-auto pb-1">
             <div className="flex min-w-max gap-2">
-            {packages.map((pkg, index) => {
+            {sortedPackages.map((pkg, index) => {
               const active = pkg === activePackage;
               const preview = pkg.emoticons[0];
               return (
@@ -89,6 +115,7 @@ export function EmoticonPickerPanel({
                     <ProxiedImage
                       src={preview.url}
                       alt={getPackageLabel(pkg)}
+                      persistent
                       className="h-8 w-8 object-contain"
                     />
                   ) : (
@@ -100,7 +127,7 @@ export function EmoticonPickerPanel({
             </div>
           </div>
 
-          <div className="grid max-h-64 grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4 xl:grid-cols-6">
+          <div className="grid max-h-64 grid-cols-4 gap-2 overflow-y-auto">
             {activePackage?.emoticons.map((emoticon, index) => {
               const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
               return (
@@ -118,11 +145,12 @@ export function EmoticonPickerPanel({
                 >
                   <ProxiedImage
                     src={emoticon.url}
-                    alt={emoticon.descript ?? emoticon.emoji ?? "表情"}
+                    alt={getEmoticonLabel(emoticon)}
+                    persistent
                     className="h-12 w-12 object-contain"
                   />
                   <span className="mt-2 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-300">
-                    {emoticon.descript ?? emoticon.emoji ?? "未命名表情"}
+                    {getEmoticonLabel(emoticon)}
                   </span>
                 </button>
               );

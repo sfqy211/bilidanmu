@@ -77,6 +77,12 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               updated_at INTEGER NOT NULL,
               FOREIGN KEY(pkg_id) REFERENCES emoticon_packages(pkg_id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS image_cache (
+              url TEXT PRIMARY KEY,
+              data_url TEXT NOT NULL,
+              updated_at INTEGER NOT NULL
+            );
             "#,
         )
         .map_err(|error| format!("初始化 SQLite 数据库失败: {error}"))?;

@@ -1,4 +1,5 @@
 use crate::AppState;
+use rusqlite::params;
 use tauri::State;
 
 const BILI_REFERER: &str = "https://www.bilibili.com/";
@@ -18,10 +19,55 @@ fn host_of(url: &str) -> Option<&str> {
     rest.split(&['/', '?', '#'][..]).next()
 }
 
+/// 从缓存加载图片
+fn load_from_cache(state: &AppState, url: &str) -> Option<String> {
+    crate::db::with_connection(state, |connection| {
+        let result = connection.query_row(
+            "SELECT data_url FROM image_cache WHERE url = ?1",
+            params![url],
+            |row| row.get::<_, String>(0),
+        );
+        Ok(result.ok())
+    })
+    .ok()
+    .flatten()
+}
+
+/// 保存图片到缓存
+fn save_to_cache(state: &AppState, url: &str, data_url: &str) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    if let Err(e) = crate::db::with_connection(state, |connection| {
+        connection.execute(
+            "INSERT OR REPLACE INTO image_cache (url, data_url, updated_at) VALUES (?1, ?2, ?3)",
+            params![url, data_url, now],
+        )
+        .map_err(|e| format!("保存图片缓存失败: {e}"))?;
+        Ok(())
+    }) {
+        log::warn!("保存图片缓存失败: {e}");
+    }
+}
+
 #[tauri::command]
-pub async fn proxy_image(url: String, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn proxy_image(
+    url: String,
+    persistent: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
         return Err(format!("无效的图片 URL: {url}"));
+    }
+
+    let persistent = persistent.unwrap_or(false);
+
+    // 持久模式：先查 SQLite 缓存
+    if persistent {
+        if let Some(cached) = load_from_cache(state.inner(), &url) {
+            return Ok(cached);
+        }
     }
 
     let host = host_of(&url).ok_or_else(|| format!("无法解析 URL 主机: {url}"))?;
@@ -69,5 +115,23 @@ pub async fn proxy_image(url: String, state: State<'_, AppState>) -> Result<Stri
 
     use base64::Engine;
     let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Ok(format!("data:{content_type};base64,{encoded}"))
+    let data_url = format!("data:{content_type};base64,{encoded}");
+
+    // 持久模式：写入 SQLite 缓存
+    if persistent {
+        save_to_cache(state.inner(), &url, &data_url);
+    }
+
+    Ok(data_url)
+}
+
+/// 清理图片缓存
+#[tauri::command]
+pub async fn clear_image_cache(state: State<'_, AppState>) -> Result<(), String> {
+    crate::db::with_connection(state.inner(), |connection| {
+        connection
+            .execute_batch("DELETE FROM image_cache")
+            .map_err(|e| format!("清理图片缓存失败: {e}"))?;
+        Ok(())
+    })
 }

@@ -56,8 +56,11 @@ export const tauriCommands = {
       invoke<void>("open_danmaku_window", { roomId, width: width ?? null, height: height ?? null }),
     openAiWindow: (width?: number, height?: number) =>
       invoke<void>("open_ai_window", { width: width ?? null, height: height ?? null }),
-    getEmoticons: (roomId: number) =>
-      invoke<EmoticonPackage[]>("get_emoticons", { roomId }),
+    getEmoticons: (roomId: number, force?: boolean) =>
+      invoke<EmoticonPackage[]>("get_emoticons", { roomId, force: force ?? false }),
+    clearEmoticonCache: () => invoke<void>("clear_emoticon_cache"),
+    clearRoomEmoticonCache: (roomId: number) => invoke<void>("clear_room_emoticon_cache", { roomId }),
+    clearRoomSpecificEmoticons: () => invoke<void>("clear_room_specific_emoticons"),
     getAudioStreamUrl: (roomId: number) =>
       invoke<StreamInfo>("get_audio_stream_url", { roomId }),
     clearAudioStream: () =>
@@ -119,7 +122,9 @@ export const tauriCommands = {
     save: (entries: Record<string, unknown>) => invoke<void>("save_selections", { entries })
   },
   proxy: {
-    image: (url: string) => invoke<string>("proxy_image", { url })
+    image: (url: string, persistent?: boolean) =>
+      invoke<string>("proxy_image", { url, persistent: persistent ?? false }),
+    clearImageCache: () => invoke<void>("clear_image_cache")
   },
   stt: {
     start: () => invoke<void>("start_stt"),

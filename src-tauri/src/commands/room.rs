@@ -50,6 +50,7 @@ pub async fn add_room(
 #[tauri::command]
 pub async fn remove_room(app: tauri::AppHandle, room_id: u64, state: State<'_, AppState>) -> Result<(), String> {
     room_store::remove_room(state.inner(), room_id)?;
+    crate::emoticon_store::clear_room_emoticons(state.inner(), room_id)?;
     let _ = tray::refresh_tray(&app);
     Ok(())
 }
@@ -114,19 +115,66 @@ pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<O
 #[tauri::command]
 pub async fn get_emoticons(
     room_id: u64,
+    force: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Vec<EmoticonPackage>, String> {
-    if let Ok(cached) = crate::emoticon_store::load_room_packages(state.inner(), room_id) {
+    let force = force.unwrap_or(false);
+
+    // 优先使用缓存（除非强制刷新）
+    if !force {
+        let cached = crate::emoticon_store::load_room_packages(state.inner(), room_id);
         if !cached.is_empty() {
-            return Ok(cached);
+            let mut sorted = cached;
+            sorted.sort_by_key(|pkg| emoticon_sort_priority(pkg.pkg_type));
+            return Ok(sorted);
         }
     }
 
+    // 缓存为空或强制刷新，从 API 拉取
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state);
-    let packages = api.get_emoticons(room_id).await?;
-    let _ = crate::emoticon_store::save_packages(state.inner(), room_id, &packages);
-    Ok(packages)
+    let fresh_packages = api.get_emoticons(room_id).await?;
+
+    // 清理旧的非房间专属映射（保留 pkg_type 2/3）
+    crate::emoticon_store::clear_non_room_specific_mappings(state.inner(), room_id);
+
+    // 批量缓存所有包（单次事务）
+    crate::emoticon_store::save_packages(state.inner(), &fresh_packages)?;
+    let mut result = fresh_packages;
+
+    // 更新房间-包映射
+    crate::emoticon_store::save_room_packages(state.inner(), room_id, &result)?;
+
+    // 按类型排序：系统表情/emoji → UP主大表情/房间通用 → 装扮表情
+    result.sort_by_key(|pkg| emoticon_sort_priority(pkg.pkg_type));
+    Ok(result)
+}
+
+/// 表情包排序优先级（数字越小越靠前）
+fn emoticon_sort_priority(pkg_type: Option<u64>) -> u8 {
+    match pkg_type {
+        Some(0) | Some(1) => 0,  // 系统表情、emoji
+        Some(2) | Some(3) => 1,  // 房间专属、UP主大表情
+        _ => 2,                   // 装扮表情及其他
+    }
+}
+
+/// 清理所有表情缓存
+#[tauri::command]
+pub async fn clear_emoticon_cache(state: State<'_, AppState>) -> Result<(), String> {
+    crate::emoticon_store::clear_all(state.inner())
+}
+
+/// 清理指定房间的表情缓存
+#[tauri::command]
+pub async fn clear_room_emoticon_cache(room_id: u64, state: State<'_, AppState>) -> Result<(), String> {
+    crate::emoticon_store::clear_room_emoticons(state.inner(), room_id)
+}
+
+/// 清理所有房间专属表情包
+#[tauri::command]
+pub async fn clear_room_specific_emoticons(state: State<'_, AppState>) -> Result<(), String> {
+    crate::emoticon_store::clear_room_specific_emoticons(state.inner())
 }
 
 #[tauri::command]
