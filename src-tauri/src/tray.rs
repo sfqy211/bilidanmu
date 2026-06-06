@@ -59,7 +59,37 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
                 let state = app_clone.state::<crate::AppState>();
+
+                // 停止自动发送/点赞
+                {
+                    let mut auto_sender = state.auto_sender.lock().await;
+                    if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
+                        let _ = shutdown_tx.send(());
+                    }
+                }
+                {
+                    let mut auto_like = state.auto_like.lock().await;
+                    if let Some(shutdown_tx) = auto_like.shutdown_tx.take() {
+                        let _ = shutdown_tx.send(());
+                    }
+                }
+
+                // 断开 WebSocket
+                {
+                    let mut ws_client = state.ws_client.lock().await;
+                    if let Some(client) = ws_client.as_mut() {
+                        client.disconnect().await;
+                    }
+                }
+
+                // 断开 AstrBot
                 let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
+
+                // 销毁所有窗口，让 WebView2 干净退出
+                for (_, window) in app_clone.webview_windows() {
+                    let _ = window.destroy();
+                }
+
                 app_clone.exit(0);
             });
         }
