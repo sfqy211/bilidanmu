@@ -217,7 +217,7 @@ pub async fn open_ai_window(
         .inner_size(w, h)
         .min_inner_size(300.0, 300.0)
         .resizable(true)
-        .decorations(true)
+        .decorations(false)
         .always_on_top(true)
         .build()
         .map_err(|error| error.to_string())?;
@@ -259,8 +259,7 @@ pub async fn open_danmaku_window(
         .min_inner_size(240.0, 160.0)
         .max_inner_size(1200.0, 900.0)
         .resizable(true)
-        .decorations(true)
-        .transparent(true)
+        .decorations(false)
         .always_on_top(true)
         .shadow(false)
         .build()

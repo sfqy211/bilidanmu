@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Bot, MonitorPlay, Settings, UserRound } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { getAppVersion } from "@/lib/constants";
-import appIcon from "@/icon.ico";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -23,9 +22,6 @@ export function AppSidebar() {
 
   return (
     <aside className="flex w-16 flex-col border-r border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#0e1018]">
-      <div className="flex h-16 items-center justify-center border-b border-slate-300 text-lg font-semibold text-pink-500 dark:border-white/[0.06] dark:text-pink-400">
-        <img src={appIcon} alt="BD" className="h-8 w-8" />
-      </div>
       <nav className="flex flex-1 flex-col gap-2 p-2">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink

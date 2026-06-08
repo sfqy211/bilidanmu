@@ -2,11 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
+
+const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Pause, Pin, PinOff, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Maximize, Minus, Pause, Pin, PinOff, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
+import appIcon from "@/icon.ico";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
@@ -114,6 +117,7 @@ export function DanmakuPage() {
   const superChatCount = useDanmakuStore((state) => state.superChatCount);
   const rooms = useRoomStore((state) => state.rooms);
   const activeAccountId = useAuthStore((state) => state.activeAccountId);
+  const currentRoom = rooms.find((r) => r.roomId === roomId);
 
   // 当前有效的发送账号 ID（AccountSwitcher 切换时会更新 activeAccountId）
   const effectiveSendingId = activeAccountId;
@@ -249,7 +253,7 @@ export function DanmakuPage() {
 
   // 关闭窗口时断开连接
   useEffect(() => {
-    const unlisten = getCurrentWindow().onCloseRequested(() => {
+    const unlisten = appWindow.onCloseRequested(() => {
       disconnect();
       if (sttAvailable) {
         tauriCommands.stt.stop().catch(() => {});
@@ -411,9 +415,51 @@ export function DanmakuPage() {
   const showGifts = ratio > 0.02;
   const showDanmaku = ratio < 0.98;
 
+  const handleTitleBarMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (e.button === 0) void appWindow.startDragging();
+  }, []);
+
   return (
     <main className="flex h-full flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
-      {/* 音频控制栏 */}
+      {/* 标题栏 */}
+      <div
+        className="flex select-none items-center border-b border-slate-300 bg-white pl-3 dark:border-white/[0.06] dark:bg-[#0e1018]"
+        onMouseDown={handleTitleBarMouseDown}
+      >
+        <img src={appIcon} alt="" className="mr-1.5 h-4 w-4" />
+        <span className="flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
+          {currentRoom ? `${currentRoom.uname} - ${currentRoom.title}` : `房间 ${roomId ?? ""}`}
+        </span>
+        <div className="flex h-7">
+          <button
+            type="button"
+            onClick={() => appWindow.minimize()}
+            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-white/[0.06]"
+            title="最小化"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => appWindow.toggleMaximize()}
+            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-white/[0.06]"
+            title="最大化"
+          >
+            <Maximize className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => appWindow.close()}
+            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
+            title="关闭"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* 控制栏 */}
       <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1 dark:border-white/[0.06] dark:bg-[#12141e]">
         <button
           type="button"
@@ -502,9 +548,9 @@ export function DanmakuPage() {
           onClick={() => {
             const next = !pinned;
             setPinned(next);
-            void getCurrentWindow().setAlwaysOnTop(next);
+            void appWindow.setAlwaysOnTop(next);
           }}
-          className="ml-1 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          className="text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
           title={pinned ? "取消置顶" : "置顶"}
         >
           {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
