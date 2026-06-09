@@ -99,6 +99,8 @@ export function DanmakuPage() {
   const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
   // 按账号维护的表情包缓存（key = accountId, value = 该账号的表情包列表）
   const [emoticonPkgMap, setEmoticonPkgMap] = useState<Map<string, EmoticonPackage[]>>(new Map());
+  // 按账号维护的收藏表情（key = accountId）
+  const [favoriteMap, setFavoriteMap] = useState<Map<string, Emoticon[]>>(new Map());
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -133,11 +135,46 @@ export function DanmakuPage() {
 
   // 当前有效的发送账号 ID（AccountSwitcher 切换时会更新 activeAccountId）
   const effectiveSendingId = activeAccountId;
-  // 当前账号的表情包列表
-  const emoticonPackages = useMemo(
-    () => (effectiveSendingId ? emoticonPkgMap.get(effectiveSendingId) ?? [] : []),
-    [emoticonPkgMap, effectiveSendingId],
+
+  // 收藏表情包 key（与 makePkgKey 生成的一致）
+  const FAVORITE_PKG_KEY = "-1--1";
+  // 当前账号的收藏表情
+  const currentFavorites = useMemo(
+    () => (effectiveSendingId ? favoriteMap.get(effectiveSendingId) ?? [] : []),
+    [favoriteMap, effectiveSendingId],
   );
+  // 当前房间可用的表情 unique 集合（用于过滤收藏）
+  // 仅依赖当前账号的包数据，避免其他账号的包变化触发重建
+  const availableEmotUniques = useMemo(() => {
+    const pkgs = effectiveSendingId ? emoticonPkgMap.get(effectiveSendingId) : undefined;
+    if (!pkgs) return new Set<string>();
+    const set = new Set<string>();
+    for (const pkg of pkgs) {
+      for (const emot of pkg.emoticons) {
+        if (emot.emoticonUnique) set.add(emot.emoticonUnique);
+      }
+    }
+    return set;
+  }, [emoticonPkgMap, effectiveSendingId]);
+  // 过滤后的收藏表情（仅保留当前房间可用的）
+  const filteredFavorites = useMemo(
+    () => currentFavorites.filter((e) => e.emoticonUnique && availableEmotUniques.has(e.emoticonUnique)),
+    [currentFavorites, availableEmotUniques],
+  );
+  // 收藏虚拟包（始终显示，空时展示提示）
+  const favoritePkg = useMemo<EmoticonPackage>(() => ({
+    pkgId: -1,
+    pkgName: "收藏",
+    pkgType: -1,
+    currentCover: filteredFavorites[0]?.url,
+    emoticons: filteredFavorites,
+  }), [filteredFavorites]);
+
+  // 当前账号的表情包列表（含收藏包）
+  const emoticonPackages = useMemo(() => {
+    const base = effectiveSendingId ? emoticonPkgMap.get(effectiveSendingId) ?? [] : [];
+    return favoritePkg ? [favoritePkg, ...base] : base;
+  }, [emoticonPkgMap, effectiveSendingId, favoritePkg]);
   // 已加载表情包中所有表情 URL 集合，用于弹幕表情优先复用本地缓存
   const cachedEmotUrls = useMemo(() => {
     const urls = new Set<string>();
@@ -444,14 +481,22 @@ export function DanmakuPage() {
     const accountId = forceAccountId ?? activeAccountId ?? undefined;
 
     try {
-      const packages = await tauriCommands.room.getEmoticons(roomId, false, accountId);
+      const [packages, favorites] = await Promise.all([
+        tauriCommands.room.getEmoticons(roomId, false, accountId),
+        tauriCommands.room.getFavoriteEmoticons(accountId ?? ""),
+      ]);
       setEmoticonPkgMap((prev) => {
         const next = new Map(prev);
         next.set(accountId ?? "", packages);
         return next;
       });
+      setFavoriteMap((prev) => {
+        const next = new Map(prev);
+        next.set(accountId ?? "", favorites);
+        return next;
+      });
       setActivePkgKey((current) => {
-        if (current && packages.some((pkg) => makePkgKey(pkg) === current)) {
+        if (current && (current === FAVORITE_PKG_KEY || packages.some((pkg) => makePkgKey(pkg) === current))) {
           return current;
         }
         return packages[0] ? makePkgKey(packages[0]) : null;
@@ -508,6 +553,67 @@ export function DanmakuPage() {
       setEmoticonPickerOpen(false);
     },
     [roomId, sendEmoticon]
+  );
+
+  // 收藏/取消收藏表情
+  const handleToggleFavorite = useCallback(
+    async (emoticon: Emoticon) => {
+      const accountId = effectiveSendingId;
+      const unique = emoticon.emoticonUnique;
+      if (!accountId || !unique) return;
+
+      const isFav = currentFavorites.some((e) => e.emoticonUnique === unique);
+      try {
+        if (isFav) {
+          await tauriCommands.room.removeFavoriteEmoticon(accountId, unique);
+          setFavoriteMap((prev) => {
+            const next = new Map(prev);
+            next.set(accountId, (next.get(accountId) ?? []).filter((e) => e.emoticonUnique !== unique));
+            return next;
+          });
+        } else {
+          await tauriCommands.room.addFavoriteEmoticon(accountId, emoticon);
+          setFavoriteMap((prev) => {
+            const next = new Map(prev);
+            next.set(accountId, [...(next.get(accountId) ?? []), emoticon]);
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error("收藏操作失败:", err);
+      }
+    },
+    [effectiveSendingId, currentFavorites]
+  );
+
+  // 收藏表情拖拽排序（防抖持久化）
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleReorderFavorites = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const accountId = effectiveSendingId;
+      if (!accountId) return;
+
+      setFavoriteMap((prev) => {
+        const next = new Map(prev);
+        const list = [...(next.get(accountId) ?? [])];
+        const [moved] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, moved);
+        next.set(accountId, list);
+
+        // 防抖持久化：300ms 内多次拖拽只触发最后一次
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          list.forEach((emot, i) => {
+            if (emot.emoticonUnique) {
+              tauriCommands.room.updateFavoriteOrder(accountId, emot.emoticonUnique, i).catch(() => {});
+            }
+          });
+        }, 300);
+
+        return next;
+      });
+    },
+    [effectiveSendingId]
   );
 
   // ── 分割栏是否折叠 ──
@@ -996,10 +1102,13 @@ export function DanmakuPage() {
               packages={emoticonPackages}
               activePkgKey={activePkgKey}
               sending={sending}
+              favoriteUniques={new Set(currentFavorites.map((e) => e.emoticonUnique).filter(Boolean) as string[])}
               onClose={() => setEmoticonPickerOpen(false)}
               onReload={() => void loadEmoticons()}
               onSelectPackage={setActivePkgKey}
               onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
+              onToggleFavorite={(emoticon) => void handleToggleFavorite(emoticon)}
+              onReorderFavorites={handleReorderFavorites}
             />
           ) : null}
 

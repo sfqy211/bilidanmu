@@ -254,3 +254,96 @@ pub fn save_room_packages(state: &AppState, room_id: u64, account_id: &str, pack
         Ok(())
     })
 }
+
+/// 加载账号的收藏表情列表
+pub fn load_favorites(state: &AppState, account_id: &str) -> Vec<Emoticon> {
+    db::with_connection(state, |connection| {
+        let mut stmt = connection
+            .prepare(
+                "SELECT emoticon_unique, url, descript, emoji, pkg_id \
+                 FROM favorite_emoticons \
+                 WHERE account_id = ?1 \
+                 ORDER BY sort_order ASC, created_at ASC",
+            )
+            .map_err(|e| format!("准备查询收藏表情失败: {e}"))?;
+
+        let rows: Vec<Emoticon> = stmt
+            .query_map(params![account_id], |row| {
+                Ok(Emoticon {
+                    emoticon_unique: row.get(0)?,
+                    url: row.get(1)?,
+                    descript: row.get(2)?,
+                    emoji: row.get(3)?,
+                    pkg_id: row.get(4)?,
+                    perm: None,
+                    emoticon_id: None,
+                    height: None,
+                    width: None,
+                    is_dynamic: None,
+                    unlock_show_text: None,
+                    emoticon_options: None,
+                })
+            })
+            .map_err(|e| format!("查询收藏表情失败: {e}"))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(rows)
+    })
+    .unwrap_or_default()
+}
+
+/// 添加收藏表情
+pub fn add_favorite(state: &AppState, account_id: &str, emoticon: &Emoticon) -> Result<(), String> {
+    let unique = emoticon.emoticon_unique.as_deref().unwrap_or("");
+    if unique.is_empty() {
+        return Err("表情标识为空".to_string());
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    db::with_connection(state, |connection| {
+        connection.execute(
+            "INSERT OR IGNORE INTO favorite_emoticons \
+             (account_id, emoticon_unique, url, descript, emoji, pkg_id, sort_order, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)",
+            params![
+                account_id,
+                unique,
+                emoticon.url,
+                emoticon.descript,
+                emoticon.emoji,
+                emoticon.pkg_id,
+                now
+            ],
+        )
+        .map_err(|e| format!("添加收藏失败: {e}"))?;
+        Ok(())
+    })
+}
+
+/// 移除收藏表情
+pub fn remove_favorite(state: &AppState, account_id: &str, emoticon_unique: &str) -> Result<(), String> {
+    db::with_connection(state, |connection| {
+        connection.execute(
+            "DELETE FROM favorite_emoticons WHERE account_id = ?1 AND emoticon_unique = ?2",
+            params![account_id, emoticon_unique],
+        )
+        .map_err(|e| format!("移除收藏失败: {e}"))?;
+        Ok(())
+    })
+}
+
+/// 更新收藏排序
+pub fn update_favorite_order(state: &AppState, account_id: &str, emoticon_unique: &str, sort_order: i32) -> Result<(), String> {
+    db::with_connection(state, |connection| {
+        connection.execute(
+            "UPDATE favorite_emoticons SET sort_order = ?1 WHERE account_id = ?2 AND emoticon_unique = ?3",
+            params![sort_order, account_id, emoticon_unique],
+        )
+        .map_err(|e| format!("更新排序失败: {e}"))?;
+        Ok(())
+    })
+}

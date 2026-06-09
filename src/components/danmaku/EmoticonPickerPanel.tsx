@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Settings2, X } from "lucide-react";
+import { Eye, EyeOff, Settings2, Star, X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
 import { makePkgKey } from "@/types/bilibili";
@@ -97,10 +97,13 @@ export function EmoticonPickerPanel({
   packages,
   activePkgKey,
   sending,
+  favoriteUniques,
   onClose,
   onReload,
   onSelectPackage,
   onSelectEmoticon,
+  onToggleFavorite,
+  onReorderFavorites,
   className,
 }: {
   roomId: number;
@@ -110,13 +113,17 @@ export function EmoticonPickerPanel({
   packages: EmoticonPackage[];
   activePkgKey: string | null;
   sending: boolean;
+  favoriteUniques?: Set<string>;
   onClose: () => void;
   onReload: () => void;
   onSelectPackage: (pkgKey: string) => void;
   onSelectEmoticon: (emoticon: Emoticon) => void;
+  onToggleFavorite?: (emoticon: Emoticon) => void;
+  onReorderFavorites?: (fromIndex: number, toIndex: number) => void;
   className?: string;
 }) {
   const [managing, setManaging] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [hidden, setHidden] = useState<{ global: Set<number>; room: Set<number> }>(
     () => loadHiddenPkgIds(roomId, accountId),
   );
@@ -217,7 +224,7 @@ export function EmoticonPickerPanel({
                   type="button"
                   onClick={() => {
                     if (managing) {
-                      handleToggle(pkg);
+                      if (pkg.pkgId !== -1) handleToggle(pkg);
                     } else {
                       onSelectPackage(makePkgKey(pkg));
                     }
@@ -233,7 +240,9 @@ export function EmoticonPickerPanel({
                         : "bg-white/10 text-slate-400 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:text-slate-400 dark:hover:bg-white/[0.04]"
                   }`}
                 >
-                  {preview ? (
+                  {pkg.pkgId === -1 ? (
+                    <Star className={`h-5 w-5 ${active ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />
+                  ) : preview ? (
                     <ProxiedImage
                       src={preview.url}
                       alt={getPackageLabel(pkg)}
@@ -260,33 +269,77 @@ export function EmoticonPickerPanel({
 
           {!managing && (
             <div className="grid h-[208px] grid-cols-4 gap-2 overflow-y-auto">
-              {activePackage?.emoticons.map((emoticon, index) => {
+              {activePackage?.pkgId === -1 && (activePackage.emoticons.length === 0) ? (
+                <div className="col-span-4 flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
+                  点击其他表情上的 ⭐ 添加收藏
+                </div>
+              ) : activePackage?.emoticons.map((emoticon, index) => {
                 const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
+                const isFav = favoriteUniques?.has(emoticon.emoticonUnique ?? "") ?? false;
+                const isFavPkg = activePackage?.pkgId === -1;
                 return (
-                  <button
+                  <div
                     key={`${activePackage.pkgId}-${emoticon.emoticonUnique ?? emoticon.emoticonId ?? index}`}
-                    type="button"
-                    disabled={!available || sending}
-                    onClick={() => onSelectEmoticon(emoticon)}
-                    title={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                    className={`flex flex-col items-center p-2 text-center transition ${
-                      available
-                        ? "bg-white/10 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:hover:bg-white/[0.04]"
-                        : "cursor-not-allowed bg-white/10 opacity-50 dark:bg-white/[0.06]"
-                    }`}
+                    className="relative"
+                    style={dragIndex === index ? { opacity: 0.4 } : undefined}
+                    draggable={isFavPkg}
+                    onDragStart={(e) => {
+                      // 设置自定义拖拽幽灵图（半透明）
+                      const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
+                      ghost.style.opacity = "0.6";
+                      ghost.style.position = "absolute";
+                      ghost.style.top = "-9999px";
+                      document.body.appendChild(ghost);
+                      e.dataTransfer.setDragImage(ghost, 30, 30);
+                      requestAnimationFrame(() => ghost.remove());
+                      setDragIndex(index);
+                    }}
+                    onDragOver={(e) => { if (isFavPkg) e.preventDefault(); }}
+                    onDrop={() => {
+                      if (isFavPkg && dragIndex !== null && dragIndex !== index) {
+                        onReorderFavorites?.(dragIndex, index);
+                      }
+                      setDragIndex(null);
+                    }}
+                    onDragEnd={() => setDragIndex(null)}
                   >
-                    <ProxiedImage
-                      src={emoticon.url}
-                      alt={getEmoticonLabel(emoticon)}
-                      persistent
-                      className="h-12 w-12 object-contain"
-                    />
-                    <span className="mt-2 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-300">
-                      {getEmoticonLabel(emoticon)}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      disabled={!available || sending}
+                      onClick={() => onSelectEmoticon(emoticon)}
+                      title={emoticon.descript ?? emoticon.emoji ?? "表情"}
+                      className={`flex h-full w-full flex-col items-center p-2 text-center transition ${
+                        available
+                          ? "bg-white/10 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:hover:bg-white/[0.04]"
+                          : "cursor-not-allowed bg-white/10 opacity-50 dark:bg-white/[0.06]"
+                      }`}
+                    >
+                      <ProxiedImage
+                        src={emoticon.url}
+                        alt={getEmoticonLabel(emoticon)}
+                        persistent
+                        className="h-12 w-12 object-contain"
+                      />
+                      <span className="mt-2 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-300">
+                        {getEmoticonLabel(emoticon)}
+                      </span>
+                    </button>
+                    {onToggleFavorite && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onToggleFavorite(emoticon); }}
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-white/20"
+                        title={isFav ? "取消收藏" : "收藏"}
+                      >
+                        <Star
+                          className={`h-3 w-3 ${isFav ? "fill-amber-400 text-amber-400" : "text-slate-400/60"}`}
+                        />
+                      </button>
+                    )}
+                  </div>
                 );
-              })}
+              })
+            }
             </div>
           )}
         </>

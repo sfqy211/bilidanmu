@@ -79,6 +79,18 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               FOREIGN KEY(pkg_id) REFERENCES emoticon_packages(pkg_id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS favorite_emoticons (
+              account_id TEXT NOT NULL,
+              emoticon_unique TEXT NOT NULL,
+              url TEXT NOT NULL,
+              descript TEXT,
+              emoji TEXT,
+              pkg_id INTEGER,
+              sort_order INTEGER NOT NULL DEFAULT 0,
+              created_at INTEGER NOT NULL,
+              PRIMARY KEY (account_id, emoticon_unique)
+            );
+
             CREATE TABLE IF NOT EXISTS image_cache (
               url TEXT PRIMARY KEY,
               data_url TEXT NOT NULL,

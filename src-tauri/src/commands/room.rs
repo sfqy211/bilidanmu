@@ -1,6 +1,6 @@
 use crate::bili::api::BiliApiClient;
 use crate::commands::{build_api_client, get_sending_credential};
-use crate::models::room::{EmoticonPackage, Room, RoomInfo, SearchRoomResult};
+use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::StreamInfo;
 use crate::room_store;
 use crate::tray;
@@ -340,4 +340,44 @@ pub async fn get_rooms_live_status(state: State<'_, AppState>) -> Result<std::co
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state);
     api.get_rooms_live_status(&uids).await
+}
+
+/// 获取收藏表情列表
+#[tauri::command]
+pub async fn get_favorite_emoticons(
+    account_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<Emoticon>, String> {
+    Ok(crate::emoticon_store::load_favorites(state.inner(), &account_id))
+}
+
+/// 添加收藏表情
+#[tauri::command]
+pub async fn add_favorite_emoticon(
+    account_id: String,
+    emoticon: Emoticon,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    crate::emoticon_store::add_favorite(state.inner(), &account_id, &emoticon)
+}
+
+/// 移除收藏表情
+#[tauri::command]
+pub async fn remove_favorite_emoticon(
+    account_id: String,
+    emoticon_unique: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    crate::emoticon_store::remove_favorite(state.inner(), &account_id, &emoticon_unique)
+}
+
+/// 更新收藏排序
+#[tauri::command]
+pub async fn update_favorite_order(
+    account_id: String,
+    emoticon_unique: String,
+    sort_order: i32,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    crate::emoticon_store::update_favorite_order(state.inner(), &account_id, &emoticon_unique, sort_order)
 }

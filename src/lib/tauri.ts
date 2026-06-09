@@ -3,6 +3,7 @@ import type {
   AiSuggestion,
   AstrbotConfig,
   Credential,
+  Emoticon,
   EmoticonPackage,
   QrLoginResult,
   QrPollResult,
@@ -62,6 +63,14 @@ export const tauriCommands = {
     clearEmoticonCache: () => invoke<void>("clear_emoticon_cache"),
     clearRoomEmoticonCache: (roomId: number) => invoke<void>("clear_room_emoticon_cache", { roomId }),
     clearRoomSpecificEmoticons: () => invoke<void>("clear_room_specific_emoticons"),
+    getFavoriteEmoticons: (accountId: string) =>
+      invoke<Emoticon[]>("get_favorite_emoticons", { accountId }),
+    addFavoriteEmoticon: (accountId: string, emoticon: Emoticon) =>
+      invoke<void>("add_favorite_emoticon", { accountId, emoticon }),
+    removeFavoriteEmoticon: (accountId: string, emoticonUnique: string) =>
+      invoke<void>("remove_favorite_emoticon", { accountId, emoticonUnique }),
+    updateFavoriteOrder: (accountId: string, emoticonUnique: string, sortOrder: number) =>
+      invoke<void>("update_favorite_order", { accountId, emoticonUnique, sortOrder }),
     getAudioStreamUrl: (roomId: number) =>
       invoke<StreamInfo>("get_audio_stream_url", { roomId }),
     clearAudioStream: () =>
