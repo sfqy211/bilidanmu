@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Play, Plus, Square, X } from "lucide-react";
+import { Play, Plus, Send, Square, X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { AutoSendEntry } from "@/lib/tauri";
 import type { EmoticonPackage } from "@/types/bilibili";
@@ -67,7 +67,7 @@ function AutoSendControls({
           onChange={(e) => setIntervalSec(e.target.value)}
           disabled={isRunning}
           inputMode="decimal"
-          className="h-8 w-14 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+          className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white"
         />
         <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
       </div>
@@ -79,7 +79,7 @@ function AutoSendControls({
           disabled={isRunning}
           inputMode="numeric"
           placeholder="0"
-          className="h-8 w-14 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+          className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
         />
         <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
       </div>
@@ -96,7 +96,7 @@ function AutoSendControls({
           onClick={onStop}
           disabled={!isRunning}
           title="停止"
-          className="flex h-8 w-8 items-center justify-center border border-slate-300 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
+          className="flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-white/[0.04]"
         >
           <Square className="h-3.5 w-3.5" />
         </button>
@@ -144,7 +144,7 @@ function TextTabContent({
         onChange={(e) => setMessagesInput(e.target.value)}
         disabled={isRunning}
         placeholder={"每行一条循环弹幕\n第一条\n第二条\n第三条"}
-        className="min-h-28 w-full border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+        className="min-h-28 w-full rounded bg-white/10 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
       />
       <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">共 {entries.length} 条</p>
     </div>
@@ -198,7 +198,7 @@ function EmotionTabContent({
   return (
     <div className="space-y-3">
       {/* 已选表情 */}
-      <div className="border border-slate-200 bg-slate-50 p-3 dark:border-white/[0.06] dark:bg-[#0e1018]">
+      <div className="rounded bg-white/10 p-3 dark:bg-white/[0.06]">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
             已选表情 ({selectedEntries.length})
@@ -249,10 +249,10 @@ function EmotionTabContent({
                   key={key}
                   onClick={() => setActivePkgKey(key)}
                   disabled={isRunning}
-                  className={`shrink-0 border p-1 transition disabled:opacity-50 ${
+                  className={`shrink-0 p-1 transition disabled:opacity-50 ${
                     active
-                      ? "border-pink-300 bg-pink-50 dark:border-pink-500/40 dark:bg-pink-500/10"
-                      : "border-slate-200 hover:bg-slate-50 dark:border-white/[0.06] dark:hover:bg-white/[0.04]"
+                      ? "border border-pink-300 bg-pink-50 dark:border-pink-500/40 dark:bg-pink-500/10"
+                      : "hover:bg-white/[0.08] dark:hover:bg-white/[0.04]"
                   }`}
                   title={pkg.pkgName || `包 ${pkg.pkgId}`}
                 >
@@ -277,10 +277,10 @@ function EmotionTabContent({
                     onClick={() => emot.emoticonUnique && toggleEmotion(emot.emoticonUnique, emot.url)}
                     disabled={!available || isRunning}
                     title={emot.descript ?? emot.emoji ?? ""}
-                    className={`flex items-center justify-center border p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 ${
+                    className={`flex items-center justify-center p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 ${
                       selected
-                        ? "border-pink-300 bg-pink-50 dark:border-pink-500/30 dark:bg-pink-500/10"
-                        : "border-slate-200 hover:border-slate-300 dark:border-white/[0.06] dark:hover:border-white/[0.1]"
+                        ? "border border-pink-300 bg-pink-50 dark:border-pink-500/30 dark:bg-pink-500/10"
+                        : "hover:bg-white/[0.08] dark:hover:bg-white/[0.04]"
                     }`}
                   >
                     <ProxiedImage src={emot.url} alt={emot.descript ?? emot.emoji ?? ""} persistent className="h-7 w-7 object-contain" />
@@ -375,10 +375,10 @@ function FavoritesTabContent({
           <button
             key={panel.key}
             onClick={() => setActiveKey(panel.key)}
-            className={`group relative shrink-0 border px-2.5 py-1 text-xs transition ${
+            className={`group relative shrink-0 px-2.5 py-1 text-xs transition ${
               activeKey === panel.key
-                ? "border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/10 dark:text-pink-300"
-                : "border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-400 dark:hover:bg-white/[0.04]"
+                ? "border border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/10 dark:text-pink-300"
+                : "text-slate-500 hover:bg-white/[0.08] dark:text-slate-400 dark:hover:bg-white/[0.04]"
             }`}
           >
             {panel.title || `弹幕组 ${panel.key}`}
@@ -395,9 +395,10 @@ function FavoritesTabContent({
         <button
           onClick={addPanel}
           disabled={isRunning}
-          className="shrink-0 border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-400 hover:border-slate-400 hover:text-slate-500 disabled:opacity-50 dark:border-white/[0.06] dark:text-slate-500 dark:hover:border-white/[0.1]"
+          className="shrink-0 px-2 py-1 text-xs text-slate-400 hover:text-slate-500 disabled:opacity-50 dark:text-slate-500"
+          title="新增"
         >
-          <Plus className="inline h-3 w-3" /> 新增
+          <Plus className="inline h-3 w-3" />
         </button>
       </div>
 
@@ -409,14 +410,14 @@ function FavoritesTabContent({
             onChange={(e) => updatePanel(activePanel.key, "title", e.target.value)}
             disabled={isRunning}
             placeholder="弹幕组标题"
-            className="h-9 w-full border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+            className="h-9 w-full rounded bg-white/10 px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
           />
           <textarea
             value={activePanel.msg}
             onChange={(e) => updatePanel(activePanel.key, "msg", e.target.value)}
             disabled={isRunning}
             placeholder={"每行一条弹幕\n弹幕组内的弹幕会合并到循环列表中"}
-            className="min-h-20 w-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+            className="min-h-20 w-full rounded bg-white/10 px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
       ) : null}
@@ -425,10 +426,10 @@ function FavoritesTabContent({
         <button
           onClick={handleFillText}
           disabled={isRunning || !activePanel?.msg.trim()}
-          className="border border-slate-300 px-3 py-2.5 text-xs text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
-          title="将当前弹幕组内容发送到文字 Tab"
+          className="flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-white/[0.04]"
+          title="发送到文字"
         >
-          发送到文字
+          <Send className="h-3.5 w-3.5" />
         </button>
         <p className="text-xs text-slate-400 dark:text-slate-500">所有弹幕组内容合并循环 · 共 {allMessages.length} 条</p>
       </div>
@@ -513,7 +514,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
             className={`px-2.5 py-1 text-xs ${
               isRunning
                 ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
-                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                : "bg-white/10 text-slate-500 dark:bg-white/[0.06] dark:text-slate-400"
             }`}
           >
             {isRunning ? "运行中" : "未运行"}
@@ -521,7 +522,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
           {onClose ? (
             <button
               onClick={onClose}
-              className="p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
+              className="p-1 text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
               title="关闭"
             >
               ×
@@ -531,7 +532,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
       </div>
 
       {/* Tab 切换 */}
-      <div className="mb-3 flex gap-1 border-b border-slate-200 dark:border-white/[0.06]">
+      <div className="mb-3 flex gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -566,7 +567,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 disabled={like.isRunning}
                 inputMode="numeric"
                 placeholder="100"
-                className="h-8 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+                className="h-8 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
               />
               <span className="text-[10px] text-slate-400 dark:text-slate-500">上限 1000</span>
             </div>
@@ -578,7 +579,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 disabled={like.isRunning}
                 inputMode="numeric"
                 placeholder="5"
-                className="h-8 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+                className="h-8 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
               />
               <span className="text-[10px] text-slate-400 dark:text-slate-500">每批 ≤100</span>
             </div>
@@ -590,7 +591,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 disabled={like.isRunning}
                 inputMode="decimal"
                 placeholder="1.5"
-                className="h-8 border border-slate-300 bg-white px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+                className="h-8 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
               />
               <span className="text-[10px] text-slate-400 dark:text-slate-500">秒，最小 0.5</span>
             </div>
@@ -603,7 +604,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 <span>进度</span>
                 <span>{like.sentTotal} / {like.targetTotal}</span>
               </div>
-              <div className="h-2 w-full bg-slate-200 dark:bg-white/[0.06]">
+              <div className="h-2 w-full bg-white/10 dark:bg-white/[0.06]">
                 <div
                   className="h-full bg-pink-500 transition-all"
                   style={{ width: `${Math.min(100, (like.sentTotal / like.targetTotal) * 100)}%` }}
@@ -626,18 +627,17 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                   onClick={() => void like.onStart(Math.round(target), Math.round(batch), Math.round(interval * 1000))}
                   disabled={like.isRunning || !valid || !like.anchorId}
                   title={!like.anchorId ? "缺少主播信息" : "开始点赞"}
-                  className="flex h-8 items-center gap-1.5 bg-pink-500 px-3 text-xs font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-8 w-8 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Play className="h-3.5 w-3.5" />
-                  开始点赞
                 </button>
                 <button
                   onClick={like.onStop}
                   disabled={!like.isRunning}
-                  className="flex h-8 items-center gap-1.5 border border-slate-300 px-3 text-xs text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04]"
+                  className="flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-white/[0.04]"
+                  title="停止"
                 >
                   <Square className="h-3 w-3" />
-                  停止
                 </button>
               </div>
             );

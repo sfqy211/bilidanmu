@@ -131,12 +131,12 @@ export function RoomPage() {
         }}
       >
         <TabContent value="search" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto]">
               <select
                 value={mode}
                 onChange={(event) => setMode(event.target.value as SearchRoomMode)}
-                className="border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-100"
+                className="rounded border border-neutral-200 bg-[#f8f8f8] px-4 py-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-100"
               >
                 {searchModes.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -144,7 +144,7 @@ export function RoomPage() {
                   </option>
                 ))}
               </select>
-              <div className="flex items-center gap-3 border border-slate-300 bg-white px-4 dark:border-white/[0.06] dark:bg-[#0e1018]">
+              <div className="flex items-center gap-3 rounded border border-neutral-200 bg-[#f8f8f8] px-4 dark:border-neutral-700 dark:bg-[#1a1c24]">
                 <Search className="h-4 w-4 text-slate-400" />
                 <input
                   value={query}
@@ -161,7 +161,7 @@ export function RoomPage() {
               <button
                 onClick={() => void handleSearch()}
                 disabled={loading}
-                className="bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "搜索中..." : "搜索"}
               </button>
@@ -169,13 +169,13 @@ export function RoomPage() {
             {error && <InlineMessage key={msgKey} type="error" className="mt-3">{error}</InlineMessage>}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">搜索结果</h3>
               <span className="text-xs text-slate-400 dark:text-slate-500">{searchResults.length} 个</span>
             </div>
             {searchResults.length === 0 ? (
-              <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
+              <div className="rounded-lg bg-[#f0f0f0] p-6 text-center text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
                 暂无搜索结果，支持按主播名、直播间号、链接或 UID 查询。
               </div>
             ) : (
@@ -185,7 +185,7 @@ export function RoomPage() {
                   return (
                     <div
                       key={`search-${room.roomId}`}
-                      className="flex items-center gap-3 border border-slate-200 bg-white p-3 dark:border-white/[0.06] dark:bg-[#161822]"
+                      className="flex items-center gap-3 rounded-lg bg-[#f8f8f8] p-3 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
                     >
                       <span className={`h-2 w-2 shrink-0 ${room.isLive ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
                       <div className="min-w-0 flex-1">
@@ -196,7 +196,7 @@ export function RoomPage() {
                       <button
                         onClick={() => void handleAddRoom(room.roomId)}
                         disabled={added || addingRoomIds.has(room.roomId)}
-                        className="shrink-0 border border-pink-200 p-1.5 text-pink-500 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-pink-400/30 dark:text-pink-300 dark:hover:bg-pink-500/20"
+                        className="shrink-0 p-1.5 text-pink-500 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-pink-300 dark:hover:bg-pink-500/20"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -210,7 +210,7 @@ export function RoomPage() {
 
         <TabContent value="rooms" className="min-h-0 flex-1 overflow-y-auto">
           {rooms.length === 0 ? (
-            <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
+            <div className="rounded-lg bg-[#f0f0f0] p-6 text-center text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
               还没有添加直播间。先从搜索中添加一个。
             </div>
           ) : (
@@ -221,14 +221,14 @@ export function RoomPage() {
                 return (
                   <div
                     key={room.id}
-                    className={`group overflow-hidden border transition ${
+                    className={`group overflow-hidden rounded-lg shadow-sm transition dark:ring-1 dark:ring-white/[0.06] ${
                       active
-                        ? "border-pink-300 dark:border-pink-500/40"
-                        : "border-slate-200 dark:border-white/[0.06]"
+                        ? "ring-2 ring-pink-300 dark:ring-pink-500/40"
+                        : ""
                     }`}
                   >
                     {/* 封面区域 */}
-                    <div className="relative aspect-video bg-slate-100 dark:bg-[#0e1018]">
+                    <div className="relative aspect-video bg-[#ebebeb] dark:bg-[#0e1018]">
                       {room.cover ? (
                         <ProxiedImage
                           src={room.cover}

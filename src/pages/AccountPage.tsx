@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, LogOut, UserRound } from "lucide-react";
+import { ArrowLeftRight, Check, Loader2, LogOut, UserRound } from "lucide-react";
 import { getAllWindows } from "@tauri-apps/api/window";
 import { toDataURL } from "qrcode";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -192,17 +192,17 @@ export function AccountPage() {
         onTabChange={setActiveTab}
       >
         <TabContent value="login" className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-          <div className="flex flex-col border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="flex flex-col rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <h3 className="text-base font-medium text-slate-900 dark:text-white">扫码登录</h3>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">使用 Bilibili App 扫码并在手机端确认。</p>
 
             <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-4">
               {qrUrl ? (
-                <div className="flex h-48 w-48 items-center justify-center border border-slate-300 bg-slate-50 p-3 dark:border-white/[0.06] dark:bg-[#0c0e18]">
+                <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-[#f0f0f0] p-3 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:ring-white/[0.06]">
                   <img
                     src={qrImageUrl ?? undefined}
                     alt="Bilibili 登录二维码"
-                    className="h-[180px] w-[180px] bg-white p-2"
+                    className="h-[180px] w-[180px] bg-[#f8f8f8] p-2"
                   />
                 </div>
               ) : null}
@@ -211,7 +211,7 @@ export function AccountPage() {
                 <button
                   onClick={() => void handleCreateQr()}
                   disabled={loading}
-                  className="border border-cyan-200 px-5 py-2.5 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
+                  className="rounded px-5 py-2.5 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
                 >
                   {loading ? "生成中..." : qrUrl ? "刷新二维码" : "生成二维码"}
                 </button>
@@ -222,7 +222,7 @@ export function AccountPage() {
             </div>
           </div>
 
-          <div className="flex flex-col border border-slate-300 bg-white p-5 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="flex flex-col rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <h3 className="text-base font-medium text-slate-900 dark:text-white">Cookie 登录</h3>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               粘贴浏览器导出的 B 站 Cookie，需包含 <code className="text-slate-700 dark:text-slate-200">SESSDATA</code>
@@ -233,14 +233,14 @@ export function AccountPage() {
               value={cookie}
               onChange={(event) => setCookie(event.target.value)}
               placeholder="粘贴完整 Cookie 字符串..."
-              className="mt-3 h-40 w-full flex-1 border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white dark:placeholder:text-slate-500"
+              className="mt-3 h-40 w-full flex-1 rounded border border-neutral-200 bg-[#f8f8f8] px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white dark:placeholder:text-slate-500"
             />
 
             <div className="mt-4 flex items-center gap-3">
               <button
                 onClick={() => void handleLogin()}
                 disabled={loading}
-                className="bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "登录中..." : "使用 Cookie 登录"}
               </button>
@@ -251,7 +251,7 @@ export function AccountPage() {
 
         <TabContent value="account" className="flex flex-col gap-4">
           {accounts.length === 0 ? (
-            <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
+            <div className="rounded-lg bg-[#f0f0f0] p-6 text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
               当前还没有登录账号。先从登录页完成登录。
             </div>
           ) : (
@@ -262,10 +262,10 @@ export function AccountPage() {
                 return (
                   <div
                     key={account.accountId}
-                    className={`border bg-white p-4 dark:bg-[#161822] ${
+                    className={`rounded-lg bg-[#f8f8f8] p-4 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] ${
                       isActive
-                        ? "border-pink-300 dark:border-pink-500/40"
-                        : "border-slate-200 dark:border-white/[0.06]"
+                        ? "ring-2 ring-pink-300 dark:ring-pink-500/40"
+                        : ""
                     }`}
                   >
                     <div className="flex items-center justify-between gap-4">
@@ -275,10 +275,10 @@ export function AccountPage() {
                             src={account.avatar}
                             alt={account.username}
                             persistent
-                            className="h-12 w-12 shrink-0 border border-slate-200 object-cover dark:border-white/[0.06]"
+                            className="h-12 w-12 shrink-0 object-cover"
                           />
                         ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-slate-200 bg-slate-100 text-slate-400 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-[#ebebeb] text-slate-400 dark:bg-[#0e1018] dark:text-slate-300">
                             <UserRound className="h-5 w-5" />
                           </div>
                         )}
@@ -301,16 +301,18 @@ export function AccountPage() {
                           <button
                             onClick={() => void handleSwitchAccount(account.accountId)}
                             disabled={isSwitching}
-                            className="border border-pink-200 px-3 py-1.5 text-xs text-pink-600 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-pink-500/30 dark:text-pink-300 dark:hover:bg-pink-500/10"
+                            title="切换"
+                            className="p-1.5 text-pink-600 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-pink-300 dark:hover:bg-pink-500/10"
                           >
-                            {isSwitching ? "切换中..." : "切换"}
+                            {isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
                           </button>
                         ) : null}
                         <button
                           onClick={() => void handleRemoveAccount(account.accountId)}
-                          className="border border-rose-200 px-3 py-1.5 text-xs text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                          title="移除"
+                          className="p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-rose-300 dark:hover:bg-rose-500/10"
                         >
-                          <LogOut className="inline h-3 w-3" /> 移除
+                          <LogOut className="h-4 w-4" />
                         </button>
                       </div>
                     </div>

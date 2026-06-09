@@ -93,7 +93,7 @@ export function AIPage() {
       </div>
 
       {/* AstrBot 连接配置 */}
-      <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+      <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
         <h3 className="mb-4 text-lg font-medium text-slate-900 dark:text-white">
           AstrBot 连接
         </h3>
@@ -104,7 +104,7 @@ export function AIPage() {
               value={host}
               onChange={(e) => setHost(e.target.value)}
               placeholder="127.0.0.1"
-              className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+              className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
             />
           </label>
           <label className="text-sm text-slate-600 dark:text-slate-300">
@@ -113,7 +113,7 @@ export function AIPage() {
               value={httpPort}
               onChange={(e) => setHttpPort(e.target.value)}
               placeholder="18080"
-              className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+              className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
             />
           </label>
         </div>
@@ -121,14 +121,14 @@ export function AIPage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || !host || !httpPort}
-            className="bg-pink-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded bg-pink-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "保存中..." : "保存配置"}
           </button>
           <button
             onClick={() => void handleTestStatus()}
             disabled={!config}
-            className="inline-flex items-center gap-1.5 border border-cyan-200 px-4 py-3 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
+            className="inline-flex items-center gap-1.5 rounded px-4 py-3 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             测试连接
@@ -138,7 +138,7 @@ export function AIPage() {
 
       {/* 状态显示 */}
       {status && (
-        <div className="mt-4 border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+        <div className="mt-4 rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
           <h3 className="mb-3 text-lg font-medium text-slate-900 dark:text-white">
             <Bot className="mr-1.5 inline h-4 w-4" />
             AstrBot 状态
@@ -173,10 +173,10 @@ export function AIPage() {
       )}
 
       {/* 使用说明 */}
-      <div className="mt-4 border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+      <div className="mt-4 rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
         <h3 className="mb-3 text-lg font-medium text-slate-900 dark:text-white">使用说明</h3>
         <ol className="list-inside list-decimal space-y-2 text-sm text-slate-600 dark:text-slate-300">
-          <li>部署 AstrBot 并安装 <code className="bg-slate-100 px-1 dark:bg-[#0e1018]">astrbot_plugin_bilibili_live</code> 插件</li>
+          <li>部署 AstrBot 并安装 <code className="bg-[#ebebeb] px-1 dark:bg-[#0e1018]">astrbot_plugin_bilibili_live</code> 插件</li>
           <li>在 AstrBot 中配置 LLM 提供商（OpenAI / Ollama 等）</li>
           <li>在插件配置中填入 B 站 Cookie</li>
           <li>在上方填入 AstrBot 的 HTTP API 端口并保存</li>

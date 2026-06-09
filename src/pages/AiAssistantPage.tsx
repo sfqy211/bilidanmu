@@ -133,7 +133,7 @@ export function AiAssistantPage() {
   const allReplyOptions = replies.map((r) => r.message);
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-[#12141e]">
+    <div className="flex h-full flex-col bg-[#f8f8f8] dark:bg-[#12141e]">
       <SplitLayout
         storageKey="ai-divider-ratio"
         defaultRatio={0.5}
@@ -177,12 +177,12 @@ export function AiAssistantPage() {
                     if (e.key === "Enter") void handleCustomSend();
                   }}
                   placeholder="输入自定义回复..."
-                  className="flex-1 border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                  className="flex-1 rounded border border-neutral-200 bg-[#f8f8f8] px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                 />
                 <button
                   onClick={() => void handleCustomSend()}
                   disabled={!customText.trim()}
-                  className="inline-flex items-center gap-1 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-500/20 dark:text-violet-300"
+                  className="inline-flex items-center gap-1 rounded bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-500/20 dark:text-violet-300"
                 >
                   <Send className="h-3 w-3" />
                   发送
@@ -231,7 +231,7 @@ export function AiAssistantPage() {
 
       {/* 错误提示 */}
       {error && (
-        <InlineMessage key={msgKey} type="error" className="shrink-0 border-t border-x-0 border-b-0">
+        <InlineMessage key={msgKey} type="error" className="shrink-0">
           {error}
         </InlineMessage>
       )}
@@ -241,7 +241,7 @@ export function AiAssistantPage() {
 
 function PanelHeader({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-white/[0.04]">
+    <div className="flex shrink-0 items-center justify-between px-3 py-2">
       <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{title}</span>
       {children}
     </div>
@@ -297,7 +297,7 @@ function SuggestionItem({
 }) {
   return (
     <div className={`group flex items-start gap-2 px-2.5 py-2 ${
-      isSent ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-slate-50 dark:bg-white/[0.03]"
+      isSent ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-[#f0f0f0] dark:bg-white/[0.03]"
     }`}>
       <Bot className="mt-0.5 h-3 w-3 shrink-0 text-violet-500 dark:text-violet-400" />
       <p className="min-w-0 flex-1 break-words whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-200"
@@ -324,7 +324,7 @@ function SuggestionItem({
         <button
           onClick={onDismiss}
           title="删除"
-          className="p-1 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+          className="p-1 text-slate-400 transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]"
         >
           <Trash2 className="h-3 w-3" />
         </button>
@@ -338,7 +338,7 @@ function SummaryItem({ suggestion, fontSize }: { suggestion: AiSuggestion; fontS
   const timeStr = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="flex items-start gap-2 bg-slate-50 px-2.5 py-2 dark:bg-white/[0.03]">
+    <div className="flex items-start gap-2 bg-[#f0f0f0] px-2.5 py-2 dark:bg-white/[0.03]">
       <Bot className="mt-0.5 h-3 w-3 shrink-0 text-cyan-500 dark:text-cyan-400" />
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">

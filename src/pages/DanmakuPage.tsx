@@ -522,7 +522,7 @@ export function DanmakuPage() {
   }, []);
 
   return (
-    <main className="danmaku-bg-main flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
+    <main className="danmaku-bg-main flex h-full flex-col overflow-hidden rounded-lg text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
       {/* 标题栏 */}
       <div
         data-interactive=""
@@ -560,7 +560,7 @@ export function DanmakuPage() {
           <button
             type="button"
             onClick={() => appWindow.close()}
-            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-white/[0.06]"
+            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
             title="隐藏到托盘"
           >
             <X className="h-3.5 w-3.5" />
@@ -705,7 +705,7 @@ export function DanmakuPage() {
                       value={batteryInput}
                       onChange={(e) => setBatteryInput(e.target.value.replace(/\D/g, ""))}
                       placeholder="0"
-                      className="h-5 w-14 border border-slate-300 bg-white px-1.5 text-[10px] text-slate-600 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300"
+                      className="h-5 w-14 rounded border border-neutral-200 bg-[#f8f8f8] px-1.5 text-[10px] text-slate-600 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-300"
                     />
                     <button
                       type="button"
@@ -725,7 +725,7 @@ export function DanmakuPage() {
                         setBatteryInput("");
                         setShowBatteryFilter(false);
                       }}
-                      className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+                      className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]"
                     >
                       取消
                     </button>
@@ -756,7 +756,7 @@ export function DanmakuPage() {
                     <button
                       type="button"
                       onClick={() => setShowBatteryFilter(true)}
-                      className={`ml-auto inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] transition ${batteryFilter > 0 ? "text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-slate-100 dark:hover:bg-white/[0.04]`}
+                      className={`ml-auto inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] transition ${batteryFilter > 0 ? "text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                       title="按电池筛选"
                     >
                       筛选
@@ -907,7 +907,7 @@ export function DanmakuPage() {
             className={`inline-flex items-center p-1.5 text-xs transition ${
               autoSendRunning
                 ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
-                : "danmaku-bg-bar text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
             <Zap className="h-3.5 w-3.5" />
@@ -917,7 +917,7 @@ export function DanmakuPage() {
             onClick={() => void handleToggleEmoticonPicker()}
             disabled={!roomId || sending}
             title="表情"
-            className="danmaku-bg-bar inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            className="danmaku-bg-bar inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-[#ebebeb] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
             <Smile className="h-3.5 w-3.5" />
           </button>
@@ -937,7 +937,7 @@ export function DanmakuPage() {
             className={`danmaku-bg-bar inline-flex items-center p-1.5 text-xs transition ${
               settingsOpen
                 ? "text-slate-600 dark:text-slate-300"
-                : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                : "text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
             <Settings className="h-3.5 w-3.5" />

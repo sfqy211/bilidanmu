@@ -99,12 +99,12 @@ export function LikeButton({ roomId, anchorId, disabled = false }: LikeButtonPro
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         title={isDisabled ? (!roomId ? "请先选择直播间" : "缺少主播信息") : "长按点赞"}
-        className={`flex h-10 w-10 items-center justify-center border transition ${
+        className={`flex h-10 w-10 items-center justify-center transition ${
           isDisabled
-            ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-300 opacity-60 dark:border-white/[0.04] dark:bg-[#0e1018] dark:text-slate-600"
+            ? "cursor-not-allowed bg-white/10 text-slate-300 opacity-60 dark:bg-white/[0.06] dark:text-slate-600"
             : pressCount > 0
-              ? "border-pink-300 bg-pink-50 text-pink-500 dark:border-pink-500/30 dark:bg-pink-500/15"
-              : "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              ? "bg-pink-50 text-pink-500 dark:bg-pink-500/15"
+              : "bg-white/10 text-slate-500 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
         }`}
       >
         <ThumbsUp className="h-4 w-4" />

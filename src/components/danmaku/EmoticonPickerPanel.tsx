@@ -168,7 +168,7 @@ export function EmoticonPickerPanel({
             className={`p-1 transition ${
               managing
                 ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
+                : "text-slate-400 hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
             }`}
             title={managing ? "完成管理" : "管理表情包"}
           >
@@ -180,7 +180,7 @@ export function EmoticonPickerPanel({
               setManaging(false);
               onClose();
             }}
-            className="p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
+            className="p-1 text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -188,18 +188,18 @@ export function EmoticonPickerPanel({
       </div>
 
       {loading ? (
-        <div className="border border-dashed border-slate-300 px-3 py-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:text-slate-500">
+        <div className="px-3 py-6 text-center text-sm text-slate-400 dark:text-slate-500">
           正在加载表情列表...
         </div>
       ) : error ? (
-        <div className="border border-rose-200 bg-rose-50 px-3 py-4 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
+        <div className="bg-rose-50 px-3 py-4 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
           <p>{error}</p>
           <button type="button" onClick={onReload} className="mt-2 text-xs text-pink-500 hover:text-pink-400 dark:text-pink-300 dark:hover:text-pink-200">
             重新加载
           </button>
         </div>
       ) : packages.length === 0 ? (
-        <div className="border border-dashed border-slate-300 px-3 py-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:text-slate-500">
+        <div className="px-3 py-6 text-center text-sm text-slate-400 dark:text-slate-500">
           当前房间没有可用表情。
         </div>
       ) : (
@@ -223,14 +223,14 @@ export function EmoticonPickerPanel({
                     }
                   }}
                   title={managing ? (pkgHidden ? `显示 ${getPackageLabel(pkg)}` : `隐藏 ${getPackageLabel(pkg)}`) : getPackageLabel(pkg)}
-                  className={`relative flex h-12 w-12 shrink-0 items-center justify-center border transition ${
+                  className={`relative flex h-12 w-12 shrink-0 items-center justify-center transition ${
                     managing
                       ? pkgHidden
-                        ? "border-slate-200 bg-slate-100 opacity-50 dark:border-white/[0.06] dark:bg-[#0e1018]"
-                        : "border-pink-300 bg-white dark:border-pink-500/40 dark:bg-[#0e1018]"
+                        ? "bg-white/10 opacity-50 dark:bg-white/[0.06]"
+                        : "border border-pink-300 bg-white/10 dark:border-pink-500/40 dark:bg-white/[0.06]"
                       : active
-                        ? "border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
-                        : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-400 dark:hover:bg-white/[0.04]"
+                        ? "border border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
+                        : "bg-white/10 text-slate-400 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:text-slate-400 dark:hover:bg-white/[0.04]"
                   }`}
                 >
                   {preview ? (
@@ -244,7 +244,7 @@ export function EmoticonPickerPanel({
                     <span className="text-[10px]">包</span>
                   )}
                   {managing && (
-                    <span className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 shadow-sm dark:bg-[#1a1c2e]">
+                    <span className="absolute -right-1 -top-1 rounded-full bg-white/80 p-0.5 shadow-sm dark:bg-white/[0.12]">
                       {pkgHidden ? (
                         <EyeOff className="h-3 w-3 text-slate-400" />
                       ) : (
@@ -269,10 +269,10 @@ export function EmoticonPickerPanel({
                     disabled={!available || sending}
                     onClick={() => onSelectEmoticon(emoticon)}
                     title={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                    className={`flex flex-col items-center border p-2 text-center transition ${
+                    className={`flex flex-col items-center p-2 text-center transition ${
                       available
-                        ? "border-slate-200 bg-white hover:border-pink-300 hover:bg-slate-50 dark:border-white/[0.06] dark:bg-[#161822] dark:hover:border-pink-500/40 dark:hover:bg-white/[0.04]"
-                        : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-50 dark:border-white/[0.04] dark:bg-[#0c0e18]"
+                        ? "bg-white/10 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:hover:bg-white/[0.04]"
+                        : "cursor-not-allowed bg-white/10 opacity-50 dark:bg-white/[0.06]"
                     }`}
                   >
                     <ProxiedImage

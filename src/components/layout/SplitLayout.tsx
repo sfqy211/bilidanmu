@@ -66,9 +66,9 @@ export function SplitLayout({
         onPointerDown={onDividerPointerDown}
         onDoubleClick={() => resetDivider()}
         onKeyDown={handleKeyDown}
-        className="flex h-1.5 shrink-0 cursor-row-resize items-center justify-center bg-slate-200 transition hover:bg-pink-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500 dark:bg-white/[0.06] dark:hover:bg-pink-500/40"
+        className="flex h-1.5 shrink-0 cursor-row-resize items-center justify-center bg-slate-300/40 transition hover:bg-pink-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500 dark:bg-white/[0.08] dark:hover:bg-pink-500/40"
       >
-        <div className="h-0.5 w-8 rounded-full bg-slate-400 dark:bg-slate-500" />
+        <div className="h-px w-8 rounded-full bg-slate-400/60 dark:bg-white/20" />
       </div>
 
       {/* 下栏 — 始终渲染，折叠时 flex=0 但分割条仍可拖拽恢复 */}

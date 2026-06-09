@@ -33,7 +33,7 @@ export function BottomActivityBar({
 }: BottomActivityBarProps) {
   return (
     <div
-      className={`flex shrink-0 items-center gap-1.5 bg-white px-5 py-1.5 text-xs ${toneClasses[tone]} dark:bg-[#12141e]`}
+      className={`flex shrink-0 items-center gap-1.5 bg-white/10 px-5 py-1.5 text-xs ${toneClasses[tone]} dark:bg-white/[0.06]`}
     >
       <span className={`shrink-0 ${iconClasses[tone]}`}>{icon}</span>
       {username && (

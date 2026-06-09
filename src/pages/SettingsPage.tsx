@@ -98,7 +98,7 @@ export function SettingsPage() {
           <button
             onClick={() => void handleSave()}
             disabled={loading || saving}
-            className="bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "保存中..." : "保存设置"}
           </button>
@@ -111,7 +111,7 @@ export function SettingsPage() {
         onTabChange={setActiveTab}
       >
         <TabContent value="send" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm text-slate-600 dark:text-slate-300">
@@ -125,7 +125,7 @@ export function SettingsPage() {
                         sendInterval: { min: Number(event.target.value), max: settings.sendInterval.max }
                       })
                     }
-                    className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                   />
                 </label>
 
@@ -140,12 +140,12 @@ export function SettingsPage() {
                         sendInterval: { min: settings.sendInterval.min, max: Number(event.target.value) }
                       })
                     }
-                    className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                   />
                 </label>
               </div>
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>启用随机间隔</span>
                 <input
                   type="checkbox"
@@ -161,7 +161,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>启用间隔抖动</span>
                 <input
                   type="checkbox"
@@ -181,9 +181,9 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="receive" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>自动连接弹幕流</span>
                 <input
                   type="checkbox"
@@ -199,7 +199,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>断线自动重连</span>
                 <input
                   type="checkbox"
@@ -229,7 +229,7 @@ export function SettingsPage() {
                         }
                       })
                     }
-                    className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                   />
                 </label>
 
@@ -246,14 +246,14 @@ export function SettingsPage() {
                         }
                       })
                     }
-                    className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                   />
                 </label>
               </div>
 
-              <div className="my-2 border-t border-slate-200 dark:border-white/[0.06]" />
+              <div className="my-2" />
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>禁言提醒</span>
                 <input
                   type="checkbox"
@@ -269,7 +269,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>Cookie 过期提醒</span>
                 <input
                   type="checkbox"
@@ -289,7 +289,7 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="appearance" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <label className="block text-sm text-slate-600 dark:text-slate-300">
                 主题
@@ -303,7 +303,7 @@ export function SettingsPage() {
                       }
                     })
                   }
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                 >
                   <option value="light">浅色</option>
                   <option value="dark">深色</option>
@@ -324,21 +324,21 @@ export function SettingsPage() {
                       }
                     })
                   }
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                 />
                 <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   快捷键：Ctrl + 滚轮 调整弹幕/AI 文字大小
                 </p>
               </label>
 
-              <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-400">
+              <div className="rounded bg-[#f0f0f0] px-4 py-3 text-xs text-slate-500 dark:bg-[#0e1018] dark:text-slate-400">
                 <p className="mb-1 font-medium">快捷键</p>
                 <p>Ctrl + - / +：UI 整体缩放（全局）</p>
                 <p>Ctrl + 滚轮：弹幕/AI 文字大小</p>
                 <p>Ctrl + 0：UI 重置</p>
               </div>
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>显示勋章</span>
                 <input
                   type="checkbox"
@@ -365,7 +365,7 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="audio" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <label className="text-sm text-slate-600 dark:text-slate-300">
                 默认音量（%）
@@ -382,11 +382,11 @@ export function SettingsPage() {
                       }
                     })
                   }
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>进入直播间时自动播放音频</span>
                 <input
                   type="checkbox"
@@ -406,9 +406,9 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="stt" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
-              <label className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>启用语音识别</span>
                 <input
                   type="checkbox"
@@ -431,7 +431,7 @@ export function SettingsPage() {
                     })
                   }
                   disabled={availableModels.length === 0}
-                  className="mt-2 h-11 w-full border border-slate-300 bg-white px-4 text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-white"
+                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
                 >
                   {availableModels.length === 0 ? (
                     <option value="">未检测到模型文件</option>
@@ -471,7 +471,7 @@ export function SettingsPage() {
                 </p>
                 {modelDir && (
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-[#0e1018] dark:text-slate-400">
+                    <code className="flex-1 truncate rounded bg-[#ebebeb] px-2 py-1 text-xs text-slate-600 dark:bg-[#0e1018] dark:text-slate-400">
                       {modelDir}
                     </code>
                     <button
@@ -490,7 +490,7 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="cache" className="flex flex-col gap-4">
-          <div className="border border-slate-300 bg-white p-6 dark:border-white/[0.06] dark:bg-[#12141e]">
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 分类清理本地缓存。图片缓存包含封面、头像和醒目留言背景；表情缓存包含表情包数据。
@@ -506,7 +506,7 @@ export function SettingsPage() {
                       import("sonner").then(({ toast }) => toast.error("清理失败"));
                     });
                   }}
-                  className="border border-slate-300 px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                  className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
                 >
                   清除图片缓存
                 </button>
@@ -520,7 +520,7 @@ export function SettingsPage() {
                       import("sonner").then(({ toast }) => toast.error("清理失败"));
                     });
                   }}
-                  className="border border-slate-300 px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                  className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
                 >
                   清除房间专属表情
                 </button>
@@ -540,7 +540,7 @@ export function SettingsPage() {
                       }
                     });
                   }}
-                  className="border border-red-300 px-5 py-3 text-sm text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/[0.04]"
+                  className="px-5 py-3 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/[0.04]"
                 >
                   清除所有缓存
                 </button>
@@ -561,7 +561,7 @@ function OpacitySlider({ value, onChange }: { value: number; onChange: (val: num
   }, [value]);
 
   return (
-    <div className="border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/[0.06] dark:bg-[#0e1018]">
+    <div className="bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
       <div className="mb-2 flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
         <span>弹幕窗口透明度</span>
         <span className="text-xs text-slate-400 dark:text-slate-500">{local}%</span>

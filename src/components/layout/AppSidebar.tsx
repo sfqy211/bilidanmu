@@ -21,7 +21,7 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <aside className="flex w-16 flex-col border-r border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#0e1018]">
+    <aside className="flex w-16 flex-col bg-[#f8f8f8] shadow-sm dark:bg-[#0e1018] dark:ring-1 dark:ring-white/[0.06]">
       <nav className="flex flex-1 flex-col gap-2 p-2">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -29,8 +29,8 @@ export function AppSidebar() {
             to={to}
             className={({ isActive }) =>
               cn(
-                "group relative flex h-12 items-center justify-center text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white",
-                isActive && "bg-slate-200 text-slate-900 dark:bg-white/[0.08] dark:text-white"
+                "group relative flex h-12 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white",
+                isActive && "bg-[#ebebeb] text-slate-900 dark:bg-white/[0.08] dark:text-white"
               )
             }
             title={label}
@@ -50,7 +50,7 @@ export function AppSidebar() {
         ))}
       </nav>
       {version && (
-        <div className="border-t border-slate-300 p-3 text-center text-xs text-slate-400 dark:border-white/[0.06] dark:text-slate-500">{version}</div>
+        <div className="p-3 text-center text-xs text-slate-400 dark:text-slate-500">{version}</div>
       )}
     </aside>
   );
