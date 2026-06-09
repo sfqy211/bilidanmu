@@ -1,30 +1,18 @@
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
-import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { useProxyImage } from "@/hooks/useProxyImage";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useSettingsStore } from "@/stores/settings-store";
 
 function normalizeHexColor(color?: string, fallback?: string): string | undefined {
-  if (!color) {
-    return fallback;
-  }
-
-  if (color.startsWith("#")) {
-    return color;
-  }
-
-  return `#${color}`;
+  if (!color) return fallback;
+  return color.startsWith("#") ? color : `#${color}`;
 }
 
 function formatTime(ts: number): string {
-  if (!ts) {
-    return "";
-  }
-
+  if (!ts) return "";
   const date = new Date(ts * 1000);
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 export function SuperChatCard({ item }: { item: DanmakuMessage }) {
@@ -33,54 +21,32 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const bottomBg = normalizeHexColor(item.backgroundBottomColor, "#2A60B2");
   const priceColor = normalizeHexColor(item.backgroundPriceColor, "#7497CD");
   const messageColor = normalizeHexColor(item.messageFontColor, "#FFFFFF");
-  const bgImage = useProxyImage(item.backgroundImage, true);
 
   return (
-    <div className="overflow-hidden">
+    <div className="shrink-0 overflow-hidden rounded">
       <div
-        className="flex items-center gap-3 border-x border-t px-3 py-2"
-        style={{
-          backgroundColor: headerBg,
-          borderColor: bottomBg,
-          backgroundImage: bgImage ? `url(${bgImage})` : undefined,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "top right",
-          backgroundSize: "auto 100%",
-        }}
+        className="flex items-center gap-2 px-2.5 py-1.5"
+        style={{ backgroundColor: headerBg }}
       >
-        {item.avatar ? (
-          <ProxiedImage
-            src={item.avatar}
-            alt={item.username}
-            className="h-9 w-9 rounded-full border border-white/20 object-cover"
-          />
-        ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/30 text-slate-700">
-            💬
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            {item.timestamp > 0 ? <span className="text-slate-500">{formatTime(item.timestamp)}</span> : null}
-            <span className="truncate font-medium text-slate-800">{item.username}</span>
-            {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
-          </div>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
+          {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
+          <span className="truncate font-medium text-slate-800">{item.username}</span>
+          {item.timestamp > 0 ? <span className="shrink-0 text-slate-400">{formatTime(item.timestamp)}</span> : null}
         </div>
-
         {item.price ? (
-          <span className="text-sm font-semibold" style={{ color: priceColor }}>
+          <span className="shrink-0 text-xs font-semibold" style={{ color: priceColor }}>
             ¥{item.price}
           </span>
         ) : null}
       </div>
-
-      <div
-        className="border-x border-b px-3 py-2 text-sm"
-        style={{ backgroundColor: bottomBg, borderColor: bottomBg, color: messageColor }}
-      >
-        {item.content}
-      </div>
+      {item.content && (
+        <div
+          className="px-2.5 py-1.5 text-sm"
+          style={{ backgroundColor: bottomBg, color: messageColor }}
+        >
+          {item.content}
+        </div>
+      )}
     </div>
   );
 }

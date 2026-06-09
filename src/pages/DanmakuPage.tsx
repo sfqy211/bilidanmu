@@ -5,11 +5,10 @@ import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, LogOut, Maximize, Minus, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Gift, LogOut, MessageSquare, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
-import appIcon from "@/icon.ico";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
@@ -107,12 +106,22 @@ export function DanmakuPage() {
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [autoSendOpen, setAutoSendOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
   const { disconnect } = useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
   const latestEntry = useDanmakuStore((state) => state.latestEntry);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
+  const guardCount = useDanmakuStore((state) => state.guardCount);
+
+  // 礼物栏筛选
+  const [showGift, setShowGift] = useState(true);
+  const [showSuperChat, setShowSuperChat] = useState(true);
+  const [showGuard, setShowGuard] = useState(true);
+  const [batteryFilter, setBatteryFilter] = useState(0);
+  const [batteryInput, setBatteryInput] = useState("");
+  const [showBatteryFilter, setShowBatteryFilter] = useState(false);
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
   const danmakuCount = useDanmakuStore((state) => state.danmakuCount);
   const superChatCount = useDanmakuStore((state) => state.superChatCount);
@@ -295,8 +304,19 @@ export function DanmakuPage() {
   } = useAutoLike(roomId);
 
   // ── 消息分流 ──
-  const giftMessages = useMemo(() => messages.filter((m) => m.type === "gift"), [messages]);
-  const danmakuMessages = useMemo(() => messages.filter((m) => m.type === "danmaku" || m.type === "superChat" || m.type === "system"), [messages]);
+  const giftMessages = useMemo(() => messages.filter((m) => {
+    const isGiftType = (m.type === "gift" && showGift) ||
+      (m.type === "superChat" && showSuperChat) ||
+      (m.type === "guard" && showGuard);
+    if (!isGiftType) return false;
+    if (batteryFilter > 0) {
+      // 电池筛选: 10电池=1元, price单位是金瓜子(1元=1000金瓜子)
+      const msgBatteries = ((m.price ?? 0) / 1000) * 10;
+      return msgBatteries >= batteryFilter;
+    }
+    return true;
+  }), [messages, showGift, showSuperChat, showGuard, batteryFilter]);
+  const danmakuMessages = useMemo(() => messages.filter((m) => m.type === "danmaku" || m.type === "system"), [messages]);
   const giftTotal = useMemo(() => {
     let total = 0;
     for (const m of messages) {
@@ -438,27 +458,22 @@ export function DanmakuPage() {
         className="danmaku-bg-bar flex select-none items-center pl-3"
         onMouseDown={handleTitleBarMouseDown}
       >
-        <img src={appIcon} alt="" className="mr-1.5 h-4 w-4" />
         <span className="flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
           {currentRoom ? `${currentRoom.uname} - ${currentRoom.title}` : `房间 ${roomId ?? ""}`}
         </span>
+        <button
+          type="button"
+          onClick={() => {
+            const next = !pinned;
+            setPinned(next);
+            void appWindow.setAlwaysOnTop(next);
+          }}
+          className="flex h-7 w-7 items-center justify-center text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          title={pinned ? "取消置顶" : "置顶"}
+        >
+          {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
+        </button>
         <div className="flex h-7">
-          <button
-            type="button"
-            onClick={() => appWindow.minimize()}
-            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-white/[0.06]"
-            title="最小化"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => appWindow.toggleMaximize()}
-            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-white/[0.06]"
-            title="最大化"
-          >
-            <Maximize className="h-3 w-3" />
-          </button>
           <button
             type="button"
             onClick={() => appWindow.close()}
@@ -507,40 +522,56 @@ export function DanmakuPage() {
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={() => audioSetVolume(audioVolume === 0 ? 0.8 : 0)}
-          className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+        <div
+          className="relative flex items-center"
+          onMouseEnter={() => setVolPopup(true)}
+          onMouseLeave={() => setVolPopup(false)}
         >
-          {audioVolume === 0 ? (
-            <VolumeX className="h-3.5 w-3.5" />
-          ) : (
-            <Volume2 className="h-3.5 w-3.5" />
+          <button
+            type="button"
+            onClick={() => audioSetVolume(audioVolume === 0 ? 0.8 : 0)}
+            className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            {audioVolume === 0 ? (
+              <VolumeX className="h-3.5 w-3.5" />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5" />
+            )}
+          </button>
+          {volPopup && (
+            <div className="danmaku-bg-panel absolute top-full left-1/2 z-30 -translate-x-1/2 rounded px-2 py-2" style={{ marginTop: "-2px" }}>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(audioVolume * 100)}
+                onChange={(e) => audioSetVolume(Number(e.target.value) / 100)}
+                className="h-20 w-1 cursor-pointer accent-pink-500"
+                style={{ writingMode: "vertical-lr", direction: "rtl" }}
+              />
+            </div>
           )}
-        </button>
-
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={Math.round(audioVolume * 100)}
-          onChange={(e) => audioSetVolume(Number(e.target.value) / 100)}
-          className="h-1 w-16 cursor-pointer accent-pink-500"
-        />
-
-        <span className="text-[11px] text-slate-400 dark:text-slate-500">
-          {audioError
-            ? audioError.length > 24
-              ? `${audioError.slice(0, 24)}…`
-              : audioError
-            : audioConnecting
-              ? "连接中…"
-              : audioPlaying
-                ? "播放中"
-                : "音频"}
-        </span>
+        </div>
 
         <span className="ml-auto flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500">
+          {danmakuCount > 0 && (
+            <span className="flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              {danmakuCount}
+            </span>
+          )}
+          {giftTotal > 0 && (
+            <span className="flex items-center gap-1">
+              <Gift className="h-3 w-3" />
+              ¥{giftTotal.toFixed(2)}
+              {superChatCount > 0 && (
+                <span className="text-slate-300 dark:text-slate-600">({superChatCount}SC)</span>
+              )}
+              {guardCount > 0 && (
+                <span className="text-slate-300 dark:text-slate-600">({guardCount}舰)</span>
+              )}
+            </span>
+          )}
           {liveDuration && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -568,19 +599,6 @@ export function DanmakuPage() {
             </span>
           )}
         </span>
-
-        <button
-          type="button"
-          onClick={() => {
-            const next = !pinned;
-            setPinned(next);
-            void appWindow.setAlwaysOnTop(next);
-          }}
-          className="text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-          title={pinned ? "取消置顶" : "置顶"}
-        >
-          {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
-        </button>
       </div>
 
       {/* 隐藏音频元素 */}
@@ -593,30 +611,94 @@ export function DanmakuPage() {
         <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ flex: ratio }}>
           {showGifts && (
             <>
-              {(giftTotal > 0 || danmakuCount > 0) && (
-                <div className="shrink-0 flex items-center bg-amber-50 px-5 py-1.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                  <span className="flex-1 text-center">弹幕 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{danmakuCount}</span></span>
-                  <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
-                  <span className="flex-1 text-center">SC <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{superChatCount}</span></span>
-                  <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
-                  <span className="flex-1 text-center">礼物统计 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">¥{giftTotal.toFixed(2)}</span></span>
-                  <div className="h-3 w-px bg-amber-300 dark:bg-amber-600" />
-                  <span className="flex-1 text-center">送礼人数 <span className="text-sm font-bold text-amber-600 dark:text-amber-200">{giftSenderCount}</span></span>
-                </div>
-              )}
+              <div className="flex shrink-0 items-center gap-1 px-2.5 py-1">
+                {showBatteryFilter ? (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">电池≥</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={batteryInput}
+                      onChange={(e) => setBatteryInput(e.target.value.replace(/\D/g, ""))}
+                      placeholder="0"
+                      className="h-5 w-14 border border-slate-300 bg-white px-1.5 text-[10px] text-slate-600 outline-none dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.max(0, Math.floor(Number(batteryInput) || 0));
+                        setBatteryFilter(val);
+                        setShowBatteryFilter(false);
+                      }}
+                      className="rounded px-1.5 py-0.5 text-[10px] text-pink-500 transition hover:bg-pink-50 dark:hover:bg-pink-500/10"
+                    >
+                      确定
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBatteryFilter(0);
+                        setBatteryInput("");
+                        setShowBatteryFilter(false);
+                      }}
+                      className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+                    >
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowGift((v) => !v)}
+                      className={`rounded px-1.5 py-0.5 text-[10px] transition ${showGift ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                    >
+                      送礼
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowGuard((v) => !v)}
+                      className={`rounded px-1.5 py-0.5 text-[10px] transition ${showGuard ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                    >
+                      上舰
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowSuperChat((v) => !v)}
+                      className={`rounded px-1.5 py-0.5 text-[10px] transition ${showSuperChat ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                    >
+                      醒目留言
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowBatteryFilter(true)}
+                      className={`ml-auto inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] transition ${batteryFilter > 0 ? "text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-slate-100 dark:hover:bg-white/[0.04]`}
+                      title="按电池筛选"
+                    >
+                      筛选
+                    </button>
+                  </>
+                )}
+              </div>
               <div
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
-                className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-5 pt-0 pb-1"
+                className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
+                style={{ fontSize: `${fontSize}px` }}
               >
                 {giftMessages.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
-                    暂无礼物信息
+                    送礼、醒目留言、上舰消息等显示在这里
                   </div>
                 ) : (
-                  giftMessages.map((item) => (
-                    <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
-                  ))
+                  giftMessages.map((item) =>
+                    item.type === "superChat" ? (
+                      <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
+                    ) : (
+                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
+                    )
+                  )
                 )}
               </div>
               {!giftScroll.isAtBottom && (
@@ -664,15 +746,17 @@ export function DanmakuPage() {
               <div
                 ref={danmakuScroll.scrollRef}
                 onScroll={danmakuScroll.checkAtBottom}
-                className="flex h-full flex-col gap-2 overflow-y-auto px-5 pt-3 pb-1"
+                className="flex h-full flex-col gap-2 overflow-y-auto px-2.5 py-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
-                {danmakuMessages.map((item) =>
-                  item.type === "superChat" ? (
-                    <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
-                  ) : (
+                {danmakuMessages.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
+                    本场直播的弹幕互动消息将显示在这里
+                  </div>
+                ) : (
+                  danmakuMessages.map((item) => (
                     <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} />
-                  )
+                  ))
                 )}
               </div>
               {!danmakuScroll.isAtBottom && (

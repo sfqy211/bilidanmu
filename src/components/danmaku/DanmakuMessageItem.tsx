@@ -69,6 +69,14 @@ export function DanmakuMessageItem({
 
   return (
     <div className="leading-6">
+      {item.isAdmin ? (
+        <span
+          className="mr-1 inline-flex h-[16px] w-[16px] items-center justify-center rounded-full border border-amber-500 text-amber-600 align-middle dark:border-amber-400 dark:text-amber-300"
+          style={{ fontSize: Math.round(10 * scale), lineHeight: 1 }}
+        >
+          房
+        </span>
+      ) : null}
       {item.wealthLevel && showMedal ? (
         <ProxiedImage
           src={`wealth-level://${item.wealthLevel}`}
@@ -84,7 +92,6 @@ export function DanmakuMessageItem({
       >
         {item.username}
       </span>
-      {item.isAdmin ? <span className="mr-1 text-amber-600 dark:text-amber-300">房管</span> : null}
       {item.type === "gift" && item.price ? <span className="mr-1 text-amber-600 dark:text-amber-200">¥{(item.price / 1000).toFixed(2)}</span> : null}
       <span
         className={getMessageTextClass(item.type)}

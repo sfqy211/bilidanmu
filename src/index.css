@@ -99,3 +99,22 @@ textarea {
 textarea::-webkit-scrollbar {
   display: none;
 }
+
+/* 弹幕窗口滚动条 */
+[data-transparent] ::-webkit-scrollbar {
+  width: 4px;
+}
+[data-transparent] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-transparent] ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 2px;
+}
+[data-transparent] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+[data-transparent] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
