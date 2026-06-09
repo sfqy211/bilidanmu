@@ -16,7 +16,7 @@ Write-Host "OK: package.json -> $Version"
 
 # 2. Cargo.toml
 $CargoToml = Get-Content "$ProjectRoot\src-tauri\Cargo.toml" -Raw
-$CargoToml = $CargoToml -replace '^version\s*=\s*"[^"]*"', "version = `"$Version`""
+$CargoToml = $CargoToml -replace '(?m)^version\s*=\s*"[^"]*"', "version = `"$Version`""
 Set-Content "$ProjectRoot\src-tauri\Cargo.toml" -Value $CargoToml -NoNewline
 Write-Host "OK: Cargo.toml -> $Version"
 
