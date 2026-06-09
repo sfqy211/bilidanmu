@@ -5,7 +5,7 @@ import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Maximize, Minus, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, LogOut, Maximize, Minus, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -262,14 +262,11 @@ export function DanmakuPage() {
     };
   }, []);
 
-  // 关闭窗口时断开连接
+  // 关闭窗口时隐藏到托盘（不断开连接）
   useEffect(() => {
-    const unlisten = appWindow.onCloseRequested(() => {
-      disconnect();
-      if (sttAvailable) {
-        tauriCommands.stt.stop().catch(() => {});
-      }
-      tauriCommands.ai.disconnect().catch(() => {});
+    const unlisten = appWindow.onCloseRequested((e) => {
+      e.preventDefault();
+      void appWindow.hide();
     });
     return () => {
       void unlisten.then((fn) => fn());
@@ -465,10 +462,25 @@ export function DanmakuPage() {
           <button
             type="button"
             onClick={() => appWindow.close()}
-            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
-            title="关闭"
+            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-white/[0.06]"
+            title="隐藏到托盘"
           >
             <X className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              disconnect();
+              if (sttAvailable) {
+                tauriCommands.stt.stop().catch(() => {});
+              }
+              tauriCommands.ai.disconnect().catch(() => {});
+              void appWindow.destroy();
+            }}
+            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
+            title="退出直播间"
+          >
+            <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
