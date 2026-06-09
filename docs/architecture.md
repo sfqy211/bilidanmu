@@ -61,15 +61,18 @@ bilidanmu/
 │   ├── main.tsx                        # React 入口
 │   ├── App.tsx                         # 根组件（路由 + 布局 + 启动恢复）
 │   ├── index.css                       # 全局样式 + TailwindCSS
+│   ├── icon.ico                        # 应用图标
 │   │
 │   ├── components/                     # 组件（按类型分组）
 │   │   ├── ui/                         # 通用 UI 组件
 │   │   │   ├── PageTabs.tsx            # Radix Tabs 页面导航
-│   │   │   └── ProxiedImage.tsx        # <img> 代理包装（自动代理 B 站 CDN）
+│   │   │   ├── ProxiedImage.tsx        # <img> 代理包装（自动代理 B 站 CDN）
+│   │   │   └── InlineMessage.tsx       # 统一内联消息组件（error/success/info/warning，2秒自动消失）
 │   │   │
 │   │   ├── layout/                     # 布局组件
 │   │   │   ├── AppLayout.tsx           # 主布局（侧边栏 + 内容区）
-│   │   │   └── AppSidebar.tsx          # 侧边栏导航（64px 图标式 + 版本号）
+│   │   │   ├── AppSidebar.tsx          # 侧边栏导航（64px 图标式 + 版本号）
+│   │   │   └── TitleBar.tsx            # 自定义窗口标题栏（拖拽 + 最小化/最大化/关闭）
 │   │   │
 │   │   └── danmaku/                    # 弹幕相关组件
 │   │       ├── DanmakuMessageItem.tsx  # 单条弹幕渲染（普通/礼物/进场/大表情）
@@ -79,7 +82,9 @@ bilidanmu/
 │   │       ├── AutoSendPanel.tsx       # 自动发送面板（文字/表情/收藏夹/点赞四 Tab）
 │   │       ├── LikeButton.tsx          # 长按点赞按钮
 │   │       ├── BottomActivityBar.tsx   # 底部活动信息栏
-│   │       └── SubtitleOverlay.tsx     # 半透明字幕叠加层（渐入/渐出）
+│   │       ├── SubtitleOverlay.tsx     # 半透明字幕叠加层（渐入/渐出）
+│   │       ├── AccountSwitcher.tsx     # 弹幕窗口内账号切换
+│   │       └── MedalBadge.tsx          # 粉丝勋章组件
 │   │
 │   ├── pages/                          # 页面
 │   │   ├── RoomPage.tsx                # 子页面一：直播间管理
@@ -237,7 +242,39 @@ bilidanmu/
 
 ---
 
-## 五、全局状态设计
+## 五、窗口管理
+
+所有窗口均使用 `decorations: false` 隐藏原生标题栏，由自定义 `TitleBar` 组件提供拖拽、最小化、最大化、关闭功能。
+
+### 弹幕窗口
+
+- **透明背景**：`transparent: true`，配合 CSS `[data-transparent]` 属性使 html/body 背景透明，支持弹幕窗口背景不透明度调节
+- **关闭行为**：关闭弹幕窗口只是隐藏到托盘（不断开 WS/音频连接），需要断开连接时使用窗口内的退出按钮
+- **穿透支持**：弹幕区域和礼物区域支持点击穿透，不干扰底层窗口操作
+
+### 系统托盘交互
+
+- **单击**：切换弹幕窗口显示/隐藏（250ms 延迟区分单击/双击）
+- **双击**：显示主窗口
+- 托盘菜单显示当前已登录账号列表（通过 `AccountMeta` 维护）
+
+---
+
+## 六、CSS 架构
+
+弹幕窗口使用专用 CSS 类实现透明背景和主题适配：
+
+| 类名 | 用途 |
+|---|---|
+| `[data-transparent]` | 属性选择器，使 html/body 背景完全透明（弹幕窗口专用） |
+| `.danmaku-bg-main` | 弹幕主区域背景，使用 `var(--bg-a)` alpha 变量控制不透明度 |
+| `.danmaku-bg-bar` | 弹幕工具栏背景，半透明效果 |
+| `.danmaku-bg-panel` | 弹幕面板（表情选择器、设置等）背景 |
+| `.danmaku-btn-active` | 激活状态按钮样式（emerald 背景色） |
+
+---
+
+## 七、全局状态设计
 
 ### Zustand Stores
 
@@ -275,9 +312,33 @@ interface DanmakuState {
 }
 ```
 
+### AppState（Rust 后端）
+
+```
+AppState (`src-tauri/src/lib.rs`):
+  credential:              TokioMutex<Option<BiliCredential>>     — 主凭证（WS/音频播放）
+  sending_credential:      TokioMutex<Option<BiliCredential>>     — 发送凭证（弹幕/表情发送，不干扰 WS）
+  credentials:             StdMutex<HashMap<String, BiliCredential>> — 多账号凭证映射
+  active_account_id:       StdMutex<Option<String>>
+  account_metas:           StdMutex<HashMap<String, AccountMeta>>   — 托盘显示用账号元数据
+  wbi_cache:               Arc<TokioMutex<WbiKeyCache>>
+  ws_client:               TokioMutex<Option<DanmakuWsClient>>
+  auto_sender:             TokioMutex<AutoSenderState>
+  db:                      Arc<StdMutex<Option<rusqlite::Connection>>>
+  http_client:             reqwest::Client（共享，带代理）
+  astrbot_client:          reqwest::Client（无代理）
+  stream_proxy:            Arc<StreamProxyServer>
+  astrbot_config:          TokioMutex<Option<AstrbotConfig>>
+  astrbot_callback_port:   Arc<TokioMutex<u16>>
+  ai_suggestions:          Arc<StdMutex<Vec<AiSuggestion>>>
+  stt_manager:             Arc<TokioMutex<Option<SttManager>>>
+```
+
+**双凭证架构**：`credential` 用于 WS 连接和音频播放（切换账号会断开 WS），`sending_credential` 用于发送弹幕和表情（可在不中断 WS 的情况下切换发送身份）。`get_sending_credential()` 辅助函数在 `sending_credential` 为空时回退到主 `credential`。
+
 ---
 
-## 六、依赖清单
+## 八、依赖清单
 
 ### 前端 (package.json)
 
@@ -362,3 +423,27 @@ lto = "thin"
 opt-level = "s"
 strip = "symbols"
 ```
+
+---
+
+## 九、关键模式
+
+- **类型映射**：前端类型（`src/types/danmaku.ts`、`src/types/bilibili.ts`）必须与 Rust 模型（`src-tauri/src/models/`）保持一致。字段名使用 camelCase（serde rename）。
+- **新增 IPC 命令**：在 `commands/*.rs` 添加 Rust `#[tauri::command]`，在 `lib.rs` 的 `.invoke_handler()` 注册，在 `src/lib/tauri.ts` 添加 TS 封装。若使用窗口 API，还需在 `capabilities/default.json` 添加权限声明。
+- **新增事件类型**：Rust 端通过 `app.emit("event-name", payload)` 发送，前端通过 `useTauriEvent<T>("event-name", callback)` 监听。
+- **Vite 配置**：根目录 `src/`，输出 `dist/`，开发服务器固定 `http://localhost:3000`（`strictPort: true`）。`tauri.conf.json` 使用 `beforeDevCommand: npm run dev:renderer` 和 `beforeBuildCommand: npm run build:renderer`。
+- **窗口关闭行为**：主窗口关闭隐藏到托盘（不退出）。弹幕窗口关闭也隐藏到托盘（不断开 WS/音频），需手动点击退出按钮断开连接。
+- **双凭证架构**：`state.credential`（主凭证）用于 WS 连接和音频播放；`state.sending_credential`（发送凭证）用于发送弹幕/表情。`get_sending_credential()` 辅助函数在发送凭证为空时回退到主凭证，避免切换发送身份时中断 WS 连接和音频播放。
+- **设置深合并**：`setSettings` 将加载的持久化设置与 `defaultSettings` 进行深合并，确保持久化数据中缺少的新字段使用默认值填充。
+- **STT 流水线**：运行在 `spawn_blocking` 中避免阻塞 tokio 运行时。取消机制：`bytes_tx = None` 关闭通道（解除 `blocking_recv` 阻塞）+ `cancel` AtomicBool + `Notify` 即时取消转录循环。
+- **模型 ID**：`model_id` 是枚举式字符串（如 `"large"`、`"xlarge"`），不允许绝对路径。`get_model_dir()` 校验路径穿越（`..`/`/`\`）并基于 `app_data_dir/models/stt/{model_id}` 解析。
+- **sherpa-onnx**：`sherpa-onnx = "1.13"` 提供 `OnlineRecognizer`、`OnlineStream`、`LinearResampler`，全部静态链接，无 LLVM 依赖。
+- **symphonia 0.6**：AAC 解码使用 ADTS reader，API 与 0.5 差异显著。
+- **音频采样归一化**：无符号类型（U8/U16/U24/U32）居中到 [-1, 1] 避免直流偏置；声道数取自解码器输出（非 FLV 头）。
+- **FLV 安全限制**：`data_size` 上限 `MAX_TAG_DATA_SIZE=65536` 防止内存耗尽。
+
+---
+
+## 十、参考项目
+
+`reference/` 目录包含本项目参考的上游项目：`cc-switch`（Tauri 2 + React 架构）、`BLSPAM`（B站 API + 发送逻辑）、`PiliPlus`（协议 + SC 渲染）、`bilibili-API-collect`（API 文档）。

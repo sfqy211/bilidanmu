@@ -4,21 +4,24 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 
 ## 功能
 
-- 多账号管理（登录/切换/移除，托盘菜单快速切换）
+- 多账号管理（登录/切换/移除，弹幕窗口内快速切换发送账号）
 - Cookie 登录 + 二维码登录，启动自动恢复
 - 房间搜索（主播名 / 房间号 / 链接 / UID），本地 SQLite 持久化
 - 文字弹幕发送、表情弹幕发送
 - 自动发送（文字/表情/收藏夹三 Tab，可调间隔 + 时间限制，切房自动停止）
 - 自动点赞（批量点赞，可调目标/批次/间隔）
-- WebSocket 弹幕流实时接收（弹幕、礼物、进场、醒目留言）
+- WebSocket 弹幕流实时接收（弹幕、礼物、进场、醒目留言、上舰）
 - 弹幕流内联表情渲染（`[表情名]` → 图片）
 - 醒目留言真实颜色还原（两段式卡片 + 背景图）
 - 开播时长实时显示（v2 API 获取直播时间戳，自动刷新）
-- 系统托盘常驻（直播间/账号 CheckMenuItem 切换，状态同步）
+- 系统托盘常驻（单击切换弹幕窗口，右键菜单切换房间/账号）
 - 图片代理（SSRF 白名单 + LRU 缓存，绕过 CDN Referer 防盗链）
 - 实时直播音频流播放（v2 API + 本地代理绕过 CORS + mpegts.js FLV 播放）
 - 实时语音转字幕（sherpa-onnx 流式识别 + 字幕叠加层）
 - AI 助手（对接 AstrBot，多条回复选项/自定义输入/自动总结/记忆学习）
+- 弹幕窗口透明度调节（0-100%，全局背景跟随主题）
+- 窗口透传模式（点击穿透，仅交互元素响应）
+- 自定义窗口标题栏（无原生装饰，全部窗口统一风格）
 - STT 和 AI 功能内置，可在设置中按需开启/关闭
 
 ## 技术栈
@@ -65,34 +68,41 @@ npm run dev
 | `npm run typecheck` | TypeScript 类型检查 |
 | `cargo check` (在 src-tauri/) | Rust 编译检查 |
 | `npm run build` | 构建发布包 |
-| `.\scripts\bump-version.ps1 0.3.1` | 更新所有版本号 |
+| `.\scripts\bump-version.ps1 <version>` | 更新所有版本号 |
 
 ## 项目结构
 
 ```
 src/                          前端 (React + TypeScript)
 ├── pages/                    页面（RoomPage, DanmakuPage, AiAssistantPage, AccountPage, AIPage, SettingsPage）
-├── components/               组件（danmaku/, layout/SplitLayout, ui/）
-├── hooks/                    React Hooks（useDanmakuStream, useAutoSend, useAutoLike, useDividerDrag...）
+├── components/               组件
+│   ├── danmaku/              弹幕相关（DanmakuMessageItem, AccountSwitcher, EmoticonPickerPanel, AutoSendPanel...）
+│   ├── layout/               布局（AppLayout, AppSidebar, TitleBar, SplitLayout）
+│   └── ui/                   通用 UI（PageTabs, ProxiedImage, InlineMessage）
+├── hooks/                    React Hooks（useDanmakuStream, useAutoSend, useAutoLike, useAudioPlayer, useTheme...）
 ├── stores/                   Zustand 状态管理（auth, room, danmaku, ai, settings）
 ├── lib/tauri.ts              Tauri IPC 调用封装
 └── types/                    TypeScript 类型定义
 
 src-tauri/                    后端 (Rust)
 ├── src/bili/                 B站协议实现（API、WebSocket、WBI 签名、协议解析）
-├── src/commands/             Tauri IPC 命令处理（auth, room, danmaku, ai_proxy, settings...）
+├── src/commands/             Tauri IPC 命令处理（auth, room, danmaku, ai_proxy, settings, proxy, stt...）
 ├── src/models/               数据模型
 ├── src/stt/                  语音识别模块（FLV 解复用、AAC 解码、sherpa-onnx 流式识别）
 ├── src/proxy/                本地 HTTP 流代理（hyper 1.x，STT 字节流 tee）
+├── src/tray.rs               系统托盘（单击切换弹幕窗口，右键菜单）
 └── src/lib.rs                应用入口 + AppState
-
-scripts/                      工具脚本
-└── bump-version.ps1          版本号更新脚本
 ```
 
-## 截图
+## 文档
 
-<!-- TODO: 添加截图 -->
+| 文件 | 说明 |
+| ---- | ---- |
+| [docs/ui-structure.md](docs/ui-structure.md) | 页面布局与交互规范 |
+| [docs/architecture.md](docs/architecture.md) | 技术栈、项目结构、数据流 |
+| [docs/api.md](docs/api.md) | B站 API、IPC 命令、事件列表 |
+| [docs/research.md](docs/research.md) | 技术调研记录 |
+| [docs/design.md](docs/design.md) | 视觉设计风格规范 |
 
 ## 许可
 

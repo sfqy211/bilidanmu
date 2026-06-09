@@ -60,16 +60,20 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `poll_qr` | `qrcode_key` | `QrPollResult` | 轮询扫码结果 |
 | `login_by_cookie` | `cookie` | `Credential` | Cookie 登录 |
 | `restore_login` | - | `Credential \| null` | 恢复已保存的登录 |
-| `logout` | - | `Credential[]` | 登出（返回剩余账号） |
 | `remove_account` | `account_id` | `string \| null` | 移除账号 |
 | `switch_account` | `account_id` | `Credential` | 切换当前账号 |
 | `list_accounts` | - | `Credential[]` | 列出所有账号 |
+| `switch_sending_account` | `account_id` | `Credential` | 切换发送弹幕使用的账号（不断开 WS） |
+| `get_sending_account_id` | - | `string \| null` | 获取当前发送账号 ID |
 | `search_room` | `query, mode` | `SearchRoomResult[]` | 搜索直播间 |
 | `add_room` | `room_id` | `RoomInfo` | 添加直播间 |
 | `remove_room` | `room_id` | void | 移除直播间 |
 | `get_room_info` | `room_id` | `RoomInfo` | 直播间详情 |
 | `get_rooms` | - | `Room[]` | 获取已保存房间列表 |
-| `get_emoticons` | `room_id` | `EmoticonPackage[]` | 获取表情列表 |
+| `get_emoticons` | `room_id, force?, account_id?` | `EmoticonPackage[]` | 获取表情列表 |
+| `clear_emoticon_cache` | - | void | 清除所有表情缓存 |
+| `clear_room_emoticon_cache` | `room_id` | void | 清除房间表情缓存 |
+| `clear_room_specific_emoticons` | - | void | 清除房间专属表情 |
 | `open_danmaku_window` | `room_id` | void | 打开弹幕子窗口 |
 | `get_audio_stream_url` | `room_id` | `StreamInfo` | 获取音频流（v2 API + 本地代理） |
 | `clear_audio_stream` | - | void | 清除当前音频流 |
@@ -79,6 +83,9 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `send_emoticon` | `room_id, emoticon_unique, emoticon_options?, ...` | `BiliResponse` | 发送表情弹幕 |
 | `start_auto_send` | `room_id, entries[], interval_ms, time_limit_secs?` | void | 开始自动发送（统一文字/表情条目） |
 | `stop_auto_send` | - | void | 停止自动发送 |
+| `send_like` | `room_id, anchor_id, click_time` | `BiliResponse` | 发送点赞 |
+| `start_auto_like` | `room_id, anchor_id, target_count, batch_size, interval_ms` | void | 开始自动点赞 |
+| `stop_auto_like` | - | void | 停止自动点赞 |
 | `add_ai_model` | `input: AIModelInput` | `AIModel` | 添加 AI 模型 |
 | `get_ai_models` | - | `AIModel[]` | 获取所有 AI 模型 |
 | `test_ai_connection` | `input: AIModelInput` | `TestResult` | 测试 AI 连接 |
@@ -134,6 +141,7 @@ GET https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 | `auto-like-stopped` | `{ reason?, sentTotal? }` | 自动点赞停止 |
 | `room-switched` | `number`（room_id） | 托盘切换房间 |
 | `account-switched` | `{ accountId, credential }` | 托盘切换账号 |
+| `account-switch-error` | `string` | 托盘切换账号失败 |
 | `stt-transcript` | `SttTranscript` | STT 识别结果（`{ text, isFinal }`，仅 STT 构建） |
 
 ---
@@ -201,14 +209,16 @@ impl PacketHeader {
 export const tauriCommands = {
   auth: {
     loginByQr, pollQr, loginByCookie, restoreLogin,
-    logout,            // → Credential[]
-    removeAccount,     // → string | null
-    switchAccount,     // → Credential
-    listAccounts       // → Credential[]
+    removeAccount,            // → string | null
+    switchAccount,            // → Credential
+    switchSendingAccount,     // → Credential（切换发送账号，不断开 WS）
+    getSendingAccountId,      // → string | null
+    listAccounts              // → Credential[]
   },
   room: {
-    search, add, remove, openDanmaku,
-    getEmoticons, getAudioStreamUrl, clearAudioStream,
+    search, add, remove, openDanmaku, openAiWindow,
+    getEmoticons, clearEmoticonCache, clearRoomEmoticonCache, clearRoomSpecificEmoticons,
+    getAudioStreamUrl, clearAudioStream,
     getRoomsLiveStatus, getLiveTime  // → number | null (Unix 秒)
   },
   danmaku: {
@@ -217,11 +227,11 @@ export const tauriCommands = {
     startAutoLike, stopAutoLike
   },
   ws: { connect, disconnect },
-  ai: { getModels, addModel, updateModel, testConnection, fetchModels, setCurrentModel, deleteModel },
-  settings: { get, update, isSttAvailable },
+  ai: { configure, getConfig, switchRoom, disconnect, trigger, learn, getStatus, getCallbackPort, getSummaries, clearSummaries },
+  settings: { get, update, isSttAvailable, isAiAvailable },
   state: { getRooms },
   selections: { load, save },
-  proxy: { image },
+  proxy: { image, clearImageCache },
   stt: { start, stop, switchModel, getModelDir, listModels, openModelDir }
 };
 ```
