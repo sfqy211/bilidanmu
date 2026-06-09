@@ -767,6 +767,11 @@ export function DanmakuPage() {
               <div
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
+                onMouseDown={(e) => {
+                  if (!passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
+                    void appWindow.startDragging();
+                  }
+                }}
                 className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
@@ -831,6 +836,11 @@ export function DanmakuPage() {
               <div
                 ref={danmakuScroll.scrollRef}
                 onScroll={danmakuScroll.checkAtBottom}
+                onMouseDown={(e) => {
+                  if (!passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
+                    void appWindow.startDragging();
+                  }
+                }}
                 className="flex h-full flex-col gap-2 overflow-y-auto px-2.5 py-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
