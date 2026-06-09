@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Gift, LogOut, MessageSquare, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Gift, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -108,6 +108,8 @@ export function DanmakuPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
+  const [passthroughEnabled, setPassthroughEnabled] = useState(false);
+  const passthroughIgnoredRef = useRef(false);
   const { disconnect } = useDanmakuStream(roomId);
 
   const messages = useDanmakuStore((state) => state.messages);
@@ -365,6 +367,74 @@ export function DanmakuPage() {
     };
   }, []);
 
+  // ── 窗口透传：单窗口动态命中测试 ──
+  useEffect(() => {
+    let checking = false;
+
+    const setIgnored = (ignored: boolean) => {
+      if (passthroughIgnoredRef.current === ignored) return;
+      const previous = passthroughIgnoredRef.current;
+      passthroughIgnoredRef.current = ignored;
+      void appWindow.setIgnoreCursorEvents(ignored).catch(() => {
+        if (passthroughIgnoredRef.current === ignored) {
+          passthroughIgnoredRef.current = previous;
+        }
+      });
+    };
+
+    if (!passthroughEnabled) {
+      setIgnored(false);
+      return;
+    };
+
+    const shouldPassThrough = (x: number, y: number) => {
+      // elementFromPoint is a DOM hit-test and should remain valid while the OS
+      // ignores cursor events for this window; the polling loop depends on that.
+      const element = document.elementFromPoint(x, y);
+      if (!element) return true;
+      return !element.closest("[data-interactive]");
+    };
+
+    const checkCursorPosition = () => {
+      if (checking) return;
+      checking = true;
+      void (async () => {
+        // 弹幕窗口创建时 decorations=false，因此 inner 坐标就是 WebView client area。
+        const [cursor, windowPosition, windowSize, scaleFactor] = await Promise.all([
+          cursorPosition(),
+          appWindow.innerPosition(),
+          appWindow.innerSize(),
+          appWindow.scaleFactor(),
+        ]);
+
+        const insideWindow =
+          cursor.x >= windowPosition.x &&
+          cursor.y >= windowPosition.y &&
+          cursor.x < windowPosition.x + windowSize.width &&
+          cursor.y < windowPosition.y + windowSize.height;
+
+        if (!insideWindow) {
+          setIgnored(false);
+          return;
+        }
+
+        const clientX = (cursor.x - windowPosition.x) / scaleFactor;
+        const clientY = (cursor.y - windowPosition.y) / scaleFactor;
+        setIgnored(shouldPassThrough(clientX, clientY));
+      })().finally(() => {
+        checking = false;
+      });
+    };
+
+    const poll = window.setInterval(checkCursorPosition, 50);
+    checkCursorPosition();
+
+    return () => {
+      window.clearInterval(poll);
+      setIgnored(false);
+    };
+  }, [passthroughEnabled]);
+
   const loadEmoticons = useCallback(async (forceAccountId?: string) => {
     if (!roomId) return;
 
@@ -455,6 +525,7 @@ export function DanmakuPage() {
     <main className="danmaku-bg-main flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
       {/* 标题栏 */}
       <div
+        data-interactive=""
         className="danmaku-bg-bar flex select-none items-center pl-3"
         onMouseDown={handleTitleBarMouseDown}
       >
@@ -472,6 +543,18 @@ export function DanmakuPage() {
           title={pinned ? "取消置顶" : "置顶"}
         >
           {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPassthroughEnabled((v) => !v)}
+          className={`flex h-7 w-7 items-center justify-center transition ${
+            passthroughEnabled
+              ? "text-pink-500 hover:text-pink-400"
+              : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          }`}
+          title={passthroughEnabled ? "关闭窗口透传" : "开启窗口透传"}
+        >
+          <MousePointerClick className="h-3.5 w-3.5" />
         </button>
         <div className="flex h-7">
           <button
@@ -501,7 +584,7 @@ export function DanmakuPage() {
       </div>
 
       {/* 控制栏 */}
-      <div className="danmaku-bg-panel flex items-center gap-2 px-3 py-1">
+      <div data-interactive="" className="danmaku-bg-panel flex items-center gap-2 px-3 py-1">
         <button
           type="button"
           onClick={() => void (audioPlaying ? handleAudioStop() : handleAudioPlay())}
@@ -611,7 +694,7 @@ export function DanmakuPage() {
         <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ flex: ratio }}>
           {showGifts && (
             <>
-              <div className="flex shrink-0 items-center gap-1 px-2.5 py-1">
+              <div data-interactive="" className="flex shrink-0 items-center gap-1 px-2.5 py-1">
                 {showBatteryFilter ? (
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-slate-400 dark:text-slate-500">电池≥</span>
@@ -688,7 +771,7 @@ export function DanmakuPage() {
                 style={{ fontSize: `${fontSize}px` }}
               >
                 {giftMessages.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
+                  <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
                     送礼、醒目留言、上舰消息等显示在这里
                   </div>
                 ) : (
@@ -703,6 +786,7 @@ export function DanmakuPage() {
               </div>
               {!giftScroll.isAtBottom && (
                 <button
+                  data-interactive=""
                   onClick={giftScroll.scrollToBottom}
                   className="absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-pink-500 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-pink-400"
                   style={{ bottom: "4px" }}
@@ -717,6 +801,7 @@ export function DanmakuPage() {
 
         {/* 分割栏 — 始终渲染，可拖拽/键盘调整/双击重置 */}
         <div
+          data-interactive=""
           role="separator"
           aria-orientation="horizontal"
           aria-valuenow={Math.round(ratio * 100)}
@@ -750,7 +835,7 @@ export function DanmakuPage() {
                 style={{ fontSize: `${fontSize}px` }}
               >
                 {danmakuMessages.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
+                  <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
                     本场直播的弹幕互动消息将显示在这里
                   </div>
                 ) : (
@@ -761,6 +846,7 @@ export function DanmakuPage() {
               </div>
               {!danmakuScroll.isAtBottom && (
                 <button
+                  data-interactive=""
                   onClick={danmakuScroll.scrollToBottom}
                   className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-pink-500 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-pink-400"
                 >
@@ -777,7 +863,7 @@ export function DanmakuPage() {
 
       {/* 活动信息：入场 */}
       {latestEntry && (
-        <div className="danmaku-bg-panel shrink-0">
+        <div data-interactive="" className="danmaku-bg-panel shrink-0">
           <BottomActivityBar
             icon={<span className="text-xs">↪</span>}
             username={latestEntry.username}
@@ -788,7 +874,7 @@ export function DanmakuPage() {
       )}
 
       {/* 发送栏 */}
-      <div className="danmaku-bg-panel relative px-3 py-2">
+      <div data-interactive="" className="danmaku-bg-panel relative px-3 py-2">
         {aiError && (
           <InlineMessage key={aiErrorKey} type="error" className="mb-2">{aiError}</InlineMessage>
         )}
