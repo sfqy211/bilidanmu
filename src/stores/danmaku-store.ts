@@ -10,6 +10,7 @@ interface DanmakuState {
   sentCount: number;
   danmakuCount: number;
   superChatCount: number;
+  guardCount: number;
   isMuted: boolean;
   muteRemainSec: number;
   autoSpamRunning: boolean;
@@ -41,6 +42,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   sentCount: 0,
   danmakuCount: 0,
   superChatCount: 0,
+  guardCount: 0,
   isMuted: false,
   muteRemainSec: 0,
   autoSpamRunning: false,
@@ -54,10 +56,11 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
       messages: [...state.messages.slice(-199), message],
       danmakuCount: message.type === "danmaku" ? state.danmakuCount + 1 : state.danmakuCount,
       superChatCount: message.type === "superChat" ? state.superChatCount + 1 : state.superChatCount,
+      guardCount: message.type === "guard" ? state.guardCount + 1 : state.guardCount,
     })),
   setLatestLike: (latestLike) => set({ latestLike }),
   setLatestEntry: (latestEntry) => set({ latestEntry }),
-  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0 }),
+  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0, guardCount: 0 }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setWsStatus: (wsStatus) => set({ wsStatus }),
   incrementSentCount: () => set((state) => ({ sentCount: state.sentCount + 1 })),

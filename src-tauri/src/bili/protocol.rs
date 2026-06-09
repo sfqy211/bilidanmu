@@ -132,6 +132,10 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
         return parse_super_chat(command, room_id);
     }
 
+    if cmd == "GUARD_BUY" {
+        return parse_guard_buy(command, room_id);
+    }
+
     if cmd.starts_with("LIKE_INFO_V3_CLICK") {
         return parse_like_info_v3_click(command, room_id);
     }
@@ -383,6 +387,47 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
             .get("background_image")
             .and_then(Value::as_str)
             .map(ToString::to_string),
+        emots: None,
+        emoticon_options: None,
+    })
+}
+
+fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    let data = command.get("data")?;
+    let username = data.get("username").and_then(Value::as_str).unwrap_or("").to_string();
+    let uid = data.get("uid").and_then(value_as_u64).unwrap_or(0);
+    let guard_level = data.get("guard_level").and_then(value_as_u64).unwrap_or(0) as u8;
+    let gift_name = data.get("gift_name").and_then(Value::as_str).unwrap_or("舰长").to_string();
+    let count = data.get("num").and_then(value_as_u64).unwrap_or(1) as u32;
+    let price = data.get("price").and_then(value_as_u64).map(|v| v as u32);
+    let timestamp = data.get("start_time").and_then(value_as_u64)
+        .or_else(|| data.get("end_time").and_then(value_as_u64))
+        .unwrap_or(0);
+    let id = format!("guard-{room_id}-{uid}-{timestamp}");
+
+    Some(DanmakuEvent {
+        id,
+        room_id,
+        event_type: "guard".to_string(),
+        username,
+        content: format!("开通了 {gift_name} ×{count}"),
+        timestamp,
+        avatar: None,
+        medal: None,
+        wealth_level: None,
+        uid,
+        color: 16_777_215,
+        guard_level,
+        is_admin: false,
+        dm_type: 0,
+        price,
+        gift_name: Some(gift_name),
+        count: Some(count),
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
         emots: None,
         emoticon_options: None,
     })

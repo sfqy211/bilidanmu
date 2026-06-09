@@ -9,6 +9,7 @@ export type DanmakuMessageType =
   | "danmaku"
   | "gift"
   | "superChat"
+  | "guard"
   | "entry"
   | "like"
   | "system";
