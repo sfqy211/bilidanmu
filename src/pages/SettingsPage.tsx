@@ -354,27 +354,12 @@ export function SettingsPage() {
                 />
               </label>
 
-              <div className="border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/[0.06] dark:bg-[#0e1018]">
-                <div className="mb-2 flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
-                  <span>弹幕窗口透明度</span>
-                  <span className="text-xs text-slate-400 dark:text-slate-500">{settings.appearance.opacity}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={settings.appearance.opacity}
-                  onChange={(event) =>
-                    patchSettings({
-                      appearance: {
-                        ...settings.appearance,
-                        opacity: Number(event.target.value)
-                      }
-                    })
-                  }
-                  className="h-1 w-full cursor-pointer accent-pink-500"
-                />
-              </div>
+              <OpacitySlider
+                value={settings.appearance.opacity}
+                onChange={(val) =>
+                  patchSettings({ appearance: { ...settings.appearance, opacity: val } } as Partial<Settings>)
+                }
+              />
             </div>
           </div>
         </TabContent>
@@ -565,5 +550,34 @@ export function SettingsPage() {
         </TabContent>
       </PageTabs>
     </section>
+  );
+}
+
+function OpacitySlider({ value, onChange }: { value: number; onChange: (val: number) => void }) {
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  return (
+    <div className="border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/[0.06] dark:bg-[#0e1018]">
+      <div className="mb-2 flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
+        <span>弹幕窗口透明度</span>
+        <span className="text-xs text-slate-400 dark:text-slate-500">{local}%</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={local}
+        onInput={(e) => {
+          const val = Number((e.target as HTMLInputElement).value);
+          setLocal(val);
+          onChange(val);
+        }}
+        className="h-1 w-full cursor-pointer accent-pink-500"
+      />
+    </div>
   );
 }
