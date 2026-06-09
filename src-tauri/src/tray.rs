@@ -1,13 +1,10 @@
 use crate::{room_store, AppState};
-use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
     App, AppHandle, Emitter, Manager,
 };
-
-static SINGLE_CLICK_PENDING: AtomicBool = AtomicBool::new(false);
 
 pub fn create_tray(app: &App) -> tauri::Result<()> {
     let menu = build_tray_menu(app.handle())?;
@@ -44,39 +41,28 @@ fn load_tray_icon(app: &App) -> Option<Image<'_>> {
 }
 
 fn handle_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
-    match event {
-        TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } => {
-            // 双击：取消待处理的单击，显示主窗口
-            SINGLE_CLICK_PENDING.store(false, Ordering::SeqCst);
-            show_main_window(tray.app_handle());
-        }
-        TrayIconEvent::Click { button: MouseButton::Left, .. } => {
-            // 单击：延迟 250ms 执行，若双击则取消
-            if SINGLE_CLICK_PENDING.swap(true, Ordering::SeqCst) {
-                return; // 已有待处理的单击
-            }
-            let app = tray.app_handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-                if SINGLE_CLICK_PENDING.swap(false, Ordering::SeqCst) {
-                    show_danmaku_window(&app).await;
-                }
-            });
-        }
-        _ => {}
+    if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
+        let app = tray.app_handle().clone();
+        tauri::async_runtime::spawn(async move {
+            toggle_danmaku_window(&app).await;
+        });
     }
 }
 
-async fn show_danmaku_window(app: &AppHandle) {
+async fn toggle_danmaku_window(app: &AppHandle) {
     let danmaku_window = app
         .webview_windows()
         .into_iter()
         .find(|(label, _)| label.starts_with("danmaku-"));
 
     if let Some((_, win)) = danmaku_window {
-        let _ = win.unminimize();
-        let _ = win.show();
-        let _ = win.set_focus();
+        if win.is_visible().unwrap_or(false) {
+            let _ = win.hide();
+        } else {
+            let _ = win.unminimize();
+            let _ = win.show();
+            let _ = win.set_focus();
+        }
     } else {
         show_main_window(app);
     }
