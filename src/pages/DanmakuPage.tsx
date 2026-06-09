@@ -5,7 +5,7 @@ import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Maximize, Minus, Pause, Pin, PinOff, Play, Send, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Maximize, Minus, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -30,7 +30,7 @@ import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { DanmakuMessage } from "@/types/danmaku";
-import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
+import type { Emoticon, EmoticonPackage, Settings as SettingsType } from "@/types/bilibili";
 import { makePkgKey } from "@/types/bilibili";
 
 function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
@@ -106,6 +106,7 @@ export function DanmakuPage() {
   const [aiErrorKey, setAiErrorKey] = useState(0);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [autoSendOpen, setAutoSendOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [pinned, setPinned] = useState(true);
   const { disconnect } = useDanmakuStream(roomId);
 
@@ -204,8 +205,10 @@ export function DanmakuPage() {
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
+  const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const aiAvailable = useSettingsStore((s) => s.aiAvailable);
+  const patchSettings = useSettingsStore((s) => s.patchSettings);
   const {
     audioRef,
     isPlaying: audioPlaying,
@@ -250,6 +253,14 @@ export function DanmakuPage() {
   // 窗口尺寸变化时保存到 localStorage
   useWindowPersistence("danmaku-window");
   useZoom();
+
+  // 弹幕窗口启用透明背景
+  useEffect(() => {
+    document.documentElement.dataset.transparent = "true";
+    return () => {
+      delete document.documentElement.dataset.transparent;
+    };
+  }, []);
 
   // 关闭窗口时断开连接
   useEffect(() => {
@@ -378,6 +389,7 @@ export function DanmakuPage() {
     const nextOpen = !emoticonPickerOpen;
     if (nextOpen) {
       setAutoSendOpen(false);
+      setSettingsOpen(false);
     }
     setEmoticonPickerOpen(nextOpen);
 
@@ -415,16 +427,18 @@ export function DanmakuPage() {
   const showGifts = ratio > 0.02;
   const showDanmaku = ratio < 0.98;
 
+  const bgAlpha = opacity / 100;
+
   const handleTitleBarMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("button")) return;
     if (e.button === 0) void appWindow.startDragging();
   }, []);
 
   return (
-    <main className="flex h-full flex-col overflow-hidden border border-slate-300 bg-slate-100 text-slate-900 dark:border-white/[0.06] dark:bg-[#0a0c14] dark:text-slate-100">
+    <main className="danmaku-bg-main flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
       {/* 标题栏 */}
       <div
-        className="flex select-none items-center border-b border-slate-300 bg-white pl-3 dark:border-white/[0.06] dark:bg-[#0e1018]"
+        className="danmaku-bg-bar flex select-none items-center pl-3"
         onMouseDown={handleTitleBarMouseDown}
       >
         <img src={appIcon} alt="" className="mr-1.5 h-4 w-4" />
@@ -460,7 +474,7 @@ export function DanmakuPage() {
       </div>
 
       {/* 控制栏 */}
-      <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-3 py-1 dark:border-white/[0.06] dark:bg-[#12141e]">
+      <div className="danmaku-bg-panel flex items-center gap-2 px-3 py-1">
         <button
           type="button"
           onClick={() => void (audioPlaying ? handleAudioStop() : handleAudioPlay())}
@@ -626,9 +640,9 @@ export function DanmakuPage() {
               setRatio((r: number) => Math.max(0, r - 0.05));
             }
           }}
-          className="flex h-1.5 shrink-0 cursor-row-resize items-center justify-center bg-slate-200 transition hover:bg-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500 dark:bg-white/[0.06] dark:hover:bg-white/[0.12]"
+          className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500"
         >
-          <div className="h-0.5 w-8 rounded-full bg-slate-400 dark:bg-slate-500" />
+          <div className="h-px w-full bg-slate-300/60 transition group-hover:bg-slate-400/60 dark:bg-white/[0.08] dark:group-hover:bg-white/[0.15]" />
         </div>
 
         {/* 弹幕栏 — 始终渲染，flex=1-ratio 控制大小 */}
@@ -641,17 +655,11 @@ export function DanmakuPage() {
                 className="flex h-full flex-col gap-2 overflow-y-auto px-5 pt-3 pb-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
-                {danmakuMessages.length === 0 ? (
-                  <div className="border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400 dark:border-white/[0.06] dark:bg-[#0c0e18] dark:text-slate-500">
-                    暂无弹幕，连接成功后会在这里实时显示。
-                  </div>
-                ) : (
-                  danmakuMessages.map((item) =>
-                    item.type === "superChat" ? (
-                      <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
-                    ) : (
-                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} />
-                    )
+                {danmakuMessages.map((item) =>
+                  item.type === "superChat" ? (
+                    <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
+                  ) : (
+                    <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} />
                   )
                 )}
               </div>
@@ -673,7 +681,7 @@ export function DanmakuPage() {
 
       {/* 活动信息：入场 */}
       {latestEntry && (
-        <div className="shrink-0 border-t border-slate-300 bg-white dark:border-white/[0.06] dark:bg-[#12141e]">
+        <div className="danmaku-bg-panel shrink-0">
           <BottomActivityBar
             icon={<span className="text-xs">↪</span>}
             username={latestEntry.username}
@@ -684,7 +692,7 @@ export function DanmakuPage() {
       )}
 
       {/* 发送栏 */}
-      <div className="relative border-t border-slate-300 bg-white px-3 py-2 dark:border-white/[0.06] dark:bg-[#12141e]">
+      <div className="danmaku-bg-panel relative px-3 py-2">
         {aiError && (
           <InlineMessage key={aiErrorKey} type="error" className="mb-2">{aiError}</InlineMessage>
         )}
@@ -698,29 +706,50 @@ export function DanmakuPage() {
                 const next = !value;
                 if (next) {
                   setEmoticonPickerOpen(false);
+                  setSettingsOpen(false);
                 }
                 return next;
               });
             }}
-            className={`inline-flex items-center gap-1 border px-2.5 py-1 text-xs transition ${
+            title="自动发送"
+            className={`inline-flex items-center p-1.5 text-xs transition ${
               autoSendRunning
-                ? "border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300"
-                : "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
+                : "danmaku-bg-bar text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
             <Zap className="h-3.5 w-3.5" />
-            自动发送
           </button>
           <button
             type="button"
             onClick={() => void handleToggleEmoticonPicker()}
             disabled={!roomId || sending}
-            className="inline-flex items-center gap-1 border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            title="表情"
+            className="danmaku-bg-bar inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
             <Smile className="h-3.5 w-3.5" />
-            表情
           </button>
           <AccountSwitcher viewingAccountId={activeAccountId} />
+          <button
+            type="button"
+            onClick={() => {
+              setSettingsOpen((v) => {
+                if (!v) {
+                  setAutoSendOpen(false);
+                  setEmoticonPickerOpen(false);
+                }
+                return !v;
+              });
+            }}
+            title="设置"
+            className={`danmaku-bg-bar inline-flex items-center p-1.5 text-xs transition ${
+              settingsOpen
+                ? "text-slate-600 dark:text-slate-300"
+                : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            }`}
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
           {aiAvailable && (
             <button
               type="button"
@@ -733,13 +762,35 @@ export function DanmakuPage() {
                   setAiErrorKey((k) => k + 1);
                 });
               }}
-              className="inline-flex items-center gap-1 border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
+              title="AI 助手"
+              className="danmaku-bg-bar inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
             >
               <Bot className="h-3.5 w-3.5" />
-              AI 助手
             </button>
           )}
         </div>
+
+        {/* 设置面板 */}
+        {settingsOpen && (
+          <div className="danmaku-bg-panel absolute bottom-full right-0 z-20 mb-2 w-64 p-4">
+            <div className="space-y-3">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span>背景透明度</span>
+                  <span>{opacity}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={opacity}
+                  onChange={(e) => patchSettings({ appearance: { opacity: Number(e.target.value) } } as Partial<SettingsType>)}
+                  className="h-1 w-full cursor-pointer accent-pink-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 弹幕输入行 */}
         <div>
@@ -786,7 +837,7 @@ export function DanmakuPage() {
             />
           ) : null}
 
-          <div className="flex items-center border border-slate-300 bg-white pr-1 dark:border-white/[0.06] dark:bg-[#0e1018]">
+          <div className="danmaku-bg-bar flex items-center pr-1">
             <textarea
               value={message}
               onCompositionStart={() => { composingRef.current = true; }}

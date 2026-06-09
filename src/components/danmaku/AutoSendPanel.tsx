@@ -500,7 +500,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   return (
     <div
       onMouseDown={(event) => event.stopPropagation()}
-      className={`${className ?? ""} border border-slate-300 bg-white p-3 dark:border-white/[0.06] dark:bg-[#12141e]`}
+      className={`${className ?? ""} danmaku-bg-panel p-3`}
     >
       {/* 标题栏 */}
       <div className="mb-3 flex items-center justify-between gap-3">

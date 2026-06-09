@@ -260,6 +260,7 @@ pub async fn open_danmaku_window(
         .max_inner_size(1200.0, 900.0)
         .resizable(true)
         .decorations(false)
+        .transparent(true)
         .always_on_top(true)
         .shadow(false)
         .build()

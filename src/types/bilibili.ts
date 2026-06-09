@@ -120,6 +120,7 @@ export interface Settings {
     fontSize: number;
     showMedal: boolean;
     showLevel: boolean;
+    opacity: number;
   };
   notification: {
     muteAlert: boolean;

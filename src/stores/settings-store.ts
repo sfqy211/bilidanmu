@@ -20,7 +20,8 @@ export const defaultSettings: Settings = {
     theme: "system",
     fontSize: 14,
     showMedal: true,
-    showLevel: true
+    showLevel: true,
+    opacity: 90
   },
   notification: {
     muteAlert: true,
@@ -53,7 +54,20 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   settings: defaultSettings,
   sttAvailable: true, // optimistic default; updated on app init
   aiAvailable: false, // conservative default; set to true on app init if ai feature enabled
-  setSettings: (settings) => set({ settings }),
+  setSettings: (settings) => set({
+    settings: {
+      ...defaultSettings,
+      ...settings,
+      appearance: { ...defaultSettings.appearance, ...settings.appearance },
+      receive: { ...defaultSettings.receive, ...settings.receive },
+      audio: { ...defaultSettings.audio, ...settings.audio },
+      stt: { ...defaultSettings.stt, ...settings.stt },
+      notification: { ...defaultSettings.notification, ...settings.notification },
+      sendInterval: { ...defaultSettings.sendInterval, ...settings.sendInterval },
+      rateLimit: { ...defaultSettings.rateLimit, ...settings.rateLimit },
+      riskControl: { ...defaultSettings.riskControl, ...settings.riskControl },
+    }
+  }),
   setSttAvailable: (sttAvailable) => set({ sttAvailable }),
   setAiAvailable: (aiAvailable) => set({ aiAvailable }),
   patchSettings: (partial) =>

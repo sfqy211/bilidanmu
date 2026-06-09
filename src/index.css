@@ -55,6 +55,36 @@ body {
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
 }
 
+[data-transparent],
+[data-transparent] body {
+  background: transparent !important;
+}
+
+.danmaku-bg-main {
+  background-color: rgba(241, 245, 249, var(--bg-a));
+}
+.dark .danmaku-bg-main {
+  background-color: rgba(10, 12, 20, var(--bg-a));
+}
+.danmaku-bg-bar {
+  background-color: rgba(255, 255, 255, var(--bg-a));
+}
+.dark .danmaku-bg-bar {
+  background-color: rgba(14, 16, 24, var(--bg-a));
+}
+.danmaku-bg-panel {
+  background-color: rgba(255, 255, 255, var(--bg-a));
+}
+.dark .danmaku-bg-panel {
+  background-color: rgba(18, 20, 30, var(--bg-a));
+}
+.danmaku-btn-active {
+  background-color: rgba(209, 250, 229, var(--bg-a));
+}
+.dark .danmaku-btn-active {
+  background-color: rgba(6, 78, 59, var(--bg-a));
+}
+
 button,
 input,
 textarea,

@@ -71,7 +71,7 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-500 transition hover:bg-slate-100 dark:border-white/[0.06] dark:bg-[#0e1018] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+        className="danmaku-bg-bar inline-flex items-center gap-1 px-2.5 py-1 text-xs text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
       >
         <Users className="h-3.5 w-3.5" />
         {displayName}

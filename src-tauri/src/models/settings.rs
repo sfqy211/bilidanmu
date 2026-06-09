@@ -37,6 +37,12 @@ pub struct AppearanceSetting {
     pub font_size: u32,
     pub show_medal: bool,
     pub show_level: bool,
+    #[serde(default = "default_opacity")]
+    pub opacity: u32,
+}
+
+fn default_opacity() -> u32 {
+    90
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -126,6 +132,7 @@ impl Default for Settings {
                 font_size: 14,
                 show_medal: true,
                 show_level: true,
+                opacity: 90,
             },
             notification: NotificationSetting {
                 mute_alert: true,
