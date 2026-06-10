@@ -44,11 +44,16 @@ function serializeEmoticonOptions(emoticon: Emoticon): string | undefined {
   return JSON.stringify({ emoticon_unique: emoticon.emoticonUnique });
 }
 
+function getMessageScrollKey(message: DanmakuMessage | undefined): string {
+  return message ? `${message.roomId}-${message.id}-${message.timestamp}` : "";
+}
+
 function useAutoScroll(messages: DanmakuMessage[]) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const isAtBottomRef = useRef(true);
   const msgCountRef = useRef(messages.length);
+  const lastMessageKeyRef = useRef<string | null>(null);
 
   const checkAtBottom = useCallback(() => {
     const container = scrollRef.current;
@@ -62,11 +67,23 @@ function useAutoScroll(messages: DanmakuMessage[]) {
   }, []);
 
   useEffect(() => {
-    if (messages.length === msgCountRef.current) return;
     const prevCount = msgCountRef.current;
-    msgCountRef.current = messages.length;
+    const lastMessageKey = getMessageScrollKey(messages[messages.length - 1]);
 
-    if (!isAtBottomRef.current) return;
+    if (lastMessageKeyRef.current === null) {
+      lastMessageKeyRef.current = lastMessageKey;
+      msgCountRef.current = messages.length;
+      return;
+    }
+
+    const hasNewTailMessage = lastMessageKey !== lastMessageKeyRef.current;
+
+    if (!hasNewTailMessage && messages.length === prevCount) return;
+
+    msgCountRef.current = messages.length;
+    lastMessageKeyRef.current = lastMessageKey;
+
+    if (!hasNewTailMessage || !isAtBottomRef.current) return;
     const container = scrollRef.current;
     if (!container) return;
     const behavior = messages.length - prevCount > 3 ? "instant" : "smooth";
