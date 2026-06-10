@@ -90,6 +90,46 @@ function useAutoScroll(messages: DanmakuMessage[]) {
   return { scrollRef, isAtBottom, checkAtBottom, scrollToBottom };
 }
 
+function DeferredOpacitySlider({ value, onCommit }: { value: number; onCommit: (value: number) => void }) {
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  const commit = (next: number) => {
+    const val = Math.max(10, Math.min(100, next));
+    setLocal(val);
+    if (val !== value) {
+      onCommit(val);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>背景透明度</span>
+        <span>{local}%</span>
+      </div>
+      <input
+        type="range"
+        min={10}
+        max={100}
+        value={local}
+        onChange={(e) => setLocal(Math.max(10, Number(e.target.value)))}
+        onPointerUp={(e) => commit(Number(e.currentTarget.value))}
+        onKeyUp={(e) => {
+          if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+            commit(Number(e.currentTarget.value));
+          }
+        }}
+        onBlur={(e) => commit(Number(e.currentTarget.value))}
+        className="h-1 w-full cursor-pointer accent-pink-500"
+      />
+    </div>
+  );
+}
+
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
@@ -628,14 +668,14 @@ export function DanmakuPage() {
   }, []);
 
   return (
-    <main className="danmaku-bg-main flex h-full flex-col overflow-hidden rounded-lg text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
+    <main className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
       {/* 标题栏 */}
       <div
         data-interactive=""
         className="danmaku-bg-bar flex select-none items-center pl-3"
         onMouseDown={handleTitleBarMouseDown}
       >
-        <span className="flex-1 truncate text-xs text-slate-500 dark:text-slate-400">
+        <span className="flex-1 truncate text-sm text-slate-500 dark:text-slate-400">
           {currentRoom ? `${currentRoom.uname} - ${currentRoom.title}` : `房间 ${roomId ?? ""}`}
         </span>
         <button
@@ -645,7 +685,7 @@ export function DanmakuPage() {
             setPinned(next);
             void appWindow.setAlwaysOnTop(next);
           }}
-          className="flex h-7 w-7 items-center justify-center text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
           title={pinned ? "取消置顶" : "置顶"}
         >
           {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
@@ -653,40 +693,38 @@ export function DanmakuPage() {
         <button
           type="button"
           onClick={() => setPassthroughEnabled((v) => !v)}
-          className={`flex h-7 w-7 items-center justify-center transition ${
+          className={`flex h-6 w-6 items-center justify-center transition ${
             passthroughEnabled
-              ? "text-pink-500 hover:text-pink-400"
-              : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+              ? "text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-500/10"
+              : "text-slate-400 hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
           }`}
           title={passthroughEnabled ? "关闭窗口透传" : "开启窗口透传"}
         >
           <MousePointerClick className="h-3.5 w-3.5" />
         </button>
-        <div className="flex h-7">
-          <button
-            type="button"
-            onClick={() => appWindow.close()}
-            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
-            title="隐藏到托盘"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              disconnect();
-              if (sttAvailable) {
-                tauriCommands.stt.stop().catch(() => {});
-              }
-              tauriCommands.ai.disconnect().catch(() => {});
-              void appWindow.destroy();
-            }}
-            className="flex w-9 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
-            title="退出直播间"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => appWindow.close()}
+          className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          title="隐藏到托盘"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            disconnect();
+            if (sttAvailable) {
+              tauriCommands.stt.stop().catch(() => {});
+            }
+            tauriCommands.ai.disconnect().catch(() => {});
+            void appWindow.destroy();
+          }}
+          className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
+          title="退出直播间"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* 控制栏 */}
@@ -802,8 +840,8 @@ export function DanmakuPage() {
             <>
               <div data-interactive="" className="flex shrink-0 items-center gap-1 px-2.5 py-1">
                 {showBatteryFilter ? (
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500">电池≥</span>
+                  <div className="flex w-full items-center gap-1">
+                    <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">电池≥</span>
                     <input
                       type="number"
                       min={0}
@@ -811,7 +849,7 @@ export function DanmakuPage() {
                       value={batteryInput}
                       onChange={(e) => setBatteryInput(e.target.value.replace(/\D/g, ""))}
                       placeholder="0"
-                      className="h-5 w-14 rounded border border-neutral-200 bg-[#f8f8f8] px-1.5 text-[10px] text-slate-600 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-300"
+                      className="h-5 min-w-0 flex-1 appearance-none rounded border border-neutral-200 bg-[#f8f8f8] px-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-300"
                     />
                     <button
                       type="button"
@@ -820,7 +858,7 @@ export function DanmakuPage() {
                         setBatteryFilter(val);
                         setShowBatteryFilter(false);
                       }}
-                      className="rounded px-1.5 py-0.5 text-[10px] text-pink-500 transition hover:bg-pink-50 dark:hover:bg-pink-500/10"
+                      className="shrink-0 rounded px-1.5 py-0.5 text-xs text-pink-500 transition hover:bg-pink-50 dark:hover:bg-pink-500/10"
                     >
                       确定
                     </button>
@@ -831,7 +869,7 @@ export function DanmakuPage() {
                         setBatteryInput("");
                         setShowBatteryFilter(false);
                       }}
-                      className="rounded px-1.5 py-0.5 text-[10px] text-slate-400 transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]"
+                      className="shrink-0 rounded px-1.5 py-0.5 text-xs text-slate-400 transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]"
                     >
                       取消
                     </button>
@@ -841,31 +879,31 @@ export function DanmakuPage() {
                     <button
                       type="button"
                       onClick={() => setShowGift((v) => !v)}
-                      className={`rounded px-1.5 py-0.5 text-[10px] transition ${showGift ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                      className={`rounded px-1.5 py-0.5 text-xs transition ${showGift ? "bg-pink-500/10 text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                     >
                       送礼
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowGuard((v) => !v)}
-                      className={`rounded px-1.5 py-0.5 text-[10px] transition ${showGuard ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                      className={`rounded px-1.5 py-0.5 text-xs transition ${showGuard ? "bg-pink-500/10 text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                     >
                       上舰
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowSuperChat((v) => !v)}
-                      className={`rounded px-1.5 py-0.5 text-[10px] transition ${showSuperChat ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                      className={`rounded px-1.5 py-0.5 text-xs transition ${showSuperChat ? "bg-pink-500/10 text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                     >
                       醒目留言
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowBatteryFilter(true)}
-                      className={`ml-auto inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] transition ${batteryFilter > 0 ? "text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
+                      className={`ml-auto inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs transition ${batteryFilter > 0 ? "bg-pink-500/10 text-pink-500" : "text-slate-400 dark:text-slate-500"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                       title="按电池筛选"
                     >
-                      筛选
+                      电池筛选
                     </button>
                   </>
                 )}
@@ -932,7 +970,7 @@ export function DanmakuPage() {
           }}
           className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500"
         >
-          <div className="h-px w-full bg-slate-300/60 transition group-hover:bg-slate-400/60 dark:bg-white/[0.08] dark:group-hover:bg-white/[0.15]" />
+          <div className="h-px w-full bg-slate-300/60 transition-all group-hover:h-0.5 group-hover:bg-pink-400/60 dark:bg-white/[0.08] dark:group-hover:bg-pink-400/40" />
         </div>
 
         {/* 弹幕栏 — 始终渲染，flex=1-ratio 控制大小 */}
@@ -952,7 +990,7 @@ export function DanmakuPage() {
               >
                 {danmakuMessages.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
-                    本场直播的弹幕互动消息将显示在这里
+                    展示本场直播的弹幕互动消息
                   </div>
                 ) : (
                   danmakuMessages.map((item) => (
@@ -1010,7 +1048,7 @@ export function DanmakuPage() {
               });
             }}
             title="自动发送"
-            className={`inline-flex items-center p-1.5 text-xs transition ${
+            className={`rounded inline-flex items-center p-1.5 text-xs transition ${
               autoSendRunning
                 ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
                 : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
@@ -1023,7 +1061,7 @@ export function DanmakuPage() {
             onClick={() => void handleToggleEmoticonPicker()}
             disabled={!roomId || sending}
             title="表情"
-            className="danmaku-bg-bar inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-[#ebebeb] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            className="danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-[#ebebeb] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
             <Smile className="h-3.5 w-3.5" />
           </button>
@@ -1040,7 +1078,7 @@ export function DanmakuPage() {
               });
             }}
             title="设置"
-            className={`danmaku-bg-bar inline-flex items-center p-1.5 text-xs transition ${
+            className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
               settingsOpen
                 ? "text-slate-600 dark:text-slate-300"
                 : "text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
@@ -1061,7 +1099,7 @@ export function DanmakuPage() {
                 });
               }}
               title="AI 助手"
-              className="danmaku-bg-bar inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
+              className="danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
             >
               <Bot className="h-3.5 w-3.5" />
             </button>
@@ -1072,20 +1110,10 @@ export function DanmakuPage() {
         {settingsOpen && (
           <div className="danmaku-bg-panel absolute bottom-full right-0 z-20 mb-2 w-64 p-4">
             <div className="space-y-3">
-              <div>
-                <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <span>背景透明度</span>
-                  <span>{opacity}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={opacity}
-                  onChange={(e) => patchSettings({ appearance: { opacity: Number(e.target.value) } } as Partial<SettingsType>)}
-                  className="h-1 w-full cursor-pointer accent-pink-500"
-                />
-              </div>
+              <DeferredOpacitySlider
+                value={opacity}
+                onCommit={(val) => patchSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
+              />
             </div>
           </div>
         )}
@@ -1138,7 +1166,7 @@ export function DanmakuPage() {
             />
           ) : null}
 
-          <div className="danmaku-bg-bar flex items-center pr-1">
+          <div className="danmaku-bg-bar rounded flex items-center pr-1">
             <textarea
               value={message}
               onCompositionStart={() => { composingRef.current = true; }}
@@ -1174,7 +1202,7 @@ export function DanmakuPage() {
             <button
               onClick={() => void handleSend()}
               disabled={!roomId || !message.trim() || sending}
-              className="m-1 flex h-8 w-8 shrink-0 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-pink-500 transition hover:bg-pink-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-pink-500/10"
               title={sending ? "发送中" : "发送"}
             >
               <Send className="h-4 w-4" />

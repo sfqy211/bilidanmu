@@ -50,7 +50,8 @@ body,
 }
 
 body {
-  @apply bg-background text-foreground antialiased;
+  @apply text-foreground antialiased;
+  background: transparent;
   margin: 0;
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
 }
@@ -58,6 +59,11 @@ body {
 [data-transparent],
 [data-transparent] body {
   background: transparent !important;
+}
+
+/* 全局窗口圆角 — 修改此处即可统一所有窗口圆角 */
+.window-rounded {
+  border-radius: 8px;
 }
 
 .danmaku-bg-main {
@@ -98,6 +104,16 @@ textarea {
 
 textarea::-webkit-scrollbar {
   display: none;
+}
+
+/* 弹幕窗口内隐藏数字输入框上下箭头 */
+[data-transparent] input[type="number"]::-webkit-inner-spin-button,
+[data-transparent] input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+[data-transparent] input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 /* 弹幕窗口滚动条 */

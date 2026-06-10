@@ -133,7 +133,7 @@ export function AiAssistantPage() {
   const allReplyOptions = replies.map((r) => r.message);
 
   return (
-    <div className="flex h-full flex-col bg-[#f8f8f8] dark:bg-[#12141e]">
+    <div className="window-rounded flex h-full flex-col overflow-hidden bg-[#f8f8f8] dark:bg-[#12141e]">
       <SplitLayout
         storageKey="ai-divider-ratio"
         defaultRatio={0.5}
