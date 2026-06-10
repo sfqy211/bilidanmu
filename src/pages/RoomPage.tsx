@@ -221,11 +221,7 @@ export function RoomPage() {
                 return (
                   <div
                     key={room.id}
-                    className={`group overflow-hidden rounded-lg shadow-sm transition dark:ring-1 dark:ring-white/[0.06] ${
-                      active
-                        ? "ring-2 ring-pink-300 dark:ring-pink-500/40"
-                        : ""
-                    }`}
+                    className="group overflow-hidden rounded-lg shadow-sm transition dark:ring-1 dark:ring-white/[0.06]"
                   >
                     {/* 封面区域 */}
                     <div className="relative aspect-video bg-[#ebebeb] dark:bg-[#0e1018]">
