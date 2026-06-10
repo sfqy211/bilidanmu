@@ -17,6 +17,7 @@ function formatTime(ts: number): string {
 
 export function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
+  const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
   const headerBg = normalizeHexColor(item.backgroundColor, "#EDF5FF");
   const bottomBg = normalizeHexColor(item.backgroundBottomColor, "#2A60B2");
   const priceColor = normalizeHexColor(item.backgroundPriceColor, "#7497CD");
@@ -29,7 +30,7 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
         style={{ backgroundColor: headerBg }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
-          {item.medal && showMedal ? <MedalBadge medal={item.medal} /> : null}
+          {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} /> : null}
           <span className="truncate font-medium text-slate-800">{item.username}</span>
           {item.timestamp > 0 ? <span className="shrink-0 text-slate-400">{formatTime(item.timestamp)}</span> : null}
         </div>

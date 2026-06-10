@@ -55,6 +55,10 @@ export function DanmakuMessageItem({
   cachedEmotUrls?: Set<string>;
 }) {
   const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
+  const hideGloryLevel = useSettingsStore((state) => state.settings.appearance.hideGloryLevel);
+  const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
+  const hideAdminBadge = useSettingsStore((state) => state.settings.appearance.hideAdminBadge);
+  const hideUserIdColor = useSettingsStore((state) => state.settings.appearance.hideUserIdColor);
   const scale = fontSize / 14;
   const bigEmoticonSize =
     item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
@@ -69,7 +73,7 @@ export function DanmakuMessageItem({
 
   return (
     <div className="leading-6">
-      {item.isAdmin ? (
+      {item.isAdmin && !hideAdminBadge ? (
         <span
           className="mr-1 inline-flex h-[16px] w-[16px] items-center justify-center rounded-full border border-amber-500 text-amber-600 align-middle dark:border-amber-400 dark:text-amber-300"
           style={{ fontSize: Math.round(10 * scale), lineHeight: 1 }}
@@ -77,7 +81,7 @@ export function DanmakuMessageItem({
           房
         </span>
       ) : null}
-      {item.wealthLevel && showMedal ? (
+      {item.wealthLevel && showMedal && !hideGloryLevel ? (
         <ProxiedImage
           src={`wealth-level://${item.wealthLevel}`}
           persistent
@@ -85,10 +89,10 @@ export function DanmakuMessageItem({
           style={{ height: Math.round(18 * scale) }}
         />
       ) : null}
-      {item.medal && showMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
+      {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       <span
-        className={`mr-1 font-bold ${getGuardUsernameClass(item.guardLevel)}`}
+        className={`mr-1 font-bold ${hideUserIdColor ? "" : getGuardUsernameClass(item.guardLevel)}`}
       >
         {item.username}
       </span>

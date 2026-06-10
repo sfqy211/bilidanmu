@@ -22,6 +22,10 @@ export const defaultSettings: Settings = {
     fontSize: 14,
     showMedal: true,
     showLevel: true,
+    hideGloryLevel: false,
+    hideFanMedal: false,
+    hideAdminBadge: false,
+    hideUserIdColor: false,
     opacity: 90
   },
   notification: {

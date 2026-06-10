@@ -315,6 +315,7 @@ export function DanmakuPage() {
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const aiAvailable = useSettingsStore((s) => s.aiAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
+  const settings = useSettingsStore((s) => s.settings);
   const {
     audioRef,
     isPlaying: audioPlaying,
@@ -1140,6 +1141,25 @@ export function DanmakuPage() {
                 value={opacity}
                 onCommit={(val) => patchSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
               />
+              {([
+                { key: "hideGloryLevel" as const, label: "隐藏荣耀等级" },
+                { key: "hideFanMedal" as const, label: "隐藏粉丝牌" },
+                { key: "hideAdminBadge" as const, label: "隐藏房管标志" },
+                { key: "hideUserIdColor" as const, label: "隐藏用户ID颜色区分" },
+              ]).map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span>{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.appearance[key]}
+                    onChange={(e) =>
+                      patchSettings({
+                        appearance: { ...settings.appearance, [key]: e.target.checked }
+                      })
+                    }
+                  />
+                </label>
+              ))}
             </div>
           </div>
         )}

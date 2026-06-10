@@ -120,6 +120,10 @@ export interface Settings {
     fontSize: number;
     showMedal: boolean;
     showLevel: boolean;
+    hideGloryLevel: boolean;
+    hideFanMedal: boolean;
+    hideAdminBadge: boolean;
+    hideUserIdColor: boolean;
     opacity: number;
   };
   notification: {

@@ -354,6 +354,29 @@ export function SettingsPage() {
                 />
               </label>
 
+              {([
+                { key: "hideGloryLevel" as const, label: "隐藏荣耀等级" },
+                { key: "hideFanMedal" as const, label: "隐藏粉丝牌" },
+                { key: "hideAdminBadge" as const, label: "隐藏房管标志" },
+                { key: "hideUserIdColor" as const, label: "隐藏用户ID颜色区分" },
+              ]).map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+                  <span>{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.appearance[key]}
+                    onChange={(event) =>
+                      patchSettings({
+                        appearance: {
+                          ...settings.appearance,
+                          [key]: event.target.checked
+                        }
+                      })
+                    }
+                  />
+                </label>
+              ))}
+
               <OpacitySlider
                 value={settings.appearance.opacity}
                 onChange={(val) =>
