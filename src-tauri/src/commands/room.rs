@@ -212,7 +212,7 @@ pub async fn open_ai_window(
     let w = width.filter(|v| *v >= 300.0 && *v <= 1200.0).unwrap_or(400.0);
     let h = height.filter(|v| *v >= 300.0 && *v <= 900.0).unwrap_or(500.0);
 
-    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path))
+    let window = WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path))
         .title("AI 助手")
         .inner_size(w, h)
         .min_inner_size(300.0, 300.0)
@@ -221,6 +221,25 @@ pub async fn open_ai_window(
         .always_on_top(true)
         .build()
         .map_err(|error| error.to_string())?;
+
+    // 移除 WS_MAXIMIZEBOX 以禁用 Windows Snap Layouts
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongW, SetWindowLongW, GWL_STYLE,
+        };
+        const WS_MAXIMIZEBOX: i32 = 0x0001_0000;
+        if let Ok(hwnd) = window.hwnd() {
+            let hwnd = HWND(hwnd.0 as _);
+            unsafe {
+                let style = GetWindowLongW(hwnd, GWL_STYLE);
+                if style != 0 {
+                    SetWindowLongW(hwnd, GWL_STYLE, style & !WS_MAXIMIZEBOX);
+                }
+            }
+        }
+    }
 
     Ok(())
 }
