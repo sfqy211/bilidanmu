@@ -124,11 +124,16 @@ export default function App() {
 
   // 监听跨窗口设置同步
   useEffect(() => {
-    const unlisten = listen<Settings>("settings-updated", (event) => {
+    const handleSettingsChanged = (event: { payload: Settings }) => {
       setSettings(event.payload);
-    });
+    };
+
+    const unlistenUpdated = listen<Settings>("settings-updated", handleSettingsChanged);
+    const unlistenChanged = listen<Settings>("settings-changed", handleSettingsChanged);
+
     return () => {
-      void unlisten.then((fn) => fn());
+      void unlistenUpdated.then((fn) => fn());
+      void unlistenChanged.then((fn) => fn());
     };
   }, [setSettings]);
 

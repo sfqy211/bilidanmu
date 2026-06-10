@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { emit } from "@tauri-apps/api/event";
 import type { Settings } from "@/types/bilibili";
 
 export const defaultSettings: Settings = {
@@ -70,7 +71,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   }),
   setSttAvailable: (sttAvailable) => set({ sttAvailable }),
   setAiAvailable: (aiAvailable) => set({ aiAvailable }),
-  patchSettings: (partial) =>
+  patchSettings: (partial) => {
     set((state) => ({
       settings: {
         ...state.settings,
@@ -108,5 +109,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           ...partial.stt
         }
       }
-    }))
+    }));
+    // 通知其他窗口设置已变更
+    const { settings } = useSettingsStore.getState();
+    emit("settings-changed", settings).catch(() => {});
+  }
 }));
