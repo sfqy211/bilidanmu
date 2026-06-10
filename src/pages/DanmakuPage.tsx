@@ -5,7 +5,7 @@ import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Gift, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -150,6 +150,7 @@ export function DanmakuPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
   const passthroughIgnoredRef = useRef(false);
   const { disconnect } = useDanmakuStream(roomId);
@@ -663,9 +664,10 @@ export function DanmakuPage() {
   const bgAlpha = opacity / 100;
 
   const handleTitleBarMouseDown = useCallback((e: React.MouseEvent) => {
+    if (locked) return;
     if ((e.target as HTMLElement).closest("button")) return;
     if (e.button === 0) void appWindow.startDragging();
-  }, []);
+  }, [locked]);
 
   return (
     <main className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
@@ -689,6 +691,14 @@ export function DanmakuPage() {
           title={pinned ? "取消置顶" : "置顶"}
         >
           {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocked((v) => !v)}
+          className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          title={locked ? "解锁位置" : "锁定位置"}
+        >
+          {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
         </button>
         <button
           type="button"
@@ -912,7 +922,7 @@ export function DanmakuPage() {
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
                 onMouseDown={(e) => {
-                  if (!passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
+                  if (!locked && !passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
                     void appWindow.startDragging();
                   }
                 }}
@@ -981,7 +991,7 @@ export function DanmakuPage() {
                 ref={danmakuScroll.scrollRef}
                 onScroll={danmakuScroll.checkAtBottom}
                 onMouseDown={(e) => {
-                  if (!passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
+                  if (!locked && !passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
                     void appWindow.startDragging();
                   }
                 }}
