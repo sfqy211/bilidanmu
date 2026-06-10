@@ -122,14 +122,18 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 let _ = refresh_tray(app);
                 let _ = app.emit("room-switched", room_id);
 
-                let label = format!("danmaku-{room_id}");
-                if let Some(win) = app.get_webview_window(&label) {
-                    let _ = win.unminimize();
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                } else {
-                    let _ = crate::commands::room::open_danmaku_window(app.clone(), room_id, None, None, state);
-                }
+                let app_clone = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = app_clone.state::<AppState>();
+                    let _ = crate::commands::room::open_danmaku_window(
+                        app_clone.clone(),
+                        room_id,
+                        None,
+                        None,
+                        state,
+                    )
+                    .await;
+                });
             }
         }
         _ if id.starts_with("acct:") => {

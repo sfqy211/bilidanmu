@@ -244,6 +244,16 @@ pub async fn open_ai_window(
     Ok(())
 }
 
+/// 关闭除指定房间外的所有弹幕窗口
+pub(crate) fn close_other_danmaku_windows(app: &tauri::AppHandle, keep_room_id: u64) {
+    let keep_label = format!("danmaku-{keep_room_id}");
+    for (label, window) in app.webview_windows() {
+        if label.starts_with("danmaku-") && label != keep_label {
+            let _ = window.destroy();
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn open_danmaku_window(
     app: tauri::AppHandle,
@@ -252,6 +262,12 @@ pub async fn open_danmaku_window(
     height: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    // Hold this guard for the whole open/show sequence so danmaku windows stay mutually exclusive.
+    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    // 关闭其他房间的弹幕窗口，弹幕窗口互斥
+    close_other_danmaku_windows(&app, room_id);
+
     let label = format!("danmaku-{room_id}");
 
     if let Some(window) = app.get_webview_window(&label) {
