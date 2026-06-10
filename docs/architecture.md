@@ -92,7 +92,7 @@ bilidanmu/
 │   │   ├── AIPage.tsx                  # 子页面三：AI 代理配置
 │   │   ├── SettingsPage.tsx            # 子页面四：设置
 │   │   ├── DanmakuPage.tsx             # 发送弹幕页面（独立全屏布局）
-│   │   └── AiAssistantPage.tsx         # AI 助手页面（独立窗口）
+│   │   └── DrawerPage.tsx              # 抽屉面板页面（AI 助手等独立窗口）
 │   │
 │   ├── hooks/                          # React Hooks
 │   │   ├── useDanmaku.ts              # 弹幕发送逻辑

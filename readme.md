@@ -74,7 +74,7 @@ npm run dev
 
 ```
 src/                          前端 (React + TypeScript)
-├── pages/                    页面（RoomPage, DanmakuPage, AiAssistantPage, AccountPage, AIPage, SettingsPage）
+├── pages/                    页面（RoomPage, DanmakuPage, DrawerPage, AccountPage, AIPage, SettingsPage）
 ├── components/               组件
 │   ├── danmaku/              弹幕相关（DanmakuMessageItem, AccountSwitcher, EmoticonPickerPanel, AutoSendPanel...）
 │   ├── layout/               布局（AppLayout, AppSidebar, TitleBar, SplitLayout）

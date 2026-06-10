@@ -41,7 +41,6 @@
 /rooms                      → 管理面板 - 直播间（Tab: 已添加 / 搜索）
 /accounts                   → 管理面板 - 账号（Tab: 登录 / 账号）
 /ai                         → 管理面板 - AI 接入（Tab: 添加模型 / 已保存）
-/ai-assistant               → 管理面板 - AI 助手
 /settings                   → 管理面板 - 设置（Tab: 弹幕发送 / 弹幕接收 / 外观 / 音频 / 语音识别 / 缓存管理）
 /room/:roomId               → 弹幕页面（独立全屏布局）
 ```
@@ -53,7 +52,6 @@
     <Route path="/rooms" element={<RoomPage />} />
     <Route path="/accounts" element={<AccountPage />} />
     <Route path="/ai" element={<AIPage />} />
-    <Route path="/ai-assistant" element={<AiAssistantPage />} />
     <Route path="/settings" element={<SettingsPage />} />
   </Route>
   <Route path="/room/:roomId" element={<DanmakuPage />} /> {/* 独立布局 */}

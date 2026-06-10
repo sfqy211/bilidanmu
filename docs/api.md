@@ -216,7 +216,7 @@ export const tauriCommands = {
     listAccounts              // → Credential[]
   },
   room: {
-    search, add, remove, openDanmaku, openAiWindow,
+    search, add, remove, openDanmaku, openDrawer,
     getEmoticons, clearEmoticonCache, clearRoomEmoticonCache, clearRoomSpecificEmoticons,
     getAudioStreamUrl, clearAudioStream,
     getRoomsLiveStatus, getLiveTime  // → number | null (Unix 秒)
