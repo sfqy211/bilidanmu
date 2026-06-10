@@ -251,7 +251,7 @@ pub fn run() {
             commands::room::remove_favorite_emoticon,
             commands::room::update_favorite_order,
             commands::room::open_danmaku_window,
-            commands::room::open_ai_window,
+            commands::room::open_drawer_window,
             commands::room::get_audio_stream_url,
             commands::room::clear_audio_stream,
             commands::room::get_rooms_live_status,

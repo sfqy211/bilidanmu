@@ -5,7 +5,7 @@ use crate::models::stream::StreamInfo;
 use crate::room_store;
 use crate::tray;
 use crate::AppState;
-use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 #[tauri::command]
 pub async fn search_room(
@@ -190,35 +190,65 @@ pub async fn clear_room_specific_emoticons(state: State<'_, AppState>) -> Result
     crate::emoticon_store::clear_room_specific_emoticons(state.inner())
 }
 
-#[tauri::command]
-pub async fn open_ai_window(
-    app: tauri::AppHandle,
-    width: Option<f64>,
-    height: Option<f64>,
-) -> Result<(), String> {
-    let label = "ai-assistant";
+/// 关闭指定房间的所有抽屉窗口
+#[allow(dead_code)]
+pub(crate) fn close_drawer_windows(app: &tauri::AppHandle, room_id: u64) {
+    let prefix = format!("drawer-{room_id}-");
+    for (label, window) in app.webview_windows() {
+        if label.starts_with(&prefix) {
+            let _ = window.destroy();
+        }
+    }
+}
 
-    if let Some(window) = app.get_webview_window(label) {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+#[tauri::command]
+pub async fn open_drawer_window(
+    app: tauri::AppHandle,
+    room_id: u64,
+    panel: String,
+    _state: State<'_, AppState>,
+) -> Result<(), String> {
+    // 校验面板类型
+    let valid_panels = ["ai"];
+    if !valid_panels.contains(&panel.as_str()) {
+        return Err(format!("无效的面板类型: {panel}"));
+    }
+
+    let label = format!("drawer-{room_id}-{panel}");
+
+    // 如果已存在该面板的抽屉，关闭（切换效果）
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.destroy();
         return Ok(());
     }
 
-    let path = "/ai-assistant"
+    // 获取弹幕窗口位置，将抽屉定位在其右侧
+    let danmaku_label = format!("danmaku-{room_id}");
+    let (pos_x, pos_y, danmaku_h) = if let Some(danmaku_win) = app.get_webview_window(&danmaku_label) {
+        let pos = danmaku_win.outer_position().map_err(|e| e.to_string())?;
+        let size = danmaku_win.outer_size().map_err(|e| e.to_string())?;
+        (pos.x as f64 + size.width as f64, pos.y as f64, size.height as f64)
+    } else {
+        return Err("弹幕窗口未打开".to_string());
+    };
+
+    let path = format!("/drawer/{room_id}/{panel}")
         .parse()
-        .map_err(|error| format!("解析 AI 窗口路由失败: {error}"))?;
+        .map_err(|error| format!("解析抽屉窗口路由失败: {error}"))?;
 
-    let w = width.filter(|v| *v >= 300.0 && *v <= 1200.0).unwrap_or(400.0);
-    let h = height.filter(|v| *v >= 300.0 && *v <= 900.0).unwrap_or(500.0);
+    let drawer_w = 280.0;
+    let drawer_h = danmaku_h;
 
-    let window = WebviewWindowBuilder::new(&app, label, WebviewUrl::App(path))
-        .title("AI 助手")
-        .inner_size(w, h)
-        .min_inner_size(300.0, 300.0)
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
+        .title("功能面板")
+        .inner_size(drawer_w, drawer_h)
+        .min_inner_size(240.0, 200.0)
         .resizable(true)
         .decorations(false)
+        .transparent(true)
+        .shadow(false)
         .always_on_top(true)
+        .position(pos_x, pos_y)
         .build()
         .map_err(|error| error.to_string())?;
 
@@ -239,6 +269,27 @@ pub async fn open_ai_window(
                 }
             }
         }
+    }
+
+    // 监听弹幕窗口移动，同步重定位抽屉窗口
+    let app_handle = app.clone();
+    let drawer_label = label.clone();
+    if let Some(danmaku_win) = app.get_webview_window(&danmaku_label) {
+        danmaku_win.on_window_event(move |event| {
+            if let WindowEvent::Moved(_) = event {
+                if let (Some(dm), Some(drawer)) = (
+                    app_handle.get_webview_window(&danmaku_label),
+                    app_handle.get_webview_window(&drawer_label),
+                ) {
+                    if let (Ok(pos), Ok(size)) = (dm.outer_position(), dm.outer_size()) {
+                        let _ = drawer.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                            x: pos.x + size.width as i32,
+                            y: pos.y,
+                        }));
+                    }
+                }
+            }
+        });
     }
 
     Ok(())

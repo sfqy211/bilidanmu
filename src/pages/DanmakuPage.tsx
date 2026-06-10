@@ -1101,8 +1101,7 @@ export function DanmakuPage() {
               type="button"
               onClick={() => {
                 tauriCommands.ai.getStatus().then(() => {
-                  const { width, height } = loadWindowSize("ai-window");
-                  void tauriCommands.room.openAiWindow(width, height);
+                  if (roomId) void tauriCommands.room.openDrawer(roomId, "ai");
                 }).catch(() => {
                   setAiError("未连接 AstrBot，请先配置 AI 代理");
                   setAiErrorKey((k) => k + 1);
