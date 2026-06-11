@@ -1299,12 +1299,12 @@ export function DanmakuPage() {
                 event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`;
               }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
+                if (event.key === "Enter") {
                   event.preventDefault();
                   void handleSend();
                 }
               }}
-              placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "发送弹幕（Shift+Enter 换行）"}
+              placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "请输入文字"}
               rows={1}
               className={`min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm outline-none ${
                 isAnonymous
