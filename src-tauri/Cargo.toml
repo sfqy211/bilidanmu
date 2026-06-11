@@ -28,13 +28,19 @@ brotli = "7"
 flate2 = "1"
 md-5 = "0.10"
 rand = "0.8"
+sha2 = "0.10"
+sha3 = "0.10"
+blake2 = "0.10"
 url = "2.5"
 log = "0.4"
 thiserror = "2"
 regex = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 base64 = "0.22"
+indexmap = { version = "2", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
 hyper = { version = "1", features = ["http1", "server"] }
+native-tls = "0.2"
 hyper-util = { version = "0.1", features = ["tokio", "http1", "server-auto"] }
 http-body-util = "0.1"
 bytes = "1"

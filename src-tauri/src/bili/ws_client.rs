@@ -11,11 +11,17 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 pub struct DanmakuWsClient {
     shutdown_tx: Option<oneshot::Sender<()>>,
+    web_heartbeat_abort: Option<tokio::task::AbortHandle>,
+    room_id: u64,
 }
 
 impl DanmakuWsClient {
     pub fn new() -> Self {
-        Self { shutdown_tx: None }
+        Self {
+            shutdown_tx: None,
+            web_heartbeat_abort: None,
+            room_id: 0,
+        }
     }
 
     pub async fn connect(
@@ -26,12 +32,13 @@ impl DanmakuWsClient {
         credential: Option<BiliCredential>,
     ) -> Result<(), String> {
         self.disconnect().await;
+        self.room_id = room_id;
 
         let (shutdown_tx, mut shutdown_rx) = oneshot::channel();
         self.shutdown_tx = Some(shutdown_tx);
 
         let app_handle = app.clone();
-        tokio::spawn(async move {
+        let connection_task = tokio::spawn(async move {
             let backoffs = [5u64, 10, 30, 60];
             let mut attempt = 0usize;
 
@@ -56,15 +63,23 @@ impl DanmakuWsClient {
             }
         });
 
+        self.web_heartbeat_abort = Some(connection_task.abort_handle());
         Ok(())
     }
 
     pub async fn disconnect(&mut self) {
+        if self.web_heartbeat_abort.is_some() {
+            log::info!("[heartbeat] 心跳任务已取消, room={}", self.room_id);
+        }
+        if let Some(abort) = self.web_heartbeat_abort.take() {
+            abort.abort();
+        }
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
         }
     }
 }
+
 
 async fn run_connection(
     app: AppHandle,
@@ -72,6 +87,19 @@ async fn run_connection(
     room_id: u64,
     credential: Option<BiliCredential>,
 ) -> Result<(), String> {
+    // 解析真实房间号和主播 UID，用于心跳上报
+    let (real_room_id, up_id) = match api.get_room_info(room_id).await {
+        Ok(info) => {
+            let rid = info.room.room_id;
+            let uid = info.room.uid.unwrap_or(0);
+            if rid != room_id {
+                log::info!("[ws] 短号 {room_id} → 真实房间号 {rid}");
+            }
+            (rid, uid)
+        }
+        Err(_) => (room_id, 0),
+    };
+
     let danmu_info = api.get_danmu_info(room_id).await?;
     let data = danmu_info
         .get("data")
@@ -156,7 +184,43 @@ async fn run_connection(
         }
     });
 
-    let result = async {
+    // 心跳上报（亲密度/观看时长）— 作为 future 运行，连接结束时自动停止
+    let heartbeat_credential = credential.clone();
+    let heartbeat_client = reqwest::Client::builder()
+        .http1_only()
+        .build()
+        .unwrap_or_else(|_| api.client.clone());
+    let heartbeat_fut = async move {
+        let cred = match heartbeat_credential {
+            Some(c) => c,
+            None => return,
+        };
+        let session_uuid = uuid::Uuid::new_v4().to_string();
+        let click_id = uuid::Uuid::new_v4().to_string();
+        let access_key = cred.access_key.clone().unwrap_or_default();
+        log::info!("[heartbeat] 心跳任务启动, room={real_room_id}, up={up_id}, has_access_key={}", !access_key.is_empty());
+        let mut interval = 60u64;
+        loop {
+            interval = super::heartbeat::send_heartbeat(
+                &heartbeat_client,
+                &cred,
+                real_room_id,
+                up_id,
+                interval,
+                &session_uuid,
+                &click_id,
+                &access_key,
+            )
+            .await;
+            sleep(Duration::from_secs(interval)).await;
+        }
+    };
+
+    let result = tokio::select! {
+        _ = heartbeat_fut => {
+            Err("心跳任务结束".to_string())
+        }
+        msg_result = async {
         while let Some(message) = reader.next().await {
             match message.map_err(|error| error.to_string())? {
                 Message::Binary(bytes) => {
@@ -219,9 +283,10 @@ async fn run_connection(
 
         let _ = app.emit("ws-disconnected", serde_json::json!({"reason": "socket ended"}));
         Err("WebSocket 连接结束".to_string())
-    }
-    .await;
+    } => msg_result
+    };
 
+    log::info!("[heartbeat] 心跳任务结束, room={real_room_id}");
     heartbeat_task.abort();
 
     result

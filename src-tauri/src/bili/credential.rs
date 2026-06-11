@@ -8,6 +8,7 @@ pub struct BiliCredential {
     pub buvid4: Option<String>,
     pub dede_user_id: Option<String>,
     pub ac_time_value: Option<String>,
+    pub access_key: Option<String>,
     pub raw_cookie: String,
 }
 
@@ -38,6 +39,7 @@ impl BiliCredential {
             buvid4: map.get("buvid4").or_else(|| map.get("BUVID4")).cloned(),
             dede_user_id: map.get("DedeUserID").cloned(),
             ac_time_value: map.get("ac_time_value").cloned(),
+            access_key: None,
             raw_cookie: cookie.trim().to_string(),
         }
     }
