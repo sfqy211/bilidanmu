@@ -9,7 +9,7 @@ interface AccountSwitcherProps {
 }
 
 export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
-  const { accounts, setActiveAccount } = useAuthStore();
+  const { accounts, setActiveAccount, isAnonymous } = useAuthStore();
   const [sendingAccountId, setSendingAccountId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,6 +58,16 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
     },
     [sendingAccountId, setActiveAccount],
   );
+
+  // 匿名模式下只显示"匿名模式"标签，不显示下拉
+  if (isAnonymous) {
+    return (
+      <div className="danmaku-bg-bar rounded inline-flex items-center gap-1 px-2.5 py-1 text-xs text-slate-400 dark:text-slate-500">
+        <Users className="h-3.5 w-3.5" />
+        匿名模式
+      </div>
+    );
+  }
 
   if (accounts.length <= 1) return null;
 

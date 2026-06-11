@@ -189,7 +189,29 @@ export function DanmakuPage() {
   const superChatCount = useDanmakuStore((state) => state.superChatCount);
   const rooms = useRoomStore((state) => state.rooms);
   const activeAccountId = useAuthStore((state) => state.activeAccountId);
+  const isAnonymous = useAuthStore((state) => state.isAnonymous);
   const currentRoom = rooms.find((r) => r.roomId === roomId);
+
+  // 匿名模式下，房间可能不在 room store 中，需要从 API 获取房间信息
+  const [fetchedRoomInfo, setFetchedRoomInfo] = useState<{ uname: string; title: string } | null>(null);
+  useEffect(() => {
+    if (!roomId || currentRoom) {
+      setFetchedRoomInfo(null);
+      return;
+    }
+    let cancelled = false;
+    tauriCommands.room.getInfo(roomId).then((info) => {
+      if (!cancelled) {
+        setFetchedRoomInfo({ uname: info.uname, title: info.title });
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [roomId, currentRoom]);
+
+  // 优先使用 room store 中的数据，否则使用从 API 获取的数据
+  const displayRoomInfo = currentRoom
+    ? { uname: currentRoom.uname, title: currentRoom.title }
+    : fetchedRoomInfo;
 
   // 当前有效的发送账号 ID（AccountSwitcher 切换时会更新 activeAccountId）
   const effectiveSendingId = activeAccountId;
@@ -696,7 +718,7 @@ export function DanmakuPage() {
         onMouseDown={handleTitleBarMouseDown}
       >
         <span className="flex-1 truncate text-sm text-slate-500 dark:text-slate-400">
-          {currentRoom ? `${currentRoom.uname} - ${currentRoom.title}` : `房间 ${roomId ?? ""}`}
+          {displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
         </span>
         <button
           type="button"
@@ -1071,6 +1093,7 @@ export function DanmakuPage() {
           <button
             type="button"
             onClick={() => {
+              if (isAnonymous) return;
               setAutoSendOpen((value) => {
                 const next = !value;
                 if (next) {
@@ -1080,21 +1103,31 @@ export function DanmakuPage() {
                 return next;
               });
             }}
-            title="自动发送"
+            disabled={isAnonymous}
+            title={isAnonymous ? "匿名模式下不可用" : "自动发送"}
             className={`rounded inline-flex items-center p-1.5 text-xs transition ${
-              autoSendRunning
-                ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
-                : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              isAnonymous
+                ? "cursor-not-allowed opacity-40"
+                : autoSendRunning
+                  ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
+                  : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
             <Zap className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
-            onClick={() => void handleToggleEmoticonPicker()}
-            disabled={!roomId || sending}
-            title="表情"
-            className="danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-[#ebebeb] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            onClick={() => {
+              if (isAnonymous) return;
+              void handleToggleEmoticonPicker();
+            }}
+            disabled={isAnonymous}
+            title={isAnonymous ? "匿名模式下不可用" : "表情"}
+            className={`rounded inline-flex items-center p-1.5 text-xs transition ${
+              isAnonymous
+                ? "cursor-not-allowed opacity-40"
+                : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            }`}
           >
             <Smile className="h-3.5 w-3.5" />
           </button>
@@ -1220,6 +1253,7 @@ export function DanmakuPage() {
           <div className="danmaku-bg-bar rounded flex items-center pr-1">
             <textarea
               value={message}
+              disabled={isAnonymous}
               onCompositionStart={() => { composingRef.current = true; }}
               onCompositionEnd={(event) => {
                 composingRef.current = false;
@@ -1229,6 +1263,7 @@ export function DanmakuPage() {
                 event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`;
               }}
               onChange={(event) => {
+                if (isAnonymous) return;
                 const val = event.target.value;
                 // 拼音输入中允许超出，结束后截断
                 if (composingRef.current) {
@@ -1245,16 +1280,24 @@ export function DanmakuPage() {
                   void handleSend();
                 }
               }}
-              placeholder="发送弹幕（Shift+Enter 换行）"
+              placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "发送弹幕（Shift+Enter 换行）"}
               rows={1}
-              className="min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+              className={`min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm outline-none ${
+                isAnonymous
+                  ? "cursor-not-allowed text-slate-400 placeholder:text-slate-400 dark:text-slate-600 dark:placeholder:text-slate-600"
+                  : "text-slate-900 placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+              }`}
               style={{ maxHeight: "120px" }}
             />
             <button
               onClick={() => void handleSend()}
-              disabled={!roomId || !message.trim() || sending}
-              className="m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-pink-500 transition hover:bg-pink-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-pink-500/10"
-              title={sending ? "发送中" : "发送"}
+              disabled={!roomId || !message.trim() || sending || isAnonymous}
+              className={`m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded transition ${
+                isAnonymous
+                  ? "cursor-not-allowed text-slate-400 opacity-40"
+                  : "text-pink-500 hover:bg-pink-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-pink-500/10"
+              }`}
+              title={isAnonymous ? "匿名模式下不可用" : sending ? "发送中" : "发送"}
             >
               <Send className="h-4 w-4" />
             </button>

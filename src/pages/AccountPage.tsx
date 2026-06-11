@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Check, Loader2, LogOut, Plus, UserRound, X } from "lucide-react";
+import { ArrowLeftRight, Check, Eye, Loader2, LogOut, Plus, UserRound, X } from "lucide-react";
 import { getAllWindows } from "@tauri-apps/api/window";
 import { toDataURL } from "qrcode";
+import { ANONYMOUS_ACCOUNT_ID } from "@/lib/constants";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
@@ -145,6 +146,28 @@ export function AccountPage() {
     }
   };
 
+  const handleSwitchToAnonymous = async () => {
+    try {
+      const windows = await getAllWindows();
+      if (windows.some((w) => w.label.startsWith("danmaku-"))) {
+        showError("请先关闭所有弹幕窗口后再切换到匿名模式");
+        return;
+      }
+    } catch { /* ignore */ }
+
+    setSwitchingId(ANONYMOUS_ACCOUNT_ID);
+    clearMessage();
+    try {
+      const credential = await tauriCommands.auth.switchToAnonymous();
+      setActiveAccount(ANONYMOUS_ACCOUNT_ID, credential);
+      showSuccess("已切换到匿名模式");
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "切换到匿名模式失败");
+    } finally {
+      setSwitchingId(null);
+    }
+  };
+
   return (
     <section className="flex h-full flex-col">
       <div className="mb-3 flex items-center justify-between gap-4">
@@ -156,13 +179,27 @@ export function AccountPage() {
           {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
           {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
           {!showAdd && (
-            <button
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
-            >
-              <Plus className="h-4 w-4" />
-              添加账号
-            </button>
+            <>
+              <button
+                onClick={() => void handleSwitchToAnonymous()}
+                disabled={switchingId === ANONYMOUS_ACCOUNT_ID || activeAccountId === ANONYMOUS_ACCOUNT_ID}
+                className="inline-flex items-center gap-1.5 rounded bg-slate-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {switchingId === ANONYMOUS_ACCOUNT_ID ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                匿名模式
+              </button>
+              <button
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
+              >
+                <Plus className="h-4 w-4" />
+                添加账号
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -214,17 +251,43 @@ export function AccountPage() {
             </div>
           </div>
         </div>
-      ) : accounts.length === 0 ? (
+      ) : accounts.length === 0 && activeAccountId !== ANONYMOUS_ACCOUNT_ID ? (
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="rounded-lg bg-[#f0f0f0] p-6 text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
-            当前还没有登录账号。点击右上角「添加账号」扫码登录。
+            当前还没有登录账号。点击右上角「添加账号」扫码登录，或使用「匿名模式」。
           </div>
         </div>
       ) : (
         <div className="space-y-2">
+          {/* 匿名模式条目 */}
+          {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
+            <div className="rounded-lg bg-[#f8f8f8] p-4 shadow-sm ring-2 ring-pink-300 dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] dark:ring-pink-500/40">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                    <Eye className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-medium text-slate-900 dark:text-white">匿名模式</p>
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        <Check className="h-3 w-3" />
+                        当前
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">仅可接收弹幕和音频流</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 已登录账号列表 */}
           {accounts.map((account) => {
             const isActive = account.accountId === activeAccountId;
             const isSwitching = switchingId === account.accountId;
+            // 跳过匿名模式条目（已在上方单独显示）
+            if (account.accountId === ANONYMOUS_ACCOUNT_ID) return null;
             return (
               <div
                 key={account.accountId}

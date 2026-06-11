@@ -1,9 +1,12 @@
 import { create } from "zustand";
+import { ANONYMOUS_ACCOUNT_ID } from "@/lib/constants";
 import type { Credential } from "@/types/bilibili";
 
 interface AuthState {
   accounts: Credential[];
   activeAccountId: string | null;
+  /** 是否处于匿名模式 */
+  isAnonymous: boolean;
   setAccounts: (accounts: Credential[]) => void;
   addAccount: (account: Credential) => void;
   removeAccount: (accountId: string, newActiveAccountId?: string | null) => void;
@@ -14,6 +17,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   accounts: [],
   activeAccountId: null,
+  isAnonymous: false,
   setAccounts: (accounts) => set({ accounts }),
   addAccount: (account) =>
     set((state) => {
@@ -24,7 +28,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       } else {
         next.push(account);
       }
-      return { accounts: next, activeAccountId: account.accountId };
+      return {
+        accounts: next,
+        activeAccountId: account.accountId,
+        isAnonymous: account.accountId === ANONYMOUS_ACCOUNT_ID,
+      };
     }),
   removeAccount: (accountId, newActiveAccountId) =>
     set((state) => ({
@@ -34,13 +42,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         : state.activeAccountId === accountId
           ? null
           : state.activeAccountId,
+      // 如果移除的是匿名账号，清除匿名状态
+      isAnonymous: accountId === ANONYMOUS_ACCOUNT_ID ? false : state.isAnonymous,
     })),
   setActiveAccount: (accountId, account) =>
     set((state) => ({
       activeAccountId: accountId,
+      isAnonymous: accountId === ANONYMOUS_ACCOUNT_ID,
       accounts: account && accountId
         ? state.accounts.map((a) => (a.accountId === accountId ? account : a))
         : state.accounts,
     })),
-  clearAuth: () => set({ accounts: [], activeAccountId: null }),
+  clearAuth: () => set({ accounts: [], activeAccountId: null, isAnonymous: false }),
 }));

@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { Bot, MonitorPlay, Settings, UserRound } from "lucide-react";
+import { Bot, Eye, MonitorPlay, Settings, UserRound } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { getAppVersion } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
 export function AppSidebar() {
   const [version, setVersion] = useState("");
   const aiAvailable = useSettingsStore((state) => state.aiAvailable);
+  const isAnonymous = useAuthStore((state) => state.isAnonymous);
 
   const navItems = [
     { to: "/rooms", label: "直播间", icon: MonitorPlay },
@@ -49,6 +51,15 @@ export function AppSidebar() {
           </NavLink>
         ))}
       </nav>
+      {/* 匿名模式指示器 */}
+      {isAnonymous && (
+        <div className="flex flex-col items-center gap-1 px-2 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+            <Eye className="h-4 w-4" />
+          </div>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">匿名</span>
+        </div>
+      )}
       {version && (
         <div className="p-3 text-center text-xs text-slate-400 dark:text-slate-500">{version}</div>
       )}

@@ -45,13 +45,15 @@ export const tauriCommands = {
     switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
     switchSendingAccount: (accountId: string) => invoke<Credential>("switch_sending_account", { accountId }),
     getSendingAccountId: () => invoke<string | null>("get_sending_account_id"),
-    listAccounts: () => invoke<Credential[]>("list_accounts")
+    listAccounts: () => invoke<Credential[]>("list_accounts"),
+    switchToAnonymous: () => invoke<Credential>("switch_to_anonymous")
   },
   room: {
     search: (query: string, mode: SearchRoomMode) =>
       invoke<SearchRoomResult[]>("search_room", { query, mode }),
     add: (roomId: number) => invoke<RoomInfo>("add_room", { roomId }),
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
+    getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId }),
     openDanmaku: (roomId: number, width?: number, height?: number) =>
       invoke<void>("open_danmaku_window", { roomId, width: width ?? null, height: height ?? null }),
     openDrawer: (roomId: number, panel: string) =>
