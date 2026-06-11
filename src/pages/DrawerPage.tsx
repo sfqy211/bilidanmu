@@ -95,7 +95,7 @@ export function DrawerPage() {
   }, [roomId, customText]);
 
   return (
-    <main className="window-rounded flex h-full flex-col overflow-hidden bg-[#f8f8f8] text-slate-900 dark:bg-[#12141e] dark:text-slate-100">
+    <main className="window-rounded flex h-full flex-col overflow-hidden select-none bg-[#f8f8f8] text-slate-900 dark:bg-[#12141e] dark:text-slate-100">
       {/* 标题栏 */}
       <div className="flex select-none items-center justify-between bg-[#f0f0f0] px-3 py-1.5 dark:bg-[#0e1018]">
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">AI 助手</span>

@@ -112,7 +112,7 @@ export function RoomPage() {
 
   return (
     <section
-      className="flex h-full flex-col"
+      className="flex h-full flex-col select-none"
       onContextMenu={(e) => {
         // 生产环境禁用右键菜单，开发环境保留（可检查元素）
         if (!import.meta.env.DEV) {

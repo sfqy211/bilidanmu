@@ -725,7 +725,7 @@ export function DanmakuPage() {
   }, [locked]);
 
   return (
-    <main className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
+    <main className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
       {/* 标题栏 */}
       <div
         data-interactive=""

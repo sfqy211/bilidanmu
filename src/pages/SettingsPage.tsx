@@ -88,7 +88,7 @@ export function SettingsPage() {
   };
 
   return (
-    <section className="flex h-full flex-col">
+    <section className="flex h-full flex-col select-none">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold">设置</h2>
