@@ -629,6 +629,10 @@ export function DanmakuPage() {
     }
   };
 
+  const handleMention = useCallback((username: string) => {
+    setMessage(`@${username} `);
+  }, []);
+
   const handleSendText = useCallback(
     async (text: string) => {
       if (!roomId || !text.trim()) return;
@@ -1051,7 +1055,13 @@ export function DanmakuPage() {
                     void appWindow.startDragging();
                   }
                 }}
-                className="flex h-full flex-col gap-2 overflow-y-auto px-2.5 py-1"
+                onContextMenu={(e) => {
+                  // 生产环境禁用空白区域右键菜单，开发环境保留（可检查元素）
+                  if (!import.meta.env.DEV && e.target === e.currentTarget) {
+                    e.preventDefault();
+                  }
+                }}
+                className="h-full overflow-y-auto px-2.5 py-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
                 {danmakuMessages.length === 0 ? (
@@ -1060,7 +1070,7 @@ export function DanmakuPage() {
                   </div>
                 ) : (
                   danmakuMessages.map((item) => (
-                    <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} />
+                    <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
                   ))
                 )}
               </div>

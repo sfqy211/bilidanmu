@@ -1,3 +1,6 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AtSign, Copy, ExternalLink, User } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
@@ -45,14 +48,133 @@ function getBigEmoticonSize(emoticon?: DanmakuMessage["emoticonOptions"], scale 
   return base;
 }
 
+function ContextMenu({
+  item,
+  x,
+  y,
+  onClose,
+  onMention,
+}: {
+  item: DanmakuMessage;
+  x: number;
+  y: number;
+  onClose: () => void;
+  onMention?: (username: string) => void;
+}) {
+  const menuNodeRef = useRef<HTMLDivElement | null>(null);
+
+  // 使用回调 ref 在元素挂载时立即调整位置，避免闪烁
+  const adjustPosition = useCallback((node: HTMLDivElement | null) => {
+    menuNodeRef.current = node;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const adjustedX = Math.max(8, Math.min(x, viewportWidth - rect.width - 8));
+    const adjustedY = Math.max(8, Math.min(y, viewportHeight - rect.height - 8));
+    node.style.left = `${adjustedX}px`;
+    node.style.top = `${adjustedY}px`;
+    node.style.visibility = "visible";
+  }, [x, y]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuNodeRef.current && !menuNodeRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // fallback
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    onClose();
+  }, [onClose]);
+
+  const openHomepage = useCallback(() => {
+    if (item.uid) {
+      void openUrl(`https://space.bilibili.com/${item.uid}`);
+    }
+    onClose();
+  }, [item.uid, onClose]);
+
+  const handleMention = useCallback(() => {
+    if (onMention) {
+      onMention(item.username);
+    }
+    onClose();
+  }, [item.username, onMention, onClose]);
+
+  return (
+    <div
+      ref={adjustPosition}
+      className="fixed z-50 min-w-[140px] overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg dark:border-white/[0.06] dark:bg-[#12141e]"
+      style={{ left: x, top: y, visibility: "hidden" }}
+    >
+      {onMention && item.type === "danmaku" && (
+        <button
+          type="button"
+          onClick={handleMention}
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+        >
+          <AtSign className="h-3.5 w-3.5 text-slate-400" />
+          <span className="text-slate-700 dark:text-slate-200">@{item.username}</span>
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => void copyToClipboard(item.username)}
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+      >
+        <User className="h-3.5 w-3.5 text-slate-400" />
+        <span className="text-slate-700 dark:text-slate-200">复制昵称</span>
+      </button>
+      {item.content && (
+        <button
+          type="button"
+          onClick={() => void copyToClipboard(item.content)}
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+        >
+          <Copy className="h-3.5 w-3.5 text-slate-400" />
+          <span className="text-slate-700 dark:text-slate-200">复制内容</span>
+        </button>
+      )}
+      {item.uid !== undefined && item.uid > 0 && (
+        <button
+          type="button"
+          onClick={openHomepage}
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+        >
+          <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+          <span className="text-slate-700 dark:text-slate-200">打开主页</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function DanmakuMessageItem({
   item,
   fontSize = 14,
   cachedEmotUrls,
+  onMention,
 }: {
   item: DanmakuMessage;
   fontSize?: number;
   cachedEmotUrls?: Set<string>;
+  /** @回复回调，传入用户名 */
+  onMention?: (username: string) => void;
 }) {
   const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
   const hideGloryLevel = useSettingsStore((state) => state.settings.appearance.hideGloryLevel);
@@ -71,8 +193,24 @@ export function DanmakuMessageItem({
       ? cachedEmotUrls?.has(item.emoticonOptions.url) ?? false
       : false;
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
   return (
-    <div className="leading-6">
+    <div className="mb-2 inline select-none leading-6" onContextMenu={handleContextMenu}>
+      {contextMenu && (
+        <ContextMenu
+          item={item}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onMention={onMention}
+        />
+      )}
       {item.isAdmin && !hideAdminBadge ? (
         <span
           className="mr-1 inline-flex h-[16px] w-[16px] items-center justify-center rounded-full border border-amber-500 text-amber-600 align-middle dark:border-amber-400 dark:text-amber-300"
@@ -96,6 +234,11 @@ export function DanmakuMessageItem({
       >
         {item.username}
       </span>
+      {item.replyUsername && (
+        <span className="mr-1 text-xs text-slate-400 dark:text-slate-500">
+          回复 @{item.replyUsername}
+        </span>
+      )}
       {item.type === "gift" && item.price ? <span className="mr-1 text-amber-600 dark:text-amber-200">¥{(item.price / 1000).toFixed(2)}</span> : null}
       <span
         className={getMessageTextClass(item.type)}
