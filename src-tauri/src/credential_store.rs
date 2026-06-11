@@ -124,6 +124,55 @@ pub fn clear_active_account_id(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// ── access_key 持久化 ──
+
+const ACCESS_KEYS_KEY: &str = "access_keys";
+
+/// 保存指定账号的 access_key
+pub fn save_access_key(app: &tauri::AppHandle, uid: &str, access_key: &str) -> Result<(), String> {
+    let store = open_store(app)?;
+
+    let mut keys: HashMap<String, String> = store
+        .get(ACCESS_KEYS_KEY)
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    keys.insert(uid.to_string(), access_key.to_string());
+    store.set(
+        ACCESS_KEYS_KEY,
+        serde_json::to_value(&keys).map_err(|e| e.to_string())?,
+    );
+
+    store
+        .save()
+        .map_err(|error| format!("保存 access_key 失败: {error}"))?;
+
+    Ok(())
+}
+
+/// 加载指定账号的 access_key
+pub fn load_access_key(app: &tauri::AppHandle, uid: &str) -> Result<Option<String>, String> {
+    let store = open_store(app)?;
+
+    let keys: HashMap<String, String> = store
+        .get(ACCESS_KEYS_KEY)
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+
+    Ok(keys.get(uid).cloned())
+}
+
+/// 加载所有账号的 access_key
+pub fn load_all_access_keys(app: &tauri::AppHandle) -> Result<HashMap<String, String>, String> {
+    let store = open_store(app)?;
+
+    let keys: HashMap<String, String> = store
+        .get(ACCESS_KEYS_KEY)
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+
+    Ok(keys)
+}
+
 
 /// 账号元数据（用户名、头像），用于托盘显示
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

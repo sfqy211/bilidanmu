@@ -152,11 +152,17 @@ pub fn run() {
                     // 加载活跃账号 ID
                     let active_id = credential_store::load_active_account_id(app.handle()).ok().flatten();
 
+                    // 加载 access_keys
+                    let access_keys = credential_store::load_all_access_keys(app.handle()).unwrap_or_default();
+
                     // 解析所有账号
                     let mut credentials_map: HashMap<String, BiliCredential> = HashMap::new();
                     for (uid, cookie) in &cookies {
                         let mut parsed = BiliCredential::from_cookie_str(cookie);
                         ensure_buvid(&mut parsed);
+                        if let Some(ak) = access_keys.get(uid) {
+                            parsed.access_key = Some(ak.clone());
+                        }
                         if parsed.validate_for_send().is_ok() {
                             credentials_map.insert(uid.clone(), parsed);
                         }
@@ -229,6 +235,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::auth::login_by_qr,
             commands::auth::poll_qr,
+            commands::auth::login_by_tv_qr,
+            commands::auth::poll_tv_qr,
             commands::auth::login_by_cookie,
             commands::auth::restore_login,
             commands::auth::remove_account,

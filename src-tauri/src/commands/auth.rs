@@ -141,25 +141,14 @@ async fn complete_login_with_cookie(
             .to_string()
     };
 
-    // 保存到所有账号 map
+    // 保存到所有账号 map（登录只添加账号，不切换活跃账号）
     {
         let mut credentials = state.credentials.lock().unwrap();
         credentials.insert(uid.clone(), parsed.clone());
     }
 
-    // 设置为当前活跃账号
-    {
-        let mut credential_state = state.credential.lock().await;
-        *credential_state = Some(parsed.clone());
-    }
-    {
-        let mut active_id = state.active_account_id.lock().unwrap();
-        *active_id = Some(uid.clone());
-    }
-
-    // 持久化保存 cookie、活跃账号和账号元数据
+    // 持久化保存 cookie
     credential_store::save_cookie(&app, &uid, &cookie)?;
-    credential_store::save_active_account_id(&app, &uid)?;
 
     // 保存账号元数据（用户名、头像）用于托盘显示
     {
@@ -206,6 +195,190 @@ async fn complete_login_with_cookie(
     Ok(credential)
 }
 
+// ── TV 扫码登录（获取 access_key） ──
+
+use crate::bili::{APPKEY as TV_APPKEY, APPSECRET as TV_APPSECRET};
+
+/// 对参数排序、URL 编码、拼接 appsecret 后计算 MD5 签名
+fn tv_sign_params(params: &std::collections::BTreeMap<String, String>) -> String {
+    use md5::Digest;
+    let query = params
+        .iter()
+        .map(|(k, v)| {
+            let ek: String = url::form_urlencoded::byte_serialize(k.as_bytes()).collect();
+            let ev: String = url::form_urlencoded::byte_serialize(v.as_bytes()).collect();
+            format!("{ek}={ev}")
+        })
+        .collect::<Vec<_>>()
+        .join("&");
+    let digest = md5::Md5::digest(format!("{query}{TV_APPSECRET}").as_bytes());
+    format!("{:x}", digest)
+}
+
+#[tauri::command]
+pub async fn login_by_tv_qr(
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let client = state.proxy_client.clone();
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string();
+
+    let mut params = std::collections::BTreeMap::new();
+    params.insert("appkey".to_string(), TV_APPKEY.to_string());
+    params.insert("local_id".to_string(), "0".to_string());
+    params.insert("ts".to_string(), ts);
+    let sign = tv_sign_params(&params);
+    params.insert("sign".to_string(), sign);
+
+    let response = client
+        .post("http://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code")
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|error| format!("获取 TV 二维码失败: {error}"))?;
+
+    let json = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("解析 TV 二维码响应失败: {error}"))?;
+
+    let code = json.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
+    if code != 0 {
+        return Err(json
+            .get("message")
+            .or_else(|| json.get("msg"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("获取 TV 二维码失败")
+            .to_string());
+    }
+
+    let data = json.get("data").ok_or_else(|| "TV 二维码响应缺少 data 字段".to_string())?;
+    Ok(serde_json::json!({
+        "url": data.get("url").and_then(serde_json::Value::as_str).unwrap_or_default(),
+        "authCode": data.get("auth_code").and_then(serde_json::Value::as_str).unwrap_or_default()
+    }))
+}
+
+#[tauri::command]
+pub async fn poll_tv_qr(
+    app: tauri::AppHandle,
+    auth_code: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let client = state.proxy_client.clone();
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string();
+
+    let mut params = std::collections::BTreeMap::new();
+    params.insert("appkey".to_string(), TV_APPKEY.to_string());
+    params.insert("auth_code".to_string(), auth_code);
+    params.insert("local_id".to_string(), "0".to_string());
+    params.insert("ts".to_string(), ts);
+    let sign = tv_sign_params(&params);
+    params.insert("sign".to_string(), sign);
+
+    let response = client
+        .post("http://passport.bilibili.com/x/passport-tv-login/qrcode/poll")
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|error| format!("轮询 TV 二维码状态失败: {error}"))?;
+
+    let json = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("解析 TV 二维码轮询响应失败: {error}"))?;
+
+    let outer_code = json.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
+
+    match outer_code {
+        0 => {
+            // 登录成功，提取 access_token
+            let data = json.get("data").ok_or_else(|| "TV 登录响应缺少 data 字段".to_string())?;
+            let access_token = data
+                .get("access_token")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+
+            if access_token.is_empty() {
+                return Err("TV 登录响应缺少 access_token".to_string());
+            }
+
+            // 同时提取 cookie 信息（如果有的话）
+            if let Some(cookie_info) = data.get("cookie_info") {
+                if let Some(cookies) = cookie_info.get("cookies").and_then(serde_json::Value::as_array) {
+                    let cookie_str: String = cookies
+                        .iter()
+                        .filter_map(|c| {
+                            let name = c.get("name")?.as_str()?;
+                            let value = c.get("value")?.as_str()?;
+                            Some(format!("{name}={value}"))
+                        })
+                        .collect::<Vec<_>>()
+                        .join("; ");
+
+                    if !cookie_str.is_empty() {
+                        // 用 cookie 完成登录（设置凭据、持久化等）
+                        let credential = complete_login_with_cookie(&app, &state, cookie_str).await?;
+
+                        // 将 access_key 附加到凭据并持久化
+                        let uid_str = credential.uid.to_string();
+                        {
+                            // 更新运行时 credentials map
+                            let mut credentials = state.credentials.lock().unwrap();
+                            if let Some(ref mut c) = credentials.get_mut(&uid_str) {
+                                c.access_key = Some(access_token.clone());
+                            }
+                        }
+                        // 同步更新主凭据（如果当前活跃账号就是新登录的账号）
+                        {
+                            let mut cred = state.credential.lock().await;
+                            if let Some(ref mut c) = *cred {
+                                c.access_key = Some(access_token.clone());
+                            }
+                        }
+                        let _ = credential_store::save_access_key(&app, &uid_str, &access_token);
+
+                        return Ok(serde_json::json!({
+                            "status": "success",
+                            "message": "TV 扫码登录成功",
+                            "accessKey": access_token,
+                            "credential": credential,
+                        }));
+                    }
+                }
+            }
+
+            // TV 登录成功但无 cookie_info（不应发生）
+            Err("TV 登录响应缺少 cookie_info，请重试".to_string())
+        }
+        86038 => Ok(serde_json::json!({
+            "status": "expired",
+            "message": json.get("message").and_then(serde_json::Value::as_str).unwrap_or("二维码已过期"),
+        })),
+        86090 => Ok(serde_json::json!({
+            "status": "scanned",
+            "message": json.get("message").and_then(serde_json::Value::as_str).unwrap_or("已扫码，等待确认"),
+        })),
+        _ => Ok(serde_json::json!({
+            "status": "pending",
+            "message": json.get("message").and_then(serde_json::Value::as_str).unwrap_or("等待扫码"),
+        })),
+    }
+}
+
+
 /// 应用启动时尝试恢复已保存的登录状态（所有账号）
 #[tauri::command]
 pub async fn restore_login(
@@ -248,6 +421,10 @@ pub async fn restore_login(
             let cookie = cookie_to_load.ok_or_else(|| "无法加载账号 Cookie".to_string())?;
             let mut cred = BiliCredential::from_cookie_str(&cookie);
             ensure_buvid(&mut cred);
+            // 加载保存的 access_key
+            if let Ok(Some(ak)) = credential_store::load_access_key(&app, &uid_to_activate) {
+                cred.access_key = Some(ak);
+            }
             if cred.validate_for_send().is_err() {
                 return Ok(None);
             }

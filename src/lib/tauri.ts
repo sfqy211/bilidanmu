@@ -5,7 +5,6 @@ import type {
   Credential,
   Emoticon,
   EmoticonPackage,
-  QrLoginResult,
   QrPollResult,
   Room,
   RoomInfo,
@@ -39,9 +38,8 @@ export interface BiliResponse {
 
 export const tauriCommands = {
   auth: {
-    loginByQr: () => invoke<QrLoginResult>("login_by_qr"),
-    pollQr: (qrcodeKey: string) => invoke<QrPollResult>("poll_qr", { qrcodeKey }),
-    loginByCookie: (cookie: string) => invoke<Credential>("login_by_cookie", { cookie }),
+    loginByTvQr: () => invoke<{ url: string; authCode: string }>("login_by_tv_qr"),
+    pollTvQr: (authCode: string) => invoke<QrPollResult & { accessKey?: string }>("poll_tv_qr", { authCode }),
     restoreLogin: () => invoke<Credential | null>("restore_login"),
     removeAccount: (accountId: string) => invoke<string | null>("remove_account", { accountId }),
     switchAccount: (accountId: string) => invoke<Credential>("switch_account", { accountId }),
