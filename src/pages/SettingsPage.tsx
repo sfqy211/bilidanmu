@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { FolderOpen } from "lucide-react";
+import { ExternalLink, FolderOpen, GitBranch } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
+import { getAppVersion } from "@/lib/constants";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { Settings } from "@/types/bilibili";
@@ -31,7 +32,8 @@ export function SettingsPage() {
     { value: "appearance", label: "外观" },
     { value: "audio", label: "音频" },
     ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : []),
-    { value: "cache" as const, label: "缓存管理" }
+    { value: "cache" as const, label: "缓存管理" },
+    { value: "about" as const, label: "关于" }
   ];
 
   useEffect(() => {
@@ -571,6 +573,10 @@ export function SettingsPage() {
             </div>
           </div>
         </TabContent>
+
+        <TabContent value="about" className="flex flex-col gap-4">
+          <AboutTab />
+        </TabContent>
       </PageTabs>
     </section>
   );
@@ -615,6 +621,60 @@ function OpacitySlider({ value, onChange }: { value: number; onChange: (val: num
         onBlur={(e) => commit(Number((e.currentTarget as HTMLInputElement).value))}
         className="h-1 w-full cursor-pointer accent-pink-500"
       />
+    </div>
+  );
+}
+
+function AboutTab() {
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getAppVersion().then(setVersion).catch(() => {});
+  }, []);
+
+  return (
+    <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <div className="flex items-center gap-4">
+        <img
+          src="/assets/icon.png"
+          alt="BiliDanmu"
+          className="h-16 w-16 rounded-xl"
+        />
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">BiliDanmu</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Bilibili 直播弹幕客户端
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 dark:text-slate-500">
+            <a
+              href="https://github.com/sfqy211/bilidanmu"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 transition hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              <GitBranch className="h-3 w-3" />
+              GitHub
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+            <a
+              href="https://space.bilibili.com/182587768"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 transition hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              哔哩哔哩
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1 text-right">
+          {version && (
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">v{version}</span>
+          )}
+          <span className="text-xs text-slate-400 dark:text-slate-500">MIT License</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">© 2026 朔风秋叶</span>
+        </div>
+      </div>
     </div>
   );
 }
