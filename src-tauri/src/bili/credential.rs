@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 
+/// 匿名模式的特殊账号 ID
+pub const ANONYMOUS_ACCOUNT_ID: &str = "anonymous";
+
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct BiliCredential {
     pub sessdata: Option<String>,
@@ -97,6 +100,22 @@ impl BiliCredential {
             return Err("Cookie 缺少 bili_jct".to_string());
         }
         Ok(())
+    }
+
+    /// 创建匿名凭据（仅包含 buvid3，用于获取弹幕流和音频流）
+    pub fn anonymous() -> Self {
+        use crate::bili::buvid::generate_buvid;
+        let buvid = generate_buvid();
+        Self {
+            sessdata: None,
+            bili_jct: None,
+            buvid3: Some(buvid.clone()),
+            buvid4: Some(buvid),
+            dede_user_id: None,
+            ac_time_value: None,
+            access_key: None,
+            raw_cookie: String::new(),
+        }
     }
 }
 

@@ -1,11 +1,11 @@
 use crate::models::account::Credential;
 use crate::bili::buvid::ensure_buvid;
-use crate::bili::credential::BiliCredential;
+use crate::bili::credential::{BiliCredential, ANONYMOUS_ACCOUNT_ID};
 use crate::commands::build_api_client;
 use crate::tray;
 use crate::{credential_store, AppState};
 use log::warn;
-use tauri::State;
+use tauri::{Emitter, State};
 
 #[tauri::command]
 pub async fn login_by_qr(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
@@ -385,6 +385,22 @@ pub async fn restore_login(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Option<Credential>, String> {
+    // 检查当前是否处于匿名模式（新窗口需要同步状态）
+    let is_anonymous = state.active_account_id.lock().unwrap().as_deref() == Some(ANONYMOUS_ACCOUNT_ID);
+    if is_anonymous {
+        let cred = state.credential.lock().await.clone();
+        if let Some(cred) = cred {
+            return Ok(Some(Credential {
+                account_id: ANONYMOUS_ACCOUNT_ID.to_string(),
+                uid: 0,
+                username: "匿名模式".to_string(),
+                avatar: None,
+                cookie: cred.cookie_header(),
+                bili_jct: None,
+            }));
+        }
+    }
+
     // 先检查 AppState 中是否已有凭据（setup 阶段加载的）
     let existing = state.credential.lock().await.clone();
     let setup_done = !state.credentials.lock().unwrap().is_empty();
@@ -635,6 +651,12 @@ pub async fn switch_account(
         *active = Some(account_id.clone());
     }
 
+    // 清理匿名凭据（如果存在）
+    {
+        let mut credentials = state.credentials.lock().unwrap();
+        credentials.remove(ANONYMOUS_ACCOUNT_ID);
+    }
+
     // 清除发送凭证（下次打开弹幕窗口时会 fallback 到新的主凭证）
     {
         let mut sending = state.sending_credential.lock().await;
@@ -764,4 +786,76 @@ pub async fn switch_sending_account(
 pub async fn get_sending_account_id(state: State<'_, AppState>) -> Result<Option<String>, String> {
     let sending = state.sending_credential.lock().await;
     Ok(sending.as_ref().and_then(|c| c.dede_user_id.clone()))
+}
+
+/// 切换到匿名模式（仅包含 buvid3，可获取弹幕流和音频流）
+#[tauri::command]
+pub async fn switch_to_anonymous(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Credential, String> {
+    // 停止自动发送
+    {
+        let mut auto_sender = state.auto_sender.lock().await;
+        if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
+            let _ = shutdown_tx.send(());
+        }
+    }
+
+    // 断开 WebSocket
+    {
+        let mut ws_client = state.ws_client.lock().await;
+        if let Some(client) = ws_client.as_mut() {
+            client.disconnect().await;
+        }
+    }
+
+    // 创建匿名凭据
+    let anon_cred = BiliCredential::anonymous();
+    let cookie_header = anon_cred.cookie_header();
+
+    // 设置为活跃凭据
+    {
+        let mut credential_state = state.credential.lock().await;
+        *credential_state = Some(anon_cred.clone());
+    }
+    {
+        let mut active = state.active_account_id.lock().unwrap();
+        *active = Some(ANONYMOUS_ACCOUNT_ID.to_string());
+    }
+
+    // 添加到 credentials map（转移所有权，避免额外克隆）
+    {
+        let mut credentials = state.credentials.lock().unwrap();
+        credentials.insert(ANONYMOUS_ACCOUNT_ID.to_string(), anon_cred);
+    }
+
+    // 清除发送凭证
+    {
+        let mut sending = state.sending_credential.lock().await;
+        *sending = None;
+    }
+
+    // 注意：匿名模式不持久化 active_account_id，重启后自动恢复到之前的登录账号
+
+    let _ = tray::refresh_tray(&app);
+
+    log::info!("已切换到匿名模式");
+
+    let credential = Credential {
+        account_id: ANONYMOUS_ACCOUNT_ID.to_string(),
+        uid: 0,
+        username: "匿名模式".to_string(),
+        avatar: None,
+        cookie: cookie_header,
+        bili_jct: None,
+    };
+
+    // 发送跨窗口事件，通知其他窗口更新状态
+    let _ = app.emit("account-switched", serde_json::json!({
+        "accountId": ANONYMOUS_ACCOUNT_ID,
+        "credential": credential,
+    }));
+
+    Ok(credential)
 }

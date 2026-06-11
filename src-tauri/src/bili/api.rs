@@ -15,6 +15,8 @@ pub struct BiliApiClient {
     pub client: reqwest::Client,
     pub credential: Option<BiliCredential>,
     pub wbi_cache: Arc<Mutex<WbiKeyCache>>,
+    /// 匿名凭据缓存，确保同一客户端实例使用相同的 buvid3
+    anonymous_credential: BiliCredential,
 }
 
 impl BiliApiClient {
@@ -27,7 +29,13 @@ impl BiliApiClient {
             client,
             credential,
             wbi_cache,
+            anonymous_credential: BiliCredential::anonymous(),
         }
+    }
+
+    /// 获取有效凭据（优先使用已登录凭据，否则使用匿名凭据）
+    fn effective_credential(&self) -> &BiliCredential {
+        self.credential.as_ref().unwrap_or(&self.anonymous_credential)
     }
 
     pub async fn nav(&self) -> Result<NavInfo, String> {
@@ -626,11 +634,10 @@ impl BiliApiClient {
     ) -> Result<Value, String> {
         let mut request = self.client.get(url).header("Referer", "https://www.bilibili.com/");
 
-        if let Some(credential) = &self.credential {
-            let cookie_header = credential.cookie_header();
-            if !cookie_header.is_empty() {
-                request = request.header("Cookie", cookie_header);
-            }
+        // 始终发送 Cookie（至少包含 buvid3）
+        let cookie_header = self.effective_credential().cookie_header();
+        if !cookie_header.is_empty() {
+            request = request.header("Cookie", cookie_header);
         }
 
         if let Some(params) = params {
@@ -651,11 +658,10 @@ impl BiliApiClient {
             .post(url)
             .header("Referer", "https://www.bilibili.com/");
 
-        if let Some(credential) = &self.credential {
-            let cookie_header = credential.cookie_header();
-            if !cookie_header.is_empty() {
-                request = request.header("Cookie", cookie_header);
-            }
+        // 始终发送 Cookie（至少包含 buvid3）
+        let cookie_header = self.effective_credential().cookie_header();
+        if !cookie_header.is_empty() {
+            request = request.header("Cookie", cookie_header);
         }
 
         let response = request
