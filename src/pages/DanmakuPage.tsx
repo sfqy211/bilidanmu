@@ -611,11 +611,22 @@ export function DanmakuPage() {
     }
   }, [emoticonPackages.length, emoticonPickerOpen, loadEmoticons, loadingEmoticons]);
 
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendErrorKey, setSendErrorKey] = useState(0);
+
   const handleSend = async () => {
     if (!roomId || !message.trim()) return;
     const text = message.trim().slice(0, 40);
-    await send(roomId, text);
-    setMessage("");
+    try {
+      await send(roomId, text);
+      setMessage("");
+      setSendError(null);
+    } catch (error) {
+      // 从 danmaku store 获取错误消息（useDanmaku 已经设置了）
+      const storeError = useDanmakuStore.getState().lastError;
+      setSendError(storeError ?? "发送弹幕失败");
+      setSendErrorKey((k) => k + 1);
+    }
   };
 
   const handleSendText = useCallback(
@@ -1086,6 +1097,9 @@ export function DanmakuPage() {
       <div data-interactive="" className="danmaku-bg-panel relative px-3 py-2">
         {aiError && (
           <InlineMessage key={aiErrorKey} type="error" className="mb-2">{aiError}</InlineMessage>
+        )}
+        {sendError && (
+          <InlineMessage key={sendErrorKey} type="error" className="mb-2">{sendError}</InlineMessage>
         )}
 
         {/* 功能按钮行 */}
