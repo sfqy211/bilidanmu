@@ -740,8 +740,13 @@ export function DanmakuPage() {
         </button>
         <button
           type="button"
-          onClick={() => {
-            disconnect();
+          onClick={async () => {
+            // 断开连接，最多等 1 秒
+            const timeout = new Promise((r) => setTimeout(r, 1000));
+            await Promise.race([
+              tauriCommands.ws.disconnect().catch(() => {}),
+              timeout,
+            ]);
             if (sttAvailable) {
               tauriCommands.stt.stop().catch(() => {});
             }
