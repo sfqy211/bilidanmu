@@ -111,7 +111,15 @@ export function RoomPage() {
   };
 
   return (
-    <section className="flex h-full flex-col">
+    <section
+      className="flex h-full flex-col"
+      onContextMenu={(e) => {
+        // 生产环境禁用右键菜单，开发环境保留（可检查元素）
+        if (!import.meta.env.DEV) {
+          e.preventDefault();
+        }
+      }}
+    >
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold">直播间</h2>
