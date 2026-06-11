@@ -147,32 +147,56 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let info = command.get("info")?.as_array()?;
     let content = info.get(1)?.as_str()?.to_string();
     let user_info = info.get(2)?.as_array()?;
-    let uid = user_info.first().and_then(value_as_u64).unwrap_or(0);
-    let username = user_info.get(1)?.as_str()?.to_string();
     let basic = info.first()?.as_array()?;
+
+    // v2 格式：用户信息在 basic[15].user 中
+    let user_v2 = basic
+        .get(15)
+        .and_then(Value::as_object)
+        .and_then(|mode_info| mode_info.get("user"))
+        .and_then(Value::as_object);
+
+    // uid：优先从 v2 格式获取，fallback 到旧格式 info[2][0]
+    let uid = user_v2
+        .and_then(|user| user.get("uid"))
+        .and_then(value_as_u64)
+        .or_else(|| user_info.first().and_then(value_as_u64))
+        .unwrap_or(0);
+
+    // username：优先从 v2 格式获取，fallback 到旧格式 info[2][1]
+    let username = user_v2
+        .and_then(|user| user.get("base"))
+        .and_then(Value::as_object)
+        .and_then(|base| base.get("name"))
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+        .or_else(|| user_info.get(1).and_then(Value::as_str).map(ToString::to_string))
+        .unwrap_or_default();
+
     let timestamp = basic.get(4).and_then(value_as_u64).unwrap_or(0);
     let id = basic.get(5).and_then(value_as_u64).unwrap_or(timestamp).to_string();
     let color = basic.get(3).and_then(value_as_u64).unwrap_or(16_777_215) as u32;
     let dm_type = basic.get(12).and_then(value_as_u64).unwrap_or(0) as u8;
     let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
     let guard_level = info.get(7).and_then(value_as_u64).unwrap_or(0) as u8;
-    // 优先从 v2 格式解析勋章（basic[15].user.medal），fallback 到旧数组格式（info[3]）
-    let medal = basic
+
+    // 解析 extra 字段（包含 @回复、表情等信息）
+    let extra: Option<Value> = basic
         .get(15)
-        .and_then(Value::as_object)
-        .and_then(|mode_info| mode_info.get("user"))
-        .and_then(Value::as_object)
+        .and_then(|value| value.get("extra"))
+        .and_then(Value::as_str)
+        .and_then(|value| serde_json::from_str::<Value>(value).ok());
+
+    // 优先从 v2 格式解析勋章（basic[15].user.medal），fallback 到旧数组格式（info[3]）
+    let medal = user_v2
         .and_then(|user| user.get("medal"))
         .and_then(|m| parse_object_medal(Some(m)))
         .or_else(|| parse_array_medal(info.get(3)));
     // info[16] = [wealth_level, ...] 荣耀等级
     let wealth_level = info.get(16).and_then(Value::as_array).and_then(|a| a.first()).and_then(value_as_u64);
-    let emots = basic
-        .get(15)
-        .and_then(|value| value.get("extra"))
-        .and_then(Value::as_str)
-        .and_then(|value| serde_json::from_str::<Value>(value).ok())
-        .and_then(|value| value.get("emots").cloned())
+    let emots = extra
+        .as_ref()
+        .and_then(|e| e.get("emots").cloned())
         .filter(Value::is_object);
     let emoticon_options = basic.get(13).and_then(|value| {
         if value.is_object() {
@@ -185,14 +209,22 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         }
     });
 
-    let avatar = basic
-        .get(15)
-        .and_then(Value::as_object)
-        .and_then(|mode_info| mode_info.get("user"))
-        .and_then(Value::as_object)
+    let avatar = user_v2
         .and_then(|user| user.get("base"))
         .and_then(Value::as_object)
         .and_then(|base| base.get("face"))
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+
+    // @回复信息
+    let reply_uid = extra
+        .as_ref()
+        .and_then(|e| e.get("reply_mid"))
+        .and_then(value_as_u64)
+        .filter(|&v| v > 0);
+    let reply_username = extra
+        .as_ref()
+        .and_then(|e| e.get("reply_uname"))
         .and_then(Value::as_str)
         .map(ToString::to_string);
 
@@ -221,6 +253,8 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_image: None,
         emots,
         emoticon_options,
+        reply_uid,
+        reply_username,
     })
 }
 
@@ -264,6 +298,8 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_image: None,
         emots: None,
         emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
     })
 }
 
@@ -328,6 +364,8 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_image: None,
         emots: None,
         emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
     })
 }
 
@@ -389,6 +427,8 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
             .map(ToString::to_string),
         emots: None,
         emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
     })
 }
 
@@ -430,6 +470,8 @@ fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         background_image: None,
         emots: None,
         emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
     })
 }
 
@@ -474,6 +516,8 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
         background_image: None,
         emots: None,
         emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
     })
 }
 

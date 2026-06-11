@@ -35,4 +35,8 @@ pub struct DanmakuEvent {
     pub background_image: Option<String>,
     pub emots: Option<serde_json::Value>,
     pub emoticon_options: Option<serde_json::Value>,
+    /// @回复的目标用户 UID
+    pub reply_uid: Option<u64>,
+    /// @回复的目标用户名
+    pub reply_username: Option<String>,
 }

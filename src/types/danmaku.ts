@@ -65,4 +65,8 @@ export interface DanmakuMessage {
   backgroundImage?: string;
   emots?: Record<string, InlineEmoticon>;
   emoticonOptions?: BigEmoticonOptions;
+  /** @回复的目标用户 UID */
+  replyUid?: number;
+  /** @回复的目标用户名 */
+  replyUsername?: string;
 }
