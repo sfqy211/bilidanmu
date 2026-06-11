@@ -26,16 +26,16 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 
 ## 技术栈
 
-| 层       | 技术                                              |
-| -------- | ------------------------------------------------- |
-| 桌面框架 | Tauri 2                                           |
-| 前端     | React 18 + TypeScript + Vite 7                    |
-| 状态管理 | Zustand 5                                         |
-| 样式     | TailwindCSS 3                                     |
-| 图标     | Lucide React                                      |
+| 层       | 技术                                                                      |
+| -------- | ------------------------------------------------------------------------- |
+| 桌面框架 | Tauri 2                                                                   |
+| 前端     | React 18 + TypeScript + Vite 7                                            |
+| 状态管理 | Zustand 5                                                                 |
+| 样式     | TailwindCSS 3                                                             |
+| 图标     | Lucide React                                                              |
 | 后端     | Rust (reqwest, tokio-tungstenite, brotli, flate2, sherpa-onnx, symphonia) |
-| 音频播放 | mpegts.js (FLV→fMP4→MSE)                         |
-| 持久化   | SQLite (rusqlite) + tauri-plugin-store            |
+| 音频播放 | mpegts.js (FLV→fMP4→MSE)                                                  |
+| 持久化   | SQLite (rusqlite) + tauri-plugin-store                                    |
 
 ## 开发
 
@@ -61,14 +61,14 @@ npm run dev
 
 ### 常用命令
 
-| 命令 | 说明 |
-| ---- | ---- |
-| `npm run dev` | 完整开发模式（前端 + Tauri） |
-| `npm run dev:renderer` | 仅前端（Vite） |
-| `npm run typecheck` | TypeScript 类型检查 |
-| `cargo check` (在 src-tauri/) | Rust 编译检查 |
-| `npm run build` | 构建发布包 |
-| `.\scripts\bump-version.ps1 <version>` | 更新所有版本号 |
+| 命令                                   | 说明                         |
+| -------------------------------------- | ---------------------------- |
+| `npm run dev`                          | 完整开发模式（前端 + Tauri） |
+| `npm run dev:renderer`                 | 仅前端（Vite）               |
+| `npm run typecheck`                    | TypeScript 类型检查          |
+| `cargo check` (在 src-tauri/)          | Rust 编译检查                |
+| `npm run build`                        | 构建发布包                   |
+| `.\scripts\bump-version.ps1 <version>` | 更新所有版本号               |
 
 ## 项目结构
 
@@ -96,30 +96,33 @@ src-tauri/                    后端 (Rust)
 
 ## 文档
 
-| 文件 | 说明 |
-| ---- | ---- |
-| [docs/ui-structure.md](docs/ui-structure.md) | 页面布局与交互规范 |
-| [docs/architecture.md](docs/architecture.md) | 技术栈、项目结构、数据流 |
-| [docs/api.md](docs/api.md) | B站 API、IPC 命令、事件列表 |
-| [docs/research.md](docs/research.md) | 技术调研记录 |
-| [docs/design.md](docs/design.md) | 视觉设计风格规范 |
+| 文件                                         | 说明                        |
+| -------------------------------------------- | --------------------------- |
+| [docs/ui-structure.md](docs/ui-structure.md) | 页面布局与交互规范          |
+| [docs/architecture.md](docs/architecture.md) | 技术栈、项目结构、数据流    |
+| [docs/api.md](docs/api.md)                   | B站 API、IPC 命令、事件列表 |
+| [docs/research.md](docs/research.md)         | 技术调研记录                |
+| [docs/design.md](docs/design.md)             | 视觉设计风格规范            |
 
 ## 许可
 
-本项目基于 [GNU General Public License v3.0](LICENSE) 开源。
+本项目基于 [GNU Affero General Public License v3.0](LICENSE) 开源。
 
 ### 参考项目
 
 本项目在开发过程中参考了以下开源项目：
 
-| 项目                                                                                     | 许可证       |
-| ---------------------------------------------------------------------------------------- | ------------ |
-| [cc-switch](https://github.com/nichuanfang/cc-switch)                                    | MIT          |
-| [BLSPAM](https://github.com/ADJazzzz/BLSPAM)                                             | MIT          |
-| [PiliPlus](https://github.com/lgc2333/PiliPlus)                                          | GPLv3        |
-| [simple_live_app](https://github.com/xiaoyaocz/simple_live_app)                          | MIT          |
-| [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)           | CC BY-NC 4.0 |
-| [bilibili-api](https://github.com/Nemo2011/bilibili-api)                                 | GPLv3        |
-| [astrbot_plugin_bilibili_live](https://github.com/aka77777/astrbot_plugin_bilibili_live) | AGPLv3       |
+| 项目                                                                                       | 许可证       |
+| ------------------------------------------------------------------------------------------ | ------------ |
+| [cc-switch](https://github.com/farion1231/cc-switch)                                       | MIT          |
+| [BLSPAM](https://github.com/ADJazzzz/BLSPAM)                                               | MIT          |
+| [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus)                                      | GPLv3        |
+| [simple_live_app](https://github.com/xiaoyaocz/dart_simple_live)                           | MIT          |
+| [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)             | CC BY-NC 4.0 |
+| [bilibili-api](https://github.com/Nemo2011/bilibili-api)                                   | GPLv3        |
+| [astrbot_plugin_bilibili_live](https://github.com/Raven95676/astrbot_plugin_bilibili_live) | AGPLv3       |
+| [fansMedalHelper](https://github.com/XiaoMiku01/fansMedalHelper)                           | GPLv3        |
+| [danmuai](https://github.com/PEPETII/danmuai)                                              | GPLv3        |
+| [chatterbox](https://github.com/laplace-live/chatterbox)                                   | AGPLv3       |
 
 `bilibili-API-collect` 采用 CC BY-NC 4.0 许可（禁止商业使用），本项目的 B 站 API 文档参考自该项目，同样禁止将本项目用于商业用途。

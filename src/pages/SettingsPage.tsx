@@ -671,7 +671,7 @@ function AboutTab() {
           {version && (
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">v{version}</span>
           )}
-          <span className="text-xs text-slate-400 dark:text-slate-500">MIT License</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">AGPLv3 License</span>
           <span className="text-xs text-slate-400 dark:text-slate-500">© 2026 朔风秋叶</span>
         </div>
       </div>
