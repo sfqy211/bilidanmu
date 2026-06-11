@@ -49,6 +49,11 @@ body,
   height: 100%;
 }
 
+/* 禁用触控板过度滚动，防止页面整体晃动 */
+html {
+  overscroll-behavior: none;
+}
+
 body {
   @apply text-foreground antialiased;
   background: transparent;
