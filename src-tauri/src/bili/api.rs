@@ -267,15 +267,20 @@ impl BiliApiClient {
             .await?;
 
         ensure_success(&response)?;
-        let items = response
+        let result = response
             .get("data")
             .and_then(|data| data.get("result"))
-            .and_then(|result| result.get("live_room"))
+            .cloned()
+            .unwrap_or_default();
+
+        // 解析正在直播的房间
+        let live_items = result
+            .get("live_room")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
 
-        Ok(items
+        let mut results: Vec<SearchRoomResult> = live_items
             .iter()
             .filter_map(|item| {
                 let room_id = item.get("roomid").and_then(value_as_u64)?;
@@ -293,7 +298,43 @@ impl BiliApiClient {
                     is_live: item.get("live_status").and_then(Value::as_u64).unwrap_or(0) == 1,
                 })
             })
-            .collect())
+            .collect();
+
+        // 收集已有 room_id，避免重复
+        let live_room_ids: std::collections::HashSet<u64> = results
+            .iter()
+            .map(|r| r.room_id)
+            .collect();
+
+        // 解析 live_user 结果（包含未直播的主播，带 roomid）
+        let user_items = result
+            .get("live_user")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        for item in user_items {
+            let room_id = match item.get("roomid").and_then(value_as_u64) {
+                Some(id) if id > 0 && !live_room_ids.contains(&id) => id,
+                _ => continue,
+            };
+
+            let uname = item.get("uname").and_then(Value::as_str).unwrap_or_default();
+            let title = item.get("title").and_then(Value::as_str).unwrap_or_default();
+            let cover = item.get("uface").and_then(Value::as_str).map(normalize_cover_url);
+
+            results.push(SearchRoomResult {
+                room_id,
+                uid: item.get("uid").and_then(value_as_u64),
+                uname: strip_em_tags(uname),
+                title: strip_em_tags(title),
+                cover,
+                avatar: None,
+                is_live: item.get("live_status").and_then(Value::as_u64).unwrap_or(0) == 1,
+            });
+        }
+
+        Ok(results)
     }
 
     pub async fn verify_login_status(&self) -> Result<LoginStatus, String> {
