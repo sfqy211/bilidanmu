@@ -1,6 +1,5 @@
 use base64::Engine;
 use indexmap::IndexMap;
-use rand::Rng;
 
 use super::credential::BiliCredential;
 use super::{sign_params_sorted, unix_secs, BILI_REFERER, APPKEY, APPSECRET};
@@ -26,6 +25,9 @@ pub async fn send_heartbeat(
     session_uuid: &str,
     click_id: &str,
     access_key: &str,
+    buvid: &str,
+    gu_id: &str,
+    visit_id: &str,
 ) -> u64 {
     let cookie = credential.cookie_header();
 
@@ -53,20 +55,11 @@ pub async fn send_heartbeat(
     } else {
         today_start
     };
-    let buvid: String = (0..37)
-        .map(|_| rand::thread_rng().gen_range(b'A'..=b'Z') as char)
-        .collect();
-    let gu_id: String = (0..43)
-        .map(|_| rand::thread_rng().gen_range(b'a'..=b'z') as char)
-        .collect();
-    let visit_id: String = (0..32)
-        .map(|_| rand::thread_rng().gen_range(b'a'..=b'z') as char)
-        .collect();
 
     let mut data = IndexMap::new();
     data.insert("platform".to_string(), "android".to_string());
     data.insert("uuid".to_string(), session_uuid.to_string());
-    data.insert("buvid".to_string(), buvid);
+    data.insert("buvid".to_string(), buvid.to_string());
     data.insert("seq_id".to_string(), "1".to_string());
     data.insert("room_id".to_string(), room_id.to_string());
     data.insert("parent_id".to_string(), DEFAULT_PARENT_ID.to_string());
@@ -77,7 +70,7 @@ pub async fn send_heartbeat(
     data.insert("up_id".to_string(), up_id.to_string());
     data.insert("up_level".to_string(), DEFAULT_UP_LEVEL.to_string());
     data.insert("jump_from".to_string(), DEFAULT_JUMP_FROM.to_string());
-    data.insert("gu_id".to_string(), gu_id);
+    data.insert("gu_id".to_string(), gu_id.to_string());
     data.insert("play_type".to_string(), "0".to_string());
     data.insert("play_url".to_string(), String::new());
     data.insert("s_time".to_string(), "0".to_string());
@@ -87,7 +80,7 @@ pub async fn send_heartbeat(
         "up_session".to_string(),
         format!("l:one:live:record:{room_id}:{}", now - 88888),
     );
-    data.insert("visit_id".to_string(), visit_id);
+    data.insert("visit_id".to_string(), visit_id.to_string());
     data.insert(
         "watch_status".to_string(),
         "%7B%22pk_id%22%3A0%2C%22screen_status%22%3A1%7D".to_string(),

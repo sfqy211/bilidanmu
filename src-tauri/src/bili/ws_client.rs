@@ -260,10 +260,14 @@ async fn run_connection(
             .build()
             .unwrap_or_else(|_| api.client.clone());
         let heartbeat_fut = async move {
+            use rand::Rng;
             let cred = heartbeat_credential.expect("has_sessdata 为 true 时 credential 必须存在");
             let session_uuid = uuid::Uuid::new_v4().to_string();
             let click_id = uuid::Uuid::new_v4().to_string();
             let access_key = cred.access_key.clone().unwrap_or_default();
+            let buvid: String = (0..37).map(|_| rand::thread_rng().gen_range(b'A'..=b'Z') as char).collect();
+            let gu_id: String = (0..43).map(|_| rand::thread_rng().gen_range(b'a'..=b'z') as char).collect();
+            let visit_id: String = (0..32).map(|_| rand::thread_rng().gen_range(b'a'..=b'z') as char).collect();
             log::info!("[heartbeat] 心跳任务启动, room={real_room_id}, up={up_id}, has_access_key={}", !access_key.is_empty());
             let mut interval = 60u64;
             loop {
@@ -276,6 +280,9 @@ async fn run_connection(
                     &session_uuid,
                     &click_id,
                     &access_key,
+                    &buvid,
+                    &gu_id,
+                    &visit_id,
                 )
                 .await;
                 sleep(Duration::from_secs(interval)).await;
