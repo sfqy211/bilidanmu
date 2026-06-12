@@ -3,6 +3,8 @@ import { ExternalLink, FolderOpen, GitBranch } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
+import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
+import { OpacitySlider } from "@/components/settings/OpacitySlider";
 import { getAppVersion } from "@/lib/constants";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -353,12 +355,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              {([
-                { key: "hideGloryLevel" as const, label: "隐藏荣耀等级" },
-                { key: "hideFanMedal" as const, label: "隐藏粉丝牌" },
-                { key: "hideAdminBadge" as const, label: "隐藏房管标志" },
-                { key: "hideUserIdColor" as const, label: "隐藏用户ID颜色区分" },
-              ]).map(({ key, label }) => (
+              {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
                 <label key={key} className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                   <span>{label}</span>
                   <input
@@ -377,6 +374,7 @@ export function SettingsPage() {
               ))}
 
               <OpacitySlider
+                label="默认弹幕窗口透明度"
                 value={settings.appearance.opacity}
                 onChange={(val) =>
                   patchSettings({ appearance: { ...settings.appearance, opacity: val } } as Partial<Settings>)
@@ -523,49 +521,6 @@ export function SettingsPage() {
         </TabContent>
       </PageTabs>
     </section>
-  );
-}
-
-function OpacitySlider({ value, onChange }: { value: number; onChange: (val: number) => void }) {
-  const [local, setLocal] = useState(value);
-
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
-
-  const commit = (next: number) => {
-    const val = Math.max(10, Math.min(100, next));
-    setLocal(val);
-    if (val !== value) {
-      onChange(val);
-    }
-  };
-
-  return (
-    <div className="bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
-      <div className="mb-2 flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
-        <span>默认弹幕窗口透明度</span>
-        <span className="text-xs text-slate-400 dark:text-slate-500">{local}%</span>
-      </div>
-      <input
-        type="range"
-        min={10}
-        max={100}
-        value={local}
-        onChange={(e) => {
-          const val = Math.max(10, Number((e.target as HTMLInputElement).value));
-          setLocal(val);
-        }}
-        onPointerUp={(e) => commit(Number((e.currentTarget as HTMLInputElement).value))}
-        onKeyUp={(e) => {
-          if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
-            commit(Number((e.currentTarget as HTMLInputElement).value));
-          }
-        }}
-        onBlur={(e) => commit(Number((e.currentTarget as HTMLInputElement).value))}
-        className="h-1 w-full cursor-pointer accent-pink-500"
-      />
-    </div>
   );
 }
 

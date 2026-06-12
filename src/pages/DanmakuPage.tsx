@@ -25,6 +25,8 @@ import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import { loadWindowSize } from "@/hooks/useWindowPersistence";
+import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
+import { OpacitySlider } from "@/components/settings/OpacitySlider";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useRoomStore } from "@/stores/room-store";
@@ -106,46 +108,6 @@ function useAutoScroll(messages: DanmakuMessage[]) {
   }, []);
 
   return { scrollRef, isAtBottom, checkAtBottom, scrollToBottom };
-}
-
-function DeferredOpacitySlider({ value, onCommit }: { value: number; onCommit: (value: number) => void }) {
-  const [local, setLocal] = useState(value);
-
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
-
-  const commit = (next: number) => {
-    const val = Math.max(10, Math.min(100, next));
-    setLocal(val);
-    if (val !== value) {
-      onCommit(val);
-    }
-  };
-
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-        <span>背景透明度</span>
-        <span>{local}%</span>
-      </div>
-      <input
-        type="range"
-        min={10}
-        max={100}
-        value={local}
-        onChange={(e) => setLocal(Math.max(10, Number(e.target.value)))}
-        onPointerUp={(e) => commit(Number(e.currentTarget.value))}
-        onKeyUp={(e) => {
-          if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
-            commit(Number(e.currentTarget.value));
-          }
-        }}
-        onBlur={(e) => commit(Number(e.currentTarget.value))}
-        className="h-1 w-full cursor-pointer accent-pink-500"
-      />
-    </div>
-  );
 }
 
 export function DanmakuPage() {
@@ -1236,16 +1198,14 @@ export function DanmakuPage() {
         {settingsOpen && (
           <div className="danmaku-bg-panel absolute bottom-full right-0 z-20 mb-2 w-64 p-4">
             <div className="space-y-3">
-              <DeferredOpacitySlider
+              <OpacitySlider
+                labelClassName="text-xs text-slate-500 dark:text-slate-400"
+                valueClassName="text-xs text-slate-500 dark:text-slate-400"
+                className=""
                 value={opacity}
-                onCommit={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
+                onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
               />
-              {([
-                { key: "hideGloryLevel" as const, label: "隐藏荣耀等级" },
-                { key: "hideFanMedal" as const, label: "隐藏粉丝牌" },
-                { key: "hideAdminBadge" as const, label: "隐藏房管标志" },
-                { key: "hideUserIdColor" as const, label: "隐藏用户ID颜色区分" },
-              ]).map(({ key, label }) => (
+              {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
                 <label key={key} className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span>{label}</span>
                   <input
