@@ -134,7 +134,8 @@ export const tauriCommands = {
   proxy: {
     image: (url: string, persistent?: boolean) =>
       invoke<string>("proxy_image", { url, persistent: persistent ?? false }),
-    clearImageCache: () => invoke<void>("clear_image_cache")
+    clearImageCache: () => invoke<void>("clear_image_cache"),
+    getCacheStats: () => invoke<{ imageSize: number; imageCount: number; emoticonPkgCount: number; emoticonCount: number; emoticonImageSize: number }>("get_cache_stats")
   },
   stt: {
     start: () => invoke<void>("start_stt"),

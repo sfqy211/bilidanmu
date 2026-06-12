@@ -131,14 +131,69 @@ pub async fn proxy_image(
     Ok(data_url)
 }
 
-/// 清理图片缓存
+/// 清理封面和头像缓存（保留固定资源和表情图片）
 #[tauri::command]
 pub async fn clear_image_cache(state: State<'_, AppState>) -> Result<(), String> {
     crate::db::with_connection(state.inner(), |connection| {
         connection
-            .execute_batch("DELETE FROM image_cache")
+            .execute(
+                "DELETE FROM image_cache \
+                 WHERE url NOT LIKE 'wealth-level://' \
+                 AND NOT EXISTS (SELECT 1 FROM emoticons e WHERE e.url = image_cache.url)",
+                [],
+            )
             .map_err(|e| format!("清理图片缓存失败: {e}"))?;
         Ok(())
+    })
+}
+
+/// 获取缓存统计信息（排除固定资源）
+#[tauri::command]
+pub async fn get_cache_stats(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    crate::db::with_connection(state.inner(), |connection| {
+        // 封面和头像缓存（排除固定资源和表情图片）
+        let image_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM image_cache i \
+                 WHERE i.url NOT LIKE 'wealth-level://%' \
+                 AND NOT EXISTS (SELECT 1 FROM emoticons e WHERE e.url = i.url)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let image_size: i64 = connection
+            .query_row(
+                "SELECT COALESCE(SUM(LENGTH(i.data_url)), 0) FROM image_cache i \
+                 WHERE i.url NOT LIKE 'wealth-level://%' \
+                 AND NOT EXISTS (SELECT 1 FROM emoticons e WHERE e.url = i.url)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        // 表情缓存统计（元数据 + 图片）
+        let emoticon_pkg_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM emoticon_packages", [], |row| row.get(0))
+            .unwrap_or(0);
+        let emoticon_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM emoticons", [], |row| row.get(0))
+            .unwrap_or(0);
+        let emoticon_image_size: i64 = connection
+            .query_row(
+                "SELECT COALESCE(SUM(LENGTH(i.data_url)), 0) FROM image_cache i \
+                 WHERE EXISTS (SELECT 1 FROM emoticons e WHERE e.url = i.url)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        Ok(serde_json::json!({
+            "imageCount": image_count,
+            "imageSize": image_size,
+            "emoticonPkgCount": emoticon_pkg_count,
+            "emoticonCount": emoticon_count,
+            "emoticonImageSize": emoticon_image_size,
+        }))
     })
 }
 

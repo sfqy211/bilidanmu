@@ -285,6 +285,7 @@ pub fn run() {
             commands::websocket::disconnect_danmaku_stream,
             commands::proxy::proxy_image,
             commands::proxy::clear_image_cache,
+            commands::proxy::get_cache_stats,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::is_stt_available,

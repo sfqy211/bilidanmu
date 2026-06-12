@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ExternalLink, FolderOpen, GitBranch } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { getAppVersion } from "@/lib/constants";
@@ -515,63 +516,8 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="cache" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-            <div className="space-y-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                分类清理本地缓存。图片缓存包含封面、头像和醒目留言背景；表情缓存包含表情包数据。
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => {
-                    if (!window.confirm("确定要清除图片缓存吗？封面、头像和醒目留言背景将在下次显示时重新下载。")) return;
-                    tauriCommands.proxy.clearImageCache().then(() => {
-                      import("sonner").then(({ toast }) => toast.success("图片缓存已清理"));
-                    }).catch(() => {
-                      import("sonner").then(({ toast }) => toast.error("清理失败"));
-                    });
-                  }}
-                  className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
-                >
-                  清除图片缓存
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!window.confirm("确定要清除所有房间专属表情吗？下次进入房间时会重新拉取。")) return;
-                    tauriCommands.room.clearRoomSpecificEmoticons().then(() => {
-                      import("sonner").then(({ toast }) => toast.success("房间专属表情已清理"));
-                    }).catch(() => {
-                      import("sonner").then(({ toast }) => toast.error("清理失败"));
-                    });
-                  }}
-                  className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
-                >
-                  清除房间专属表情
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!window.confirm("确定要清除所有缓存吗？这将删除所有已缓存的图片和表情数据。")) return;
-                    Promise.allSettled([
-                      tauriCommands.proxy.clearImageCache(),
-                      tauriCommands.room.clearEmoticonCache(),
-                    ]).then((results) => {
-                      const failed = results.filter((r) => r.status === "rejected");
-                      if (failed.length) {
-                        import("sonner").then(({ toast }) => toast.error("部分缓存清理失败"));
-                      } else {
-                        import("sonner").then(({ toast }) => toast.success("所有缓存已清理"));
-                      }
-                    });
-                  }}
-                  className="px-5 py-3 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/[0.04]"
-                >
-                  清除所有缓存
-                </button>
-              </div>
-            </div>
-          </div>
+          <CacheStatsCard />
+          <CacheActionsCard />
         </TabContent>
 
         <TabContent value="about" className="flex flex-col gap-4">
@@ -676,5 +622,140 @@ function AboutTab() {
         </div>
       </div>
     </div>
+  );
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function CacheStatsCard() {
+  const [stats, setStats] = useState<{ imageSize: number; imageCount: number; emoticonPkgCount: number; emoticonCount: number; emoticonImageSize: number } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    tauriCommands.proxy.getCacheStats().then(setStats).catch(() => {});
+  }, [refreshKey]);
+
+  return (
+    <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">缓存占用</h3>
+        <button
+          onClick={() => setRefreshKey((k) => k + 1)}
+          className="text-xs text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
+        >
+          刷新
+        </button>
+      </div>
+      {stats ? (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+            <p className="text-xs text-slate-400 dark:text-slate-500">封面与头像</p>
+            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.imageSize)}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{stats.imageCount} 张</p>
+          </div>
+          <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+            <p className="text-xs text-slate-400 dark:text-slate-500">表情包</p>
+            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.emoticonImageSize)}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{stats.emoticonPkgCount} 个包 · {stats.emoticonCount} 个表情</p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400 dark:text-slate-500">加载中...</p>
+      )}
+    </div>
+  );
+}
+
+function CacheActionsCard() {
+  const [confirmType, setConfirmType] = useState<"image" | "emoticon" | "all" | null>(null);
+
+  const handleClearImage = () => {
+    tauriCommands.proxy.clearImageCache().then(() => {
+      import("sonner").then(({ toast }) => toast.success("图片缓存已清理"));
+    }).catch(() => {
+      import("sonner").then(({ toast }) => toast.error("清理失败"));
+    });
+  };
+
+  const handleClearEmoticon = () => {
+    tauriCommands.room.clearRoomSpecificEmoticons().then(() => {
+      import("sonner").then(({ toast }) => toast.success("房间专属表情已清理"));
+    }).catch(() => {
+      import("sonner").then(({ toast }) => toast.error("清理失败"));
+    });
+  };
+
+  const handleClearAll = () => {
+    Promise.allSettled([
+      tauriCommands.proxy.clearImageCache(),
+      tauriCommands.room.clearEmoticonCache(),
+    ]).then((results) => {
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        import("sonner").then(({ toast }) => toast.error("部分缓存清理失败"));
+      } else {
+        import("sonner").then(({ toast }) => toast.success("所有缓存已清理"));
+      }
+    });
+  };
+
+  return (
+    <>
+      <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            分类清理本地缓存。清除封面与头像不会影响表情包；删除直播间时会自动清理对应的表情。
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setConfirmType("image")}
+              className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            >
+              清除图片缓存
+            </button>
+            <button
+              onClick={() => setConfirmType("emoticon")}
+              className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            >
+              清除房间专属表情
+            </button>
+            <button
+              onClick={() => setConfirmType("all")}
+              className="px-5 py-3 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/[0.04]"
+            >
+              清除所有缓存
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmType === "image"}
+        title="清除图片缓存"
+        message="封面、头像和表情图片将在下次显示时重新下载。"
+        onConfirm={() => { setConfirmType(null); handleClearImage(); }}
+        onCancel={() => setConfirmType(null)}
+      />
+      <ConfirmDialog
+        open={confirmType === "emoticon"}
+        title="清除房间专属表情"
+        message="下次进入房间时会重新拉取表情包。"
+        onConfirm={() => { setConfirmType(null); handleClearEmoticon(); }}
+        onCancel={() => setConfirmType(null)}
+      />
+      <ConfirmDialog
+        open={confirmType === "all"}
+        title="清除所有缓存"
+        message="这将删除所有已缓存的图片和表情数据。"
+        variant="danger"
+        onConfirm={() => { setConfirmType(null); handleClearAll(); }}
+        onCancel={() => setConfirmType(null)}
+      />
+    </>
   );
 }

@@ -121,7 +121,29 @@ pub fn clear_non_room_specific_mappings(state: &AppState, room_id: u64, account_
 /// 清理指定房间的全部表情缓存（移除房间时调用）
 pub fn clear_room_emoticons(state: &AppState, room_id: u64) -> Result<(), String> {
     db::with_connection(state, |connection| {
-        // 1. 删除该房间的所有映射
+        // 1. 收集孤立包的表情图片 URL（删除映射后将不再被任何房间引用的包）
+        let emoticon_urls: Vec<String> = {
+            let mut stmt = connection
+                .prepare(
+                    "SELECT e.url FROM emoticons e \
+                     WHERE e.pkg_id IN ( \
+                         SELECT r.pkg_id FROM room_emoticon_packages r \
+                         WHERE r.room_id = ?1 \
+                         AND NOT EXISTS ( \
+                             SELECT 1 FROM room_emoticon_packages r2 \
+                             WHERE r2.pkg_id = r.pkg_id AND r2.room_id != ?1 \
+                         ) \
+                     )",
+                )
+                .map_err(|e| format!("查询表情 URL 失败: {e}"))?;
+            let urls = stmt.query_map(params![room_id], |row| row.get(0))
+                .map_err(|e| format!("读取表情 URL 失败: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect();
+            urls
+        };
+
+        // 2. 删除该房间的所有映射
         connection
             .execute(
                 "DELETE FROM room_emoticon_packages WHERE room_id = ?1",
@@ -129,13 +151,20 @@ pub fn clear_room_emoticons(state: &AppState, room_id: u64) -> Result<(), String
             )
             .map_err(|e| format!("清理房间表情映射失败: {e}"))?;
 
-        // 2. 删除不再被任何房间引用的孤立包（CASCADE 自动清理 emoticons 子表）
+        // 3. 删除不再被任何房间引用的孤立包（CASCADE 自动清理 emoticons 子表）
         connection
             .execute_batch(
                 "DELETE FROM emoticon_packages WHERE pkg_id NOT IN \
                  (SELECT DISTINCT pkg_id FROM room_emoticon_packages);",
             )
             .map_err(|e| format!("清理孤立表情包失败: {e}"))?;
+
+        // 4. 清理孤立表情对应的图片缓存（通用表情不会被删除，因为它们仍被其他房间引用）
+        for url in &emoticon_urls {
+            connection
+                .execute("DELETE FROM image_cache WHERE url = ?1", params![url])
+                .map_err(|e| format!("清理表情图片缓存失败: {e}"))?;
+        }
 
         Ok(())
     })
@@ -144,12 +173,32 @@ pub fn clear_room_emoticons(state: &AppState, room_id: u64) -> Result<(), String
 /// 清理所有表情缓存
 pub fn clear_all(state: &AppState) -> Result<(), String> {
     db::with_connection(state, |connection| {
-        // 先删映射表（引用 packages），再删 packages（CASCADE 自动清理 emoticons）
+        // 1. 收集所有表情图片 URL
+        let emoticon_urls: Vec<String> = {
+            let mut stmt = connection
+                .prepare("SELECT url FROM emoticons")
+                .map_err(|e| format!("查询表情 URL 失败: {e}"))?;
+            let urls = stmt.query_map([], |row| row.get(0))
+                .map_err(|e| format!("读取表情 URL 失败: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect();
+            urls
+        };
+
+        // 2. 先删映射表（引用 packages），再删 packages（CASCADE 自动清理 emoticons）
         connection
             .execute_batch(
                 "DELETE FROM room_emoticon_packages; DELETE FROM emoticon_packages;",
             )
             .map_err(|error| format!("清理表情缓存失败: {error}"))?;
+
+        // 3. 清理对应的图片缓存
+        for url in &emoticon_urls {
+            connection
+                .execute("DELETE FROM image_cache WHERE url = ?1", params![url])
+                .map_err(|e| format!("清理表情图片缓存失败: {e}"))?;
+        }
+
         Ok(())
     })
 }
@@ -157,7 +206,22 @@ pub fn clear_all(state: &AppState) -> Result<(), String> {
 /// 清理所有房间专属表情包（pkg_type 2/3）及其映射
 pub fn clear_room_specific_emoticons(state: &AppState) -> Result<(), String> {
     db::with_connection(state, |connection| {
-        // 先删映射表，再删 packages（CASCADE 自动清理 emoticons）
+        // 1. 收集房间专属表情的图片 URL
+        let emoticon_urls: Vec<String> = {
+            let mut stmt = connection
+                .prepare(
+                    "SELECT url FROM emoticons WHERE pkg_id IN \
+                     (SELECT pkg_id FROM emoticon_packages WHERE pkg_type IN (2, 3))",
+                )
+                .map_err(|e| format!("查询表情 URL 失败: {e}"))?;
+            let urls = stmt.query_map([], |row| row.get(0))
+                .map_err(|e| format!("读取表情 URL 失败: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect();
+            urls
+        };
+
+        // 2. 先删映射表，再删 packages（CASCADE 自动清理 emoticons）
         connection
             .execute_batch(
                 "DELETE FROM room_emoticon_packages WHERE pkg_id IN \
@@ -165,6 +229,14 @@ pub fn clear_room_specific_emoticons(state: &AppState) -> Result<(), String> {
                  DELETE FROM emoticon_packages WHERE pkg_type IN (2, 3);",
             )
             .map_err(|error| format!("清理房间专属表情失败: {error}"))?;
+
+        // 3. 清理对应的图片缓存
+        for url in &emoticon_urls {
+            connection
+                .execute("DELETE FROM image_cache WHERE url = ?1", params![url])
+                .map_err(|e| format!("清理表情图片缓存失败: {e}"))?;
+        }
+
         Ok(())
     })
 }
