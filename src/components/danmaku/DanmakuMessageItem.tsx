@@ -231,16 +231,8 @@ export function DanmakuMessageItem({
   }, []);
 
   return (
-    <div className="mb-2 inline select-none leading-6" onContextMenu={handleContextMenu}>
-      {contextMenu && (
-        <ContextMenu
-          item={item}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          onMention={onMention}
-        />
-      )}
+    <div className="mb-2 block select-none leading-6 pointer-events-none">
+      <span className="pointer-events-auto" onContextMenu={handleContextMenu}>
       {item.isAdmin && !hideAdminBadge ? (
         <span
           className="mr-1 inline-flex h-[16px] w-[16px] items-center justify-center rounded-full border border-amber-500 text-amber-600 align-middle dark:border-amber-400 dark:text-amber-300"
@@ -288,7 +280,17 @@ export function DanmakuMessageItem({
         ) : (
           item.content
         )}
+        </span>
       </span>
+      {contextMenu && (
+        <ContextMenu
+          item={item}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onMention={onMention}
+        />
+      )}
     </div>
   );
 }
