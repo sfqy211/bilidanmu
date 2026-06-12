@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ExternalLink, FolderOpen, GitBranch } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -77,8 +76,6 @@ export function SettingsPage() {
     try {
       await tauriCommands.settings.update(settings);
       patchSettings(settings);
-      // 通知其他窗口同步设置
-      await getCurrentWindow().emit("settings-updated", settings);
       showSuccess("设置已保存");
     } catch (saveError) {
       showError(saveError instanceof Error ? saveError.message : "保存设置失败");

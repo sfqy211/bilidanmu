@@ -3,6 +3,23 @@ import { emit } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
 import type { Settings } from "@/types/bilibili";
 
+/** 需要深合并的子对象键 */
+const DEEP_KEYS = [
+  "sendInterval", "rateLimit", "riskControl", "receive",
+  "appearance", "notification", "cache", "audio", "stt", "filter",
+] as const;
+
+/** 将部分设置与默认值深合并，确保所有子对象字段完整 */
+function mergeSettings(base: Settings, incoming: Partial<Settings>): Settings {
+  const merged = { ...base, ...incoming };
+  for (const key of DEEP_KEYS) {
+    const k = key as keyof Settings;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 跨 key 联合类型无法静态推断
+    (merged as Settings)[k] = { ...base[k], ...incoming[k] } as any;
+  }
+  return merged;
+}
+
 export const defaultSettings: Settings = {
   sendInterval: { min: 1.5, max: 3 },
   rateLimit: { maxPerWindow: 20, windowSec: 30 },
@@ -70,69 +87,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   sttAvailable: true, // optimistic default; updated on app init
   aiAvailable: false, // conservative default; set to true on app init if ai feature enabled
   setSettings: (settings) => set({
-    settings: {
-      ...defaultSettings,
-      ...settings,
-      appearance: { ...defaultSettings.appearance, ...settings.appearance },
-      receive: { ...defaultSettings.receive, ...settings.receive },
-      cache: { ...defaultSettings.cache, ...settings.cache },
-      audio: { ...defaultSettings.audio, ...settings.audio },
-      stt: { ...defaultSettings.stt, ...settings.stt },
-      filter: { ...defaultSettings.filter, ...settings.filter },
-      notification: { ...defaultSettings.notification, ...settings.notification },
-      sendInterval: { ...defaultSettings.sendInterval, ...settings.sendInterval },
-      rateLimit: { ...defaultSettings.rateLimit, ...settings.rateLimit },
-      riskControl: { ...defaultSettings.riskControl, ...settings.riskControl },
-    }
+    settings: mergeSettings(defaultSettings, settings),
   }),
   setSttAvailable: (sttAvailable) => set({ sttAvailable }),
   setAiAvailable: (aiAvailable) => set({ aiAvailable }),
   patchSettings: (partial) => {
     set((state) => ({
-      settings: {
-        ...state.settings,
-        ...partial,
-        sendInterval: {
-          ...state.settings.sendInterval,
-          ...partial.sendInterval
-        },
-        rateLimit: {
-          ...state.settings.rateLimit,
-          ...partial.rateLimit
-        },
-        riskControl: {
-          ...state.settings.riskControl,
-          ...partial.riskControl
-        },
-        receive: {
-          ...state.settings.receive,
-          ...partial.receive
-        },
-        appearance: {
-          ...state.settings.appearance,
-          ...partial.appearance
-        },
-        notification: {
-          ...state.settings.notification,
-          ...partial.notification
-        },
-        cache: {
-          ...state.settings.cache,
-          ...partial.cache
-        },
-        audio: {
-          ...state.settings.audio,
-          ...partial.audio
-        },
-        stt: {
-          ...state.settings.stt,
-          ...partial.stt
-        },
-        filter: {
-          ...state.settings.filter,
-          ...partial.filter
-        }
-      }
+      settings: mergeSettings(state.settings, partial),
     }));
     // 通知其他窗口设置已变更
     const { settings } = useSettingsStore.getState();

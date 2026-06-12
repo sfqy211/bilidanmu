@@ -146,11 +146,9 @@ export default function App() {
       }
     };
 
-    const unlistenUpdated = listen<Settings>("settings-updated", handleSettingsChanged);
     const unlistenChanged = listen<Settings>("settings-changed", handleSettingsChanged);
 
     return () => {
-      void unlistenUpdated.then((fn) => fn());
       void unlistenChanged.then((fn) => fn());
     };
   }, [setSettings]);
