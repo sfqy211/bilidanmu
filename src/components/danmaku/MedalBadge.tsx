@@ -33,13 +33,12 @@ export function MedalBadge({ medal, scale = 1 }: { medal: Medal; scale?: number 
 
   return (
     <span
-      className="mr-2 inline-flex items-center border leading-tight"
+      className="mr-1.5 inline-flex items-center rounded leading-tight"
       style={{
         backgroundColor: bgColor,
-        borderColor: bgColor,
         color: "#fff",
         fontSize: Math.round(11 * scale),
-        padding: `${2 * scale}px ${6 * scale}px`,
+        padding: `${1 * scale}px ${5 * scale}px`,
       }}
     >
       <span>{medal.name}</span>
