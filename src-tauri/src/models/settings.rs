@@ -94,6 +94,24 @@ impl Default for SttSetting {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CacheSetting {
+    /// 弹幕消息缓存上限，0 表示无限制
+    pub danmaku_limit: u32,
+    /// 礼物消息缓存上限，0 表示无限制
+    pub gift_limit: u32,
+}
+
+impl Default for CacheSetting {
+    fn default() -> Self {
+        Self {
+            danmaku_limit: 200,
+            gift_limit: 100,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub send_interval: RangeSetting,
     pub rate_limit: RateLimitSetting,
@@ -101,6 +119,8 @@ pub struct Settings {
     pub receive: ReceiveSetting,
     pub appearance: AppearanceSetting,
     pub notification: NotificationSetting,
+    #[serde(default)]
+    pub cache: CacheSetting,
     #[serde(default)]
     pub audio: AudioSetting,
     #[serde(default)]
@@ -140,6 +160,7 @@ impl Default for Settings {
                 send_success: false,
                 sc_alert: false,
             },
+            cache: CacheSetting::default(),
             audio: AudioSetting::default(),
             stt: SttSetting::default(),
         }

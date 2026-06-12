@@ -34,6 +34,10 @@ export const defaultSettings: Settings = {
     sendSuccess: false,
     scAlert: false
   },
+  cache: {
+    danmakuLimit: 200,
+    giftLimit: 100
+  },
   audio: {
     defaultVolume: 80,
     autoPlay: false
@@ -65,6 +69,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ...settings,
       appearance: { ...defaultSettings.appearance, ...settings.appearance },
       receive: { ...defaultSettings.receive, ...settings.receive },
+      cache: { ...defaultSettings.cache, ...settings.cache },
       audio: { ...defaultSettings.audio, ...settings.audio },
       stt: { ...defaultSettings.stt, ...settings.stt },
       notification: { ...defaultSettings.notification, ...settings.notification },
@@ -103,6 +108,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         notification: {
           ...state.settings.notification,
           ...partial.notification
+        },
+        cache: {
+          ...state.settings.cache,
+          ...partial.cache
         },
         audio: {
           ...state.settings.audio,

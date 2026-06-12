@@ -516,8 +516,8 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="cache" className="flex flex-col gap-4">
-          <CacheStatsCard />
-          <CacheActionsCard />
+          <CacheCard />
+          <CacheLimitCard settings={settings} patchSettings={patchSettings} />
         </TabContent>
 
         <TabContent value="about" className="flex flex-col gap-4">
@@ -631,51 +631,19 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function CacheStatsCard() {
+function CacheCard() {
   const [stats, setStats] = useState<{ imageSize: number; imageCount: number; emoticonPkgCount: number; emoticonCount: number; emoticonImageSize: number } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [confirmType, setConfirmType] = useState<"image" | "emoticon" | "all" | null>(null);
 
   useEffect(() => {
     tauriCommands.proxy.getCacheStats().then(setStats).catch(() => {});
   }, [refreshKey]);
 
-  return (
-    <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">缓存占用</h3>
-        <button
-          onClick={() => setRefreshKey((k) => k + 1)}
-          className="text-xs text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
-        >
-          刷新
-        </button>
-      </div>
-      {stats ? (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
-            <p className="text-xs text-slate-400 dark:text-slate-500">封面与头像</p>
-            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.imageSize)}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">{stats.imageCount} 张</p>
-          </div>
-          <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
-            <p className="text-xs text-slate-400 dark:text-slate-500">表情包</p>
-            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.emoticonImageSize)}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">{stats.emoticonPkgCount} 个包 · {stats.emoticonCount} 个表情</p>
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm text-slate-400 dark:text-slate-500">加载中...</p>
-      )}
-    </div>
-  );
-}
-
-function CacheActionsCard() {
-  const [confirmType, setConfirmType] = useState<"image" | "emoticon" | "all" | null>(null);
-
   const handleClearImage = () => {
     tauriCommands.proxy.clearImageCache().then(() => {
-      import("sonner").then(({ toast }) => toast.success("图片缓存已清理"));
+      import("sonner").then(({ toast }) => toast.success("封面与头像缓存已清理"));
+      setRefreshKey((k) => k + 1);
     }).catch(() => {
       import("sonner").then(({ toast }) => toast.error("清理失败"));
     });
@@ -684,6 +652,7 @@ function CacheActionsCard() {
   const handleClearEmoticon = () => {
     tauriCommands.room.clearRoomSpecificEmoticons().then(() => {
       import("sonner").then(({ toast }) => toast.success("房间专属表情已清理"));
+      setRefreshKey((k) => k + 1);
     }).catch(() => {
       import("sonner").then(({ toast }) => toast.error("清理失败"));
     });
@@ -699,6 +668,7 @@ function CacheActionsCard() {
         import("sonner").then(({ toast }) => toast.error("部分缓存清理失败"));
       } else {
         import("sonner").then(({ toast }) => toast.success("所有缓存已清理"));
+        setRefreshKey((k) => k + 1);
       }
     });
   };
@@ -706,38 +676,64 @@ function CacheActionsCard() {
   return (
     <>
       <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            分类清理本地缓存。清除封面与头像不会影响表情包；删除直播间时会自动清理对应的表情。
-          </p>
-
-          <div className="flex flex-wrap gap-3">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">缓存占用</h3>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setConfirmType("image")}
-              className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              className="text-xs text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
             >
-              清除图片缓存
-            </button>
-            <button
-              onClick={() => setConfirmType("emoticon")}
-              className="px-5 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
-            >
-              清除房间专属表情
+              刷新
             </button>
             <button
               onClick={() => setConfirmType("all")}
-              className="px-5 py-3 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/[0.04]"
+              className="text-xs text-red-500 transition hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
             >
-              清除所有缓存
+              清除所有
             </button>
           </div>
         </div>
+        {stats ? (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400 dark:text-slate-500">封面与头像</p>
+                <button
+                  onClick={() => setConfirmType("image")}
+                  className="text-xs text-slate-400 transition hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400"
+                >
+                  清除
+                </button>
+              </div>
+              <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.imageSize)}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{stats.imageCount} 张</p>
+            </div>
+            <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400 dark:text-slate-500">表情包</p>
+                <button
+                  onClick={() => setConfirmType("emoticon")}
+                  className="text-xs text-slate-400 transition hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400"
+                >
+                  清除
+                </button>
+              </div>
+              <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.emoticonImageSize)}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{stats.emoticonPkgCount} 个包 · {stats.emoticonCount} 个表情</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400 dark:text-slate-500">加载中...</p>
+        )}
+        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+          清除封面与头像不会影响表情包；删除直播间时会自动清理对应的表情。
+        </p>
       </div>
 
       <ConfirmDialog
         open={confirmType === "image"}
-        title="清除图片缓存"
-        message="封面、头像和表情图片将在下次显示时重新下载。"
+        title="清除封面与头像缓存"
+        message="封面和头像将在下次显示时重新下载。"
         onConfirm={() => { setConfirmType(null); handleClearImage(); }}
         onCancel={() => setConfirmType(null)}
       />
@@ -751,11 +747,53 @@ function CacheActionsCard() {
       <ConfirmDialog
         open={confirmType === "all"}
         title="清除所有缓存"
-        message="这将删除所有已缓存的图片和表情数据。"
+        message="这将删除所有已缓存的封面、头像和表情数据。"
         variant="danger"
         onConfirm={() => { setConfirmType(null); handleClearAll(); }}
         onCancel={() => setConfirmType(null)}
       />
     </>
+  );
+}
+
+function CacheLimitCard({ settings, patchSettings }: { settings: Settings; patchSettings: (patch: Partial<Settings>) => void }) {
+  return (
+    <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+        消息缓存上限 <span className="font-normal text-slate-400 dark:text-slate-500">（0 = 无限制）</span>
+      </h3>
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block text-sm text-slate-600 dark:text-slate-300">
+          弹幕消息
+          <input
+            type="number"
+            min={0}
+            step={50}
+            value={settings.cache.danmakuLimit}
+            onChange={(e) =>
+              patchSettings({
+                cache: { ...settings.cache, danmakuLimit: Math.max(0, Number(e.target.value)) }
+              })
+            }
+            className="mt-1 h-9 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+          />
+        </label>
+        <label className="block text-sm text-slate-600 dark:text-slate-300">
+          礼物消息
+          <input
+            type="number"
+            min={0}
+            step={50}
+            value={settings.cache.giftLimit}
+            onChange={(e) =>
+              patchSettings({
+                cache: { ...settings.cache, giftLimit: Math.max(0, Number(e.target.value)) }
+              })
+            }
+            className="mt-1 h-9 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+          />
+        </label>
+      </div>
+    </div>
   );
 }

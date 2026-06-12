@@ -6,6 +6,7 @@ import type { Credential, Settings } from "@/types/bilibili";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useTheme } from "@/hooks/useTheme";
 import { useUiScale } from "@/hooks/useUiScale";
 
@@ -40,6 +41,11 @@ export default function App() {
         setSttAvailable(sttAvailable);
         setAiAvailable(aiAvailable);
         setRooms(rooms);
+
+        // 同步消息缓存上限
+        if (settings.cache) {
+          useDanmakuStore.getState().setLimits(settings.cache.danmakuLimit, settings.cache.giftLimit);
+        }
 
         // 恢复活跃账号
         if (activeCredential) {
@@ -126,6 +132,10 @@ export default function App() {
   useEffect(() => {
     const handleSettingsChanged = (event: { payload: Settings }) => {
       setSettings(event.payload);
+      // 同步消息缓存上限
+      if (event.payload.cache) {
+        useDanmakuStore.getState().setLimits(event.payload.cache.danmakuLimit, event.payload.cache.giftLimit);
+      }
     };
 
     const unlistenUpdated = listen<Settings>("settings-updated", handleSettingsChanged);

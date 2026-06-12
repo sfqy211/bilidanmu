@@ -1,8 +1,18 @@
 import { create } from "zustand";
 import type { DanmakuMessage } from "@/types/danmaku";
 
+const DEFAULT_DANMAKU_LIMIT = 200;
+const DEFAULT_GIFT_LIMIT = 100;
+
 interface DanmakuState {
-  messages: DanmakuMessage[];
+  /** 弹幕和系统消息 */
+  danmakuMessages: DanmakuMessage[];
+  /** 礼物、醒目留言、上舰消息 */
+  giftMessages: DanmakuMessage[];
+  /** 弹幕消息缓存上限 */
+  danmakuLimit: number;
+  /** 礼物消息缓存上限 */
+  giftLimit: number;
   latestLike: DanmakuMessage | null;
   latestEntry: DanmakuMessage | null;
   wsConnected: boolean;
@@ -20,6 +30,7 @@ interface DanmakuState {
   totalLikeCount: number;
   onlineCount: number;
   addMessage: (message: DanmakuMessage) => void;
+  setLimits: (danmaku: number, gift: number) => void;
   setLatestLike: (message: DanmakuMessage | null) => void;
   setLatestEntry: (message: DanmakuMessage | null) => void;
   clearMessages: () => void;
@@ -34,7 +45,10 @@ interface DanmakuState {
 }
 
 export const useDanmakuStore = create<DanmakuState>((set) => ({
-  messages: [],
+  danmakuMessages: [],
+  giftMessages: [],
+  danmakuLimit: DEFAULT_DANMAKU_LIMIT,
+  giftLimit: DEFAULT_GIFT_LIMIT,
   latestLike: null,
   latestEntry: null,
   wsConnected: false,
@@ -52,15 +66,29 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   totalLikeCount: 0,
   onlineCount: 0,
   addMessage: (message) =>
-    set((state) => ({
-      messages: [...state.messages.slice(-199), message],
-      danmakuCount: message.type === "danmaku" ? state.danmakuCount + 1 : state.danmakuCount,
-      superChatCount: message.type === "superChat" ? state.superChatCount + 1 : state.superChatCount,
-      guardCount: message.type === "guard" ? state.guardCount + 1 : state.guardCount,
-    })),
+    set((state) => {
+      const isGift = message.type === "gift" || message.type === "superChat" || message.type === "guard";
+      if (isGift) {
+        const limit = state.giftLimit > 0 ? state.giftLimit : Number.MAX_SAFE_INTEGER;
+        return {
+          giftMessages: [...state.giftMessages.slice(-(limit - 1)), message],
+          danmakuCount: state.danmakuCount,
+          superChatCount: message.type === "superChat" ? state.superChatCount + 1 : state.superChatCount,
+          guardCount: message.type === "guard" ? state.guardCount + 1 : state.guardCount,
+        };
+      }
+      const limit = state.danmakuLimit > 0 ? state.danmakuLimit : Number.MAX_SAFE_INTEGER;
+      return {
+        danmakuMessages: [...state.danmakuMessages.slice(-(limit - 1)), message],
+        danmakuCount: message.type === "danmaku" ? state.danmakuCount + 1 : state.danmakuCount,
+        superChatCount: state.superChatCount,
+        guardCount: state.guardCount,
+      };
+    }),
+  setLimits: (danmaku, gift) => set({ danmakuLimit: danmaku, giftLimit: gift }),
   setLatestLike: (latestLike) => set({ latestLike }),
   setLatestEntry: (latestEntry) => set({ latestEntry }),
-  clearMessages: () => set({ messages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0, guardCount: 0 }),
+  clearMessages: () => set({ danmakuMessages: [], giftMessages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0, guardCount: 0 }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setWsStatus: (wsStatus) => set({ wsStatus }),
   incrementSentCount: () => set((state) => ({ sentCount: state.sentCount + 1 })),

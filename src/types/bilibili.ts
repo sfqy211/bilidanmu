@@ -132,6 +132,10 @@ export interface Settings {
     sendSuccess: boolean;
     scAlert: boolean;
   };
+  cache: {
+    danmakuLimit: number;
+    giftLimit: number;
+  };
   audio: AudioSetting;
   stt: SttSetting;
 }

@@ -172,7 +172,8 @@ export function DanmakuPage() {
   const passthroughIgnoredRef = useRef(false);
   const { disconnect } = useDanmakuStream(roomId);
 
-  const messages = useDanmakuStore((state) => state.messages);
+  const storeDanmakuMessages = useDanmakuStore((state) => state.danmakuMessages);
+  const storeGiftMessages = useDanmakuStore((state) => state.giftMessages);
   const latestEntry = useDanmakuStore((state) => state.latestEntry);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
   const guardCount = useDanmakuStore((state) => state.guardCount);
@@ -424,7 +425,7 @@ export function DanmakuPage() {
   } = useAutoLike(roomId);
 
   // ── 消息分流 ──
-  const giftMessages = useMemo(() => messages.filter((m) => {
+  const giftMessages = useMemo(() => storeGiftMessages.filter((m) => {
     const isGiftType = (m.type === "gift" && showGift) ||
       (m.type === "superChat" && showSuperChat) ||
       (m.type === "guard" && showGuard);
@@ -435,11 +436,11 @@ export function DanmakuPage() {
       return msgBatteries >= batteryFilter;
     }
     return true;
-  }), [messages, showGift, showSuperChat, showGuard, batteryFilter]);
-  const danmakuMessages = useMemo(() => messages.filter((m) => m.type === "danmaku" || m.type === "system"), [messages]);
+  }), [storeGiftMessages, showGift, showSuperChat, showGuard, batteryFilter]);
+  const danmakuMessages = storeDanmakuMessages;
   const giftTotal = useMemo(() => {
     let total = 0;
-    for (const m of messages) {
+    for (const m of storeGiftMessages) {
       if (m.type === "gift") {
         total += (m.price ?? 0) * (m.count ?? 1) / 1000; // 金瓜子 → 人民币
       } else if (m.type === "superChat") {
@@ -447,16 +448,16 @@ export function DanmakuPage() {
       }
     }
     return total;
-  }, [messages]);
+  }, [storeGiftMessages]);
   const giftSenderCount = useMemo(() => {
     const uids = new Set<number>();
-    for (const m of messages) {
+    for (const m of storeGiftMessages) {
       if ((m.type === "gift" || m.type === "superChat") && m.uid) {
         uids.add(m.uid);
       }
     }
     return uids.size;
-  }, [messages]);
+  }, [storeGiftMessages]);
   const anchorId = useMemo(() => {
     const room = rooms.find((item) => item.roomId === roomId);
     return room?.uid ?? 0;
