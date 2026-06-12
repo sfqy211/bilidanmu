@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Play, Plus, Send, Square, X } from "lucide-react";
+import { Play, Plus, Send, Square, Star, X, Loader2, Circle } from "lucide-react";
+import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { AutoSendEntry } from "@/lib/tauri";
 import type { EmoticonPackage } from "@/types/bilibili";
@@ -29,8 +30,7 @@ interface AutoSendPanelProps {
   onStart: (entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) => Promise<void>;
   onStop: () => void;
   like: AutoLikeProps;
-  onClose?: () => void;
-  className?: string;
+  onClose: () => void;
 }
 
 type TabKey = "text" | "emotion" | "favorites" | "like";
@@ -152,7 +152,7 @@ function TextTabContent({
         value={messagesInput}
         onChange={(e) => setMessagesInput(e.target.value)}
         disabled={isRunning}
-        placeholder={"每行一条循环弹幕\n第一条\n第二条\n第三条"}
+        placeholder={"每行一条循环弹幕\n第一条"}
         className="min-h-28 w-full rounded bg-white/10 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
       />
       <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">共 {entries.length} 条</p>
@@ -265,7 +265,9 @@ function EmotionTabContent({
                   }`}
                   title={pkg.pkgName || `包 ${pkg.pkgId}`}
                 >
-                  {preview ? (
+                  {pkg.pkgId === -1 ? (
+                    <Star className={`h-5 w-5 ${active ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />
+                  ) : preview ? (
                     <ProxiedImage src={preview.url} alt={pkg.pkgName} persistent className="h-7 w-7 object-contain" />
                   ) : (
                     <span className="px-1 text-xs text-slate-500 dark:text-slate-400">{pkg.pkgName || `包 ${pkg.pkgId}`}</span>
@@ -461,7 +463,6 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
     onStop,
     like,
     onClose,
-    className,
   } = props;
 
   const [activeTab, setActiveTab] = useState<TabKey>("text");
@@ -501,37 +502,15 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   const [likeIntervalSec, setLikeIntervalSec] = useState("1.5");
 
   return (
-    <div
-      onMouseDown={(event) => event.stopPropagation()}
-      className={`${className ?? ""} danmaku-bg-panel p-3`}
+    <FloatingPanel
+      title="循环发送"
+      onClose={onClose}
+      extra={
+        isRunning
+          ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+          : <Circle className="h-4 w-4 text-slate-400" />
+      }
     >
-      {/* 标题栏 */}
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-medium text-slate-900 dark:text-white">自动发送</h3>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">按固定间隔循环发送弹幕或表情。</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`px-2.5 py-1 text-xs ${
-              isRunning
-                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
-                : "bg-white/10 text-slate-500 dark:bg-white/[0.06] dark:text-slate-400"
-            }`}
-          >
-            {isRunning ? "运行中" : "未运行"}
-          </span>
-          {onClose ? (
-            <button
-              onClick={onClose}
-              className="p-1 text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
-              title="关闭"
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
-      </div>
 
       {/* Tab 切换 */}
       <div className="mb-3 flex gap-1">
@@ -689,6 +668,6 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
           {error ? <p className="text-rose-500 dark:text-rose-400">错误：{error}</p> : null}
         </div>
       )}
-    </div>
+    </FloatingPanel>
   );
 }
