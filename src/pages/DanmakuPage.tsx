@@ -12,6 +12,7 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
+import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { FilterPanel } from "@/components/danmaku/FilterPanel";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
@@ -110,13 +111,24 @@ function useAutoScroll(messages: DanmakuMessage[]) {
   return { scrollRef, isAtBottom, checkAtBottom, scrollToBottom };
 }
 
+const PANEL = {
+  AUTO_SEND: "autoSend",
+  EMOTICON: "emoticon",
+  FILTER: "filter",
+  SETTINGS: "settings",
+} as const;
+
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
   const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
   const [message, setMessage] = useState("");
   const inputBarRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
-  const [emoticonPickerOpen, setEmoticonPickerOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+  const togglePanel = useCallback((name: string) => {
+    setActivePanel((prev) => (prev === name ? null : name));
+  }, []);
+  const emoticonPickerOpen = activePanel === PANEL.EMOTICON;
   // 按账号维护的表情包缓存（key = accountId, value = 该账号的表情包列表）
   const [emoticonPkgMap, setEmoticonPkgMap] = useState<Map<string, EmoticonPackage[]>>(new Map());
   // 按账号维护的收藏表情（key = accountId）
@@ -126,9 +138,9 @@ export function DanmakuPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiErrorKey, setAiErrorKey] = useState(0);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
-  const [autoSendOpen, setAutoSendOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const autoSendOpen = activePanel === PANEL.AUTO_SEND;
+  const settingsOpen = activePanel === PANEL.SETTINGS;
+  const filterOpen = activePanel === PANEL.FILTER;
   const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
   const [locked, setLocked] = useState(false);
@@ -450,8 +462,7 @@ export function DanmakuPage() {
       const target = event.target as Node | null;
       if (!target) return;
       if (inputBarRef.current?.contains(target)) return;
-      setEmoticonPickerOpen(false);
-      setAutoSendOpen(false);
+      setActivePanel(null);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -575,17 +586,12 @@ export function DanmakuPage() {
 
   const handleToggleEmoticonPicker = useCallback(async () => {
     const nextOpen = !emoticonPickerOpen;
-    if (nextOpen) {
-      setAutoSendOpen(false);
-      setSettingsOpen(false);
-      setFilterOpen(false);
-    }
-    setEmoticonPickerOpen(nextOpen);
+    togglePanel(PANEL.EMOTICON);
 
     if (nextOpen && emoticonPackages.length === 0 && !loadingEmoticons) {
       await loadEmoticons();
     }
-  }, [emoticonPackages.length, emoticonPickerOpen, loadEmoticons, loadingEmoticons]);
+  }, [emoticonPackages.length, emoticonPickerOpen, loadEmoticons, loadingEmoticons, togglePanel]);
 
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendErrorKey, setSendErrorKey] = useState(0);
@@ -622,7 +628,7 @@ export function DanmakuPage() {
       if (!roomId || !emoticon.emoticonUnique || (emoticon.perm ?? 1) === 0) return;
 
       await sendEmoticon(roomId, emoticon.emoticonUnique, serializeEmoticonOptions(emoticon));
-      setEmoticonPickerOpen(false);
+      setActivePanel(null);
     },
     [roomId, sendEmoticon]
   );
@@ -656,36 +662,6 @@ export function DanmakuPage() {
       }
     },
     [effectiveSendingId, currentFavorites]
-  );
-
-  // 收藏表情拖拽排序（防抖持久化）
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleReorderFavorites = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      const accountId = effectiveSendingId;
-      if (!accountId) return;
-
-      setFavoriteMap((prev) => {
-        const next = new Map(prev);
-        const list = [...(next.get(accountId) ?? [])];
-        const [moved] = list.splice(fromIndex, 1);
-        list.splice(toIndex, 0, moved);
-        next.set(accountId, list);
-
-        // 防抖持久化：300ms 内多次拖拽只触发最后一次
-        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = setTimeout(() => {
-          list.forEach((emot, i) => {
-            if (emot.emoticonUnique) {
-              tauriCommands.room.updateFavoriteOrder(accountId, emot.emoticonUnique, i).catch(() => {});
-            }
-          });
-        }, 300);
-
-        return next;
-      });
-    },
-    [effectiveSendingId]
   );
 
   // ── 分割栏是否折叠 ──
@@ -878,6 +854,7 @@ export function DanmakuPage() {
       <audio ref={audioRef} className="hidden" />
 
       {/* 上方区域：礼物 + 分割栏 + 弹幕 — 始终渲染三栏，折叠时 flex=0 但分割栏仍可拖拽恢复 */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div ref={splitContainerRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
 
         {/* 礼物栏 — 始终渲染，flex=ratio 控制大小 */}
@@ -1079,6 +1056,85 @@ export function DanmakuPage() {
         </div>
       )}
 
+      {/* 浮动面板（覆盖在内容区上方） */}
+      <div className="absolute inset-x-0 bottom-0 z-20">
+        {settingsOpen && (
+          <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
+            <div className="space-y-3">
+              <OpacitySlider
+                labelClassName="text-xs text-slate-500 dark:text-slate-400"
+                valueClassName="text-xs text-slate-500 dark:text-slate-400"
+                className=""
+                value={opacity}
+                onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
+              />
+              {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span>{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.appearance[key]}
+                    onChange={(e) =>
+                      commitSettings({
+                        appearance: { ...settings.appearance, [key]: e.target.checked }
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          </FloatingPanel>
+        )}
+
+        {filterOpen && (
+          <FilterPanel onClose={() => setActivePanel(null)} />
+        )}
+
+        {emoticonPickerOpen && (
+          <EmoticonPickerPanel
+            roomId={roomId ?? 0}
+            accountId={effectiveSendingId}
+            loading={loadingEmoticons}
+            error={emoticonError}
+            packages={emoticonPackages}
+            activePkgKey={activePkgKey}
+            sending={sending}
+            favoriteUniques={new Set(currentFavorites.flatMap((e) => e.emoticonUnique ? [e.emoticonUnique] : []))}
+            onClose={() => setActivePanel(null)}
+            onReload={() => void loadEmoticons()}
+            onSelectPackage={setActivePkgKey}
+            onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
+            onToggleFavorite={(emoticon) => void handleToggleFavorite(emoticon)}
+          />
+        )}
+
+        {autoSendOpen && (
+          <AutoSendPanel
+            isRunning={autoSendRunning}
+            lastSentMessage={lastSentMessage}
+            lastIndex={lastIndex}
+            sentCount={sentCount}
+            stopReason={stopReason}
+            error={autoSendError}
+            emoticonPackages={emoticonPackages}
+            onStart={startAutoSend}
+            onStop={() => void stopAutoSend()}
+            like={{
+              anchorId,
+              isRunning: likeIsRunning,
+              sentTotal: likeSentTotal,
+              targetTotal: likeTargetTotal,
+              error: likeError,
+              stopReason: likeStopReason,
+              onStart: (target, batch, interval) => startAutoLike(anchorId, target, batch, interval),
+              onStop: () => void stopAutoLike(),
+            }}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+      </div>
+      </div>
+
       {/* 发送栏 */}
       <div data-interactive="" className="danmaku-bg-panel relative px-3 py-2">
         {aiError && (
@@ -1092,41 +1148,26 @@ export function DanmakuPage() {
         <div ref={inputBarRef} className="mb-2 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              if (isAnonymous) return;
-              setAutoSendOpen((value) => {
-                const next = !value;
-                if (next) {
-                  setEmoticonPickerOpen(false);
-                  setSettingsOpen(false);
-                  setFilterOpen(false);
-                }
-                return next;
-              });
-            }}
+            onClick={() => { if (!isAnonymous) togglePanel(PANEL.AUTO_SEND); }}
             disabled={isAnonymous}
             title={isAnonymous ? "匿名模式下不可用" : "自动发送"}
             className={`rounded inline-flex items-center p-1.5 text-xs transition ${
-              isAnonymous
-                ? "cursor-not-allowed opacity-40"
-                : autoSendRunning
-                  ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
-                  : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              isAnonymous ? "cursor-not-allowed opacity-40"
+                : autoSendRunning ? "danmaku-btn-active text-emerald-600 dark:text-emerald-300"
+                : activePanel === PANEL.AUTO_SEND ? "bg-pink-500/15 text-pink-500"
+                : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
             <Zap className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (isAnonymous) return;
-              void handleToggleEmoticonPicker();
-            }}
+            onClick={() => { if (!isAnonymous) void handleToggleEmoticonPicker(); }}
             disabled={isAnonymous}
             title={isAnonymous ? "匿名模式下不可用" : "表情"}
             className={`rounded inline-flex items-center p-1.5 text-xs transition ${
-              isAnonymous
-                ? "cursor-not-allowed opacity-40"
+              isAnonymous ? "cursor-not-allowed opacity-40"
+                : activePanel === PANEL.EMOTICON ? "bg-pink-500/15 text-pink-500"
                 : "danmaku-bg-bar text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
@@ -1135,20 +1176,10 @@ export function DanmakuPage() {
           <AccountSwitcher viewingAccountId={activeAccountId} />
           <button
             type="button"
-            onClick={() => {
-              setFilterOpen((v) => {
-                if (!v) {
-                  setAutoSendOpen(false);
-                  setEmoticonPickerOpen(false);
-                  setSettingsOpen(false);
-                }
-                return !v;
-              });
-            }}
+            onClick={() => togglePanel(PANEL.FILTER)}
             title="屏蔽管理"
             className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
-              filterOpen
-                ? "text-slate-600 dark:text-slate-300"
+              activePanel === PANEL.FILTER ? "bg-pink-500/15 text-pink-500"
                 : "text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
@@ -1156,20 +1187,10 @@ export function DanmakuPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setSettingsOpen((v) => {
-                if (!v) {
-                  setAutoSendOpen(false);
-                  setEmoticonPickerOpen(false);
-                  setFilterOpen(false);
-                }
-                return !v;
-              });
-            }}
+            onClick={() => togglePanel(PANEL.SETTINGS)}
             title="设置"
             className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
-              settingsOpen
-                ? "text-slate-600 dark:text-slate-300"
+              activePanel === PANEL.SETTINGS ? "bg-pink-500/15 text-pink-500"
                 : "text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
             }`}
           >
@@ -1194,94 +1215,10 @@ export function DanmakuPage() {
           )}
         </div>
 
-        {/* 设置面板 */}
-        {settingsOpen && (
-          <div className="danmaku-bg-panel absolute bottom-full right-0 z-20 mb-2 w-64 p-4">
-            <div className="space-y-3">
-              <OpacitySlider
-                labelClassName="text-xs text-slate-500 dark:text-slate-400"
-                valueClassName="text-xs text-slate-500 dark:text-slate-400"
-                className=""
-                value={opacity}
-                onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
-              />
-              {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
-                <label key={key} className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span>{label}</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.appearance[key]}
-                    onChange={(e) =>
-                      commitSettings({
-                        appearance: { ...settings.appearance, [key]: e.target.checked }
-                      })
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 屏蔽管理面板 */}
-        {filterOpen && (
-          <FilterPanel
-            className="absolute bottom-full left-0 z-20 mb-2 w-64"
-            onClose={() => setFilterOpen(false)}
-          />
-        )}
-
         {/* 弹幕输入行 */}
-        <div>
-          {emoticonPickerOpen ? (
-            <EmoticonPickerPanel
-              className="absolute bottom-full left-0 z-20 mb-2 w-[min(100%,520px)]"
-              roomId={roomId ?? 0}
-              accountId={effectiveSendingId}
-              loading={loadingEmoticons}
-              error={emoticonError}
-              packages={emoticonPackages}
-              activePkgKey={activePkgKey}
-              sending={sending}
-              favoriteUniques={new Set(currentFavorites.flatMap((e) => e.emoticonUnique ? [e.emoticonUnique] : []))}
-              onClose={() => setEmoticonPickerOpen(false)}
-              onReload={() => void loadEmoticons()}
-              onSelectPackage={setActivePkgKey}
-              onSelectEmoticon={(emoticon) => void handleSendEmoticon(emoticon)}
-              onToggleFavorite={(emoticon) => void handleToggleFavorite(emoticon)}
-              onReorderFavorites={handleReorderFavorites}
-            />
-          ) : null}
-
-          {autoSendOpen ? (
-            <AutoSendPanel
-              className="absolute bottom-full left-0 z-20 mb-2 w-[min(100%,520px)]"
-              isRunning={autoSendRunning}
-              lastSentMessage={lastSentMessage}
-              lastIndex={lastIndex}
-              sentCount={sentCount}
-              stopReason={stopReason}
-              error={autoSendError}
-              emoticonPackages={emoticonPackages}
-              onStart={startAutoSend}
-              onStop={() => void stopAutoSend()}
-              like={{
-                anchorId,
-                isRunning: likeIsRunning,
-                sentTotal: likeSentTotal,
-                targetTotal: likeTargetTotal,
-                error: likeError,
-                stopReason: likeStopReason,
-                onStart: (target, batch, interval) => startAutoLike(anchorId, target, batch, interval),
-                onStop: () => void stopAutoLike(),
-              }}
-              onClose={() => setAutoSendOpen(false)}
-            />
-          ) : null}
-
-          <div className="danmaku-bg-bar rounded flex items-center pr-1">
-            <textarea
-              value={message}
+        <div className="danmaku-bg-bar rounded flex items-center pr-1">
+          <textarea
+            value={message}
               disabled={isAnonymous}
               onCompositionStart={() => { composingRef.current = true; }}
               onCompositionEnd={(event) => {
@@ -1332,7 +1269,6 @@ export function DanmakuPage() {
             </button>
           </div>
         </div>
-      </div>
     </main>
   );
 }

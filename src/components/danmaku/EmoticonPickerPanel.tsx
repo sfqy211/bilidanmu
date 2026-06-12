@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Settings2, Star, X } from "lucide-react";
+import { Eye, EyeOff, Settings2, Star } from "lucide-react";
+import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
 import { makePkgKey } from "@/types/bilibili";
@@ -103,8 +104,6 @@ export function EmoticonPickerPanel({
   onSelectPackage,
   onSelectEmoticon,
   onToggleFavorite,
-  onReorderFavorites,
-  className,
 }: {
   roomId: number;
   accountId?: string | null;
@@ -119,11 +118,8 @@ export function EmoticonPickerPanel({
   onSelectPackage: (pkgKey: string) => void;
   onSelectEmoticon: (emoticon: Emoticon) => void;
   onToggleFavorite?: (emoticon: Emoticon) => void;
-  onReorderFavorites?: (fromIndex: number, toIndex: number) => void;
-  className?: string;
 }) {
   const [managing, setManaging] = useState(false);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [hidden, setHidden] = useState<{ global: Set<number>; room: Set<number> }>(
     () => loadHiddenPkgIds(roomId, accountId),
   );
@@ -157,41 +153,23 @@ export function EmoticonPickerPanel({
   const displayPackages = managing ? sortedPackages : visiblePackages;
 
   return (
-    <div
-      onMouseDown={(event) => event.stopPropagation()}
-      className={`${className ?? ""} danmaku-bg-panel p-3`}
-    >
+    <FloatingPanel title="表情选择器" onClose={() => { setManaging(false); onClose(); }}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-900 dark:text-white">表情选择器</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {managing ? "点击表情包切换显示/隐藏" : "点击大表情后直接发送"}
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setManaging((v) => !v)}
-            className={`p-1 transition ${
-              managing
-                ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
-                : "text-slate-400 hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
-            }`}
-            title={managing ? "完成管理" : "管理表情包"}
-          >
-            <Settings2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setManaging(false);
-              onClose();
-            }}
-            className="p-1 text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {managing ? "点击表情包切换显示/隐藏" : "点击大表情后直接发送"}
+        </p>
+        <button
+          type="button"
+          onClick={() => setManaging((v) => !v)}
+          className={`p-1 transition ${
+            managing
+              ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
+              : "text-slate-400 hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
+          }`}
+          title={managing ? "完成管理" : "管理表情包"}
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
       </div>
 
       {loading ? (
@@ -268,7 +246,7 @@ export function EmoticonPickerPanel({
           </div>
 
           {!managing && (
-            <div className="grid h-[208px] grid-cols-4 gap-2 overflow-y-auto">
+            <div className="grid grid-cols-5 gap-px">
               {activePackage?.pkgId === -1 && (activePackage.emoticons.length === 0) ? (
                 <div className="col-span-4 flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
                   点击其他表情上的 ⭐ 添加收藏
@@ -281,34 +259,13 @@ export function EmoticonPickerPanel({
                   <div
                     key={`${activePackage.pkgId}-${emoticon.emoticonUnique ?? emoticon.emoticonId ?? index}`}
                     className="relative"
-                    style={dragIndex === index ? { opacity: 0.4 } : undefined}
-                    draggable={isFavPkg}
-                    onDragStart={(e) => {
-                      // 设置自定义拖拽幽灵图（半透明）
-                      const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
-                      ghost.style.opacity = "0.6";
-                      ghost.style.position = "absolute";
-                      ghost.style.top = "-9999px";
-                      document.body.appendChild(ghost);
-                      e.dataTransfer.setDragImage(ghost, 30, 30);
-                      requestAnimationFrame(() => ghost.remove());
-                      setDragIndex(index);
-                    }}
-                    onDragOver={(e) => { if (isFavPkg) e.preventDefault(); }}
-                    onDrop={() => {
-                      if (isFavPkg && dragIndex !== null && dragIndex !== index) {
-                        onReorderFavorites?.(dragIndex, index);
-                      }
-                      setDragIndex(null);
-                    }}
-                    onDragEnd={() => setDragIndex(null)}
                   >
                     <button
                       type="button"
                       disabled={!available || sending}
                       onClick={() => onSelectEmoticon(emoticon)}
                       title={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                      className={`flex h-full w-full flex-col items-center p-2 text-center transition ${
+                      className={`flex h-full w-full flex-col items-center p-1 text-center transition ${
                         available
                           ? "bg-white/10 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:hover:bg-white/[0.04]"
                           : "cursor-not-allowed bg-white/10 opacity-50 dark:bg-white/[0.06]"
@@ -344,6 +301,6 @@ export function EmoticonPickerPanel({
           )}
         </>
       )}
-    </div>
+    </FloatingPanel>
   );
 }
