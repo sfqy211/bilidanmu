@@ -31,8 +31,7 @@ export function SettingsPage() {
     { value: "send", label: "弹幕发送" },
     { value: "receive", label: "弹幕接收" },
     { value: "appearance", label: "外观" },
-    { value: "audio", label: "音频" },
-    ...(sttAvailable ? [{ value: "stt" as const, label: "语音识别" }] : []),
+    { value: "audio", label: "音频与语音" },
     { value: "cache" as const, label: "缓存管理" },
     { value: "about" as const, label: "关于" }
   ];
@@ -392,6 +391,7 @@ export function SettingsPage() {
 
         <TabContent value="audio" className="flex flex-col gap-4">
           <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+            <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">音频</h3>
             <div className="space-y-4">
               <label className="text-sm text-slate-600 dark:text-slate-300">
                 默认音量（%）
@@ -429,90 +429,91 @@ export function SettingsPage() {
               </label>
             </div>
           </div>
-        </TabContent>
 
-        <TabContent value="stt" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-            <div className="space-y-4">
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
-                <span>启用语音识别</span>
-                <input
-                  type="checkbox"
-                  checked={settings.stt.enabled}
-                  onChange={(event) =>
-                    patchSettings({
-                      stt: { ...settings.stt, enabled: event.target.checked }
-                    })
-                  }
-                />
-              </label>
-
-              <label className="block text-sm text-slate-600 dark:text-slate-300">
-                识别模型
-                <select
-                  value={settings.stt.modelId}
-                  onChange={(event) =>
-                    patchSettings({
-                      stt: { ...settings.stt, modelId: event.target.value }
-                    })
-                  }
-                  disabled={availableModels.length === 0}
-                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
-                >
-                  {availableModels.length === 0 ? (
-                    <option value="">未检测到模型文件</option>
-                  ) : (
-                    availableModels.map((id) => (
-                      <option key={id} value={id}>{id}</option>
-                    ))
-                  )}
-                </select>
-              </label>
-
-              <label className="block text-sm text-slate-600 dark:text-slate-300">
-                字幕同步偏移（毫秒，负值=提前，正值=延迟）
-                <div className="mt-2 flex items-center gap-3">
+          {sttAvailable && (
+            <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+              <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">语音识别</h3>
+              <div className="space-y-4">
+                <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+                  <span>启用语音识别</span>
                   <input
-                    type="range"
-                    min={-2000}
-                    max={2000}
-                    step={100}
-                    value={settings.stt.syncDelayMs}
+                    type="checkbox"
+                    checked={settings.stt.enabled}
                     onChange={(event) =>
                       patchSettings({
-                        stt: { ...settings.stt, syncDelayMs: Number(event.target.value) }
+                        stt: { ...settings.stt, enabled: event.target.checked }
                       })
                     }
-                    className="h-1 flex-1 cursor-pointer accent-pink-500"
                   />
-                  <span className="w-12 text-right text-xs text-slate-500 dark:text-slate-400">
-                    {settings.stt.syncDelayMs > 0 ? "+" + settings.stt.syncDelayMs : settings.stt.syncDelayMs}
-                  </span>
-                </div>
-              </label>
+                </label>
 
-              <div className="space-y-1">
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  模型文件需放置在以下目录中，每个模型一个子文件夹，包含 encoder、decoder、joiner ONNX 文件和 tokens.txt.
-                </p>
-                {modelDir && (
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded bg-[#ebebeb] px-2 py-1 text-xs text-slate-600 dark:bg-[#0e1018] dark:text-slate-400">
-                      {modelDir}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={() => void tauriCommands.stt.openModelDir()}
-                      className="flex h-7 w-7 items-center justify-center text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                      title="打开文件夹"
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                    </button>
+                <label className="block text-sm text-slate-600 dark:text-slate-300">
+                  识别模型
+                  <select
+                    value={settings.stt.modelId}
+                    onChange={(event) =>
+                      patchSettings({
+                        stt: { ...settings.stt, modelId: event.target.value }
+                      })
+                    }
+                    disabled={availableModels.length === 0}
+                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                  >
+                    {availableModels.length === 0 ? (
+                      <option value="">未检测到模型文件</option>
+                    ) : (
+                      availableModels.map((id) => (
+                        <option key={id} value={id}>{id}</option>
+                      ))
+                    )}
+                  </select>
+                </label>
+
+                <label className="block text-sm text-slate-600 dark:text-slate-300">
+                  字幕同步偏移（毫秒，负值=提前，正值=延迟）
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={-2000}
+                      max={2000}
+                      step={100}
+                      value={settings.stt.syncDelayMs}
+                      onChange={(event) =>
+                        patchSettings({
+                          stt: { ...settings.stt, syncDelayMs: Number(event.target.value) }
+                        })
+                      }
+                      className="h-1 flex-1 cursor-pointer accent-pink-500"
+                    />
+                    <span className="w-12 text-right text-xs text-slate-500 dark:text-slate-400">
+                      {settings.stt.syncDelayMs > 0 ? "+" + settings.stt.syncDelayMs : settings.stt.syncDelayMs}
+                    </span>
                   </div>
-                )}
+                </label>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    模型文件需放置在以下目录中，每个模型一个子文件夹，包含 encoder、decoder、joiner ONNX 文件和 tokens.txt.
+                  </p>
+                  {modelDir && (
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 truncate rounded bg-[#ebebeb] px-2 py-1 text-xs text-slate-600 dark:bg-[#0e1018] dark:text-slate-400">
+                        {modelDir}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => void tauriCommands.stt.openModelDir()}
+                        className="flex h-7 w-7 items-center justify-center text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                        title="打开文件夹"
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </TabContent>
 
         <TabContent value="cache" className="flex flex-col gap-4">
