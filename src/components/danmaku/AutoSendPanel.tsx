@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Play, Plus, Send, Square, Star, X, Loader2, Circle } from "lucide-react";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
@@ -33,12 +33,11 @@ interface AutoSendPanelProps {
   onClose: () => void;
 }
 
-type TabKey = "text" | "emotion" | "favorites" | "like";
+type TabKey = "text" | "emotion" | "like";
 
 const AUTO_SEND_TABS: Array<{ key: TabKey; label: string }> = [
   { key: "text", label: "文字" },
   { key: "emotion", label: "表情" },
-  { key: "favorites", label: "收藏夹" },
   { key: "like", label: "点赞" },
 ];
 
@@ -116,23 +115,12 @@ function AutoSendControls({
 
 function TextTabContent({
   isRunning,
-  textFill,
-  onTextFillConsumed,
   onEntriesChange,
 }: {
   isRunning: boolean;
-  textFill: string | null;
-  onTextFillConsumed: () => void;
   onEntriesChange: (entries: AutoSendEntry[]) => void;
 }) {
   const [messagesInput, setMessagesInput] = useState("");
-
-  useEffect(() => {
-    if (textFill) {
-      setMessagesInput((prev) => (prev ? prev + "\n" + textFill : textFill));
-      onTextFillConsumed();
-    }
-  }, [textFill, onTextFillConsumed]);
 
   const entries = useMemo(
     () => messagesInput.split("\n").flatMap((s) => {
@@ -308,146 +296,6 @@ function EmotionTabContent({
   );
 }
 
-// ─── 收藏夹 Tab 内容区 ───
-
-interface FavoritesPanel {
-  key: number;
-  title: string;
-  msg: string;
-}
-
-function FavoritesTabContent({
-  isRunning,
-  onEntriesChange,
-  onFillText,
-}: {
-  isRunning: boolean;
-  onEntriesChange: (entries: AutoSendEntry[]) => void;
-  onFillText: (msg: string) => void;
-}) {
-  const [panels, setPanels] = useState<FavoritesPanel[]>([{ key: 1, title: "弹幕组 1", msg: "" }]);
-  const [activeKey, setActiveKey] = useState(1);
-  const [nextKey, setNextKey] = useState(2);
-
-  const activePanel = panels.find((p) => p.key === activeKey) ?? panels[0];
-
-  const allMessages = useMemo(() => {
-    const result: string[] = [];
-    for (const panel of panels) {
-      const lines = panel.msg.split("\n").flatMap((s) => { const t = s.trim(); return t ? [t] : []; });
-      result.push(...lines);
-    }
-    return result;
-  }, [panels]);
-
-  useEffect(() => {
-    onEntriesChange(allMessages.map((msg) => ({ message: msg, dmType: 0, emoticonOptions: undefined })));
-  }, [allMessages, onEntriesChange]);
-
-  const addPanel = () => {
-    if (isRunning) return;
-    const key = nextKey;
-    setNextKey((k) => k + 1);
-    setPanels((prev) => [...prev, { key, title: `弹幕组 ${key}`, msg: "" }]);
-    setActiveKey(key);
-  };
-
-  const removePanel = (key: number) => {
-    if (isRunning) return;
-    setPanels((prev) => {
-      const next = prev.filter((p) => p.key !== key);
-      if (next.length === 0) {
-        const newKey = nextKey;
-        setNextKey((k) => k + 1);
-        setActiveKey(newKey);
-        return [{ key: newKey, title: `弹幕组 ${newKey}`, msg: "" }];
-      }
-      if (activeKey === key) {
-        setActiveKey(next[0].key);
-      }
-      return next;
-    });
-  };
-
-  const updatePanel = (key: number, field: "title" | "msg", value: string) => {
-    setPanels((prev) => prev.map((p) => (p.key === key ? { ...p, [field]: value } : p)));
-  };
-
-  const handleFillText = useCallback(() => {
-    if (!activePanel?.msg.trim()) return;
-    onFillText(activePanel.msg);
-  }, [activePanel, onFillText]);
-
-  return (
-    <div className="space-y-3">
-      {/* 弹幕组标签 */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {panels.map((panel) => (
-          <button
-            key={panel.key}
-            onClick={() => setActiveKey(panel.key)}
-            className={`group relative shrink-0 px-2.5 py-1 text-xs transition ${
-              activeKey === panel.key
-                ? "border border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/10 dark:text-pink-300"
-                : "text-slate-500 hover:bg-white/[0.08] dark:text-slate-400 dark:hover:bg-white/[0.04]"
-            }`}
-          >
-            {panel.title || `弹幕组 ${panel.key}`}
-            {panels.length > 1 && !isRunning ? (
-              <span
-                onClick={(e) => { e.stopPropagation(); removePanel(panel.key); }}
-                className="ml-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400"
-              >
-                ×
-              </span>
-            ) : null}
-          </button>
-        ))}
-        <button
-          onClick={addPanel}
-          disabled={isRunning}
-          className="shrink-0 px-2 py-1 text-xs text-slate-400 hover:text-slate-500 disabled:opacity-50 dark:text-slate-500"
-          title="新增"
-        >
-          <Plus className="inline h-3 w-3" />
-        </button>
-      </div>
-
-      {/* 当前弹幕组内容 */}
-      {activePanel ? (
-        <div className="space-y-2">
-          <input
-            value={activePanel.title}
-            onChange={(e) => updatePanel(activePanel.key, "title", e.target.value)}
-            disabled={isRunning}
-            placeholder="弹幕组标题"
-            className="h-9 w-full rounded bg-white/10 px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
-          />
-          <textarea
-            value={activePanel.msg}
-            onChange={(e) => updatePanel(activePanel.key, "msg", e.target.value)}
-            disabled={isRunning}
-            placeholder={"每行一条弹幕\n弹幕组内的弹幕会合并到循环列表中"}
-            className="min-h-20 w-full rounded bg-white/10 px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
-          />
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleFillText}
-          disabled={isRunning || !activePanel?.msg.trim()}
-          className="flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-white/[0.04]"
-          title="发送到文字"
-        >
-          <Send className="h-3.5 w-3.5" />
-        </button>
-        <p className="text-xs text-slate-400 dark:text-slate-500">所有弹幕组内容合并循环 · 共 {allMessages.length} 条</p>
-      </div>
-    </div>
-  );
-}
-
 // ─── 主面板 ───
 
 export function AutoSendPanel(props: AutoSendPanelProps) {
@@ -466,7 +314,6 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   } = props;
 
   const [activeTab, setActiveTab] = useState<TabKey>("text");
-  const [textFill, setTextFill] = useState<string | null>(null);
 
   // 全局统一的间隔/时间限制配置
   const [intervalSec, setIntervalSec] = useState("2");
@@ -476,16 +323,6 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   const [currentEntries, setCurrentEntries] = useState<AutoSendEntry[]>([]);
   const onEntriesChange = useCallback((entries: AutoSendEntry[]) => {
     setCurrentEntries(entries);
-  }, []);
-
-  // 收藏夹 → 文字 Tab 填充
-  const handleFillText = useCallback((msg: string) => {
-    setTextFill(msg);
-    setActiveTab("text");
-  }, []);
-
-  const handleTextFillConsumed = useCallback(() => {
-    setTextFill(null);
   }, []);
 
   // 统一的开始/停止
@@ -531,11 +368,9 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
 
       {/* Tab 内容区 */}
       {activeTab === "text" ? (
-        <TextTabContent isRunning={isRunning} textFill={textFill} onTextFillConsumed={handleTextFillConsumed} onEntriesChange={onEntriesChange} />
+        <TextTabContent isRunning={isRunning} onEntriesChange={onEntriesChange} />
       ) : activeTab === "emotion" ? (
         <EmotionTabContent isRunning={isRunning} emoticonPackages={emoticonPackages} onEntriesChange={onEntriesChange} />
-      ) : activeTab === "favorites" ? (
-        <FavoritesTabContent isRunning={isRunning} onEntriesChange={onEntriesChange} onFillText={handleFillText} />
       ) : (
         /* 点赞 Tab */
         <div className="space-y-3">
