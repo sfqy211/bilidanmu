@@ -632,7 +632,7 @@ impl BiliApiClient {
         url: &str,
         params: Option<BTreeMap<String, String>>,
     ) -> Result<Value, String> {
-        let mut request = self.client.get(url).header("Referer", "https://www.bilibili.com/");
+        let mut request = self.client.get(url).header("Referer", super::BILI_REFERER);
 
         // 始终发送 Cookie（至少包含 buvid3）
         let cookie_header = self.effective_credential().cookie_header();
@@ -656,7 +656,7 @@ impl BiliApiClient {
         let mut request = self
             .client
             .post(url)
-            .header("Referer", "https://www.bilibili.com/");
+            .header("Referer", super::BILI_REFERER);
 
         // 始终发送 Cookie（至少包含 buvid3）
         let cookie_header = self.effective_credential().cookie_header();
@@ -691,11 +691,7 @@ impl BiliApiClient {
         let csrf = credential
             .csrf()
             .ok_or_else(|| "Cookie 缺少 bili_jct".to_string())?;
-        let rnd = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
-            .to_string();
+        let rnd = super::unix_secs().to_string();
 
         let mut form = BTreeMap::from([
             ("roomid".to_string(), room_id.to_string()),

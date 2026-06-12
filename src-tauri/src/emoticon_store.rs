@@ -248,10 +248,7 @@ pub fn save_packages(state: &AppState, packages: &[EmoticonPackage]) -> Result<(
     }
 
     db::with_connection(state, |connection| {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
+        let now = crate::bili::unix_secs() as i64;
 
         let tx = connection
             .unchecked_transaction()
@@ -371,10 +368,7 @@ pub fn add_favorite(state: &AppState, account_id: &str, emoticon: &Emoticon) -> 
     if unique.is_empty() {
         return Err("表情标识为空".to_string());
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::bili::unix_secs() as i64;
 
     db::with_connection(state, |connection| {
         connection.execute(

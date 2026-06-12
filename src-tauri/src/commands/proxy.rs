@@ -2,7 +2,6 @@ use crate::AppState;
 use rusqlite::params;
 use tauri::{Manager, State};
 
-const BILI_REFERER: &str = "https://www.bilibili.com/";
 const MAX_BODY_BYTES: usize = 5 * 1024 * 1024; // 5 MB
 
 /// Returns true if the host is a known Bilibili CDN / asset domain.
@@ -35,10 +34,7 @@ fn load_from_cache(state: &AppState, url: &str) -> Option<String> {
 
 /// 保存图片到缓存
 fn save_to_cache(state: &AppState, url: &str, data_url: &str) {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::bili::unix_secs() as i64;
     if let Err(e) = crate::db::with_connection(state, |connection| {
         connection.execute(
             "INSERT OR REPLACE INTO image_cache (url, data_url, updated_at) VALUES (?1, ?2, ?3)",
@@ -84,7 +80,7 @@ pub async fn proxy_image(
     let response = state
         .proxy_client
         .get(&url)
-        .header("Referer", BILI_REFERER)
+        .header("Referer", crate::bili::BILI_REFERER)
         .send()
         .await
         .map_err(|error| format!("代理图片请求失败: {error}"))?;

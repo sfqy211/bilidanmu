@@ -195,7 +195,7 @@ async fn handle_proxy_request(
 
     let response = match proxy_client
         .get(&url)
-        .header("Referer", "https://www.bilibili.com/")
+        .header("Referer", crate::bili::BILI_REFERER)
         .send()
         .await
     {

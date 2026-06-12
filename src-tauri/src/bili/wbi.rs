@@ -1,6 +1,5 @@
 use md5::{Digest, Md5};
 use std::collections::BTreeMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 const WBI_CACHE_TTL_SECS: u64 = 60 * 60 * 12;
 
@@ -32,7 +31,7 @@ impl WbiKeyCache {
     pub fn get_if_fresh(&self) -> Option<WbiKeys> {
         let fetched_at = self.fetched_at?;
         let keys = self.keys.clone()?;
-        let now = now_unix_seconds();
+        let now = super::unix_secs();
 
         if now.saturating_sub(fetched_at) < WBI_CACHE_TTL_SECS {
             Some(keys)
@@ -43,7 +42,7 @@ impl WbiKeyCache {
 
     pub fn store(&mut self, keys: WbiKeys) {
         self.keys = Some(keys);
-        self.fetched_at = Some(now_unix_seconds());
+        self.fetched_at = Some(super::unix_secs());
     }
 }
 
@@ -62,7 +61,7 @@ pub fn get_mixin_key(raw: &str) -> String {
 
 pub fn sign_wbi(params: BTreeMap<String, String>, mixin_key: &str) -> BTreeMap<String, String> {
     let mut signed = params;
-    let wts = now_unix_seconds().to_string();
+    let wts = super::unix_secs().to_string();
 
     signed.insert("wts".into(), wts);
 
@@ -82,13 +81,6 @@ pub fn sign_wbi(params: BTreeMap<String, String>, mixin_key: &str) -> BTreeMap<S
 
     signed.insert("w_rid".into(), w_rid);
     signed
-}
-
-fn now_unix_seconds() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
 }
 
 pub fn extract_wbi_key_from_url(url: &str) -> Option<String> {

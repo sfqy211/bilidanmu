@@ -1,48 +1,18 @@
 use base64::Engine;
 use indexmap::IndexMap;
-use md5::Digest;
 use rand::Rng;
 
 use super::credential::BiliCredential;
+use super::{sign_params_sorted, unix_secs, BILI_REFERER, APPKEY, APPSECRET};
 
 const WEB_HEARTBEAT_URL: &str =
     "https://live-trace.bilibili.com/xlive/rdata-interface/v1/heartbeat/webHeartBeat";
 
-use super::{APPKEY, APPSECRET};
 const SECRET_KEY: &str = "axoaadsffcazxksectbbb";
 const DEFAULT_AREA_ID: &str = "283";
 const DEFAULT_PARENT_ID: &str = "6";
 const DEFAULT_UP_LEVEL: &str = "40";
 const DEFAULT_JUMP_FROM: &str = "30000";
-
-/// Python 兼容的 URL 编码（quote_plus 行为：空格→+，其余特殊字符用 %XX）
-fn py_quote_plus(input: &str) -> String {
-    let mut output = String::with_capacity(input.len() * 3);
-    for byte in input.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'.' | b'-' | b'~' => {
-                output.push(byte as char);
-            }
-            b' ' => output.push('+'),
-            _ => output.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    output
-}
-
-/// 对参数排序后 URL 编码拼接，附加 appsecret，计算 MD5 签名
-/// 与 Python `urlencode(sorted(data.items())) + APPSECRET` 行为一致
-fn sign_params(params: &IndexMap<String, String>) -> String {
-    let mut sorted: Vec<_> = params.iter().collect();
-    sorted.sort_by(|a, b| a.0.cmp(b.0));
-    let query = sorted
-        .iter()
-        .map(|(k, v)| format!("{}={}", py_quote_plus(k), py_quote_plus(v)))
-        .collect::<Vec<_>>()
-        .join("&");
-    let digest = md5::Md5::digest(format!("{query}{APPSECRET}").as_bytes());
-    format!("{:x}", digest)
-}
 
 /// 发送一次心跳（同时发送 Web 和移动端心跳）
 ///
@@ -63,7 +33,7 @@ pub async fn send_heartbeat(
     let hb = base64::engine::general_purpose::STANDARD.encode(format!("{interval}|{room_id}|1|0"));
     let web_res = client
         .get(WEB_HEARTBEAT_URL)
-        .header("Referer", "https://www.bilibili.com/")
+        .header("Referer", BILI_REFERER)
         .header("Cookie", &cookie)
         .query(&[("hb", hb.as_str()), ("pf", "web")])
         .send()
@@ -76,10 +46,7 @@ pub async fn send_heartbeat(
     }
 
     // === 移动端心跳 ===
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let now = unix_secs();
     let today_start = (now / 86400) * 86400;
     let timestamp = if now - 60 > today_start {
         now - 60
@@ -141,7 +108,7 @@ pub async fn send_heartbeat(
     data.insert("appkey".to_string(), APPKEY.to_string());
     data.insert("ts".to_string(), now.to_string());
 
-    let sign = sign_params(&data);
+    let sign = sign_params_sorted(&data.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<Vec<_>>(), APPSECRET);
     data.insert("sign".to_string(), sign);
 
     // 手动构建 form body（按 key 排序，与 sign 计算一致）
@@ -149,7 +116,7 @@ pub async fn send_heartbeat(
     sorted_data.sort_by(|a, b| a.0.cmp(b.0));
     let body = sorted_data
         .iter()
-        .map(|(k, v)| format!("{}={}", py_quote_plus(k), py_quote_plus(v)))
+        .map(|(k, v)| format!("{}={}", super::py_quote_plus(k), super::py_quote_plus(v)))
         .collect::<Vec<_>>()
         .join("&");
 

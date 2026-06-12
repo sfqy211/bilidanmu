@@ -13,7 +13,7 @@ pub async fn login_by_qr(state: State<'_, AppState>) -> Result<serde_json::Value
 
     let response = client
         .get("https://passport.bilibili.com/x/passport-login/web/qrcode/generate")
-        .header("Referer", "https://www.bilibili.com/")
+        .header("Referer", crate::bili::BILI_REFERER)
         .send()
         .await
         .map_err(|error| format!("获取二维码失败: {error}"))?;
@@ -50,7 +50,7 @@ pub async fn poll_qr(
 
     let response = client
         .get("https://passport.bilibili.com/x/passport-login/web/qrcode/poll")
-        .header("Referer", "https://www.bilibili.com/")
+        .header("Referer", crate::bili::BILI_REFERER)
         .query(&[("qrcode_key", qrcode_key)])
         .send()
         .await
@@ -197,23 +197,7 @@ async fn complete_login_with_cookie(
 
 // ── TV 扫码登录（获取 access_key） ──
 
-use crate::bili::{APPKEY as TV_APPKEY, APPSECRET as TV_APPSECRET};
-
-/// 对参数排序、URL 编码、拼接 appsecret 后计算 MD5 签名
-fn tv_sign_params(params: &std::collections::BTreeMap<String, String>) -> String {
-    use md5::Digest;
-    let query = params
-        .iter()
-        .map(|(k, v)| {
-            let ek: String = url::form_urlencoded::byte_serialize(k.as_bytes()).collect();
-            let ev: String = url::form_urlencoded::byte_serialize(v.as_bytes()).collect();
-            format!("{ek}={ev}")
-        })
-        .collect::<Vec<_>>()
-        .join("&");
-    let digest = md5::Md5::digest(format!("{query}{TV_APPSECRET}").as_bytes());
-    format!("{:x}", digest)
-}
+use crate::bili::APPKEY as TV_APPKEY;
 
 #[tauri::command]
 pub async fn login_by_tv_qr(
@@ -221,17 +205,13 @@ pub async fn login_by_tv_qr(
 ) -> Result<serde_json::Value, String> {
     let client = state.proxy_client.clone();
 
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        .to_string();
+    let ts = crate::bili::unix_secs().to_string();
 
     let mut params = std::collections::BTreeMap::new();
     params.insert("appkey".to_string(), TV_APPKEY.to_string());
     params.insert("local_id".to_string(), "0".to_string());
     params.insert("ts".to_string(), ts);
-    let sign = tv_sign_params(&params);
+    let sign = crate::bili::sign_params_sorted(&params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<Vec<_>>(), crate::bili::APPSECRET);
     params.insert("sign".to_string(), sign);
 
     let response = client
@@ -272,18 +252,14 @@ pub async fn poll_tv_qr(
 ) -> Result<serde_json::Value, String> {
     let client = state.proxy_client.clone();
 
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        .to_string();
+    let ts = crate::bili::unix_secs().to_string();
 
     let mut params = std::collections::BTreeMap::new();
     params.insert("appkey".to_string(), TV_APPKEY.to_string());
     params.insert("auth_code".to_string(), auth_code);
     params.insert("local_id".to_string(), "0".to_string());
     params.insert("ts".to_string(), ts);
-    let sign = tv_sign_params(&params);
+    let sign = crate::bili::sign_params_sorted(&params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<Vec<_>>(), crate::bili::APPSECRET);
     params.insert("sign".to_string(), sign);
 
     let response = client
