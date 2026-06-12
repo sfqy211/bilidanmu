@@ -5,6 +5,7 @@ import type {
   Credential,
   Emoticon,
   EmoticonPackage,
+  MessageTemplate,
   QrPollResult,
   Room,
   RoomInfo,
@@ -144,5 +145,14 @@ export const tauriCommands = {
     getModelDir: () => invoke<string>("get_stt_model_dir"),
     listModels: () => invoke<string[]>("list_stt_models"),
     openModelDir: () => invoke<void>("open_stt_model_dir")
+  },
+  messageTemplate: {
+    list: () => invoke<MessageTemplate[]>("list_message_templates"),
+    create: (title: string, content: string) =>
+      invoke<number>("create_message_template", { title, content }),
+    update: (id: number, title: string, content: string) =>
+      invoke<void>("update_message_template", { id, title, content }),
+    delete: (id: number) =>
+      invoke<void>("delete_message_template", { id }),
   }
 };

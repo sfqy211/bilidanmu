@@ -101,6 +101,13 @@ export function makePkgKey(pkg: EmoticonPackage): string {
   return `${pkg.pkgId}-${pkg.pkgType ?? 0}`;
 }
 
+export interface MessageTemplate {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: number;
+}
+
 export interface Settings {
   sendInterval: { min: number; max: number };
   rateLimit: { maxPerWindow: number; windowSec: number };

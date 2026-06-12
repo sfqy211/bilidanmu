@@ -6,6 +6,7 @@ use tauri::State;
 pub mod ai_proxy;
 pub mod auth;
 pub mod danmaku;
+pub mod message_template;
 pub mod proxy;
 pub mod room;
 pub mod selections;

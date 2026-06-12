@@ -3,6 +3,7 @@ mod commands;
 mod credential_store;
 mod db;
 mod emoticon_store;
+mod message_template_store;
 mod models;
 mod proxy;
 mod room_store;
@@ -297,7 +298,11 @@ pub fn run() {
             commands::stt::switch_stt_model,
             commands::stt::get_stt_model_dir,
             commands::stt::list_stt_models,
-            commands::stt::open_stt_model_dir
+            commands::stt::open_stt_model_dir,
+            commands::message_template::list_message_templates,
+            commands::message_template::create_message_template,
+            commands::message_template::update_message_template,
+            commands::message_template::delete_message_template
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

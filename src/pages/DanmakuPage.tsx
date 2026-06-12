@@ -5,10 +5,11 @@ import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
+import { MessageClipboardPanel } from "@/components/danmaku/MessageClipboardPanel";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
@@ -116,6 +117,7 @@ const PANEL = {
   EMOTICON: "emoticon",
   FILTER: "filter",
   SETTINGS: "settings",
+  CLIPBOARD: "clipboard",
 } as const;
 
 export function DanmakuPage() {
@@ -141,6 +143,7 @@ export function DanmakuPage() {
   const autoSendOpen = activePanel === PANEL.AUTO_SEND;
   const settingsOpen = activePanel === PANEL.SETTINGS;
   const filterOpen = activePanel === PANEL.FILTER;
+  const clipboardOpen = activePanel === PANEL.CLIPBOARD;
   const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
   const [locked, setLocked] = useState(false);
@@ -1132,6 +1135,16 @@ export function DanmakuPage() {
             onClose={() => setActivePanel(null)}
           />
         )}
+
+        {clipboardOpen && (
+          <MessageClipboardPanel
+            onClose={() => setActivePanel(null)}
+            onLoad={(content) => {
+              setMessage(content);
+              setActivePanel(null);
+            }}
+          />
+        )}
       </div>
       </div>
 
@@ -1195,6 +1208,17 @@ export function DanmakuPage() {
             }`}
           >
             <Settings className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => togglePanel(PANEL.CLIPBOARD)}
+            title="快捷消息"
+            className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
+              activePanel === PANEL.CLIPBOARD ? "bg-pink-500/15 text-pink-500"
+                : "text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            }`}
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
           </button>
           {aiAvailable && (
             <button

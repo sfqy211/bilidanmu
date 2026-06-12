@@ -96,6 +96,13 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               data_url TEXT NOT NULL,
               updated_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS message_templates (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              content TEXT NOT NULL,
+              created_at INTEGER NOT NULL
+            );
             "#,
         )
         .map_err(|error| format!("初始化 SQLite 数据库失败: {error}"))?;
