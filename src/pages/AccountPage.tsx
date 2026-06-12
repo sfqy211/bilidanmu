@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Check, Eye, Loader2, LogOut, Plus, UserRound, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Check, Eye, Loader2, LogOut, Plus, UserRound, X } from "lucide-react";
 import { getAllWindows } from "@tauri-apps/api/window";
 import { toDataURL } from "qrcode";
 import { ANONYMOUS_ACCOUNT_ID } from "@/lib/constants";
@@ -18,6 +18,7 @@ export function AccountPage() {
   } = useAuth();
 
   const [showAdd, setShowAdd] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [authCode, setAuthCode] = useState<string | null>(null);
   const [qrStatus, setQrStatus] = useState<string>("");
@@ -96,6 +97,11 @@ export function AccountPage() {
   };
 
   const handleOpenAdd = () => {
+    setShowWarning(true);
+  };
+
+  const handleConfirmWarning = () => {
+    setShowWarning(false);
     setShowAdd(true);
     void handleCreateQr();
   };
@@ -178,7 +184,7 @@ export function AccountPage() {
         <div className="flex items-center gap-2">
           {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
           {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
-          {!showAdd && (
+          {!showAdd && !showWarning && (
             <>
               <button
                 onClick={() => void handleSwitchToAnonymous()}
@@ -204,7 +210,39 @@ export function AccountPage() {
         </div>
       </div>
 
-      {showAdd ? (
+      {showWarning ? (
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <div className="flex w-full max-w-lg flex-col items-center rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h3 className="mt-4 text-base font-medium text-slate-900 dark:text-white">风险提示</h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              程序请求与浏览器内正常使用所发送的请求不完全一致，能通过分析请求日志识别出来。
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              软件开发者不对账号发生的任何事情负责，包括并不限于被标记为机器人账号、无法参与各种抽奖和活动等。
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              如您知晓您的账号会因以上所列出来的部分原因所导致无法使用或权益受损等情况，并愿意承担由此所会带来的一系列后果，请继续以下的操作，软件开发者不会对您账号所发生的任何后果承担责任。
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowWarning(false)}
+                className="rounded px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmWarning}
+                className="rounded bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400"
+              >
+                我已知晓，继续
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : showAdd ? (
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex w-full items-center justify-between">
