@@ -37,6 +37,14 @@ pub struct AppearanceSetting {
     pub font_size: u32,
     pub show_medal: bool,
     pub show_level: bool,
+    #[serde(default)]
+    pub hide_glory_level: bool,
+    #[serde(default)]
+    pub hide_fan_medal: bool,
+    #[serde(default)]
+    pub hide_admin_badge: bool,
+    #[serde(default)]
+    pub hide_user_id_color: bool,
     #[serde(default = "default_opacity")]
     pub opacity: u32,
 }
@@ -177,6 +185,10 @@ impl Default for Settings {
                 font_size: 14,
                 show_medal: true,
                 show_level: true,
+                hide_glory_level: false,
+                hide_fan_medal: false,
+                hide_admin_badge: false,
+                hide_user_id_color: false,
                 opacity: 90,
             },
             notification: NotificationSetting {

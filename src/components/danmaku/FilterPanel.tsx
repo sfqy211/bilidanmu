@@ -17,6 +17,8 @@ export function FilterPanel({ className, onClose }: FilterPanelProps) {
   const [activeTab, setActiveTab] = useState<FilterTab>("keywords");
   const [keywordInput, setKeywordInput] = useState("");
 
+  const saveSettings = useSettingsStore((s) => s.saveSettings);
+
   const handleAddKeyword = () => {
     const kw = keywordInput.trim();
     if (!kw) return;
@@ -27,6 +29,7 @@ export function FilterPanel({ className, onClose }: FilterPanelProps) {
     const newKeywords = [...blockedKeywords, kw];
     patchSettings({ filter: { ...settings.filter, blockedKeywords: newKeywords } });
     useDanmakuStore.getState().setBlockFilter(blockedUsers, newKeywords);
+    void saveSettings();
     setKeywordInput("");
   };
 
@@ -34,17 +37,20 @@ export function FilterPanel({ className, onClose }: FilterPanelProps) {
     const newKeywords = blockedKeywords.filter((k) => k !== kw);
     patchSettings({ filter: { ...settings.filter, blockedKeywords: newKeywords } });
     useDanmakuStore.getState().setBlockFilter(blockedUsers, newKeywords);
+    void saveSettings();
   };
 
   const handleRemoveUser = (uid: number) => {
     const newBlockedUsers = blockedUsers.filter((u) => u.uid !== uid);
     patchSettings({ filter: { ...settings.filter, blockedUsers: newBlockedUsers } });
     useDanmakuStore.getState().setBlockFilter(newBlockedUsers, blockedKeywords);
+    void saveSettings();
   };
 
   const handleClearAll = () => {
     patchSettings({ filter: { blockedUsers: [], blockedKeywords: [] } });
     useDanmakuStore.getState().setBlockFilter([], []);
+    void saveSettings();
   };
 
   const hasAnyItems = blockedKeywords.length > 0 || blockedUsers.length > 0;

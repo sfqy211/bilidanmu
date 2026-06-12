@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { emit } from "@tauri-apps/api/event";
+import { tauriCommands } from "@/lib/tauri";
 import type { Settings } from "@/types/bilibili";
 
 export const defaultSettings: Settings = {
@@ -61,6 +62,7 @@ interface SettingsState {
   setSttAvailable: (available: boolean) => void;
   setAiAvailable: (available: boolean) => void;
   patchSettings: (partial: Partial<Settings>) => void;
+  saveSettings: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -135,5 +137,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     // 通知其他窗口设置已变更
     const { settings } = useSettingsStore.getState();
     emit("settings-changed", settings).catch(() => {});
+  },
+  saveSettings: async () => {
+    const { settings } = useSettingsStore.getState();
+    await tauriCommands.settings.update(settings);
   }
 }));

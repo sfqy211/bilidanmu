@@ -341,6 +341,16 @@ export function DanmakuPage() {
   const aiAvailable = useSettingsStore((s) => s.aiAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
   const settings = useSettingsStore((s) => s.settings);
+
+  // 弹幕页设置变更：更新本地状态并持久化到磁盘
+  const saveSettings = useSettingsStore((s) => s.saveSettings);
+  const commitSettings = useCallback(
+    (partial: Partial<SettingsType>) => {
+      patchSettings(partial);
+      void saveSettings();
+    },
+    [patchSettings, saveSettings]
+  );
   const {
     audioRef,
     isPlaying: audioPlaying,
@@ -1228,7 +1238,7 @@ export function DanmakuPage() {
             <div className="space-y-3">
               <DeferredOpacitySlider
                 value={opacity}
-                onCommit={(val) => patchSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
+                onCommit={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
               />
               {([
                 { key: "hideGloryLevel" as const, label: "隐藏荣耀等级" },
@@ -1242,7 +1252,7 @@ export function DanmakuPage() {
                     type="checkbox"
                     checked={settings.appearance[key]}
                     onChange={(e) =>
-                      patchSettings({
+                      commitSettings({
                         appearance: { ...settings.appearance, [key]: e.target.checked }
                       })
                     }

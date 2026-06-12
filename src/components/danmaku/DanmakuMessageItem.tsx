@@ -126,6 +126,8 @@ function ContextMenu({
     });
     // 立即生效：同步 danmaku store
     useDanmakuStore.getState().setBlockFilter(newBlockedUsers, currentFilter.blockedKeywords);
+    // 持久化到本地
+    void useSettingsStore.getState().saveSettings();
     onClose();
   }, [item.uid, item.username, onClose]);
 

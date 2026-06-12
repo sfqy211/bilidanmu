@@ -108,7 +108,7 @@ pub async fn start_stt(
     }
 
     // Read model_id from settings
-    let settings = settings_store::load_settings(&app).map_err(|e| format!("读取设置失败: {e}"))?;
+    let settings = settings_store::load_settings(&state).map_err(|e| format!("读取设置失败: {e}"))?;
     let model_dir = get_model_dir(&app, &settings.stt.model_id)?;
     log::info!("start_stt: model_id={}, dir={}", settings.stt.model_id, model_dir);
 
@@ -149,9 +149,9 @@ pub async fn switch_stt_model(
     }
 
     // Update settings
-    let mut settings = settings_store::load_settings(&app).map_err(|e| format!("读取设置失败: {e}"))?;
+    let mut settings = settings_store::load_settings(&state).map_err(|e| format!("读取设置失败: {e}"))?;
     settings.stt.model_id = model_id;
-    settings_store::save_settings(&app, &settings).map_err(|e| format!("保存设置失败: {e}"))?;
+    settings_store::save_settings(&state, &settings).map_err(|e| format!("保存设置失败: {e}"))?;
 
     // Only restart pipeline if it was previously running (#4)
     if was_running {
