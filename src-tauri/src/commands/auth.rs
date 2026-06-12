@@ -478,8 +478,24 @@ pub async fn restore_login(
     };
 
     // 验证活跃账号的登录状态是否仍然有效
+    // 网络请求失败时（如离线），直接返回缓存的凭据，不清除登录状态
     let api = build_api_client(Some(parsed.clone()), &state);
-    let login_status = api.verify_login_status().await?;
+    let login_status = match api.verify_login_status().await {
+        Ok(status) => status,
+        Err(_) => {
+            // 网络请求失败，返回缓存的凭据
+            let mut credential = Credential::mock();
+            credential.account_id = parsed.dede_user_id.clone().unwrap_or_default();
+            credential.uid = parsed
+                .dede_user_id
+                .as_deref()
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(0);
+            credential.cookie = parsed.cookie_header();
+            credential.bili_jct = parsed.bili_jct.clone();
+            return Ok(Some(credential));
+        }
+    };
 
     if !login_status.is_logged_in {
         // 只清除活跃状态，不删除 cookie —— 可能是网络问题导致验证失败
