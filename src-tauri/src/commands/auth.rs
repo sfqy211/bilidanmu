@@ -40,6 +40,24 @@ pub async fn login_by_qr(state: State<'_, AppState>) -> Result<serde_json::Value
     }))
 }
 
+/// 处理二维码轮询的非成功状态码（过期/已扫码/等待中）
+fn qr_poll_status_response(json: &serde_json::Value, status_code: i64) -> Option<serde_json::Value> {
+    let data = json.get("data");
+    let msg = |fallback: &str| {
+        data.and_then(|d| d.get("message"))
+            .or_else(|| json.get("message"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or(fallback)
+            .to_string()
+    };
+    match status_code {
+        0 => None,
+        86038 => Some(serde_json::json!({ "status": "expired", "message": msg("二维码已过期") })),
+        86090 => Some(serde_json::json!({ "status": "scanned", "message": msg("已扫码，等待确认") })),
+        _ => Some(serde_json::json!({ "status": "pending", "message": msg("等待扫码") })),
+    }
+}
+
 #[tauri::command]
 pub async fn poll_qr(
     app: tauri::AppHandle,
@@ -75,37 +93,25 @@ pub async fn poll_qr(
     let data = json.get("data").ok_or_else(|| "二维码轮询响应缺少 data 字段".to_string())?;
     let status_code = data.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
 
-    match status_code {
-        0 => {
-            let cookie = headers
-                .get_all(reqwest::header::SET_COOKIE)
-                .iter()
-                .filter_map(|value| value.to_str().ok())
-                .filter_map(|value| value.split(';').next())
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("; ");
-
-            let credential = complete_login_with_cookie(&app, &state, cookie).await?;
-            Ok(serde_json::json!({
-                "status": "success",
-                "message": "扫码登录成功",
-                "credential": credential,
-            }))
-        }
-        86038 => Ok(serde_json::json!({
-            "status": "expired",
-            "message": data.get("message").and_then(serde_json::Value::as_str).unwrap_or("二维码已过期"),
-        })),
-        86090 => Ok(serde_json::json!({
-            "status": "scanned",
-            "message": data.get("message").and_then(serde_json::Value::as_str).unwrap_or("已扫码，等待确认"),
-        })),
-        _ => Ok(serde_json::json!({
-            "status": "pending",
-            "message": data.get("message").and_then(serde_json::Value::as_str).unwrap_or("等待扫码"),
-        })),
+    if let Some(resp) = qr_poll_status_response(&json, status_code) {
+        return Ok(resp);
     }
+
+    let cookie = headers
+        .get_all(reqwest::header::SET_COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .filter_map(|value| value.split(';').next())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("; ");
+
+    let credential = complete_login_with_cookie(&app, &state, cookie).await?;
+    Ok(serde_json::json!({
+        "status": "success",
+        "message": "扫码登录成功",
+        "credential": credential,
+    }))
 }
 
 #[tauri::command]
@@ -175,24 +181,7 @@ async fn complete_login_with_cookie(
 
     let _ = tray::refresh_tray(&app);
 
-    // 构建返回的 Credential
-    let mut credential = Credential::mock();
-    if let Some(account) = login_status.account {
-        credential.account_id = account.id;
-        credential.uid = account.uid;
-        credential.username = account.username;
-        credential.avatar = account.avatar;
-    } else {
-        credential.uid = parsed
-            .dede_user_id
-            .as_deref()
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(credential.uid);
-        credential.username = "Bilibili 用户".to_string();
-    }
-    credential.cookie = parsed.cookie_header();
-    credential.bili_jct = parsed.bili_jct.clone();
-    Ok(credential)
+    Ok(build_credential_from_login(&login_status, &parsed, parsed.cookie_header()))
 }
 
 // ── TV 扫码登录（获取 access_key） ──
@@ -277,8 +266,12 @@ pub async fn poll_tv_qr(
 
     let outer_code = json.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
 
-    match outer_code {
-        0 => {
+    if let Some(resp) = qr_poll_status_response(&json, outer_code) {
+        return Ok(resp);
+    }
+
+    // outer_code == 0：登录成功
+    {
             // 登录成功，提取 access_token
             let data = json.get("data").ok_or_else(|| "TV 登录响应缺少 data 字段".to_string())?;
             let access_token = data
@@ -338,22 +331,34 @@ pub async fn poll_tv_qr(
 
             // TV 登录成功但无 cookie_info（不应发生）
             Err("TV 登录响应缺少 cookie_info，请重试".to_string())
-        }
-        86038 => Ok(serde_json::json!({
-            "status": "expired",
-            "message": json.get("message").and_then(serde_json::Value::as_str).unwrap_or("二维码已过期"),
-        })),
-        86090 => Ok(serde_json::json!({
-            "status": "scanned",
-            "message": json.get("message").and_then(serde_json::Value::as_str).unwrap_or("已扫码，等待确认"),
-        })),
-        _ => Ok(serde_json::json!({
-            "status": "pending",
-            "message": json.get("message").and_then(serde_json::Value::as_str).unwrap_or("等待扫码"),
-        })),
     }
 }
 
+
+/// 从登录状态和 BiliCredential 构建返回用的 Credential
+fn build_credential_from_login(
+    login_status: &crate::models::account::LoginStatus,
+    cred: &BiliCredential,
+    cookie: String,
+) -> Credential {
+    let mut credential = Credential::mock();
+    if let Some(ref account) = login_status.account {
+        credential.account_id = account.id.clone();
+        credential.uid = account.uid;
+        credential.username = account.username.clone();
+        credential.avatar = account.avatar.clone();
+    } else {
+        credential.uid = cred
+            .dede_user_id
+            .as_deref()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        credential.username = "Bilibili 用户".to_string();
+    }
+    credential.cookie = cookie;
+    credential.bili_jct = cred.bili_jct.clone();
+    credential
+}
 
 /// 应用启动时尝试恢复已保存的登录状态（所有账号）
 #[tauri::command]
@@ -489,41 +494,28 @@ pub async fn restore_login(
         return Ok(None);
     }
 
-    let mut credential = Credential::mock();
-    if let Some(account) = login_status.account {
-        credential.account_id = account.id;
-        credential.uid = account.uid;
-        credential.username = account.username;
-        credential.avatar = account.avatar;
-    } else {
-        credential.uid = parsed
-            .dede_user_id
-            .as_deref()
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(credential.uid);
-    }
-    credential.cookie = parsed.cookie_header();
-    credential.bili_jct = parsed.bili_jct.clone();
-    Ok(Some(credential))
+    Ok(Some(build_credential_from_login(&login_status, &parsed, parsed.cookie_header())))
 }
 
-/// 停止自动发送 + 断开 WS + 清除活跃凭据（内部辅助函数）
-async fn deactivate_current(state: &AppState) {
-    // 停止自动发送
+/// 停止自动发送 + 断开 WS
+async fn stop_auto_and_ws(state: &AppState) {
     {
         let mut auto_sender = state.auto_sender.lock().await;
         if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
         }
     }
-
-    // 断开 WebSocket
     {
         let mut ws_client = state.ws_client.lock().await;
         if let Some(client) = ws_client.as_mut() {
             client.disconnect().await;
         }
     }
+}
+
+/// 停止自动发送 + 断开 WS + 清除活跃凭据（内部辅助函数）
+async fn deactivate_current(state: &AppState) {
+    stop_auto_and_ws(state).await;
 
     // 清除活跃凭据
     {
@@ -609,21 +601,7 @@ pub async fn switch_account(
             .ok_or_else(|| format!("账号 {account_id} 未找到"))?
     };
 
-    // 停止自动发送（避免使用旧账号凭据）
-    {
-        let mut auto_sender = state.auto_sender.lock().await;
-        if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
-        }
-    }
-
-    // 断开 WebSocket（避免使用旧账号凭据）
-    {
-        let mut ws_client = state.ws_client.lock().await;
-        if let Some(client) = ws_client.as_mut() {
-            client.disconnect().await;
-        }
-    }
+    stop_auto_and_ws(&state).await;
 
     // 验证新账号登录状态
     let api = build_api_client(Some(cred.clone()), &state);
@@ -675,23 +653,7 @@ pub async fn switch_account(
 
     let _ = tray::refresh_tray(&app);
 
-    // 构建返回的 Credential
-    let mut credential = Credential::mock();
-    if let Some(account) = login_status.account {
-        credential.account_id = account.id;
-        credential.uid = account.uid;
-        credential.username = account.username;
-        credential.avatar = account.avatar;
-    } else {
-        credential.uid = cred
-            .dede_user_id
-            .as_deref()
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0);
-    }
-    credential.cookie = cred.cookie_header();
-    credential.bili_jct = cred.bili_jct.clone();
-    Ok(credential)
+    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header()))
 }
 
 /// 获取所有已登录的账号列表
@@ -754,23 +716,7 @@ pub async fn switch_sending_account(
 
     log::info!("已切换发送账号为: {account_id}");
 
-    // 构建返回的 Credential
-    let mut credential = Credential::mock();
-    if let Some(account) = login_status.account {
-        credential.account_id = account.id;
-        credential.uid = account.uid;
-        credential.username = account.username;
-        credential.avatar = account.avatar;
-    } else {
-        credential.uid = cred
-            .dede_user_id
-            .as_deref()
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0);
-    }
-    credential.cookie = cred.cookie_header();
-    credential.bili_jct = cred.bili_jct.clone();
-    Ok(credential)
+    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header()))
 }
 
 /// 获取当前发送账号 ID（未设置时返回 None）
@@ -786,21 +732,7 @@ pub async fn switch_to_anonymous(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Credential, String> {
-    // 停止自动发送
-    {
-        let mut auto_sender = state.auto_sender.lock().await;
-        if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
-        }
-    }
-
-    // 断开 WebSocket
-    {
-        let mut ws_client = state.ws_client.lock().await;
-        if let Some(client) = ws_client.as_mut() {
-            client.disconnect().await;
-        }
-    }
+    stop_auto_and_ws(&state).await;
 
     // 创建匿名凭据
     let anon_cred = BiliCredential::anonymous();
