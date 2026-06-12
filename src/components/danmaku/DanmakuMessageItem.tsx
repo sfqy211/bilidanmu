@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AtSign, Copy, ExternalLink, ShieldBan, User } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
@@ -64,17 +65,31 @@ function ContextMenu({
 }) {
   const menuNodeRef = useRef<HTMLDivElement | null>(null);
 
-  // 使用回调 ref 在元素挂载时立即调整位置，避免闪烁
+  // 使用回调 ref 在元素挂载时立即调整位置，空间不足时自动翻转方向
   const adjustPosition = useCallback((node: HTMLDivElement | null) => {
     menuNodeRef.current = node;
     if (!node) return;
     const rect = node.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const adjustedX = Math.max(8, Math.min(x, viewportWidth - rect.width - 8));
-    const adjustedY = Math.max(8, Math.min(y, viewportHeight - rect.height - 8));
-    node.style.left = `${adjustedX}px`;
-    node.style.top = `${adjustedY}px`;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+
+    // 水平：右侧空间不足则向左翻转
+    let left = x;
+    if (x + rect.width + margin > vw) {
+      left = x - rect.width;
+    }
+    left = Math.max(margin, Math.min(left, vw - rect.width - margin));
+
+    // 垂直：下方空间不足则向上翻转
+    let top = y;
+    if (y + rect.height + margin > vh) {
+      top = y - rect.height;
+    }
+    top = Math.max(margin, Math.min(top, vh - rect.height - margin));
+
+    node.style.left = `${left}px`;
+    node.style.top = `${top}px`;
     node.style.visibility = "visible";
   }, [x, y]);
 
@@ -140,8 +155,9 @@ function ContextMenu({
 
   return (
     <div
+      data-interactive=""
       ref={adjustPosition}
-      className="fixed z-50 min-w-[140px] overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg dark:border-white/[0.06] dark:bg-[#12141e]"
+      className="pointer-events-auto fixed z-50 min-w-[140px] overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg dark:border-white/[0.06] dark:bg-[#12141e]"
       style={{ left: x, top: y, visibility: "hidden" }}
     >
       {onMention && item.type === "danmaku" && (
@@ -151,7 +167,7 @@ function ContextMenu({
           className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
         >
           <AtSign className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-slate-700 dark:text-slate-200">@{item.username}</span>
+          <span className="text-slate-700 dark:text-slate-200">{item.username}</span>
         </button>
       )}
       <button
@@ -284,14 +300,15 @@ export function DanmakuMessageItem({
         )}
         </span>
       </span>
-      {contextMenu && (
+      {contextMenu && createPortal(
         <ContextMenu
           item={item}
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           onMention={onMention}
-        />
+        />,
+        document.body
       )}
     </div>
   );

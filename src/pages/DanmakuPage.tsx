@@ -462,6 +462,7 @@ export function DanmakuPage() {
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
+      if (event.button !== 0) return; // 仅左键
       const target = event.target as Node | null;
       if (!target) return;
       if (inputBarRef.current?.contains(target)) return;
@@ -1060,6 +1061,7 @@ export function DanmakuPage() {
       )}
 
       {/* 浮动面板（覆盖在内容区上方） */}
+      {activePanel && (
       <div className="absolute inset-x-0 bottom-0 z-20">
         {settingsOpen && (
           <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
@@ -1164,6 +1166,7 @@ export function DanmakuPage() {
           />
         )}
       </div>
+      )}
       </div>
 
       {/* 发送栏 */}
