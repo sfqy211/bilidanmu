@@ -39,7 +39,7 @@ export function FloatingPanel({ title, onClose, className, extra, children }: Fl
             </button>
           )}
         </div>
-        <div className="max-h-[50vh] overflow-y-auto p-3">
+        <div className="max-h-[50vh] overflow-y-auto px-3">
           {children}
         </div>
       </div>

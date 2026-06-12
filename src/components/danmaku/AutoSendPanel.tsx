@@ -41,76 +41,6 @@ const AUTO_SEND_TABS: Array<{ key: TabKey; label: string }> = [
   { key: "like", label: "点赞" },
 ];
 
-// ─── 共享控件：间隔 + 时间限制 + 开始/停止 ───
-
-function AutoSendControls({
-  isRunning,
-  entryCount,
-  intervalSec,
-  setIntervalSec,
-  timeLimitSec,
-  setTimeLimitSec,
-  onStart,
-  onStop,
-}: {
-  isRunning: boolean;
-  entryCount: number;
-  intervalSec: string;
-  setIntervalSec: (v: string) => void;
-  timeLimitSec: string;
-  setTimeLimitSec: (v: string) => void;
-  onStart: () => void;
-  onStop: () => void;
-}) {
-  const intervalValid = Number.isFinite(Number(intervalSec)) && Number(intervalSec) >= 0.3;
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex flex-1 items-center gap-1.5">
-        <label className="shrink-0 text-xs text-slate-500 dark:text-slate-400">间隔</label>
-        <input
-          value={intervalSec}
-          onChange={(e) => setIntervalSec(e.target.value)}
-          disabled={isRunning}
-          inputMode="decimal"
-          className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white"
-        />
-        <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
-      </div>
-      <div className="flex flex-1 items-center gap-1.5">
-        <label className="shrink-0 text-xs text-slate-500 dark:text-slate-400">限时</label>
-        <input
-          value={timeLimitSec}
-          onChange={(e) => setTimeLimitSec(e.target.value)}
-          disabled={isRunning}
-          inputMode="numeric"
-          placeholder="0"
-          className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
-        />
-        <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
-      </div>
-      <div className="flex shrink-0 gap-1">
-        <button
-          onClick={onStart}
-          disabled={isRunning || entryCount === 0 || !intervalValid}
-          title="开始发送"
-          className="flex h-8 w-8 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Play className="h-4 w-4" />
-        </button>
-        <button
-          onClick={onStop}
-          disabled={!isRunning}
-          title="停止"
-          className="flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-white/[0.04]"
-        >
-          <Square className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── 文字 Tab 内容区 ───
 
 function TextTabContent({
@@ -141,7 +71,8 @@ function TextTabContent({
         onChange={(e) => setMessagesInput(e.target.value)}
         disabled={isRunning}
         placeholder={"每行一条循环弹幕\n第一条"}
-        className="min-h-28 w-full rounded bg-white/10 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
+        rows={2}
+        className="w-full rounded bg-white/10 px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
       />
       <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">共 {entries.length} 条</p>
     </div>
@@ -316,7 +247,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("text");
 
   // 全局统一的间隔/时间限制配置
-  const [intervalSec, setIntervalSec] = useState("2");
+  const [intervalSec, setIntervalSec] = useState("5");
   const [timeLimitSec, setTimeLimitSec] = useState("0");
 
   // 当前 Tab 的 entries（由各 Tab 内容区通过 onEntriesChange 回调上报）
@@ -343,7 +274,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
       title="循环发送"
       onClose={onClose}
       extra={
-        isRunning
+        (isRunning || like.isRunning)
           ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
           : <Circle className="h-4 w-4 text-slate-400" />
       }
@@ -413,52 +344,6 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
             </div>
           </div>
 
-          {/* 进度条 */}
-          {like.targetTotal > 0 && (
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                <span>进度</span>
-                <span>{like.sentTotal} / {like.targetTotal}</span>
-              </div>
-              <div className="h-2 w-full bg-white/10 dark:bg-white/[0.06]">
-                <div
-                  className="h-full bg-pink-500 transition-all"
-                  style={{ width: `${Math.min(100, (like.sentTotal / like.targetTotal) * 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* 启动/停止 */}
-          {(() => {
-            const target = Number(likeTarget);
-            const batch = Number(likeBatchSize);
-            const interval = Number(likeIntervalSec);
-            const valid = Number.isFinite(target) && target > 0 && target <= 1000
-              && Number.isFinite(batch) && batch > 0 && batch <= 100
-              && Number.isFinite(interval) && interval >= 0.5;
-            return (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => void like.onStart(Math.round(target), Math.round(batch), Math.round(interval * 1000))}
-                  disabled={like.isRunning || !valid || !like.anchorId}
-                  title={!like.anchorId ? "缺少主播信息" : "开始点赞"}
-                  className="flex h-8 w-8 items-center justify-center bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Play className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={like.onStop}
-                  disabled={!like.isRunning}
-                  className="flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-white/[0.04]"
-                  title="停止"
-                >
-                  <Square className="h-3 w-3" />
-                </button>
-              </div>
-            );
-          })()}
-
           {/* 状态 */}
           <div className="space-y-1 text-xs">
             {like.stopReason === "completed" ? (
@@ -473,36 +358,106 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
         </div>
       )}
 
-      {/* 全局共享控件（点赞 tab 有独立控件，不显示） */}
-      {activeTab !== "like" && (
-        <div className="mt-3">
-          <AutoSendControls
-            isRunning={isRunning}
-            entryCount={currentEntries.length}
-            intervalSec={intervalSec}
-            setIntervalSec={setIntervalSec}
-            timeLimitSec={timeLimitSec}
-            setTimeLimitSec={setTimeLimitSec}
-            onStart={handleStart}
-            onStop={onStop}
-          />
-        </div>
-      )}
+      {/* 底部控件：进度 + 间隔 + 限时 + 启停 */}
+      <div className="mt-3 flex items-center gap-2">
+        {/* 进度条（仅点赞 tab 且有目标时显示） */}
+        {activeTab === "like" && like.targetTotal > 0 && (
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
+              <span>{like.sentTotal}/{like.targetTotal}</span>
+            </div>
+            <div className="h-1.5 w-full bg-white/10 dark:bg-white/[0.06] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-pink-500 transition-all rounded-full"
+                style={{ width: `${Math.min(100, (like.sentTotal / like.targetTotal) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
-      {/* 运行状态（点赞 tab 有独立状态显示） */}
-      {activeTab !== "like" && (
-        <div className="mt-3 space-y-1 text-xs">
-          {lastSentMessage ? (
-            <p className="text-slate-500 dark:text-slate-400">
-              最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}
-            </p>
-          ) : null}
-          {lastIndex !== null ? <p className="text-slate-400 dark:text-slate-500">当前条目索引：#{lastIndex + 1}</p> : null}
-          <p className="text-slate-400 dark:text-slate-500">累计发送：{sentCount} 条</p>
-          {stopReason ? <p className="text-slate-400 dark:text-slate-500">停止原因：{stopReason}</p> : null}
-          {error ? <p className="text-rose-500 dark:text-rose-400">错误：{error}</p> : null}
-        </div>
-      )}
+        {/* 间隔（仅文字/表情 tab，点赞 tab 上方已有批次间隔） */}
+        {activeTab !== "like" && (
+          <div className="flex items-center gap-1.5">
+            <label className="shrink-0 text-xs text-slate-500 dark:text-slate-400">间隔</label>
+            <input
+              value={intervalSec}
+              onChange={(e) => setIntervalSec(e.target.value)}
+              disabled={isRunning}
+              inputMode="decimal"
+              className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white"
+            />
+            <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
+          </div>
+        )}
+
+        {/* 限时（仅文字/表情 tab） */}
+        {activeTab !== "like" && (
+          <div className="flex items-center gap-1.5">
+            <label className="shrink-0 text-xs text-slate-500 dark:text-slate-400">限时</label>
+            <input
+              value={timeLimitSec}
+              onChange={(e) => setTimeLimitSec(e.target.value)}
+              disabled={isRunning}
+              inputMode="numeric"
+              placeholder="0"
+              className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
+            />
+            <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
+          </div>
+        )}
+
+        {/* 启停按钮 */}
+        {(() => {
+          const running = activeTab === "like" ? like.isRunning : isRunning;
+          const canStart = activeTab === "like"
+            ? !like.isRunning && like.anchorId && (() => {
+                const t = Number(likeTarget), b = Number(likeBatchSize), i = Number(likeIntervalSec);
+                return Number.isFinite(t) && t > 0 && t <= 1000 && Number.isFinite(b) && b > 0 && b <= 100 && Number.isFinite(i) && i >= 0.5;
+              })()
+            : !isRunning && currentEntries.length > 0 && Number.isFinite(Number(intervalSec)) && Number(intervalSec) >= 0.3;
+
+          return (
+            <button
+              onClick={() => {
+                if (running) {
+                  activeTab === "like" ? like.onStop() : onStop();
+                } else if (canStart) {
+                  if (activeTab === "like") {
+                    const t = Math.round(Number(likeTarget));
+                    const b = Math.round(Number(likeBatchSize));
+                    const i = Math.round(Number(likeIntervalSec) * 1000);
+                    void like.onStart(t, b, i);
+                  } else {
+                    handleStart();
+                  }
+                }
+              }}
+              disabled={!running && !canStart}
+              title={running ? "停止" : activeTab === "like" && !like.anchorId ? "缺少主播信息" : "开始"}
+              className={`ml-auto flex h-8 w-8 items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                running
+                  ? "bg-rose-500 text-white hover:bg-rose-400"
+                  : "bg-pink-500 text-white hover:bg-pink-400"
+              }`}
+            >
+              {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-4 w-4" />}
+            </button>
+          );
+        })()}
+      </div>
+
+      {/* 运行状态 */}
+      <div className="mt-3 space-y-1 text-xs">
+        {lastSentMessage ? (
+          <p className="text-slate-500 dark:text-slate-400">
+            最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}
+          </p>
+        ) : null}
+        {lastIndex !== null ? <p className="text-slate-400 dark:text-slate-500">当前条目索引：#{lastIndex + 1}</p> : null}
+        {sentCount > 0 ? <p className="text-slate-400 dark:text-slate-500">累计发送：{sentCount} 条</p> : null}
+        {stopReason ? <p className="text-slate-400 dark:text-slate-500">停止原因：{stopReason}</p> : null}
+        {error ? <p className="text-rose-500 dark:text-rose-400">错误：{error}</p> : null}
+      </div>
     </FloatingPanel>
   );
 }
