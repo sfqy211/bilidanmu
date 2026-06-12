@@ -14,10 +14,21 @@ $PackageJson = $PackageJson -replace '"version":\s*"[^"]*"', "`"version`": `"$Ve
 Set-Content "$ProjectRoot\package.json" -Value $PackageJson -NoNewline
 Write-Host "OK: package.json -> $Version"
 
-# 2. Cargo.toml
-$CargoToml = Get-Content "$ProjectRoot\src-tauri\Cargo.toml" -Raw
-$CargoToml = $CargoToml -replace '(?m)^version\s*=\s*"[^"]*"', "version = `"$Version`""
-Set-Content "$ProjectRoot\src-tauri\Cargo.toml" -Value $CargoToml -NoNewline
+# 2. Cargo.toml — 只替换 [package] 块下的 version，避免误改依赖版本
+$CargoLines = Get-Content "$ProjectRoot\src-tauri\Cargo.toml"
+$InPackage = $false
+$PackageVersionReplaced = $false
+$CargoLines = $CargoLines | ForEach-Object {
+    if ($_ -match '^\[package\]') { $InPackage = $true }
+    elseif ($_ -match '^\[') { $InPackage = $false }
+    if ($InPackage -and -not $PackageVersionReplaced -and $_ -match '^version\s*=\s*"[^"]*"') {
+        $PackageVersionReplaced = $true
+        $_ -replace '^version\s*=\s*"[^"]*"', "version = `"$Version`""
+    } else {
+        $_
+    }
+}
+$CargoLines | Set-Content "$ProjectRoot\src-tauri\Cargo.toml"
 Write-Host "OK: Cargo.toml -> $Version"
 
 # 3. tauri.conf.json
