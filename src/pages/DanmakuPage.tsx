@@ -1243,7 +1243,7 @@ export function DanmakuPage() {
               packages={emoticonPackages}
               activePkgKey={activePkgKey}
               sending={sending}
-              favoriteUniques={new Set(currentFavorites.map((e) => e.emoticonUnique).filter(Boolean) as string[])}
+              favoriteUniques={new Set(currentFavorites.flatMap((e) => e.emoticonUnique ? [e.emoticonUnique] : []))}
               onClose={() => setEmoticonPickerOpen(false)}
               onReload={() => void loadEmoticons()}
               onSelectPackage={setActivePkgKey}

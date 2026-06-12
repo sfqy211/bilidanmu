@@ -35,6 +35,13 @@ interface AutoSendPanelProps {
 
 type TabKey = "text" | "emotion" | "favorites" | "like";
 
+const AUTO_SEND_TABS: Array<{ key: TabKey; label: string }> = [
+  { key: "text", label: "文字" },
+  { key: "emotion", label: "表情" },
+  { key: "favorites", label: "收藏夹" },
+  { key: "like", label: "点赞" },
+];
+
 // ─── 共享控件：间隔 + 时间限制 + 开始/停止 ───
 
 function AutoSendControls({
@@ -128,8 +135,10 @@ function TextTabContent({
   }, [textFill, onTextFillConsumed]);
 
   const entries = useMemo(
-    () => messagesInput.split("\n").map((s) => s.trim()).filter(Boolean)
-      .map((msg) => ({ message: msg, dmType: 0, emoticonOptions: undefined })),
+    () => messagesInput.split("\n").flatMap((s) => {
+      const msg = s.trim();
+      return msg ? [{ message: msg, dmType: 0, emoticonOptions: undefined }] : [];
+    }),
     [messagesInput]
   );
 
@@ -323,7 +332,7 @@ function FavoritesTabContent({
   const allMessages = useMemo(() => {
     const result: string[] = [];
     for (const panel of panels) {
-      const lines = panel.msg.split("\n").map((s) => s.trim()).filter(Boolean);
+      const lines = panel.msg.split("\n").flatMap((s) => { const t = s.trim(); return t ? [t] : []; });
       result.push(...lines);
     }
     return result;
@@ -491,13 +500,6 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   const [likeBatchSize, setLikeBatchSize] = useState("5");
   const [likeIntervalSec, setLikeIntervalSec] = useState("1.5");
 
-  const tabs: Array<{ key: TabKey; label: string }> = [
-    { key: "text", label: "文字" },
-    { key: "emotion", label: "表情" },
-    { key: "favorites", label: "收藏夹" },
-    { key: "like", label: "点赞" },
-  ];
-
   return (
     <div
       onMouseDown={(event) => event.stopPropagation()}
@@ -533,7 +535,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
 
       {/* Tab 切换 */}
       <div className="mb-3 flex gap-1">
-        {tabs.map((tab) => (
+        {AUTO_SEND_TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}

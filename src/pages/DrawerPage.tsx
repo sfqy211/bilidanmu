@@ -57,6 +57,7 @@ export function DrawerPage() {
       const results = await tauriCommands.ai.trigger(action, "");
       const now = Math.floor(Date.now() / 1000);
       const suggestions: AiSuggestion[] = results.map((text) => ({
+        id: crypto.randomUUID(),
         type: action,
         roomId: roomId ?? 0,
         message: text,
@@ -127,7 +128,7 @@ export function DrawerPage() {
           {replies.length > 0 ? (
             <div className="space-y-1">
               {replies.map((s, i) => (
-                <div key={`reply-${i}`} className="group flex items-start gap-1.5 rounded bg-[#f0f0f0] px-2 py-1.5 dark:bg-white/[0.03]">
+                <div key={s.id ?? `reply-${i}`} className="group flex items-start gap-1.5 rounded bg-[#f0f0f0] px-2 py-1.5 dark:bg-white/[0.03]">
                   <Bot className="mt-0.5 h-3 w-3 shrink-0 text-violet-500 dark:text-violet-400" />
                   <p className="min-w-0 flex-1 break-words whitespace-pre-wrap text-xs leading-relaxed text-slate-700 dark:text-slate-200" style={{ fontSize: `${fontSize}px` }}>
                     {s.message}
@@ -136,7 +137,7 @@ export function DrawerPage() {
                     <button onClick={() => void handleSendReply(s.message, replies.map((r) => r.message))} title="发送" className="p-0.5 text-violet-500 transition hover:bg-violet-100 dark:text-violet-400 dark:hover:bg-violet-500/20">
                       <Send className="h-3 w-3" />
                     </button>
-                    <button onClick={() => setReplies((prev) => prev.filter((_, idx) => idx !== i))} title="删除" className="p-0.5 text-slate-400 transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]">
+                    <button onClick={() => setReplies((prev) => prev.filter((r) => r.id !== s.id))} title="删除" className="p-0.5 text-slate-400 transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </div>

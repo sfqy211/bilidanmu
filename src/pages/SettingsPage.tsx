@@ -10,6 +10,15 @@ import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { Settings } from "@/types/bilibili";
 
+const SETTINGS_TABS = [
+  { value: "send", label: "弹幕发送" },
+  { value: "receive", label: "弹幕接收" },
+  { value: "appearance", label: "外观" },
+  { value: "audio", label: "音频与语音" },
+  { value: "cache", label: "缓存管理" },
+  { value: "about", label: "关于" },
+];
+
 export function SettingsPage() {
   const settings = useSettingsStore((state) => state.settings);
   const setSettings = useSettingsStore((state) => state.setSettings);
@@ -27,15 +36,6 @@ export function SettingsPage() {
   const [modelDir, setModelDir] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const sttAvailable = useSettingsStore((state) => state.sttAvailable);
-
-  const tabs = [
-    { value: "send", label: "弹幕发送" },
-    { value: "receive", label: "弹幕接收" },
-    { value: "appearance", label: "外观" },
-    { value: "audio", label: "音频与语音" },
-    { value: "cache" as const, label: "缓存管理" },
-    { value: "about" as const, label: "关于" }
-  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +107,7 @@ export function SettingsPage() {
       </div>
 
       <PageTabs
-        tabs={tabs}
+        tabs={SETTINGS_TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       >
