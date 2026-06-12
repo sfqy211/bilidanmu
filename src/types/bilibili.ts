@@ -138,11 +138,20 @@ export interface Settings {
   };
   audio: AudioSetting;
   stt: SttSetting;
+  filter: {
+    blockedUsers: BlockedUser[];
+    blockedKeywords: string[];
+  };
 }
 
 export interface AudioSetting {
   defaultVolume: number;
   autoPlay: boolean;
+}
+
+export interface BlockedUser {
+  uid: number;
+  username: string;
 }
 
 export interface SttSetting {

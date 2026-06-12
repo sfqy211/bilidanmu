@@ -46,6 +46,10 @@ export const defaultSettings: Settings = {
     enabled: false,
     modelId: "large",
     syncDelayMs: 0
+  },
+  filter: {
+    blockedUsers: [],
+    blockedKeywords: []
   }
 };
 
@@ -72,6 +76,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       cache: { ...defaultSettings.cache, ...settings.cache },
       audio: { ...defaultSettings.audio, ...settings.audio },
       stt: { ...defaultSettings.stt, ...settings.stt },
+      filter: { ...defaultSettings.filter, ...settings.filter },
       notification: { ...defaultSettings.notification, ...settings.notification },
       sendInterval: { ...defaultSettings.sendInterval, ...settings.sendInterval },
       rateLimit: { ...defaultSettings.rateLimit, ...settings.rateLimit },
@@ -120,6 +125,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         stt: {
           ...state.settings.stt,
           ...partial.stt
+        },
+        filter: {
+          ...state.settings.filter,
+          ...partial.filter
         }
       }
     }));

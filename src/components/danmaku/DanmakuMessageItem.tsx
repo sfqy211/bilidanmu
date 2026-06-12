@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AtSign, Copy, ExternalLink, User } from "lucide-react";
+import { AtSign, Copy, ExternalLink, ShieldBan, User } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { DanmakuMessage } from "@/types/danmaku";
+import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
 function getMessageTextClass(type: string): string {
@@ -109,6 +110,25 @@ function ContextMenu({
     onClose();
   }, [item.uid, onClose]);
 
+  const handleBlockUser = useCallback(() => {
+    if (!item.uid) return;
+    const patchSettings = useSettingsStore.getState().patchSettings;
+    const currentFilter = useSettingsStore.getState().settings.filter;
+    // 避免重复添加
+    if (currentFilter.blockedUsers.some((u) => u.uid === item.uid)) {
+      onClose();
+      return;
+    }
+    const newUser = { uid: item.uid, username: item.username };
+    const newBlockedUsers = [...currentFilter.blockedUsers, newUser];
+    patchSettings({
+      filter: { ...currentFilter, blockedUsers: newBlockedUsers }
+    });
+    // 立即生效：同步 danmaku store
+    useDanmakuStore.getState().setBlockFilter(newBlockedUsers, currentFilter.blockedKeywords);
+    onClose();
+  }, [item.uid, item.username, onClose]);
+
   const handleMention = useCallback(() => {
     if (onMention) {
       onMention(item.username);
@@ -151,14 +171,24 @@ function ContextMenu({
         </button>
       )}
       {item.uid !== undefined && item.uid > 0 && (
-        <button
-          type="button"
-          onClick={openHomepage}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
-        >
-          <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-slate-700 dark:text-slate-200">打开主页</span>
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={handleBlockUser}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+          >
+            <ShieldBan className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-slate-700 dark:text-slate-200">屏蔽此用户</span>
+          </button>
+          <button
+            type="button"
+            onClick={openHomepage}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
+          >
+            <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-slate-700 dark:text-slate-200">打开主页</span>
+          </button>
+        </>
       )}
     </div>
   );

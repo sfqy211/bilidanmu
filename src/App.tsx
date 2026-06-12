@@ -46,6 +46,10 @@ export default function App() {
         if (settings.cache) {
           useDanmakuStore.getState().setLimits(settings.cache.danmakuLimit, settings.cache.giftLimit);
         }
+        // 同步屏蔽列表
+        if (settings.filter) {
+          useDanmakuStore.getState().setBlockFilter(settings.filter.blockedUsers, settings.filter.blockedKeywords);
+        }
 
         // 恢复活跃账号
         if (activeCredential) {
@@ -135,6 +139,10 @@ export default function App() {
       // 同步消息缓存上限
       if (event.payload.cache) {
         useDanmakuStore.getState().setLimits(event.payload.cache.danmakuLimit, event.payload.cache.giftLimit);
+      }
+      // 同步屏蔽列表
+      if (event.payload.filter) {
+        useDanmakuStore.getState().setBlockFilter(event.payload.filter.blockedUsers, event.payload.filter.blockedKeywords);
       }
     };
 

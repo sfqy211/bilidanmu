@@ -112,6 +112,29 @@ impl Default for CacheSetting {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BlockedUser {
+    pub uid: u64,
+    pub username: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilterSetting {
+    pub blocked_users: Vec<BlockedUser>,
+    pub blocked_keywords: Vec<String>,
+}
+
+impl Default for FilterSetting {
+    fn default() -> Self {
+        Self {
+            blocked_users: Vec::new(),
+            blocked_keywords: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub send_interval: RangeSetting,
     pub rate_limit: RateLimitSetting,
@@ -125,6 +148,8 @@ pub struct Settings {
     pub audio: AudioSetting,
     #[serde(default)]
     pub stt: SttSetting,
+    #[serde(default)]
+    pub filter: FilterSetting,
 }
 
 impl Default for Settings {
@@ -163,6 +188,7 @@ impl Default for Settings {
             cache: CacheSetting::default(),
             audio: AudioSetting::default(),
             stt: SttSetting::default(),
+            filter: FilterSetting::default(),
         }
     }
 }

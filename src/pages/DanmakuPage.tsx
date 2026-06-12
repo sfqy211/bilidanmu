@@ -5,13 +5,14 @@ import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ArrowDown, Bot, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
+import { FilterPanel } from "@/components/danmaku/FilterPanel";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
@@ -165,6 +166,7 @@ export function DanmakuPage() {
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const [autoSendOpen, setAutoSendOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
   const [locked, setLocked] = useState(false);
@@ -604,6 +606,7 @@ export function DanmakuPage() {
     if (nextOpen) {
       setAutoSendOpen(false);
       setSettingsOpen(false);
+      setFilterOpen(false);
     }
     setEmoticonPickerOpen(nextOpen);
 
@@ -1124,6 +1127,7 @@ export function DanmakuPage() {
                 if (next) {
                   setEmoticonPickerOpen(false);
                   setSettingsOpen(false);
+                  setFilterOpen(false);
                 }
                 return next;
               });
@@ -1160,10 +1164,32 @@ export function DanmakuPage() {
           <button
             type="button"
             onClick={() => {
+              setFilterOpen((v) => {
+                if (!v) {
+                  setAutoSendOpen(false);
+                  setEmoticonPickerOpen(false);
+                  setSettingsOpen(false);
+                }
+                return !v;
+              });
+            }}
+            title="屏蔽管理"
+            className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
+              filterOpen
+                ? "text-slate-600 dark:text-slate-300"
+                : "text-slate-500 hover:bg-[#ebebeb] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+            }`}
+          >
+            <ShieldBan className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setSettingsOpen((v) => {
                 if (!v) {
                   setAutoSendOpen(false);
                   setEmoticonPickerOpen(false);
+                  setFilterOpen(false);
                 }
                 return !v;
               });
@@ -1225,6 +1251,14 @@ export function DanmakuPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* 屏蔽管理面板 */}
+        {filterOpen && (
+          <FilterPanel
+            className="absolute bottom-full left-0 z-20 mb-2 w-64"
+            onClose={() => setFilterOpen(false)}
+          />
         )}
 
         {/* 弹幕输入行 */}
