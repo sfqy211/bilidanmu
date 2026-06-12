@@ -1064,6 +1064,24 @@ export function DanmakuPage() {
         {settingsOpen && (
           <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
             <div className="space-y-3">
+              {/* 主题 */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">主题</span>
+                <select
+                  value={settings.appearance.theme}
+                  onChange={(e) =>
+                    commitSettings({
+                      appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" }
+                    })
+                  }
+                  className="h-7 rounded border border-neutral-200 bg-[#f8f8f8] px-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                >
+                  <option value="light">浅色</option>
+                  <option value="dark">深色</option>
+                  <option value="system">跟随系统</option>
+                </select>
+              </div>
+
               <OpacitySlider
                 labelClassName="text-xs text-slate-500 dark:text-slate-400"
                 valueClassName="text-xs text-slate-500 dark:text-slate-400"
