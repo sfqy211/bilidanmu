@@ -91,18 +91,24 @@ pub fn decode_packets(data: &[u8]) -> Result<Vec<ParsedPacket>, String> {
                 packets.push(ParsedPacket::AuthReply(payload));
             }
             OP_SEND_MSG => match header.ver {
-                3 => {
-                    let decompressed = decompress_brotli(body)?;
-                    packets.extend(decode_packets(&decompressed)?);
-                }
-                2 => {
-                    let decompressed = decompress_zlib(body)?;
-                    packets.extend(decode_packets(&decompressed)?);
-                }
-                _ => {
-                    let payload = serde_json::from_slice::<Value>(body).map_err(|error| error.to_string())?;
-                    packets.push(ParsedPacket::Command(payload));
-                }
+                3 => match decompress_brotli(body) {
+                    Ok(decompressed) => match decode_packets(&decompressed) {
+                        Ok(mut sub) => packets.append(&mut sub),
+                        Err(e) => log::warn!("子包解析失败 (brotli ver=3): {e}"),
+                    },
+                    Err(e) => log::warn!("Brotli 解压失败: {e}"),
+                },
+                2 => match decompress_zlib(body) {
+                    Ok(decompressed) => match decode_packets(&decompressed) {
+                        Ok(mut sub) => packets.append(&mut sub),
+                        Err(e) => log::warn!("子包解析失败 (zlib ver=2): {e}"),
+                    },
+                    Err(e) => log::warn!("Zlib 解压失败: {e}"),
+                },
+                _ => match serde_json::from_slice::<Value>(body) {
+                    Ok(payload) => packets.push(ParsedPacket::Command(payload)),
+                    Err(e) => log::warn!("JSON 解析失败 (ver={}): {e}", header.ver),
+                },
             },
             _ => {}
         }
@@ -126,6 +132,10 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
 
     if cmd == "INTERACT_WORD" {
         return parse_interact_word(command, room_id);
+    }
+
+    if cmd == "INTERACT_WORD_V2" {
+        return parse_interact_word_v2(command, room_id);
     }
 
     if cmd == "SUPER_CHAT_MESSAGE" {
@@ -367,6 +377,254 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         reply_uid: None,
         reply_username: None,
     })
+}
+
+/// 最小化 protobuf wire format 读取器，仅支持 INTERACT_WORD_V2 所需的字段
+struct PbReader<'a> {
+    data: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> PbReader<'a> {
+    fn new(data: &'a [u8]) -> Self {
+        Self { data, pos: 0 }
+    }
+
+    fn read_varint(&mut self) -> Option<u64> {
+        let saved_pos = self.pos;
+        let mut result = 0u64;
+        let mut shift = 0;
+        loop {
+            if self.pos >= self.data.len() {
+                self.pos = saved_pos; // 恢复位置，避免后续解析错位
+                return None;
+            }
+            let byte = self.data[self.pos];
+            self.pos += 1;
+            result |= ((byte & 0x7F) as u64) << shift;
+            if byte & 0x80 == 0 {
+                return Some(result);
+            }
+            shift += 7;
+            if shift >= 64 {
+                self.pos = saved_pos;
+                return None; // varint 过长，防止溢出
+            }
+        }
+    }
+
+    fn read_bytes(&mut self) -> Option<&'a [u8]> {
+        let saved_pos = self.pos;
+        let len = self.read_varint()? as usize;
+        if self.pos + len > self.data.len() {
+            self.pos = saved_pos;
+            return None;
+        }
+        let slice = &self.data[self.pos..self.pos + len];
+        self.pos += len;
+        Some(slice)
+    }
+
+    fn skip_field(&mut self, wire_type: u64) -> Option<()> {
+        match wire_type {
+            0 => {
+                self.read_varint()?;
+                Some(())
+            }
+            1 => {
+                if self.pos + 8 > self.data.len() {
+                    return None;
+                }
+                self.pos += 8;
+                Some(())
+            }
+            2 => {
+                self.read_bytes()?;
+                Some(())
+            }
+            5 => {
+                if self.pos + 4 > self.data.len() {
+                    return None;
+                }
+                self.pos += 4;
+                Some(())
+            }
+            _ => None,
+        }
+    }
+}
+
+/// 解析 INTERACT_WORD_V2 的 protobuf 数据
+/// 字段编号（来自 bilibili-API-collect）：
+///   1=uid(varint), 2=uname(string), 5=msg_type(varint), 7=timestamp(varint),
+///   9=fans_medal_info(bytes, 嵌套消息，2=medal_level, 3=medal_name, 8=is_lighted, 9=guard_level)
+fn parse_interact_word_v2(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
+    use base64::Engine;
+    let pb_b64 = command.get("data")?.get("pb")?.as_str()?;
+    let pb_bytes = base64::engine::general_purpose::STANDARD.decode(pb_b64).ok()?;
+    let mut reader = PbReader::new(&pb_bytes);
+
+    let mut uid: u64 = 0;
+    let mut uname = String::new();
+    let mut msg_type: u64 = 1;
+    let mut timestamp: u64 = 0;
+    let mut guard_level: u8 = 0;
+    let mut medal = None;
+
+    while reader.pos < reader.data.len() {
+        let Some(tag) = reader.read_varint() else { break };
+        let field_number = tag >> 3;
+        let wire_type = tag & 0x7;
+
+        match field_number {
+            1 => {
+                if wire_type == 0 {
+                    if let Some(v) = reader.read_varint() { uid = v; }
+                } else if reader.skip_field(wire_type).is_none() { break; }
+            }
+            2 => {
+                if wire_type == 2 {
+                    if let Some(bytes) = reader.read_bytes() {
+                        uname = String::from_utf8_lossy(bytes).to_string();
+                    }
+                } else if reader.skip_field(wire_type).is_none() { break; }
+            }
+            5 => {
+                if wire_type == 0 {
+                    if let Some(v) = reader.read_varint() { msg_type = v; }
+                } else if reader.skip_field(wire_type).is_none() { break; }
+            }
+            7 => {
+                if wire_type == 0 {
+                    if let Some(v) = reader.read_varint() { timestamp = v; }
+                } else if reader.skip_field(wire_type).is_none() { break; }
+            }
+            9 => {
+                // fans_medal_info 嵌套消息
+                if wire_type == 2 {
+                    if let Some(medal_data) = reader.read_bytes() {
+                        let (m, gl) = parse_pb_fans_medal(medal_data);
+                        medal = m;
+                        guard_level = gl;
+                    }
+                } else if reader.skip_field(wire_type).is_none() { break; }
+            }
+            _ => {
+                if reader.skip_field(wire_type).is_none() { break; }
+            }
+        }
+    }
+
+    if uname.is_empty() {
+        return None;
+    }
+    if msg_type == 6 {
+        return None;
+    }
+    let content = match msg_type {
+        1 => "进入了直播间",
+        2 => "关注了主播",
+        3 => "分享了直播间",
+        4 => "特别关注了主播",
+        5 => "和主播互相关注了",
+        _ => "触发了互动消息",
+    }
+    .to_string();
+
+    Some(DanmakuEvent {
+        id: format!("interact-{room_id}-{uid}-{timestamp}"),
+        room_id,
+        event_type: "entry".to_string(),
+        username: uname,
+        content,
+        timestamp,
+        avatar: None,
+        medal,
+        wealth_level: None,
+        uid,
+        color: 16_777_215,
+        guard_level,
+        is_admin: false,
+        dm_type: 0,
+        price: None,
+        gift_name: None,
+        count: None,
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
+        emots: None,
+        emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
+    })
+}
+
+/// 解析 INTERACT_WORD_V2 中 fans_medal_info 的 protobuf 嵌套消息
+/// 返回 (Medal, guard_level)
+fn parse_pb_fans_medal(data: &[u8]) -> (Option<Medal>, u8) {
+    let mut reader = PbReader::new(data);
+    let mut name = String::new();
+    let mut level: u64 = 0;
+    let mut is_light: u8 = 0;
+    let mut guard_level: u8 = 0;
+
+    while reader.pos < reader.data.len() {
+        let tag = reader.read_varint();
+        let Some(tag) = tag else { break };
+        let field_number = tag >> 3;
+        let wire_type = tag & 0x7;
+
+        match field_number {
+            2 => {
+                if wire_type == 0 {
+                    if let Some(v) = reader.read_varint() {
+                        level = v;
+                    }
+                } else {
+                    reader.skip_field(wire_type);
+                }
+            }
+            3 => {
+                if wire_type == 2 {
+                    if let Some(bytes) = reader.read_bytes() {
+                        name = String::from_utf8_lossy(bytes).to_string();
+                    }
+                } else {
+                    reader.skip_field(wire_type);
+                }
+            }
+            8 => {
+                if wire_type == 0 {
+                    if let Some(v) = reader.read_varint() {
+                        is_light = v as u8;
+                    }
+                } else {
+                    reader.skip_field(wire_type);
+                }
+            }
+            9 => {
+                if wire_type == 0 {
+                    if let Some(v) = reader.read_varint() {
+                        guard_level = v as u8;
+                    }
+                } else {
+                    reader.skip_field(wire_type);
+                }
+            }
+            _ => {
+                reader.skip_field(wire_type);
+            }
+        }
+    }
+
+    let medal = if !name.is_empty() || level > 0 {
+        Some(Medal { name, level, is_light })
+    } else {
+        None
+    };
+    (medal, guard_level)
 }
 
 fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {

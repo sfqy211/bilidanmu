@@ -188,7 +188,14 @@ async fn run_connection(
         while let Some(message) = reader.next().await {
             match message.map_err(|error| error.to_string())? {
                 Message::Binary(bytes) => {
-                    for packet in decode_packets(&bytes)? {
+                    let packets = match decode_packets(&bytes) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            log::warn!("[ws] 帧解码失败: {e}");
+                            continue;
+                        }
+                    };
+                    for packet in packets {
                         match packet {
                             ParsedPacket::Command(command) => {
                                 let cmd = command
