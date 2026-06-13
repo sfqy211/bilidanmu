@@ -13,7 +13,8 @@ import type {
   SearchRoomResult,
   Settings,
   StreamInfo,
-  SttTranscript
+  SttTranscript,
+  UpdateInfo
 } from "@/types/bilibili";
 
 export interface SendOptions {
@@ -154,5 +155,10 @@ export const tauriCommands = {
       invoke<void>("update_message_template", { id, title, content }),
     delete: (id: number) =>
       invoke<void>("delete_message_template", { id }),
+  },
+  update: {
+    check: () => invoke<UpdateInfo>("check_update"),
+    download: (url: string, filename: string) => invoke<string>("download_file", { url, filename }),
+    openFile: (path: string) => invoke<void>("open_file_path", { path }),
   }
 };

@@ -9,10 +9,13 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useTheme } from "@/hooks/useTheme";
 import { useUiScale } from "@/hooks/useUiScale";
+import { useUpdateCheck } from "@/hooks/useUpdateCheck";
+import { UpdateDialog } from "@/components/ui/UpdateDialog";
 
 export default function App() {
   useTheme();
   useUiScale();
+  const { updateInfo, dismiss } = useUpdateCheck();
   const { setAccounts, setActiveAccount } = useAuthStore();
   const setCurrentRoomId = useRoomStore((state) => state.setCurrentRoomId);
   const setRooms = useRoomStore((state) => state.setRooms);
@@ -153,5 +156,10 @@ export default function App() {
     };
   }, [setSettings]);
 
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <UpdateDialog updateInfo={updateInfo} onDismiss={dismiss} />
+    </>
+  );
 }

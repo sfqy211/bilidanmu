@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, FolderOpen, GitBranch } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InlineMessage } from "@/components/ui/InlineMessage";
+import { UpdateDialog } from "@/components/ui/UpdateDialog";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
@@ -526,10 +527,30 @@ export function SettingsPage() {
 
 function AboutTab() {
   const [version, setVersion] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<string | null>(null);
+  const [manualUpdateInfo, setManualUpdateInfo] = useState<import("@/types/bilibili").UpdateInfo | null>(null);
 
   useEffect(() => {
     getAppVersion().then(setVersion).catch(() => {});
   }, []);
+
+  const handleCheckUpdate = async () => {
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const info = await tauriCommands.update.check();
+      if (info.hasUpdate) {
+        setManualUpdateInfo(info);
+      } else {
+        setCheckResult("已是最新版本");
+      }
+    } catch (e) {
+      setCheckResult("检查更新失败");
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
@@ -566,14 +587,25 @@ function AboutTab() {
             </a>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1 text-right">
+        <div className="flex flex-col items-end gap-2 text-right">
           {version && (
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">v{version}</span>
+          )}
+          <button
+            onClick={() => void handleCheckUpdate()}
+            disabled={checking}
+            className="rounded bg-pink-500 px-3 py-1 text-xs font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {checking ? "检查中..." : "检查更新"}
+          </button>
+          {checkResult && (
+            <span className="text-xs text-slate-400 dark:text-slate-500">{checkResult}</span>
           )}
           <span className="text-xs text-slate-400 dark:text-slate-500">AGPLv3 License</span>
           <span className="text-xs text-slate-400 dark:text-slate-500">© 2026 朔风秋叶</span>
         </div>
       </div>
+      <UpdateDialog updateInfo={manualUpdateInfo} onDismiss={() => setManualUpdateInfo(null)} />
     </div>
   );
 }

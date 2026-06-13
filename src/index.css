@@ -139,3 +139,39 @@ textarea::-webkit-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
+
+/* 更新日志 Markdown 渲染 */
+.update-changelog h1, .update-changelog h2, .update-changelog h3 {
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
+  font-weight: 600;
+}
+.update-changelog h1 { font-size: 1.1em; }
+.update-changelog h2 { font-size: 1em; }
+.update-changelog h3 { font-size: 0.9em; }
+.update-changelog ul, .update-changelog ol {
+  padding-left: 1.25em;
+  margin: 0.25em 0;
+}
+.update-changelog li {
+  margin: 0.15em 0;
+}
+.update-changelog a {
+  color: #ec4899;
+  text-decoration: underline;
+}
+.dark .update-changelog a {
+  color: #f472b6;
+}
+.update-changelog code {
+  background: rgba(0,0,0,0.06);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.dark .update-changelog code {
+  background: rgba(255,255,255,0.08);
+}
+.update-changelog p {
+  margin: 0.25em 0;
+}

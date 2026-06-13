@@ -108,6 +108,16 @@ export interface MessageTemplate {
   createdAt: number;
 }
 
+export interface UpdateInfo {
+  latestVersion: string;
+  currentVersion: string;
+  hasUpdate: boolean;
+  changelog: string;
+  releaseUrl: string;
+  publishedAt: string;
+  assets: Array<{ name: string; downloadUrl: string; size: number }>;
+}
+
 export interface Settings {
   sendInterval: { min: number; max: number };
   rateLimit: { maxPerWindow: number; windowSec: number };
