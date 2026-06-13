@@ -30,9 +30,11 @@ interface DanmakuState {
   onlineCount: number;
   blockedUsers: BlockedUser[];
   blockedKeywords: string[];
+  hideEntryMessage: boolean;
   addMessage: (message: DanmakuMessage) => void;
   setLimits: (danmaku: number, gift: number) => void;
   setBlockFilter: (users: BlockedUser[], keywords: string[]) => void;
+  setHideEntryMessage: (hide: boolean) => void;
   clearMessages: () => void;
   setWsConnected: (connected: boolean) => void;
   setWsStatus: (status: DanmakuState["wsStatus"]) => void;
@@ -65,6 +67,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   onlineCount: 0,
   blockedUsers: [],
   blockedKeywords: [],
+  hideEntryMessage: false,
   addMessage: (message) =>
     set((state) => {
       // 屏蔽过滤：用户 UID 或关键词匹配
@@ -72,6 +75,9 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
         return {};
       }
       if (message.content && state.blockedKeywords.some((kw) => message.content.toLowerCase().includes(kw.toLowerCase()))) {
+        return {};
+      }
+      if (message.type === "entry" && state.hideEntryMessage) {
         return {};
       }
 
@@ -95,6 +101,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
     }),
   setLimits: (danmaku, gift) => set({ danmakuLimit: danmaku, giftLimit: gift }),
   setBlockFilter: (blockedUsers, blockedKeywords) => set({ blockedUsers, blockedKeywords }),
+  setHideEntryMessage: (hideEntryMessage) => set({ hideEntryMessage }),
   clearMessages: () => set({ danmakuMessages: [], giftMessages: [], totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0, guardCount: 0 }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setWsStatus: (wsStatus) => set({ wsStatus }),

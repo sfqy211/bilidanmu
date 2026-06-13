@@ -142,6 +142,7 @@ export interface Settings {
     hideFanMedal: boolean;
     hideAdminBadge: boolean;
     hideUserIdColor: boolean;
+    hideEntryMessage: boolean;
     opacity: number;
   };
   notification: {

@@ -45,6 +45,8 @@ pub struct AppearanceSetting {
     pub hide_admin_badge: bool,
     #[serde(default)]
     pub hide_user_id_color: bool,
+    #[serde(default)]
+    pub hide_entry_message: bool,
     #[serde(default = "default_opacity")]
     pub opacity: u32,
 }
@@ -189,6 +191,7 @@ impl Default for Settings {
                 hide_fan_medal: false,
                 hide_admin_badge: false,
                 hide_user_id_color: false,
+                hide_entry_message: false,
                 opacity: 90,
             },
             notification: NotificationSetting {

@@ -44,6 +44,7 @@ export const defaultSettings: Settings = {
     hideFanMedal: false,
     hideAdminBadge: false,
     hideUserIdColor: false,
+    hideEntryMessage: false,
     opacity: 90
   },
   notification: {

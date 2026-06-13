@@ -56,6 +56,10 @@ export default function App() {
         if (settings.filter) {
           useDanmakuStore.getState().setBlockFilter(settings.filter.blockedUsers, settings.filter.blockedKeywords);
         }
+        // 同步入场信息屏蔽
+        if (settings.appearance) {
+          useDanmakuStore.getState().setHideEntryMessage(settings.appearance.hideEntryMessage);
+        }
 
         // 恢复活跃账号
         if (activeCredential) {
@@ -149,6 +153,10 @@ export default function App() {
       // 同步屏蔽列表
       if (event.payload.filter) {
         useDanmakuStore.getState().setBlockFilter(event.payload.filter.blockedUsers, event.payload.filter.blockedKeywords);
+      }
+      // 同步入场信息屏蔽
+      if (event.payload.appearance) {
+        useDanmakuStore.getState().setHideEntryMessage(event.payload.appearance.hideEntryMessage);
       }
     };
 
