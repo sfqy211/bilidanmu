@@ -7,6 +7,7 @@ pub mod ai_proxy;
 pub mod auth;
 pub mod danmaku;
 pub mod download;
+pub mod log;
 pub mod message_template;
 pub mod proxy;
 pub mod room;

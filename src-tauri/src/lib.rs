@@ -84,8 +84,13 @@ pub fn run() {
             tauri_plugin_log::Builder::default()
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("bilidanmu".into()),
+                    }),
                 ])
                 .level(log::LevelFilter::Info)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                 .build(),
         )
         .manage({
@@ -305,7 +310,8 @@ pub fn run() {
             commands::message_template::delete_message_template,
             commands::update::check_update,
             commands::download::download_file,
-            commands::download::open_file_path
+            commands::download::open_file_path,
+            commands::log::open_log_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -98,6 +98,7 @@ export function SettingsPage() {
           {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
           {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
           <button
+            type="button"
             onClick={() => void handleSave()}
             disabled={loading || saving}
             className="rounded bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
@@ -565,33 +566,13 @@ function AboutTab() {
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Bilibili 直播弹幕客户端
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 dark:text-slate-500">
-            <a
-              href="https://github.com/sfqy211/bilidanmu"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 transition hover:text-slate-600 dark:hover:text-slate-300"
-            >
-              <GitBranch className="h-3 w-3" />
-              GitHub
-              <ExternalLink className="h-2.5 w-2.5" />
-            </a>
-            <a
-              href="https://space.bilibili.com/182587768"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 transition hover:text-slate-600 dark:hover:text-slate-300"
-            >
-              哔哩哔哩
-              <ExternalLink className="h-2.5 w-2.5" />
-            </a>
-          </div>
         </div>
         <div className="flex flex-col items-end gap-2 text-right">
           {version && (
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">v{version}</span>
           )}
           <button
+            type="button"
             onClick={() => void handleCheckUpdate()}
             disabled={checking}
             className="rounded bg-pink-500 px-3 py-1 text-xs font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
@@ -602,10 +583,50 @@ function AboutTab() {
             <span className="text-xs text-slate-400 dark:text-slate-500">{checkResult}</span>
           )}
           <span className="text-xs text-slate-400 dark:text-slate-500">AGPLv3 License</span>
-          <span className="text-xs text-slate-400 dark:text-slate-500">© 2026 朔风秋叶</span>
         </div>
       </div>
       <UpdateDialog updateInfo={manualUpdateInfo} onDismiss={() => setManualUpdateInfo(null)} />
+
+      {/* 链接 */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a
+          href="https://github.com/sfqy211/bilidanmu/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+        >
+          <ExternalLink className="h-3 w-3" />
+          反馈问题
+        </a>
+        <a
+          href="https://github.com/sfqy211/bilidanmu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+        >
+          <GitBranch className="h-3 w-3" />
+          源代码
+        </a>
+        <button
+          type="button"
+          onClick={() => void tauriCommands.log.openDir()}
+          className="inline-flex items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
+        >
+          <FolderOpen className="h-3 w-3" />
+          日志目录
+        </button>
+      </div>
+
+      {/* 免责声明 */}
+      <div className="mt-4 rounded-lg bg-[#f0f0f0] p-4 text-xs leading-relaxed text-slate-500 dark:bg-[#0e1018] dark:text-slate-400">
+        <p className="mb-2 font-medium text-slate-600 dark:text-slate-300">免责声明</p>
+        <p>
+          本软件为开源项目，仅供学习和研究使用。使用本软件所产生的任何后果由使用者自行承担。
+          本软件不保证与 B 站服务的兼容性，不保证功能的持续可用性。
+          使用本软件时应遵守相关法律法规，不得用于任何商业用途。
+          本软件不收集任何用户数据。
+        </p>
+      </div>
     </div>
   );
 }
@@ -665,12 +686,14 @@ function CacheCard() {
           <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">缓存占用</h3>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setRefreshKey((k) => k + 1)}
               className="text-xs text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
             >
               刷新
             </button>
             <button
+              type="button"
               onClick={() => setConfirmType("all")}
               className="text-xs text-red-500 transition hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
             >
@@ -684,6 +707,7 @@ function CacheCard() {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400 dark:text-slate-500">封面与头像</p>
                 <button
+                  type="button"
                   onClick={() => setConfirmType("image")}
                   className="text-xs text-slate-400 transition hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400"
                 >
@@ -697,6 +721,7 @@ function CacheCard() {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400 dark:text-slate-500">表情包</p>
                 <button
+                  type="button"
                   onClick={() => setConfirmType("emoticon")}
                   className="text-xs text-slate-400 transition hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400"
                 >

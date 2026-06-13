@@ -10,11 +10,13 @@ import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useTheme } from "@/hooks/useTheme";
 import { useUiScale } from "@/hooks/useUiScale";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
+import { useErrorCapture } from "@/hooks/useErrorCapture";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 
 export default function App() {
   useTheme();
   useUiScale();
+  useErrorCapture();
   const { updateInfo, dismiss } = useUpdateCheck();
   const { setAccounts, setActiveAccount } = useAuthStore();
   const setCurrentRoomId = useRoomStore((state) => state.setCurrentRoomId);

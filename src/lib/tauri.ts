@@ -160,5 +160,8 @@ export const tauriCommands = {
     check: () => invoke<UpdateInfo>("check_update"),
     download: (url: string, filename: string) => invoke<string>("download_file", { url, filename }),
     openFile: (path: string) => invoke<void>("open_file_path", { path }),
+  },
+  log: {
+    openDir: () => invoke<void>("open_log_dir"),
   }
 };
