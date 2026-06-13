@@ -62,6 +62,7 @@ struct AacDecoder {
     decoder: Box<dyn AudioDecoder>,
     track_id: u32,
     channels: usize,
+    consecutive_decode_errors: u8,
 }
 
 impl AacDecoder {
@@ -80,6 +81,23 @@ impl AacDecoder {
             .with_sample_rate(sample_rate)
             .with_channels(channels);
 
+        // Build a minimal AudioSpecificConfig with AAC-LC profile.
+        // The FLV stream's ASC may declare a different object type (e.g. AAC-LD)
+        // while the actual audio data is AAC-LC. We override to ensure correctness.
+        let sf_index = match sample_rate {
+            96000 => 0u8, 88200 => 1, 64000 => 2, 48000 => 3,
+            44100 => 4, 32000 => 5, 24000 => 6, 22050 => 7,
+            16000 => 8, 12000 => 9, 11025 => 10, 8000 => 11,
+            _ => 3,
+        };
+        let ch_config = num_channels.min(7) as u8;
+        // 5 bits objectType(2=AAC-LC) | 4 bits sf_index | 4 bits ch_config | 3 bits padding
+        let asc_bytes = vec![
+            (2u8 << 3) | (sf_index >> 1),
+            ((sf_index & 1) << 7) | (ch_config << 3),
+        ];
+        audio_params.with_extra_data(asc_bytes.into_boxed_slice());
+
         let decoder_opts = AudioDecoderOptions::default();
         let decoder = symphonia::default::get_codecs()
             .make_audio_decoder(&audio_params, &decoder_opts)
@@ -89,6 +107,7 @@ impl AacDecoder {
             decoder,
             track_id: 1,
             channels: num_channels as usize,
+            consecutive_decode_errors: 0,
         })
     }
 
@@ -134,16 +153,24 @@ impl AacDecoder {
 
             match self.decoder.decode(&pkt) {
                 Ok(audio_buf) => {
+                    self.consecutive_decode_errors = 0;
                     extract_f32_samples(&audio_buf, self.channels, &mut all_samples);
                 }
-                Err(SymphoniaError::DecodeError(_)) => {}
-                Err(_) => {}
+                Err(SymphoniaError::DecodeError(e)) => {
+                    self.consecutive_decode_errors = self.consecutive_decode_errors.saturating_add(1);
+                    log::trace!("AAC decode error: {e}");
+                }
+                Err(e) => return Err(e.to_string()),
             }
 
             pos += frame_len;
         }
 
         Ok(all_samples)
+    }
+
+    fn should_recreate(&self) -> bool {
+        self.consecutive_decode_errors >= 3
     }
 
 }
@@ -408,6 +435,7 @@ fn run_pipeline(
     // Buffer for decoded f32 audio samples (before resampling)
     let mut f32_buffer: Vec<f32> = Vec::new();
     let mut chunk_count: u32 = 0;
+    let mut last_transcript_text = String::new();
     log::info!("STT pipeline: waiting for audio bytes...");
 
     loop {
@@ -474,6 +502,9 @@ fn run_pipeline(
 
             match f32_samples {
                 Ok(samples) => {
+                    if !samples.is_empty() {
+                        log::trace!("AAC decoded {} samples", samples.len());
+                    }
                     if samples.is_empty() {
                         continue;
                     }
@@ -503,7 +534,8 @@ fn run_pipeline(
 
                             // Get interim result
                             if let Some(result) = state.recognizer.get_result(&state.stream) {
-                                if !result.text.is_empty() {
+                                if !result.text.is_empty() && result.text != last_transcript_text {
+                                    last_transcript_text.clone_from(&result.text);
                                     let _ = transcript_tx.blocking_send(SttTranscript {
                                         text: result.text.clone(),
                                         is_final: result.is_final,
@@ -515,6 +547,7 @@ fn run_pipeline(
                             if state.recognizer.is_endpoint(&state.stream) {
                                 if let Some(result) = state.recognizer.get_result(&state.stream) {
                                     if !result.text.is_empty() {
+                                        last_transcript_text.clone_from(&result.text);
                                         let _ = transcript_tx.blocking_send(SttTranscript {
                                             text: result.text,
                                             is_final: true,
@@ -522,12 +555,49 @@ fn run_pipeline(
                                     }
                                 }
                                 state.recognizer.reset(&state.stream);
+                                last_transcript_text.clear();
                             }
                         }
                     }
                 }
                 Err(e) => {
                     log::trace!("AAC decode error: {e}");
+                    let sr = state.flv_demuxer.sample_rate();
+                    let ch = state.flv_demuxer.channels();
+                    match AacDecoder::new(sr, ch) {
+                        Ok(decoder) => {
+                            state.aac_decoder = Some(decoder);
+                            last_transcript_text.clear();
+                            log::trace!("STT: AAC decoder reset after error");
+                        }
+                        Err(e) => {
+                            state.aac_decoder = None;
+                            last_transcript_text.clear();
+                            log::warn!("STT: failed to reset AAC decoder: {e}");
+                        }
+                    }
+                    continue;
+                }
+            }
+
+            if state
+                .aac_decoder
+                .as_ref()
+                .map_or(false, AacDecoder::should_recreate)
+            {
+                let sr = state.flv_demuxer.sample_rate();
+                let ch = state.flv_demuxer.channels();
+                match AacDecoder::new(sr, ch) {
+                    Ok(decoder) => {
+                        state.aac_decoder = Some(decoder);
+                        last_transcript_text.clear();
+                        log::trace!("STT: AAC decoder reset after consecutive decode errors");
+                    }
+                    Err(e) => {
+                        state.aac_decoder = None;
+                        last_transcript_text.clear();
+                        log::warn!("STT: failed to reset AAC decoder: {e}");
+                    }
                 }
             }
         }

@@ -345,15 +345,19 @@ export function DanmakuPage() {
     if (roomId && audioSettings.autoPlay) {
       void audioPlay();
     }
-  }, [roomId, audioSettings.autoPlay]);
+  }, [roomId, audioSettings.autoPlay, audioPlay]);
+
+  // 音频播放后自动启动 STT
+  useEffect(() => {
+    if (audioPlaying && sttAvailable && sttSettings.enabled) {
+      tauriCommands.stt.start().catch(() => {});
+    }
+  }, [audioPlaying, sttAvailable, sttSettings.enabled]);
 
 
   const handleAudioPlay = useCallback(async () => {
     await audioPlay();
-    if (sttAvailable && sttSettings.enabled) {
-      try { await tauriCommands.stt.start(); } catch { /* STT may not have models */ }
-    }
-  }, [audioPlay, sttAvailable, sttSettings.enabled]);
+  }, [audioPlay]);
 
   const handleAudioStop = useCallback(async () => {
     await audioStop();

@@ -227,12 +227,22 @@ impl FlvDemuxer {
                             // Raw AAC frame data
                             let aac_data = &audio_data[2..];
                             if !aac_data.is_empty() {
-                                let sf_idx = sample_rate_to_index(self.sample_rate);
-                                let adts_hdr = build_adts_header(aac_data.len(), sf_idx, self.channels as u8);
-                                let mut adts_frame = Vec::with_capacity(7 + aac_data.len());
-                                adts_frame.extend_from_slice(&adts_hdr);
-                                adts_frame.extend_from_slice(aac_data);
-                                frames.push(adts_frame);
+                                // Check if data already has ADTS header (syncword 0xFFF)
+                                let has_adts = aac_data.len() >= 2
+                                    && aac_data[0] == 0xFF
+                                    && (aac_data[1] & 0xF0) == 0xF0;
+
+                                if has_adts {
+                                    // Already ADTS-wrapped, pass through directly
+                                    frames.push(aac_data.to_vec());
+                                } else {
+                                    let sf_idx = sample_rate_to_index(self.sample_rate);
+                                    let adts_hdr = build_adts_header(aac_data.len(), sf_idx, self.channels as u8);
+                                    let mut adts_frame = Vec::with_capacity(7 + aac_data.len());
+                                    adts_frame.extend_from_slice(&adts_hdr);
+                                    adts_frame.extend_from_slice(aac_data);
+                                    frames.push(adts_frame);
+                                }
                             }
                         }
                         // else: unsupported AAC packet type, skip

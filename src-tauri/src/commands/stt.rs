@@ -102,9 +102,9 @@ pub async fn start_stt(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let mut manager_lock = state.stt_manager.lock().await;
-    // Stop any existing pipeline (e.g., if model was changed in settings while running)
-    if let Some(mut old_manager) = manager_lock.take() {
-        let _ = old_manager.stop().await;
+    if manager_lock.is_some() {
+        log::info!("start_stt: pipeline already running, skipping duplicate start");
+        return Ok(());
     }
 
     // Read model_id from settings

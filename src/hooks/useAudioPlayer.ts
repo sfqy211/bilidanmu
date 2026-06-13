@@ -160,7 +160,16 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       // 播放前设置音量
       audio.volume = volumeRef.current;
 
-      await player.play();
+      try {
+        await player.play();
+      } catch (playError) {
+        // AbortError 在 React Strict Mode 或快速重连时可能出现，忽略即可
+        if (playError instanceof DOMException && playError.name === "AbortError") {
+          console.warn("[audio] play() aborted (likely interrupted), ignoring");
+        } else {
+          throw playError;
+        }
+      }
       console.log("[audio] playback started, proxyUrl:", streamInfo.proxyUrl);
       reconnectAttemptRef.current = 0;
       setState((prev) => ({ ...prev, isPlaying: true, isConnecting: false }));

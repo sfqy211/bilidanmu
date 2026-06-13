@@ -90,6 +90,7 @@ pub fn run() {
                     }),
                 ])
                 .level(log::LevelFilter::Info)
+                .filter(|metadata| !metadata.target().starts_with("symphonia_codec_aac::aac"))
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                 .build(),
         )
