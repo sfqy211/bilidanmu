@@ -44,6 +44,7 @@ native-tls = "0.2"
 hyper-util = { version = "0.1", features = ["tokio", "http1", "server-auto"] }
 http-body-util = "0.1"
 bytes = "1"
+open = "5"
 sherpa-onnx = "1.13"
 symphonia = { version = "0.6.0", default-features = false, features = ["aac"] }
 

@@ -302,7 +302,10 @@ pub fn run() {
             commands::message_template::list_message_templates,
             commands::message_template::create_message_template,
             commands::message_template::update_message_template,
-            commands::message_template::delete_message_template
+            commands::message_template::delete_message_template,
+            commands::update::check_update,
+            commands::download::download_file,
+            commands::download::open_file_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

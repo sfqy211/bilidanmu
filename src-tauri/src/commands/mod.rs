@@ -6,12 +6,14 @@ use tauri::State;
 pub mod ai_proxy;
 pub mod auth;
 pub mod danmaku;
+pub mod download;
 pub mod message_template;
 pub mod proxy;
 pub mod room;
 pub mod selections;
 pub mod settings;
 pub mod stt;
+pub mod update;
 pub mod websocket;
 
 pub fn build_api_client(
