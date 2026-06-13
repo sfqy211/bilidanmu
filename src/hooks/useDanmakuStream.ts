@@ -15,8 +15,6 @@ interface WsErrorPayload {
 export function useDanmakuStream(roomId: number | null) {
   const addMessage = useDanmakuStore((state) => state.addMessage);
   const clearMessages = useDanmakuStore((state) => state.clearMessages);
-  const setLatestLike = useDanmakuStore((state) => state.setLatestLike);
-  const setLatestEntry = useDanmakuStore((state) => state.setLatestEntry);
   const setWsConnected = useDanmakuStore((state) => state.setWsConnected);
   const setWsStatus = useDanmakuStore((state) => state.setWsStatus);
   const setLastError = useDanmakuStore((state) => state.setLastError);
@@ -61,16 +59,6 @@ export function useDanmakuStream(roomId: number | null) {
   }, [roomId]);
 
   useTauriEvent<DanmakuMessage>("danmaku-received", (payload) => {
-    if (payload.type === "like") {
-      setLatestLike(payload);
-      return;
-    }
-
-    if (payload.type === "entry") {
-      setLatestEntry(payload);
-      return;
-    }
-
     addMessage(payload);
   });
 

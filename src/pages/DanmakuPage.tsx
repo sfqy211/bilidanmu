@@ -10,7 +10,6 @@ import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { MessageClipboardPanel } from "@/components/danmaku/MessageClipboardPanel";
-import { BottomActivityBar } from "@/components/danmaku/BottomActivityBar";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
@@ -153,7 +152,6 @@ export function DanmakuPage() {
 
   const storeDanmakuMessages = useDanmakuStore((state) => state.danmakuMessages);
   const storeGiftMessages = useDanmakuStore((state) => state.giftMessages);
-  const latestEntry = useDanmakuStore((state) => state.latestEntry);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
   const guardCount = useDanmakuStore((state) => state.guardCount);
 
@@ -1051,18 +1049,6 @@ export function DanmakuPage() {
 
         {sttAvailable && <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />}
       </div>
-
-      {/* 活动信息：入场 */}
-      {latestEntry && (
-        <div data-interactive="" className="danmaku-bg-panel shrink-0">
-          <BottomActivityBar
-            icon={<span className="text-xs">↪</span>}
-            username={latestEntry.username}
-            content={latestEntry.content}
-            tone="entry"
-          />
-        </div>
-      )}
 
       {/* 浮动面板（覆盖在内容区上方） */}
       {activePanel && (

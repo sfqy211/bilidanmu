@@ -14,8 +14,6 @@ interface DanmakuState {
   danmakuLimit: number;
   /** 礼物消息缓存上限 */
   giftLimit: number;
-  latestLike: DanmakuMessage | null;
-  latestEntry: DanmakuMessage | null;
   wsConnected: boolean;
   wsStatus: "idle" | "connecting" | "connected" | "reconnecting" | "disconnected" | "error";
   sentCount: number;
@@ -35,8 +33,6 @@ interface DanmakuState {
   addMessage: (message: DanmakuMessage) => void;
   setLimits: (danmaku: number, gift: number) => void;
   setBlockFilter: (users: BlockedUser[], keywords: string[]) => void;
-  setLatestLike: (message: DanmakuMessage | null) => void;
-  setLatestEntry: (message: DanmakuMessage | null) => void;
   clearMessages: () => void;
   setWsConnected: (connected: boolean) => void;
   setWsStatus: (status: DanmakuState["wsStatus"]) => void;
@@ -53,8 +49,6 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   giftMessages: [],
   danmakuLimit: DEFAULT_DANMAKU_LIMIT,
   giftLimit: DEFAULT_GIFT_LIMIT,
-  latestLike: null,
-  latestEntry: null,
   wsConnected: false,
   wsStatus: "idle",
   sentCount: 0,
@@ -101,9 +95,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
     }),
   setLimits: (danmaku, gift) => set({ danmakuLimit: danmaku, giftLimit: gift }),
   setBlockFilter: (blockedUsers, blockedKeywords) => set({ blockedUsers, blockedKeywords }),
-  setLatestLike: (latestLike) => set({ latestLike }),
-  setLatestEntry: (latestEntry) => set({ latestEntry }),
-  clearMessages: () => set({ danmakuMessages: [], giftMessages: [], latestLike: null, latestEntry: null, totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0, guardCount: 0 }),
+  clearMessages: () => set({ danmakuMessages: [], giftMessages: [], totalLikeCount: 0, onlineCount: 0, danmakuCount: 0, superChatCount: 0, guardCount: 0 }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setWsStatus: (wsStatus) => set({ wsStatus }),
   incrementSentCount: () => set((state) => ({ sentCount: state.sentCount + 1 })),
