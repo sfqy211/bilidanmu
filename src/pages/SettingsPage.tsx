@@ -530,6 +530,7 @@ function AboutTab() {
   const [version, setVersion] = useState("");
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
+  const [logDirError, setLogDirError] = useState<string | null>(null);
   const [manualUpdateInfo, setManualUpdateInfo] = useState<import("@/types/bilibili").UpdateInfo | null>(null);
 
   useEffect(() => {
@@ -550,6 +551,17 @@ function AboutTab() {
       setCheckResult("检查更新失败");
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleOpenLogDir = async () => {
+    setLogDirError(null);
+    try {
+      await tauriCommands.log.openDir();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLogDirError(msg);
+      setTimeout(() => setLogDirError(null), 3000);
     }
   };
 
@@ -609,12 +621,15 @@ function AboutTab() {
         </a>
         <button
           type="button"
-          onClick={() => void tauriCommands.log.openDir()}
+          onClick={() => void handleOpenLogDir()}
           className="inline-flex items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 dark:border-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.04]"
         >
           <FolderOpen className="h-3 w-3" />
           日志目录
         </button>
+        {logDirError && (
+          <span className="text-xs text-red-500">{logDirError}</span>
+        )}
       </div>
 
       {/* 免责声明 */}

@@ -11,6 +11,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useUiScale } from "@/hooks/useUiScale";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useErrorCapture } from "@/hooks/useErrorCapture";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 
 export default function App() {
@@ -160,7 +161,9 @@ export default function App() {
 
   return (
     <>
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
       <UpdateDialog updateInfo={updateInfo} onDismiss={dismiss} />
     </>
   );
