@@ -78,16 +78,20 @@ body {
   background-color: rgba(10, 12, 20, var(--bg-a));
 }
 .danmaku-bg-bar {
-  background-color: rgba(255, 255, 255, var(--bg-a));
-}
-.dark .danmaku-bg-bar {
-  background-color: rgba(14, 16, 24, var(--bg-a));
+  background-color: transparent;
 }
 .danmaku-bg-panel {
-  background-color: rgba(255, 255, 255, var(--bg-a));
+  background-color: transparent;
 }
-.dark .danmaku-bg-panel {
-  background-color: rgba(18, 20, 30, var(--bg-a));
+.danmaku-floating {
+  background-color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+.dark .danmaku-floating {
+  background-color: rgba(18, 20, 30, 0.92);
+  border-color: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
 }
 .danmaku-btn-active {
   background-color: rgba(209, 250, 229, var(--bg-a));

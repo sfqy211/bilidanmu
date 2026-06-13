@@ -15,7 +15,7 @@ export function FloatingPanel({ title, onClose, className, extra, children }: Fl
       onMouseDown={(e) => e.stopPropagation()}
       className={className}
     >
-      <div className="danmaku-bg-panel">
+      <div className="danmaku-floating">
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/50 dark:border-white/[0.06]">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</span>
           {extra ? (
