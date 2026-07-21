@@ -682,6 +682,24 @@ export function DanmakuPage() {
     if (e.button === 0) void appWindow.startDragging();
   }, [locked]);
 
+  // 空白区域拖动页面：仅当左键直接点在容器自身空白（非子元素、非滚动条）时才拖动。
+  // 滚动条不属于任何子元素，e.target 也是容器本身，因此必须额外排除落在滚动条上的点击，
+  // 否则拖动滚动条会被误判为拖动页面。
+  const handleBlankAreaMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (locked || passthroughEnabled || e.button !== 0) return;
+    if (e.target !== e.currentTarget) return;
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    // 滚动条实际宽度 = offsetWidth(含滚动条+边框) - clientWidth(含 padding，不含滚动条)。
+    // 只排除滚动条真正占据的那一段 [rect.right - sb, rect.right]，不牵连 padding，
+    // 这样判定宽度与滚动条实际宽度一致（经典与 overlay 滚动条都适用，overlay 时 sb=0）。
+    const vScrollWidth = el.offsetWidth - el.clientWidth;
+    if (vScrollWidth > 0 && e.clientX >= rect.right - vScrollWidth) return;
+    const hScrollHeight = el.offsetHeight - el.clientHeight;
+    if (hScrollHeight > 0 && e.clientY >= rect.bottom - hScrollHeight) return;
+    void appWindow.startDragging();
+  }, [locked, passthroughEnabled]);
+
   return (
     <main className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
       {/* 标题栏 */}
@@ -948,11 +966,7 @@ export function DanmakuPage() {
               <div
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
-                onMouseDown={(e) => {
-                  if (!locked && !passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
-                    void appWindow.startDragging();
-                  }
-                }}
+                onMouseDown={handleBlankAreaMouseDown}
                 className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
@@ -1017,11 +1031,7 @@ export function DanmakuPage() {
               <div
                 ref={danmakuScroll.scrollRef}
                 onScroll={danmakuScroll.checkAtBottom}
-                onMouseDown={(e) => {
-                  if (!locked && !passthroughEnabled && e.target === e.currentTarget && e.button === 0) {
-                    void appWindow.startDragging();
-                  }
-                }}
+                onMouseDown={handleBlankAreaMouseDown}
                 onContextMenu={(e) => {
                   // 生产环境禁用空白区域右键菜单，开发环境保留（可检查元素）
                   if (!import.meta.env.DEV && e.target === e.currentTarget) {
