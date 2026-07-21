@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MonitorPlay, Plus, Search, Trash2, X } from "lucide-react";
+import { LayoutGrid, List, MonitorPlay, Plus, Search, Trash2, X } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
@@ -15,7 +15,7 @@ const searchModes: Array<{ value: SearchRoomMode; label: string; placeholder: st
 ];
 
 export function RoomPage() {
-  const { rooms, currentRoomId, searchResults, setSearchResults, addRoom, removeRoom, setCurrentRoomId } =
+  const { rooms, currentRoomId, searchResults, viewMode, setSearchResults, addRoom, removeRoom, setCurrentRoomId, setViewMode } =
     useRoomStore();
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SearchRoomMode>("name");
@@ -43,6 +43,12 @@ export function RoomPage() {
     }
   };
 
+  const toggleViewMode = () => {
+    const next = viewMode === "card" ? "list" : "card";
+    setViewMode(next);
+    void tauriCommands.selections.save({ roomViewMode: next });
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -57,6 +63,16 @@ export function RoomPage() {
         }
       } catch {
         // 忽略初始化读取失败
+      }
+
+      // 恢复上次的视图模式（卡片/列表）
+      try {
+        const selections = await tauriCommands.selections.load(["roomViewMode"]);
+        if (!cancelled && (selections.roomViewMode === "card" || selections.roomViewMode === "list")) {
+          setViewMode(selections.roomViewMode);
+        }
+      } catch {
+        // 忽略视图模式读取失败
       }
     };
 
@@ -122,13 +138,22 @@ export function RoomPage() {
           <h2 className="text-2xl font-semibold">直播间</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{rooms.length} 个已添加</p>
         </div>
-        <button
-          onClick={() => setShowSearch((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
-        >
-          {showSearch ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showSearch ? "关闭" : "添加"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleViewMode}
+            className="inline-flex items-center justify-center rounded border border-neutral-200 bg-[#f8f8f8] p-2 text-slate-600 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-300 dark:hover:bg-[#22242e]"
+            title={viewMode === "card" ? "切换为列表显示" : "切换为封面显示"}
+          >
+            {viewMode === "card" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => setShowSearch((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
+          >
+            {showSearch ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showSearch ? "关闭" : "添加"}
+          </button>
+        </div>
       </div>
 
       {showSearch && (
@@ -211,6 +236,62 @@ export function RoomPage() {
         {rooms.length === 0 ? (
           <div className="rounded-lg bg-[#f0f0f0] p-6 text-center text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
             还没有添加直播间。点击右上角「添加」搜索。
+          </div>
+        ) : viewMode === "list" ? (
+          <div className="flex flex-col gap-2">
+            {rooms.map((room) => {
+              const active = currentRoomId === room.id;
+              const isLive = room.uid != null && liveStatusMap[String(room.uid)];
+              return (
+                <div
+                  key={room.id}
+                  className="group flex items-center gap-3 rounded-lg bg-[#f8f8f8] px-3 py-2.5 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
+                      {active && (
+                        <span className="shrink-0 rounded bg-pink-500/15 px-1.5 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-300">当前</span>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{room.title}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
+                  <span className={`shrink-0 text-xs font-medium ${isLive ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`}>
+                    {isLive ? "直播中" : "未开播"}
+                  </span>
+                  <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      onClick={() => {
+                        setCurrentRoomId(room.id);
+                        void tauriCommands.selections.save({ currentRoomId: room.roomId });
+                        const { width, height } = loadWindowSize("danmaku-window");
+                        void tauriCommands.room.openDanmaku(room.roomId, width, height);
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-pink-50 hover:text-pink-500 dark:text-slate-400 dark:hover:bg-pink-500/15 dark:hover:text-pink-300"
+                      title="打开弹幕"
+                    >
+                      <MonitorPlay className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const wasCurrent = currentRoomId === room.id;
+                        await tauriCommands.room.remove(room.roomId);
+                        removeRoom(room.roomId);
+                        if (wasCurrent) {
+                          void tauriCommands.selections.save({ currentRoomId: null });
+                        }
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
+                      title="删除"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
