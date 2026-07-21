@@ -161,11 +161,16 @@ export interface Settings {
     blockedUsers: BlockedUser[];
     blockedKeywords: string[];
   };
+  window: WindowSetting;
 }
 
 export interface AudioSetting {
   defaultVolume: number;
   autoPlay: boolean;
+}
+
+export interface WindowSetting {
+  autoHideMain: boolean;
 }
 
 export interface BlockedUser {

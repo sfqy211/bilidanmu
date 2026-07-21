@@ -746,7 +746,15 @@ export function DanmakuPage() {
               tauriCommands.stt.stop().catch(() => {});
             }
             tauriCommands.ai.disconnect().catch(() => {});
-            void appWindow.destroy();
+            if (roomId) {
+              // exit_room 销毁弹幕/抽屉窗口并按设置恢复主窗口
+              tauriCommands.room.exitRoom(roomId).catch(() => {
+                // exit_room 失败时兜底本地销毁，避免窗口残留
+                appWindow.destroy().catch(() => {});
+              });
+            } else {
+              void appWindow.destroy();
+            }
           }}
           className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
           title="退出直播间"

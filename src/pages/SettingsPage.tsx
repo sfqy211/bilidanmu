@@ -218,6 +218,22 @@ export function SettingsPage() {
                 />
               </label>
 
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+                <span>进入直播间时隐藏主窗口（退出时自动恢复）</span>
+                <input
+                  type="checkbox"
+                  checked={settings.window.autoHideMain}
+                  onChange={(event) =>
+                    patchSettings({
+                      window: {
+                        ...settings.window,
+                        autoHideMain: event.target.checked
+                      }
+                    })
+                  }
+                />
+              </label>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm text-slate-600 dark:text-slate-300">
                   重连间隔（秒）

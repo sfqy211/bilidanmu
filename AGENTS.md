@@ -15,6 +15,11 @@
 - Default expectation: run `npm run typecheck` and `cargo check`.
 - If you touched STT or AI code, verify both feature areas still compile.
 
+## Release flow (CI)
+- `.github/workflows/publish-tauri.yml`: pushing to `main` with a change to `src-tauri/tauri.conf.json` publishes a GitHub release tagged `app-v<version>` (skipped if the tag already exists). Treat version bumps as release triggers.
+- Release changelog is parsed from conventional commit subjects (`feat:` / `fix:` / `refactor:`); anything else lands in "其他".
+- CI gates on `npm run typecheck` and `cargo check` (in `src-tauri/`) before building.
+
 ## Repo shape
 - `src/` is the Vite/React frontend. Vite root is `src`, output is `dist`, dev server is fixed to `http://localhost:3000` (`strictPort: true`).
 - `src-tauri/` is the Tauri/Rust app. `tauri.conf.json` starts the renderer with `beforeDevCommand: npm run dev:renderer` and builds it with `beforeBuildCommand: npm run build:renderer`.
@@ -24,8 +29,8 @@
 - Frontend boots from `src/main.tsx` with React Router + Zustand; `src/App.tsx` restores login, settings, rooms, and the saved room on startup. Also listens for tray events (`room-switched`, `account-switched`) to sync state.
 - All frontend-to-Rust IPC goes through `src/lib/tauri.ts`. When adding a new Tauri command, add the TS wrapper there instead of calling `invoke()` ad hoc.
 - Rust commands are registered centrally in `src-tauri/src/lib.rs` via `tauri::generate_handler!`. New commands must be added there.
-- Window permissions must be declared in `src-tauri/capabilities/default.json` (e.g., `core:window:allow-start-dragging`, `core:window:allow-set-always-on-top`).
-- All windows use `decorations: false` — custom title bars. Danmaku window has `transparent: true` for opacity support.
+- Window permissions must be declared in `src-tauri/capabilities/default.json` (e.g., `core:window:allow-start-dragging`, `core:window:allow-set-always-on-top`). The capability applies to windows `main` + `danmaku-*`.
+- All windows use `decorations: false` — custom title bars. The main window is `transparent: true` + `shadow: false`; danmaku windows are created at runtime in `commands/room.rs` with labels `danmaku-{room_id}` and `.transparent(true)` for opacity support.
 - Danmaku window close hides to tray (not disconnect). Separate exit button for actual disconnect.
 - Tray single-click toggles danmaku window, double-click shows main window (250ms delay differentiation).
 - Dual credential: `state.credential` (main, for WS/audio) + `state.sending_credential` (for sending danmaku/emoticons). `get_sending_credential()` helper in `commands/mod.rs` falls back to main.

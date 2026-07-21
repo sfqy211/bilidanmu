@@ -60,6 +60,7 @@ export const tauriCommands = {
       invoke<void>("open_danmaku_window", { roomId, width: width ?? null, height: height ?? null }),
     openDrawer: (roomId: number, panel: string) =>
       invoke<void>("open_drawer_window", { roomId, panel }),
+    exitRoom: (roomId: number) => invoke<void>("exit_room", { roomId }),
     getEmoticons: (roomId: number, force?: boolean, accountId?: string) =>
       invoke<EmoticonPackage[]>("get_emoticons", { roomId, force: force ?? false, accountId: accountId ?? null }),
     clearEmoticonCache: () => invoke<void>("clear_emoticon_cache"),

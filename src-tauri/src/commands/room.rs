@@ -325,6 +325,7 @@ pub async fn open_danmaku_window(
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+        hide_main_window_if_enabled(&app, state.inner());
         return Ok(());
     }
 
@@ -371,6 +372,68 @@ pub async fn open_danmaku_window(
         }
     }
 
+    hide_main_window_if_enabled(&app, state.inner());
+    Ok(())
+}
+
+/// 读取"进入直播间时隐藏主窗口"开关；设置读取失败时回退为不隐藏（非破坏性）
+fn auto_hide_main_enabled(state: &AppState) -> bool {
+    crate::settings_store::load_settings(state)
+        .map(|s| s.window.auto_hide_main)
+        .unwrap_or(false)
+}
+
+/// 按设置在进入直播间时隐藏主窗口，并记录是本功能所为
+fn hide_main_window_if_enabled(app: &tauri::AppHandle, state: &AppState) {
+    if !auto_hide_main_enabled(state) {
+        return;
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        // 仅当主窗口当前可见时才隐藏并置位，避免覆盖用户手动隐藏的状态
+        if main.is_visible().unwrap_or(false) {
+            let _ = main.hide();
+            state
+                .main_window_auto_hidden
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// 恢复由 hide_main_window_if_enabled 隐藏的主窗口；用户手动隐藏的不动
+fn restore_main_window_if_auto_hidden(app: &tauri::AppHandle, state: &AppState) {
+    // 先 swap 清零再查窗口：若 main 已不存在则直接丢弃标志，避免留下永远置位的脏标志
+    if state
+        .main_window_auto_hidden
+        .swap(false, std::sync::atomic::Ordering::Relaxed)
+    {
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.unminimize();
+            let _ = main.show();
+            let _ = main.set_focus();
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn exit_room(
+    app: tauri::AppHandle,
+    room_id: u64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // 与 open_danmaku_window 互斥，避免开窗/退窗流程交错
+    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    // 销毁该房间的弹幕窗口与抽屉窗口
+    let danmaku_label = format!("danmaku-{room_id}");
+    let drawer_prefix = format!("drawer-{room_id}-");
+    for (label, window) in app.webview_windows() {
+        if label == danmaku_label || label.starts_with(&drawer_prefix) {
+            let _ = window.destroy();
+        }
+    }
+
+    // 仅恢复由本功能自动隐藏的主窗口（用户手动隐藏的不动）
+    restore_main_window_if_auto_hidden(&app, state.inner());
     Ok(())
 }
 
