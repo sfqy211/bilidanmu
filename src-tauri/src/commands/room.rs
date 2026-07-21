@@ -322,6 +322,8 @@ pub async fn open_danmaku_window(
     let label = format!("danmaku-{room_id}");
 
     if let Some(window) = app.get_webview_window(&label) {
+        // 确保已存在的弹幕窗口也不可最大化（兼容旧版本创建的窗口）
+        let _ = window.set_maximizable(false);
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -340,37 +342,19 @@ pub async fn open_danmaku_window(
         .map(|(uname, room_title)| format!("{uname} - {room_title}"))
         .unwrap_or_else(|| format!("房间 {room_id}"));
 
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
+    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
         .title(title)
         .inner_size(w, h)
         .min_inner_size(240.0, 160.0)
         .max_inner_size(1200.0, 900.0)
         .resizable(true)
+        .maximizable(false)
         .decorations(false)
         .transparent(true)
         .always_on_top(true)
         .shadow(false)
         .build()
         .map_err(|error| error.to_string())?;
-
-    // 移除 WS_MAXIMIZEBOX 以禁用 Windows Snap Layouts，保留 WS_SIZEBOX 以支持边缘拖拽缩放
-    #[cfg(target_os = "windows")]
-    {
-        use windows::Win32::Foundation::HWND;
-        use windows::Win32::UI::WindowsAndMessaging::{
-            GetWindowLongW, SetWindowLongW, GWL_STYLE,
-        };
-        const WS_MAXIMIZEBOX: i32 = 0x0001_0000;
-        if let Ok(hwnd) = window.hwnd() {
-            let hwnd = HWND(hwnd.0 as _);
-            unsafe {
-                let style = GetWindowLongW(hwnd, GWL_STYLE);
-                if style != 0 {
-                    SetWindowLongW(hwnd, GWL_STYLE, style & !WS_MAXIMIZEBOX);
-                }
-            }
-        }
-    }
 
     hide_main_window(&app);
     Ok(())

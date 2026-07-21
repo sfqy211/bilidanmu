@@ -80,8 +80,13 @@ fn toggle_window(window: &tauri::WebviewWindow) {
     }
 }
 
-/// 显示窗口：取消最小化、显示并聚焦
+/// 显示窗口：取消最小化、显示并聚焦。
+/// 弹幕窗口保持 maximizable=false，确保其窗口样式始终不含 WS_MAXIMIZEBOX，
+/// 避免拖到屏幕边缘触发 Windows Snap 吸附/分屏。
 fn show_window(window: &tauri::WebviewWindow) {
+    if window.label().starts_with("danmaku-") {
+        let _ = window.set_maximizable(false);
+    }
     let _ = window.unminimize();
     let _ = window.show();
     let _ = window.set_focus();
