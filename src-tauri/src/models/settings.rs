@@ -145,21 +145,6 @@ impl Default for FilterSetting {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WindowSetting {
-    /// 进入直播间时自动隐藏主窗口，退出直播间时自动恢复
-    pub auto_hide_main: bool,
-}
-
-impl Default for WindowSetting {
-    fn default() -> Self {
-        Self {
-            auto_hide_main: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub send_interval: RangeSetting,
     pub rate_limit: RateLimitSetting,
@@ -175,8 +160,6 @@ pub struct Settings {
     pub stt: SttSetting,
     #[serde(default)]
     pub filter: FilterSetting,
-    #[serde(default)]
-    pub window: WindowSetting,
 }
 
 impl Default for Settings {
@@ -221,7 +204,6 @@ impl Default for Settings {
             audio: AudioSetting::default(),
             stt: SttSetting::default(),
             filter: FilterSetting::default(),
-            window: WindowSetting::default(),
         }
     }
 }

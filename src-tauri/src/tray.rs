@@ -2,7 +2,7 @@ use crate::{room_store, AppState};
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
-    tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     App, AppHandle, Emitter, Manager,
 };
 
@@ -41,38 +41,56 @@ fn load_tray_icon(app: &App) -> Option<Image<'_>> {
 }
 
 fn handle_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
-    if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
-        let app = tray.app_handle().clone();
-        tauri::async_runtime::spawn(async move {
-            toggle_danmaku_window(&app).await;
-        });
+    // 一次物理点击在 Windows 上会触发 Down + Up 两个 Click 事件；
+    // 只在抬起(Up)时触发一次，否则 toggle 会执行两次 = 闪烁后回到原状。
+    // DoubleClick 是独立变体，不匹配本分支，自然被忽略。
+    if let TrayIconEvent::Click {
+        button: MouseButton::Left,
+        button_state: MouseButtonState::Up,
+        ..
+    } = event
+    {
+        toggle_current_window(tray.app_handle());
     }
 }
 
-async fn toggle_danmaku_window(app: &AppHandle) {
-    let danmaku_window = app
-        .webview_windows()
+/// 当前窗口 = 连接着直播间时的弹幕窗口，否则为主页面。
+/// 是否连接看弹幕窗口是否存在（hide 只是显示问题，窗口仍在即仍连着）。
+fn current_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    app.webview_windows()
         .into_iter()
-        .find(|(label, _)| label.starts_with("danmaku-"));
+        .find(|(label, _)| label.starts_with("danmaku-"))
+        .map(|(_, win)| win)
+        .or_else(|| app.get_webview_window("main"))
+}
 
-    if let Some((_, win)) = danmaku_window {
-        if win.is_visible().unwrap_or(false) {
-            let _ = win.hide();
-        } else {
-            let _ = win.unminimize();
-            let _ = win.show();
-            let _ = win.set_focus();
-        }
-    } else {
-        show_main_window(app);
+/// 托盘左键单击：对当前窗口做显示/隐藏切换（不在弹幕与主页面之间互换）
+fn toggle_current_window(app: &AppHandle) {
+    if let Some(window) = current_window(app) {
+        toggle_window(&window);
     }
+}
+
+/// 切换窗口显示/隐藏；重新显示时取消最小化并聚焦
+fn toggle_window(window: &tauri::WebviewWindow) {
+    if window.is_visible().unwrap_or(false) {
+        let _ = window.hide();
+    } else {
+        show_window(window);
+    }
+}
+
+/// 显示窗口：取消最小化、显示并聚焦
+fn show_window(window: &tauri::WebviewWindow) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
 }
 
 fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     let id = event.id.as_ref();
 
     match id {
-        "show" => show_main_window(app),
         "quit" => {
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
@@ -245,17 +263,8 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
 
-    let show = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-    menu.append(&show)?;
     menu.append(&quit)?;
 
     Ok(menu)
-}
-
-fn show_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
 }

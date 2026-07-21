@@ -6,7 +6,7 @@ import type { Settings } from "@/types/bilibili";
 /** 需要深合并的子对象键 */
 const DEEP_KEYS = [
   "sendInterval", "rateLimit", "riskControl", "receive",
-  "appearance", "notification", "cache", "audio", "stt", "filter", "window",
+  "appearance", "notification", "cache", "audio", "stt", "filter",
 ] as const;
 
 /** 将部分设置与默认值深合并，确保所有子对象字段完整 */
@@ -69,9 +69,6 @@ export const defaultSettings: Settings = {
   filter: {
     blockedUsers: [],
     blockedKeywords: []
-  },
-  window: {
-    autoHideMain: true
   }
 };
 

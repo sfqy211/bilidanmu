@@ -32,7 +32,7 @@
 - Window permissions must be declared in `src-tauri/capabilities/default.json` (e.g., `core:window:allow-start-dragging`, `core:window:allow-set-always-on-top`). The capability applies to windows `main` + `danmaku-*`.
 - All windows use `decorations: false` — custom title bars. The main window is `transparent: true` + `shadow: false`; danmaku windows are created at runtime in `commands/room.rs` with labels `danmaku-{room_id}` and `.transparent(true)` for opacity support.
 - Danmaku window close hides to tray (not disconnect). Separate exit button for actual disconnect.
-- Tray single-click toggles danmaku window, double-click shows main window (250ms delay differentiation).
+- Tray single-click toggles the current window's visibility only (never swaps windows): the current window is the danmaku window while a room is connected (a `danmaku-*` window exists, even if hidden), otherwise the main window. Danmaku and main windows are mutually exclusive — entering a room hides the main window, and `exit_room` (a real disconnect, via the danmaku window's exit button) immediately restores it; hiding the danmaku window to tray is display-only, not a disconnect. The tray left-click handler fires only on `button_state == Up` (a physical click emits both Down and Up `Click` events). There is no tray menu item for switching/summoning windows.
 - Dual credential: `state.credential` (main, for WS/audio) + `state.sending_credential` (for sending danmaku/emoticons). `get_sending_credential()` helper in `commands/mod.rs` falls back to main.
 - STT and AI are always compiled in (no feature gates). Runtime toggles via settings control whether they're active.
 

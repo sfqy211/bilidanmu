@@ -44,8 +44,6 @@ pub struct AppState {
     pub wbi_cache: Arc<TokioMutex<WbiKeyCache>>,
     pub ws_client: TokioMutex<Option<DanmakuWsClient>>,
     pub danmaku_window_lock: TokioMutex<()>,
-    /// 主窗口是否由"进入直播间自动隐藏"功能隐藏（退出直播间时据此恢复）
-    pub main_window_auto_hidden: std::sync::atomic::AtomicBool,
     pub auto_sender: TokioMutex<AutoSenderState>,
     pub auto_like: TokioMutex<AutoLikeState>,
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
@@ -108,7 +106,6 @@ pub fn run() {
             wbi_cache: wbi_cache.clone(),
             ws_client: TokioMutex::new(None),
             danmaku_window_lock: TokioMutex::new(()),
-            main_window_auto_hidden: std::sync::atomic::AtomicBool::new(false),
             auto_sender: TokioMutex::new(AutoSenderState { shutdown_tx: None }),
             auto_like: TokioMutex::new(AutoLikeState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
