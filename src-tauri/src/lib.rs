@@ -12,6 +12,7 @@ mod send_queue;
 mod settings_store;
 mod stt;
 mod tray;
+mod window_dock;
 
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
@@ -55,6 +56,11 @@ pub struct AppState {
     pub astrbot_callback_port: Arc<TokioMutex<u16>>,
     pub ai_summaries: commands::ai_proxy::SummaryStore,
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
+    /// 各窗口的侧边吸附状态（label -> DockState）
+    pub window_docks: std::sync::Mutex<HashMap<String, window_dock::DockState>>,
+    /// 退出吸附后的拖动冷却集合：冷却中的窗口即使贴边也不重新吸附，
+    /// 直到被拖离边缘才移出冷却（对齐 QQ：展开后拖离边缘即保持正常窗口）
+    pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -117,10 +123,17 @@ pub fn run() {
             astrbot_callback_port: Arc::new(TokioMutex::new(0)),
             ai_summaries: Arc::new(StdMutex::new(Vec::new())),
             stt_manager: Arc::new(TokioMutex::new(None)),
+            window_docks: std::sync::Mutex::new(HashMap::new()),
+            dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
         }
         })
         .setup(|app| {
             tray::create_tray(app)?;
+
+            // 主页面窗口挂接侧边吸附
+            if let Some(main) = app.get_webview_window("main") {
+                window_dock::attach(&main, app.handle());
+            }
 
             if let Ok(connection) = db::open_database(app.handle()) {
                 let state = app.state::<AppState>();
@@ -232,11 +245,19 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    api.prevent_close();
-                    let _ = window.hide();
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    if window.label() == "main" {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
                 }
+                // 窗口销毁时清理其侧边吸附残留（DockState/冷却/轮询任务），
+                // 避免同 label 重建窗口时被上一世的吸附态劫持
+                WindowEvent::Destroyed => {
+                    window_dock::cleanup(window.label(), window.app_handle());
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -269,6 +290,10 @@ pub fn run() {
             commands::room::open_danmaku_window,
             commands::room::open_drawer_window,
             commands::room::exit_room,
+            window_dock::dock_expand,
+            window_dock::dock_collapse,
+            window_dock::dock_exit,
+            window_dock::get_dock_state,
             commands::room::get_audio_stream_url,
             commands::room::clear_audio_stream,
             commands::room::get_rooms_live_status,

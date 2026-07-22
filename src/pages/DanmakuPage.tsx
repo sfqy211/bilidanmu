@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
+import { useWindowDock } from "@/hooks/useWindowDock";
+import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
@@ -700,8 +702,18 @@ export function DanmakuPage() {
     void appWindow.startDragging();
   }, [locked, passthroughEnabled]);
 
+  const { phase: dockPhase, side: dockSide, expand: dockExpand } = useWindowDock();
+
+  // 侧边吸附的收缩态：只渲染细条（弹幕窗口的WS/音频等连接在后台保持，不受影响）
+  if (dockPhase === "collapsed") {
+    return <DockCollapsedBar side={dockSide} onExpand={dockExpand} />;
+  }
+
   return (
-    <main className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100" style={{ "--bg-a": bgAlpha } as React.CSSProperties}>
+    <main
+      className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100"
+      style={{ "--bg-a": bgAlpha } as React.CSSProperties}
+    >
       {/* 标题栏 */}
       <div
         data-interactive=""

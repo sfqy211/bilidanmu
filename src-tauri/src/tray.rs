@@ -89,6 +89,8 @@ fn show_window(window: &tauri::WebviewWindow) {
     }
     let _ = window.unminimize();
     let _ = window.show();
+    // 若窗口处于侧边吸附态，show 后恢复收缩几何以保持吸附
+    crate::window_dock::restore_if_docked(window, window.app_handle());
     let _ = window.set_focus();
 }
 

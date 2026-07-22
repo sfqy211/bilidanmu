@@ -134,6 +134,12 @@ export const tauriCommands = {
     load: (keys: string[]) => invoke<Record<string, unknown>>("load_selections", { keys }),
     save: (entries: Record<string, unknown>) => invoke<void>("save_selections", { entries })
   },
+  dock: {
+    expand: (label: string) => invoke<void>("dock_expand", { label }),
+    collapse: (label: string) => invoke<void>("dock_collapse", { label }),
+    exit: (label: string) => invoke<void>("dock_exit", { label }),
+    getState: (label: string) => invoke<string>("get_dock_state", { label })
+  },
   proxy: {
     image: (url: string, persistent?: boolean) =>
       invoke<string>("proxy_image", { url, persistent: persistent ?? false }),

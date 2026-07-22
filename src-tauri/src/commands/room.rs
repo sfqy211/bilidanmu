@@ -342,7 +342,7 @@ pub async fn open_danmaku_window(
         .map(|(uname, room_title)| format!("{uname} - {room_title}"))
         .unwrap_or_else(|| format!("房间 {room_id}"));
 
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
         .title(title)
         .inner_size(w, h)
         .min_inner_size(240.0, 160.0)
@@ -355,6 +355,9 @@ pub async fn open_danmaku_window(
         .shadow(false)
         .build()
         .map_err(|error| error.to_string())?;
+
+    // 弹幕窗口挂接侧边吸附
+    crate::window_dock::attach(&window, &app);
 
     hide_main_window(&app);
     Ok(())
@@ -372,6 +375,8 @@ fn show_main_window(app: &tauri::AppHandle) {
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.unminimize();
         let _ = main.show();
+        // 若主页面处于侧边吸附态，show 后恢复收缩几何以保持吸附
+        crate::window_dock::restore_if_docked(&main, app);
         let _ = main.set_focus();
     }
 }
