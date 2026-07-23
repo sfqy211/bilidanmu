@@ -66,6 +66,12 @@ body {
   background: transparent !important;
 }
 
+/* 弹幕窗口 body 禁用滚动：页面布局由根容器 overflow-hidden 与内部滚动容器管理，
+   body 自身在窗口 resize（如侧边吸附展开）瞬间不应因短暂溢出而冒出滚动条。 */
+[data-transparent] body {
+  overflow: hidden;
+}
+
 /* 全局窗口圆角 — 修改此处即可统一所有窗口圆角 */
 .window-rounded {
   border-radius: 8px;
