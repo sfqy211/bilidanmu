@@ -8,6 +8,7 @@ import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
 import { getAppVersion } from "@/lib/constants";
 import { tauriCommands } from "@/lib/tauri";
+import aboutIcon from "@/assets/icon.png";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { Settings } from "@/types/bilibili";
 
@@ -569,7 +570,7 @@ function AboutTab() {
     <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
       <div className="flex items-center gap-4">
         <img
-          src="/assets/icon.png"
+          src={aboutIcon}
           alt="BiliDanmu"
           className="h-16 w-16 rounded-xl"
         />
