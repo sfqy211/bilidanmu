@@ -1,12 +1,26 @@
+# 外部参考
 reference/
+
+# Rust 构建
 src-tauri/gen/
+target/
+src-tauri/target/
+
+# Node
 node_modules/
 dist/
 .vite/
-target/
-src-tauri/target/
+
+# 日志 / 缓存
 *.log
 *.tsbuildinfo
+
+# IDE
 .idea/
 .vscode/
+
+# 生成模型
 src-tauri/models/
+
+# Claude Code 工具
+.agents/
