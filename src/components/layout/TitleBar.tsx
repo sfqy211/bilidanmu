@@ -30,24 +30,26 @@ export function TitleBar() {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className="flex h-9 select-none items-center bg-[#f8f8f8] shadow-sm dark:bg-[#0e1018] dark:ring-1 dark:ring-white/[0.06]"
+      className="relative z-20 flex h-10 select-none items-center"
     >
-      <div className="flex flex-1 items-center gap-1.5 px-3">
+      <div className="flex flex-1 items-center gap-2 px-4">
         <img src={appIcon} alt="" className="h-4 w-4" />
-        <span className="text-xs text-slate-400 dark:text-slate-500">BiliDanmu</span>
+        <span className="text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400">
+          BiliDanmu
+        </span>
       </div>
       <div className="flex h-full">
         <button
           type="button"
           onClick={() => appWindow.minimize()}
-          className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-black/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           onClick={() => appWindow.toggleMaximize()}
-          className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-black/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
         >
           <Maximize className="h-3 w-3" />
         </button>

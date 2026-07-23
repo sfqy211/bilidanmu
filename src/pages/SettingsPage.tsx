@@ -5,7 +5,8 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
-import { OpacitySlider } from "@/components/settings/OpacitySlider";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import { getAppVersion } from "@/lib/constants";
 import { tauriCommands } from "@/lib/tauri";
 import aboutIcon from "@/assets/icon.png";
@@ -129,7 +130,7 @@ export function SettingsPage() {
                         sendInterval: { min: Number(event.target.value), max: settings.sendInterval.max }
                       })
                     }
-                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                    className="mt-2 h-11 w-full px-4 text-sm"
                   />
                 </label>
 
@@ -144,39 +145,27 @@ export function SettingsPage() {
                         sendInterval: { min: settings.sendInterval.min, max: Number(event.target.value) }
                       })
                     }
-                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                    className="mt-2 h-11 w-full px-4 text-sm"
                   />
                 </label>
               </div>
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>启用随机间隔</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.riskControl.randomInterval}
-                  onChange={(event) =>
-                    patchSettings({
-                      riskControl: {
-                        ...settings.riskControl,
-                        randomInterval: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ riskControl: { ...settings.riskControl, randomInterval: !!c } })
                   }
                 />
               </label>
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>启用间隔抖动</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.riskControl.jitter}
-                  onChange={(event) =>
-                    patchSettings({
-                      riskControl: {
-                        ...settings.riskControl,
-                        jitter: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ riskControl: { ...settings.riskControl, jitter: !!c } })
                   }
                 />
               </label>
@@ -189,32 +178,20 @@ export function SettingsPage() {
             <div className="space-y-4">
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>自动连接弹幕流</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.receive.autoConnect}
-                  onChange={(event) =>
-                    patchSettings({
-                      receive: {
-                        ...settings.receive,
-                        autoConnect: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ receive: { ...settings.receive, autoConnect: !!c } })
                   }
                 />
               </label>
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>断线自动重连</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.receive.autoReconnect}
-                  onChange={(event) =>
-                    patchSettings({
-                      receive: {
-                        ...settings.receive,
-                        autoReconnect: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ receive: { ...settings.receive, autoReconnect: !!c } })
                   }
                 />
               </label>
@@ -233,7 +210,7 @@ export function SettingsPage() {
                         }
                       })
                     }
-                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                    className="mt-2 h-11 w-full px-4 text-sm"
                   />
                 </label>
 
@@ -250,7 +227,7 @@ export function SettingsPage() {
                         }
                       })
                     }
-                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                    className="mt-2 h-11 w-full px-4 text-sm"
                   />
                 </label>
               </div>
@@ -259,32 +236,20 @@ export function SettingsPage() {
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>禁言提醒</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.notification.muteAlert}
-                  onChange={(event) =>
-                    patchSettings({
-                      notification: {
-                        ...settings.notification,
-                        muteAlert: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ notification: { ...settings.notification, muteAlert: !!c } })
                   }
                 />
               </label>
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>Cookie 过期提醒</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.notification.cookieExpiry}
-                  onChange={(event) =>
-                    patchSettings({
-                      notification: {
-                        ...settings.notification,
-                        cookieExpiry: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ notification: { ...settings.notification, cookieExpiry: !!c } })
                   }
                 />
               </label>
@@ -299,15 +264,12 @@ export function SettingsPage() {
                 主题
                 <select
                   value={settings.appearance.theme}
-                  onChange={(event) =>
+                  onChange={(e) =>
                     patchSettings({
-                      appearance: {
-                        ...settings.appearance,
-                        theme: event.target.value as "light" | "dark" | "system"
-                      }
+                      appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" }
                     })
                   }
-                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                  className="mt-2 h-11 w-full px-4 text-sm"
                 >
                   <option value="light">浅色</option>
                   <option value="dark">深色</option>
@@ -328,7 +290,7 @@ export function SettingsPage() {
                       }
                     })
                   }
-                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                  className="mt-2 h-11 w-full px-4 text-sm"
                 />
                 <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   快捷键：Ctrl + 滚轮 调整弹幕/AI 文字大小
@@ -344,16 +306,10 @@ export function SettingsPage() {
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>显示勋章</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.appearance.showMedal}
-                  onChange={(event) =>
-                    patchSettings({
-                      appearance: {
-                        ...settings.appearance,
-                        showMedal: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ appearance: { ...settings.appearance, showMedal: !!c } })
                   }
                 />
               </label>
@@ -361,28 +317,30 @@ export function SettingsPage() {
               {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
                 <label key={key} className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                   <span>{label}</span>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={settings.appearance[key]}
-                    onChange={(event) =>
-                      patchSettings({
-                        appearance: {
-                          ...settings.appearance,
-                          [key]: event.target.checked
-                        }
-                      })
+                    onCheckedChange={(c) =>
+                      patchSettings({ appearance: { ...settings.appearance, [key]: !!c } })
                     }
                   />
                 </label>
               ))}
 
-              <OpacitySlider
-                label="默认弹幕窗口透明度"
-                value={settings.appearance.opacity}
-                onChange={(val) =>
-                  patchSettings({ appearance: { ...settings.appearance, opacity: val } } as Partial<Settings>)
-                }
-              />
+              <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm text-slate-600 dark:text-slate-300">默认弹幕窗口透明度</span>
+                  <span className="numeric text-xs text-slate-400 dark:text-slate-500">{settings.appearance.opacity}%</span>
+                </div>
+                <Slider
+                  min={10}
+                  max={100}
+                  step={1}
+                  value={[settings.appearance.opacity]}
+                  onValueChange={([v]) =>
+                    patchSettings({ appearance: { ...settings.appearance, opacity: v } } as Partial<Settings>)
+                  }
+                />
+              </div>
             </div>
           </div>
         </TabContent>
@@ -406,22 +364,16 @@ export function SettingsPage() {
                       }
                     })
                   }
-                  className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                  className="mt-2 h-11 w-full px-4 text-sm"
                 />
               </label>
 
               <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                 <span>进入直播间时自动播放音频</span>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.audio.autoPlay}
-                  onChange={(event) =>
-                    patchSettings({
-                      audio: {
-                        ...settings.audio,
-                        autoPlay: event.target.checked
-                      }
-                    })
+                  onCheckedChange={(c) =>
+                    patchSettings({ audio: { ...settings.audio, autoPlay: !!c } })
                   }
                 />
               </label>
@@ -434,13 +386,10 @@ export function SettingsPage() {
               <div className="space-y-4">
                 <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
                   <span>启用语音识别</span>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={settings.stt.enabled}
-                    onChange={(event) =>
-                      patchSettings({
-                        stt: { ...settings.stt, enabled: event.target.checked }
-                      })
+                    onCheckedChange={(c) =>
+                      patchSettings({ stt: { ...settings.stt, enabled: !!c } })
                     }
                   />
                 </label>
@@ -449,13 +398,9 @@ export function SettingsPage() {
                   识别模型
                   <select
                     value={settings.stt.modelId}
-                    onChange={(event) =>
-                      patchSettings({
-                        stt: { ...settings.stt, modelId: event.target.value }
-                      })
-                    }
+                    onChange={(e) => patchSettings({ stt: { ...settings.stt, modelId: e.target.value } })}
                     disabled={availableModels.length === 0}
-                    className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+                    className="mt-2 h-11 w-full px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {availableModels.length === 0 ? (
                       <option value="">未检测到模型文件</option>
@@ -470,20 +415,15 @@ export function SettingsPage() {
                 <label className="block text-sm text-slate-600 dark:text-slate-300">
                   字幕同步偏移（毫秒，负值=提前，正值=延迟）
                   <div className="mt-2 flex items-center gap-3">
-                    <input
-                      type="range"
+                    <Slider
                       min={-2000}
                       max={2000}
                       step={100}
-                      value={settings.stt.syncDelayMs}
-                      onChange={(event) =>
-                        patchSettings({
-                          stt: { ...settings.stt, syncDelayMs: Number(event.target.value) }
-                        })
-                      }
-                      className="h-1 flex-1 cursor-pointer accent-pink-500"
+                      value={[settings.stt.syncDelayMs]}
+                      onValueChange={([v]) => patchSettings({ stt: { ...settings.stt, syncDelayMs: v } })}
+                      className="flex-1"
                     />
-                    <span className="w-12 text-right text-xs text-slate-500 dark:text-slate-400">
+                    <span className="numeric w-14 text-right text-xs text-slate-500 dark:text-slate-400">
                       {settings.stt.syncDelayMs > 0 ? "+" + settings.stt.syncDelayMs : settings.stt.syncDelayMs}
                     </span>
                   </div>
@@ -801,7 +741,7 @@ function CacheLimitCard({ settings, patchSettings }: { settings: Settings; patch
                 cache: { ...settings.cache, danmakuLimit: Math.max(0, Number(e.target.value)) }
               })
             }
-            className="mt-1 h-9 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+            className="mt-1 h-9 w-full px-3 text-sm"
           />
         </label>
         <label className="block text-sm text-slate-600 dark:text-slate-300">
@@ -816,7 +756,7 @@ function CacheLimitCard({ settings, patchSettings }: { settings: Settings; patch
                 cache: { ...settings.cache, giftLimit: Math.max(0, Number(e.target.value)) }
               })
             }
-            className="mt-1 h-9 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+            className="mt-1 h-9 w-full px-3 text-sm"
           />
         </label>
       </div>

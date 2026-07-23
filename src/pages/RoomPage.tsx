@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { LayoutGrid, List, MonitorPlay, Plus, Search, Trash2, X } from "lucide-react";
+import { LayoutGrid, List, MonitorPlay, Plus, Trash2, X } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
@@ -32,6 +32,11 @@ export function RoomPage() {
   const placeholder = useMemo(
     () => searchModes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容",
     [mode]
+  );
+
+  const liveCount = useMemo(
+    () => rooms.filter((r) => r.uid != null && liveStatusMap[String(r.uid)]).length,
+    [rooms, liveStatusMap]
   );
 
   const refreshLiveStatus = async () => {
@@ -133,37 +138,55 @@ export function RoomPage() {
         }
       }}
     >
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold">直播间</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{rooms.length} 个已添加</p>
+      {/* 编辑级页头 */}
+      <header className="app-rise mb-6">
+        <div className="flex items-end justify-between gap-6">
+          <div className="min-w-0">
+            <p className="overline-label text-pink-500/90 dark:text-pink-400/90">Live Rooms</p>
+            <h2 className="mt-2 text-[34px] font-bold leading-none tracking-tight text-slate-900 dark:text-white">
+              直播间
+            </h2>
+            <p className="mt-3 flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
+              <span className="numeric font-medium text-slate-700 dark:text-slate-200">{rooms.length}</span>
+              个已添加
+              {liveCount > 0 && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-600">·</span>
+                  <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-rose-500" />
+                  <span className="numeric font-medium text-rose-500">{liveCount}</span>
+                  个直播中
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={toggleViewMode}
+              className="glass-panel inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+              title={viewMode === "card" ? "切换为列表显示" : "切换为封面显示"}
+            >
+              {viewMode === "card" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => setShowSearch((v) => !v)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-pink-500 px-4 text-sm font-medium text-white shadow-[0_4px_16px_-4px_rgba(236,72,153,0.5)] transition hover:bg-pink-400 active:scale-[0.97]"
+            >
+              {showSearch ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showSearch ? "关闭" : "添加"}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleViewMode}
-            className="inline-flex items-center justify-center rounded border border-neutral-200 bg-[#f8f8f8] p-2 text-slate-600 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-300 dark:hover:bg-[#22242e]"
-            title={viewMode === "card" ? "切换为列表显示" : "切换为封面显示"}
-          >
-            {viewMode === "card" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          </button>
-          <button
-            onClick={() => setShowSearch((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
-          >
-            {showSearch ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showSearch ? "关闭" : "添加"}
-          </button>
-        </div>
-      </div>
+      </header>
 
       {showSearch && (
-        <div className="mb-4 flex flex-col gap-4">
+        <div className="app-rise mb-4 flex flex-col gap-4">
           <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex gap-2">
               <select
                 value={mode}
-                onChange={(event) => setMode(event.target.value as SearchRoomMode)}
-                className="shrink-0 rounded border border-neutral-200 bg-[#f8f8f8] px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-100"
+                onChange={(e) => setMode(e.target.value as SearchRoomMode)}
+                className="shrink-0 rounded-md px-3 text-sm"
               >
                 {searchModes.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -171,24 +194,21 @@ export function RoomPage() {
                   </option>
                 ))}
               </select>
-              <div className="flex flex-1 items-center gap-2 rounded border border-neutral-200 bg-[#f8f8f8] px-3 dark:border-neutral-700 dark:bg-[#1a1c24]">
-                <Search className="h-4 w-4 shrink-0 text-slate-400" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      void handleSearch();
-                    }
-                  }}
-                  placeholder={placeholder}
-                  className="h-9 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
-                />
-              </div>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleSearch();
+                  }
+                }}
+                placeholder={placeholder}
+                className="h-9 flex-1 px-3 text-sm"
+              />
               <button
                 onClick={() => void handleSearch()}
                 disabled={loading}
-                className="shrink-0 rounded bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="shrink-0 rounded-md bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "搜索中..." : "搜索"}
               </button>
@@ -200,7 +220,7 @@ export function RoomPage() {
             <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">搜索结果</h3>
-                <span className="text-xs text-slate-400 dark:text-slate-500">{searchResults.length} 个</span>
+                <span className="numeric text-xs text-slate-400 dark:text-slate-500">{searchResults.length} 个</span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {searchResults.map((room) => {
@@ -210,16 +230,17 @@ export function RoomPage() {
                       key={`search-${room.roomId}`}
                       className="flex items-center gap-3 rounded-lg bg-[#f8f8f8] p-3 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
                     >
-                      <span className={`h-2 w-2 shrink-0 ${room.isLive ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${room.isLive ? "live-dot bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
                         <p className="truncate text-xs text-slate-500 dark:text-slate-400">{room.title}</p>
                       </div>
-                      <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
+                      <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
                       <button
                         onClick={() => void handleAddRoom(room.roomId)}
                         disabled={added || addingRoomIds.has(room.roomId)}
-                        className="shrink-0 p-1.5 text-pink-500 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-pink-300 dark:hover:bg-pink-500/20"
+                        className="shrink-0 rounded p-1.5 text-pink-500 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-pink-300 dark:hover:bg-pink-500/20"
+                        title={added ? "已添加" : "添加"}
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -234,11 +255,19 @@ export function RoomPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rooms.length === 0 ? (
-          <div className="rounded-lg bg-[#f0f0f0] p-6 text-center text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
-            还没有添加直播间。点击右上角「添加」搜索。
+          <div className="app-rise flex flex-col items-center justify-center gap-4 rounded-lg bg-[#f8f8f8] px-6 py-20 text-center shadow-sm dark:bg-[#0e1018] dark:ring-1 dark:ring-white/[0.06]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-500/10 text-pink-500 dark:text-pink-400">
+              <MonitorPlay className="h-8 w-8" strokeWidth={1.6} />
+            </div>
+            <div>
+              <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200">还没有添加直播间</p>
+              <p className="mt-1.5 text-[13px] text-slate-400 dark:text-slate-500">
+                点击右上角「添加」，搜索主播、房间号或粘贴直播链接
+              </p>
+            </div>
           </div>
         ) : viewMode === "list" ? (
-          <div className="flex flex-col gap-2">
+          <div className="app-rise flex flex-col gap-2">
             {rooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];
@@ -247,7 +276,7 @@ export function RoomPage() {
                   key={room.id}
                   className="group flex items-center gap-3 rounded-lg bg-[#f8f8f8] px-3 py-2.5 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "live-dot bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
@@ -257,7 +286,7 @@ export function RoomPage() {
                     </div>
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">{room.title}</p>
                   </div>
-                  <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
+                  <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
                   <span className={`shrink-0 text-xs font-medium ${isLive ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`}>
                     {isLive ? "直播中" : "未开播"}
                   </span>
@@ -294,7 +323,7 @@ export function RoomPage() {
             })}
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="app-rise grid gap-3 sm:grid-cols-3">
             {rooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];

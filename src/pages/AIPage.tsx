@@ -104,7 +104,7 @@ export function AIPage() {
               value={host}
               onChange={(e) => setHost(e.target.value)}
               placeholder="127.0.0.1"
-              className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+              className="mt-2 h-11 w-full px-4 text-sm"
             />
           </label>
           <label className="text-sm text-slate-600 dark:text-slate-300">
@@ -113,7 +113,7 @@ export function AIPage() {
               value={httpPort}
               onChange={(e) => setHttpPort(e.target.value)}
               placeholder="18080"
-              className="mt-2 h-11 w-full rounded border border-neutral-200 bg-[#f8f8f8] px-4 text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
+              className="mt-2 h-11 w-full px-4 text-sm"
             />
           </label>
         </div>

@@ -23,45 +23,52 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <aside className="flex w-12 flex-col bg-white shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-      <nav className="flex flex-1 flex-col items-center gap-1 py-2">
+    <aside className="flex w-16 flex-col items-center py-3">
+      <nav className="flex flex-1 flex-col items-center gap-1.5">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
+            title={label}
             className={({ isActive }) =>
               cn(
-                "group relative flex h-10 w-10 items-center justify-center rounded text-slate-400 transition-colors hover:bg-black/[0.04] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-white",
-                isActive && "bg-black/[0.06] text-slate-900 dark:bg-white/[0.08] dark:text-white"
+                "group relative flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-xl text-slate-400 transition-all duration-200 hover:bg-black/[0.05] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-white",
+                isActive &&
+                  "glass-panel text-pink-500 hover:text-pink-500 dark:text-pink-400 dark:hover:text-pink-400"
               )
             }
-            title={label}
           >
             {({ isActive }) => (
               <>
+                <Icon className="h-[18px] w-[18px]" strokeWidth={isActive ? 2.2 : 1.8} />
                 <span
                   className={cn(
-                    "absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-pink-500 opacity-0 transition-opacity",
-                    isActive && "opacity-100"
+                    "text-[9px] leading-none transition-opacity",
+                    isActive ? "font-semibold opacity-100" : "opacity-0 group-hover:opacity-70"
                   )}
-                />
-                <Icon className="h-5 w-5" />
+                >
+                  {label}
+                </span>
               </>
             )}
           </NavLink>
         ))}
       </nav>
+
       {/* 匿名模式指示器 */}
       {isAnonymous && (
-        <div className="flex flex-col items-center gap-1 px-2 py-2">
+        <div className="flex flex-col items-center gap-1 pb-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-400">
             <Eye className="h-4 w-4" />
           </div>
           <span className="text-[10px] text-slate-400 dark:text-slate-500">匿名</span>
         </div>
       )}
+
       {version && (
-        <div className="p-3 text-center text-[11px] text-slate-400 dark:text-slate-500">{version}</div>
+        <div className="numeric text-[10px] tracking-wider text-slate-300 dark:text-slate-600">
+          {version}
+        </div>
       )}
     </aside>
   );

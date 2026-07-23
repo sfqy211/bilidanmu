@@ -106,6 +106,270 @@ body {
   background-color: rgba(6, 78, 59, var(--bg-a));
 }
 
+/* ── 主页面氛围设计系统（与弹幕窗同一套玻璃语言） ──
+   玻璃面板 + 编辑级排版工具类。浅色米白、深色墨蓝，粉色为唯一强调。 */
+
+/* 应用底色：浅色米白、深色墨蓝 */
+.app-atmosphere {
+  background-color: #f4f4f6;
+}
+.dark .app-atmosphere {
+  background-color: #0a0c14;
+}
+
+/* 玻璃面板：半透明 + 背景模糊 + 极细描边 */
+.glass-panel {
+  background-color: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.10);
+}
+.dark .glass-panel {
+  background-color: rgba(20, 23, 34, 0.55);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 12px 32px -12px rgba(0, 0, 0, 0.45);
+}
+
+/* 玻璃卡片（直播间卡片用，比 panel 更实一点以托住封面） */
+.glass-card {
+  background-color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.14);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.dark .glass-card {
+  background-color: rgba(22, 25, 38, 0.60);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 14px 36px -14px rgba(0, 0, 0, 0.50);
+}
+
+/* 排版：英文小标签（字距拉开的微型大写）+ 数字等宽 */
+.overline-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* 页面载入错落渐入 */
+@keyframes app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.app-rise {
+  animation: app-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 直播状态呼吸点 */
+@keyframes live-ping {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+.live-dot {
+  animation: live-ping 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ── 主页面统一控件样式（.app-scope 作用域，只影响主窗口，不碰弹幕窗） ── */
+
+/* 输入框 / 文本域 共用基础 */
+.app-scope input[type="text"],
+.app-scope input[type="search"],
+.app-scope input[type="number"],
+.app-scope input[type="password"],
+.app-scope input[type="url"],
+.app-scope input:not([type]),
+.app-scope textarea {
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 0.625rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.dark .app-scope input[type="text"],
+.dark .app-scope input[type="search"],
+.dark .app-scope input[type="number"],
+.dark .app-scope input[type="password"],
+.dark .app-scope input[type="url"],
+.dark .app-scope input:not([type]),
+.dark .app-scope textarea {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+.app-scope input:hover,
+.app-scope textarea:hover {
+  border-color: rgba(15, 23, 42, 0.18);
+}
+.dark .app-scope input:hover,
+.dark .app-scope textarea:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+
+.app-scope input:focus-visible,
+.app-scope input:focus,
+.app-scope textarea:focus-visible,
+.app-scope textarea:focus {
+  border-color: rgba(244, 63, 94, 0.55);
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.14);
+}
+.dark .app-scope input:focus-visible,
+.dark .app-scope input:focus,
+.dark .app-scope textarea:focus-visible,
+.dark .app-scope textarea:focus {
+  background-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.20);
+}
+
+.app-scope input::placeholder,
+.app-scope textarea::placeholder {
+  color: #94a3b8;
+}
+.dark .app-scope input::placeholder,
+.dark .app-scope textarea::placeholder {
+  color: #64748b;
+}
+
+.app-scope input:disabled,
+.app-scope textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 下拉框：独立一套完整样式（玻璃底色 + 自定义箭头 + 深色候选项） */
+.app-scope select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 0.625rem;
+  color: #0f172a;
+  outline: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 0.9em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.dark .app-scope select {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+.app-scope select:hover {
+  border-color: rgba(15, 23, 42, 0.18);
+}
+.dark .app-scope select:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+
+.app-scope select:focus-visible,
+.app-scope select:focus {
+  border-color: rgba(244, 63, 94, 0.55);
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.14);
+}
+.dark .app-scope select:focus-visible,
+.dark .app-scope select:focus {
+  background-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.20);
+}
+
+.app-scope select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-scope select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+.dark .app-scope select option {
+  background-color: #171a26;
+  color: #e2e8f0;
+}
+.app-scope select option:hover,
+.app-scope select option:focus {
+  background-color: rgba(244, 63, 94, 0.14);
+}
+.dark .app-scope select option:hover,
+.dark .app-scope select option:focus {
+  background-color: rgba(244, 63, 94, 0.24);
+}
+
+/* 数字输入框：去掉上下箭头（与弹幕窗一致） */
+.app-scope input[type="number"]::-webkit-inner-spin-button,
+.app-scope input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.app-scope input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* 主页面滚动条：更精致的细条 + 圆角滑块，hover 加深 */
+.app-scope ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.app-scope ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-scope ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.app-scope ::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 63, 94, 0.45);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dark .app-scope ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dark .app-scope ::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 63, 94, 0.40);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.app-scope {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.28) transparent;
+}
+.dark .app-scope {
+  scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
+}
+
 button,
 input,
 textarea,
