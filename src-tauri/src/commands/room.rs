@@ -353,6 +353,9 @@ pub async fn open_danmaku_window(
         .transparent(true)
         .always_on_top(true)
         .shadow(false)
+        // 弹幕窗口全程不进任务栏（对齐 QQ：看直播/吸附时任务栏不留图标）。
+        // 系统托盘图标保留，仍可通过托盘或弹幕窗的退出按钮切回主页面。
+        .skip_taskbar(true)
         .build()
         .map_err(|error| error.to_string())?;
 
