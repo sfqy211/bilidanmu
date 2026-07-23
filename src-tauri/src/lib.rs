@@ -130,10 +130,8 @@ pub fn run() {
         .setup(|app| {
             tray::create_tray(app)?;
 
-            // 主页面窗口挂接侧边吸附
-            if let Some(main) = app.get_webview_window("main") {
-                window_dock::attach(&main, app.handle());
-            }
+            // 侧边吸附仅弹幕窗口挂接（在 open_danmaku_window 创建时 attach）；
+            // 主页面窗口不参与吸附（见 window_dock::is_dockable）。
 
             if let Ok(connection) = db::open_database(app.handle()) {
                 let state = app.state::<AppState>();

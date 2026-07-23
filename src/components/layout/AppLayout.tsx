@@ -2,18 +2,10 @@ import { Outlet } from "react-router-dom";
 import { Eye } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TitleBar } from "@/components/layout/TitleBar";
-import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 import { useAuthStore } from "@/stores/auth-store";
-import { useWindowDock } from "@/hooks/useWindowDock";
 
 export function AppLayout() {
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
-  const { phase, side, expand } = useWindowDock();
-
-  // 侧边吸附的收缩态：只渲染细条
-  if (phase === "collapsed") {
-    return <DockCollapsedBar side={side} onExpand={expand} />;
-  }
 
   return (
     <div

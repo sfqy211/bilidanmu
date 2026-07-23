@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { tauriCommands } from "@/lib/tauri";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 
-export type DockPhase = "normal" | "collapsed" | "expanded";
+export type DockPhase = "normal" | "collapsed" | "expanded" | "collapsing";
 export type DockSide = "left" | "right";
 
 interface DockChangedPayload {
@@ -31,7 +31,10 @@ export function useWindowDock() {
     void tauriCommands.dock
       .getState(label)
       .then((p) => {
-        if (!cancelled && (p === "collapsed" || p === "expanded" || p === "normal")) {
+        if (
+          !cancelled &&
+          (p === "collapsed" || p === "expanded" || p === "normal" || p === "collapsing")
+        ) {
           setPhase(p);
         }
       })

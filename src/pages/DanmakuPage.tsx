@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { useWindowDock } from "@/hooks/useWindowDock";
+import type { DockSide } from "@/hooks/useWindowDock";
 import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
@@ -704,15 +705,64 @@ export function DanmakuPage() {
 
   const { phase: dockPhase, side: dockSide, expand: dockExpand } = useWindowDock();
 
+  // 侧边吸附滑动动画：展开时内容从屏幕边缘滑入，收回时向边缘滑出。
+  // 窗体几何由后端直接 set_size/set_position（无系统动画），动画做在内容根节点的 transform 上。
+  // 收回由后端驱动：光标离开 250ms 后阶段变 collapsing（发事件），此处据此播滑出动画，
+  // 动画结束回调 dock.collapse 才真正缩窗；期间光标重新进入会被后端取消回 expanded，动画反向滑回。
+  const [slideIn, setSlideIn] = useState(false);
+  const [slideOut, setSlideOut] = useState(false);
+  const [animSide, setAnimSide] = useState<DockSide>(dockSide);
+  const dockPhaseRef = useRef(dockPhase);
+  dockPhaseRef.current = dockPhase;
+
+  useEffect(() => {
+    if (dockPhase === "collapsing") {
+      // 发起收回：播滑出动画
+      setAnimSide(dockSide);
+      setSlideOut(true);
+      setSlideIn(false);
+    } else if (dockPhase === "expanded" || dockPhase === "normal") {
+      // 取消收回（反向滑回）或正常展开
+      setSlideOut(false);
+      if (dockPhase === "expanded") {
+        setAnimSide(dockSide);
+        setSlideIn(true);
+        const raf = requestAnimationFrame(() => {
+          requestAnimationFrame(() => setSlideIn(false));
+        });
+        return () => cancelAnimationFrame(raf);
+      }
+    }
+    // collapsed：渲染收缩条，无动画状态需要维护
+  }, [dockPhase, dockSide]);
+
+  // 收回动画结束（slide-out 过渡播完）后，通知后端真正缩成细条。
+  // 只响应根节点自身的 transform 过渡，避免后代按钮 hover transition 冒泡误触发提前收回。
+  const handleSlideOutEnd = useCallback((e: React.TransitionEvent) => {
+    if (e.target !== e.currentTarget || e.propertyName !== "transform") return;
+    if (dockPhaseRef.current === "collapsing") {
+      void tauriCommands.dock.collapse(appWindow.label).catch(() => {});
+    }
+  }, []);
+
   // 侧边吸附的收缩态：只渲染细条（弹幕窗口的WS/音频等连接在后台保持，不受影响）
   if (dockPhase === "collapsed") {
     return <DockCollapsedBar side={dockSide} onExpand={dockExpand} />;
   }
 
+  const hiddenX =
+    animSide === "left" ? "-translate-x-full" : "translate-x-full";
+  const slideClass = slideOut
+    ? `${hiddenX} duration-[180ms] ease-in`
+    : slideIn
+      ? `${hiddenX} transition-none`
+      : "translate-x-0 duration-[220ms] ease-out";
+
   return (
     <main
-      className="danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100"
+      className={`danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100 transition-transform ${slideClass}`}
       style={{ "--bg-a": bgAlpha } as React.CSSProperties}
+      onTransitionEnd={slideOut ? handleSlideOutEnd : undefined}
     >
       {/* 标题栏 */}
       <div
