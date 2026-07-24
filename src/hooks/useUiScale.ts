@@ -31,7 +31,11 @@ export function useUiScale() {
   const [scale, setScale] = useState(loadScale);
 
   useEffect(() => {
-    document.documentElement.style.zoom = String(scale);
+    if (scale === 1) {
+      document.documentElement.style.removeProperty("zoom");
+    } else {
+      document.documentElement.style.zoom = String(scale);
+    }
   }, [scale]);
 
   useEffect(() => {

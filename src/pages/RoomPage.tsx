@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, List, MonitorPlay, Plus, Trash2, X } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { tauriCommands } from "@/lib/tauri";
 import { loadWindowSize } from "@/hooks/useWindowPersistence";
 import { useRoomStore } from "@/stores/room-store";
@@ -183,17 +184,18 @@ export function RoomPage() {
         <div className="app-rise mb-4 flex flex-col gap-4">
           <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex gap-2">
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value as SearchRoomMode)}
-                className="shrink-0 rounded-md px-3 text-sm"
-              >
-                {searchModes.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={mode} onValueChange={(v) => setMode(v as SearchRoomMode)}>
+                <SelectTrigger className="h-9 w-auto shrink-0 gap-1.5 px-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {searchModes.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}

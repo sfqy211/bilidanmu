@@ -7,6 +7,7 @@ import { PageTabs, TabContent } from "@/components/ui/PageTabs";
 import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAppVersion } from "@/lib/constants";
 import { tauriCommands } from "@/lib/tauri";
 import aboutIcon from "@/assets/icon.png";
@@ -262,19 +263,23 @@ export function SettingsPage() {
             <div className="space-y-4">
               <label className="block text-sm text-slate-600 dark:text-slate-300">
                 主题
-                <select
+                <Select
                   value={settings.appearance.theme}
-                  onChange={(e) =>
+                  onValueChange={(v) =>
                     patchSettings({
-                      appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" }
+                      appearance: { ...settings.appearance, theme: v as "light" | "dark" | "system" }
                     })
                   }
-                  className="mt-2 h-11 w-full px-4 text-sm"
                 >
-                  <option value="light">浅色</option>
-                  <option value="dark">深色</option>
-                  <option value="system">跟随系统</option>
-                </select>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">浅色</SelectItem>
+                    <SelectItem value="dark">深色</SelectItem>
+                    <SelectItem value="system">跟随系统</SelectItem>
+                  </SelectContent>
+                </Select>
               </label>
 
               <label className="block text-sm text-slate-600 dark:text-slate-300">
@@ -396,20 +401,20 @@ export function SettingsPage() {
 
                 <label className="block text-sm text-slate-600 dark:text-slate-300">
                   识别模型
-                  <select
-                    value={settings.stt.modelId}
-                    onChange={(e) => patchSettings({ stt: { ...settings.stt, modelId: e.target.value } })}
+                  <Select
+                    value={settings.stt.modelId || ""}
+                    onValueChange={(v) => patchSettings({ stt: { ...settings.stt, modelId: v } })}
                     disabled={availableModels.length === 0}
-                    className="mt-2 h-11 w-full px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {availableModels.length === 0 ? (
-                      <option value="">未检测到模型文件</option>
-                    ) : (
-                      availableModels.map((id) => (
-                        <option key={id} value={id}>{id}</option>
-                      ))
-                    )}
-                  </select>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="未检测到模型文件" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableModels.map((id) => (
+                        <SelectItem key={id} value={id}>{id}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
 
                 <label className="block text-sm text-slate-600 dark:text-slate-300">

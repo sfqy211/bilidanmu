@@ -170,7 +170,7 @@ body {
   }
 }
 .app-rise {
-  animation: app-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: app-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* 直播状态呼吸点 */
@@ -258,70 +258,6 @@ body {
   cursor: not-allowed;
 }
 
-/* 下拉框：独立一套完整样式（玻璃底色 + 自定义箭头 + 深色候选项） */
-.app-scope select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.10);
-  border-radius: 0.625rem;
-  color: #0f172a;
-  outline: none;
-  padding-right: 2rem;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 0.6rem center;
-  background-size: 0.9em;
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-}
-.dark .app-scope select {
-  background-color: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
-}
-
-.app-scope select:hover {
-  border-color: rgba(15, 23, 42, 0.18);
-}
-.dark .app-scope select:hover {
-  border-color: rgba(255, 255, 255, 0.20);
-}
-
-.app-scope select:focus-visible,
-.app-scope select:focus {
-  border-color: rgba(244, 63, 94, 0.55);
-  background-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.14);
-}
-.dark .app-scope select:focus-visible,
-.dark .app-scope select:focus {
-  background-color: rgba(255, 255, 255, 0.09);
-  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.20);
-}
-
-.app-scope select:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.app-scope select option {
-  background-color: #ffffff;
-  color: #0f172a;
-}
-.dark .app-scope select option {
-  background-color: #171a26;
-  color: #e2e8f0;
-}
-.app-scope select option:hover,
-.app-scope select option:focus {
-  background-color: rgba(244, 63, 94, 0.14);
-}
-.dark .app-scope select option:hover,
-.dark .app-scope select option:focus {
-  background-color: rgba(244, 63, 94, 0.24);
-}
-
 /* 数字输入框：去掉上下箭头（与弹幕窗一致） */
 .app-scope input[type="number"]::-webkit-inner-spin-button,
 .app-scope input[type="number"]::-webkit-outer-spin-button {
@@ -331,6 +267,21 @@ body {
 .app-scope input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* 下拉候选框弹出动画 */
+@keyframes select-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.select-popover[data-state="open"] {
+  animation: select-pop-in 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* 主页面滚动条：更精致的细条 + 圆角滑块，hover 加深 */
