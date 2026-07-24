@@ -70,16 +70,6 @@ export function RoomPage() {
       } catch {
         // 忽略初始化读取失败
       }
-
-      // 恢复上次的视图模式（卡片/列表）
-      try {
-        const selections = await tauriCommands.selections.load(["roomViewMode"]);
-        if (!cancelled && (selections.roomViewMode === "card" || selections.roomViewMode === "list")) {
-          setViewMode(selections.roomViewMode);
-        }
-      } catch {
-        // 忽略视图模式读取失败
-      }
     };
 
     void loadRooms();
