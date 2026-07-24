@@ -48,7 +48,10 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       try {
         player.pause();
         player.unload();
-        player.detachMediaElement();
+        // 防御：portal 卸载顺序极端情况下 audio 元素可能已不可用
+        if (audioRef.current) {
+          player.detachMediaElement();
+        }
         player.destroy();
       } catch {
         // 播放器销毁时可能已处于异常状态
@@ -97,7 +100,6 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
 
     try {
       const streamInfo = await tauriCommands.room.getAudioStreamUrl(roomId);
-      console.log("[audio] streamInfo:", streamInfo);
 
       const audio = audioRef.current;
       if (!audio) {
@@ -170,7 +172,6 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
           throw playError;
         }
       }
-      console.log("[audio] playback started, proxyUrl:", streamInfo.proxyUrl);
       reconnectAttemptRef.current = 0;
       setState((prev) => ({ ...prev, isPlaying: true, isConnecting: false }));
     } catch (error) {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
@@ -745,11 +746,6 @@ export function DanmakuPage() {
     }
   }, []);
 
-  // 侧边吸附的收缩态：只渲染细条（弹幕窗口的WS/音频等连接在后台保持，不受影响）
-  if (dockPhase === "collapsed") {
-    return <DockCollapsedBar side={dockSide} onExpand={dockExpand} />;
-  }
-
   const hiddenX =
     animSide === "left" ? "-translate-x-full" : "translate-x-full";
   const slideClass = slideOut
@@ -759,6 +755,12 @@ export function DanmakuPage() {
       : "translate-x-0 duration-[220ms] ease-out";
 
   return (
+    <>
+    {/* audio 元素通过 portal 挂载到 body，跨 dockPhase 切换时不会被 React 卸载，避免 mpegts 断流 */}
+    {createPortal(<audio ref={audioRef} className="hidden" />, document.body)}
+    {dockPhase === "collapsed" ? (
+      <DockCollapsedBar side={dockSide} onExpand={dockExpand} />
+    ) : (
     <main
       className={`danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100 transition-transform ${slideClass}`}
       style={{ "--bg-a": bgAlpha } as React.CSSProperties}
@@ -943,9 +945,6 @@ export function DanmakuPage() {
           )}
         </span>
       </div>
-
-      {/* 隐藏音频元素 */}
-      <audio ref={audioRef} className="hidden" />
 
       {/* 上方区域：礼物 + 分割栏 + 弹幕 — 始终渲染三栏，折叠时 flex=0 但分割栏仍可拖拽恢复 */}
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -1385,5 +1384,7 @@ export function DanmakuPage() {
           </div>
         </div>
     </main>
+    )}
+    </>
   );
 }
