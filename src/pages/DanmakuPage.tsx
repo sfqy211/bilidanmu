@@ -715,6 +715,7 @@ export function DanmakuPage() {
   const [animSide, setAnimSide] = useState<DockSide>(dockSide);
   const dockPhaseRef = useRef(dockPhase);
   dockPhaseRef.current = dockPhase;
+  const prevDockPhaseRef = useRef(dockPhase);
 
   useEffect(() => {
     if (dockPhase === "collapsing") {
@@ -736,6 +737,19 @@ export function DanmakuPage() {
     }
     // collapsed：渲染收缩条，无动画状态需要维护
   }, [dockPhase, dockSide]);
+
+  // 从吸附收起状态展开时，强制滚动到最新弹幕
+  useEffect(() => {
+    const prev = prevDockPhaseRef.current;
+    prevDockPhaseRef.current = dockPhase;
+    if (prev === "collapsed" && (dockPhase === "expanded" || dockPhase === "normal")) {
+      // 等容器挂载完成后再滚
+      requestAnimationFrame(() => {
+        danmakuScroll.scrollToBottom();
+        giftScroll.scrollToBottom();
+      });
+    }
+  }, [dockPhase, danmakuScroll, giftScroll]);
 
   // 收回动画结束（slide-out 过渡播完）后，通知后端真正缩成细条。
   // 只响应根节点自身的 transform 过渡，避免后代按钮 hover transition 冒泡误触发提前收回。
