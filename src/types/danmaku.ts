@@ -69,4 +69,6 @@ export interface DanmakuMessage {
   replyUid?: number;
   /** @回复的目标用户名 */
   replyUsername?: string;
+  /** 高能榜排名（仅前 3 名） */
+  contributionRank?: number;
 }

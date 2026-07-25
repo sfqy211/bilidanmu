@@ -265,6 +265,7 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         emoticon_options,
         reply_uid,
         reply_username,
+        contribution_rank: None,
     })
 }
 
@@ -310,6 +311,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         emoticon_options: None,
         reply_uid: None,
         reply_username: None,
+        contribution_rank: None,
     })
 }
 
@@ -376,6 +378,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         emoticon_options: None,
         reply_uid: None,
         reply_username: None,
+        contribution_rank: None,
     })
 }
 
@@ -558,6 +561,7 @@ fn parse_interact_word_v2(command: &Value, room_id: u64) -> Option<DanmakuEvent>
         emoticon_options: None,
         reply_uid: None,
         reply_username: None,
+        contribution_rank: None,
     })
 }
 
@@ -687,6 +691,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         emoticon_options: None,
         reply_uid: None,
         reply_username: None,
+        contribution_rank: None,
     })
 }
 
@@ -730,6 +735,7 @@ fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         emoticon_options: None,
         reply_uid: None,
         reply_username: None,
+        contribution_rank: None,
     })
 }
 
@@ -776,6 +782,7 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
         emoticon_options: None,
         reply_uid: None,
         reply_username: None,
+        contribution_rank: None,
     })
 }
 

@@ -229,6 +229,7 @@ export function DanmakuMessageItem({
   const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
   const hideAdminBadge = useSettingsStore((state) => state.settings.appearance.hideAdminBadge);
   const hideUserIdColor = useSettingsStore((state) => state.settings.appearance.hideUserIdColor);
+  const hideContributionRank = useSettingsStore((state) => state.settings.appearance.hideContributionRank);
   const emoticonStyle = useSettingsStore((state) => state.settings.appearance.emoticonStyle ?? "image");
   const scale = fontSize / 14;
   const bigEmoticonSize =
@@ -257,6 +258,20 @@ export function DanmakuMessageItem({
   return (
     <div className="mb-2 block select-none leading-6 pointer-events-none">
       <span className="pointer-events-auto" onContextMenu={handleContextMenu}>
+      {item.contributionRank && item.contributionRank <= 3 && !hideContributionRank && item.type !== "superChat" ? (
+        <span
+          className={`mr-1 inline-flex items-center justify-center rounded-sm align-middle font-bold text-white ${
+            item.contributionRank === 1
+              ? "bg-gradient-to-r from-yellow-400 to-amber-500"
+              : item.contributionRank === 2
+                ? "bg-gradient-to-r from-slate-300 to-slate-400"
+                : "bg-gradient-to-r from-orange-600 to-orange-700"
+          }`}
+          style={{ fontSize: Math.round(11 * scale), height: Math.round(18 * scale), padding: `0 ${Math.round(4 * scale)}px` }}
+        >
+          榜{item.contributionRank}
+        </span>
+      ) : null}
       {item.isAdmin && !hideAdminBadge ? (
         <span
           className="mr-1 inline-flex h-[16px] w-[16px] items-center justify-center rounded-full border border-amber-500 text-amber-600 align-middle dark:border-amber-400 dark:text-amber-300"

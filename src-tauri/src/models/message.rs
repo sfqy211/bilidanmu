@@ -39,4 +39,7 @@ pub struct DanmakuEvent {
     pub reply_uid: Option<u64>,
     /// @回复的目标用户名
     pub reply_username: Option<String>,
+    /// 高能榜排名（仅前 3 名有值）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contribution_rank: Option<u8>,
 }

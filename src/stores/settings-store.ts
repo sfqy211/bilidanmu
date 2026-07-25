@@ -46,6 +46,7 @@ export const defaultSettings: Settings = {
     hideUserIdColor: false,
     hideEntryMessage: false,
     hideLikeMessage: false,
+    hideContributionRank: false,
     opacity: 90,
     emoticonStyle: "image"
   },

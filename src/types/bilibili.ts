@@ -146,6 +146,7 @@ export interface Settings {
     hideUserIdColor: boolean;
     hideEntryMessage: boolean;
     hideLikeMessage: boolean;
+    hideContributionRank: boolean;
     opacity: number;
     emoticonStyle: "hidden" | "text" | "image";
   };
