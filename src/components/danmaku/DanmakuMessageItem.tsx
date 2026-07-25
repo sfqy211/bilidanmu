@@ -229,6 +229,7 @@ export function DanmakuMessageItem({
   const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
   const hideAdminBadge = useSettingsStore((state) => state.settings.appearance.hideAdminBadge);
   const hideUserIdColor = useSettingsStore((state) => state.settings.appearance.hideUserIdColor);
+  const hideUsername = useSettingsStore((state) => state.settings.appearance.hideUsername);
   const hideContributionRank = useSettingsStore((state) => state.settings.appearance.hideContributionRank);
   const emoticonStyle = useSettingsStore((state) => state.settings.appearance.emoticonStyle ?? "image");
   const scale = fontSize / 14;
@@ -290,11 +291,13 @@ export function DanmakuMessageItem({
       ) : null}
       {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
-      <span
-        className={`mr-1 font-bold ${hideUserIdColor ? "" : getGuardUsernameClass(item.guardLevel)}`}
-      >
-        {item.username}
-      </span>
+      {!hideUsername ? (
+        <span
+          className={`mr-1 font-bold ${hideUserIdColor ? "" : getGuardUsernameClass(item.guardLevel)}`}
+        >
+          {item.username}
+        </span>
+      ) : null}
       {item.replyUsername && (
         <span className="mr-1 text-xs text-slate-400 dark:text-slate-500">
           回复 @{item.replyUsername}

@@ -144,6 +144,7 @@ export interface Settings {
     hideFanMedal: boolean;
     hideAdminBadge: boolean;
     hideUserIdColor: boolean;
+    hideUsername: boolean;
     hideEntryMessage: boolean;
     hideLikeMessage: boolean;
     hideContributionRank: boolean;

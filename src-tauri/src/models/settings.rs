@@ -46,6 +46,8 @@ pub struct AppearanceSetting {
     #[serde(default)]
     pub hide_user_id_color: bool,
     #[serde(default)]
+    pub hide_username: bool,
+    #[serde(default)]
     pub hide_entry_message: bool,
     #[serde(default)]
     pub hide_like_message: bool,
@@ -202,6 +204,7 @@ impl Default for Settings {
                 hide_fan_medal: false,
                 hide_admin_badge: false,
                 hide_user_id_color: false,
+                hide_username: false,
                 hide_entry_message: false,
                 hide_like_message: false,
                 hide_contribution_rank: false,
