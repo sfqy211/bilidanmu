@@ -185,8 +185,46 @@ async fn run_connection(
 
     // 消息处理循环
     let message_loop = async {
-        while let Some(message) = reader.next().await {
-            match message.map_err(|error| error.to_string())? {
+        // 高能榜缓存：uid -> rank（仅前 3 名）
+        let mut online_rank_cache: std::collections::HashMap<u64, u8> = std::collections::HashMap::new();
+
+        // 初始获取高能榜（后台异步，不阻塞消息循环）
+        let (rank_tx, rank_rx) = tokio::sync::oneshot::channel::<std::collections::HashMap<u64, u8>>();
+        if up_id > 0 {
+            let client = api.client.clone();
+            let rid = real_room_id;
+            let uid = up_id;
+            tokio::spawn(async move {
+                let result = fetch_online_rank(&client, rid, uid).await;
+                let _ = rank_tx.send(result);
+            });
+        }
+        let mut rank_rx = Some(rank_rx);
+        let mut rank_interval = tokio::time::interval(Duration::from_secs(60));
+        rank_interval.tick().await; // 消耗第一次立即触发的 tick
+
+        loop {
+            tokio::select! {
+                result = async { rank_rx.as_mut().unwrap().await }, if rank_rx.is_some() => {
+                    rank_rx = None;
+                    if let Ok(cache) = result {
+                        if !cache.is_empty() {
+                            log::info!("[ws] 高能榜初始加载成功: {cache:?}");
+                            online_rank_cache = cache;
+                        }
+                    }
+                }
+                _ = rank_interval.tick() => {
+                    if up_id > 0 {
+                        let new_rank = fetch_online_rank(&api.client, real_room_id, up_id).await;
+                        if !new_rank.is_empty() {
+                            online_rank_cache = new_rank;
+                        }
+                    }
+                }
+                message = reader.next() => {
+                    let Some(message) = message else { break; };
+                    match message.map_err(|error| error.to_string())? {
                 Message::Binary(bytes) => {
                     let packets = match decode_packets(&bytes) {
                         Ok(p) => p,
@@ -218,6 +256,23 @@ async fn run_connection(
                                             }),
                                         );
                                     }
+                                } else if cmd.starts_with("ONLINE_RANK_V2") {
+                                    // 更新高能榜缓存（仅记录前 3 名）
+                                    if let Some(list) = command
+                                        .get("data")
+                                        .and_then(|d| d.get("list"))
+                                        .and_then(Value::as_array)
+                                    {
+                                        online_rank_cache.clear();
+                                        for item in list {
+                                            let rank = item.get("rank").and_then(value_as_u64).unwrap_or(0) as u8;
+                                            if rank >= 1 && rank <= 3 {
+                                                if let Some(uid) = item.get("uid").and_then(value_as_u64) {
+                                                    online_rank_cache.insert(uid, rank);
+                                                }
+                                            }
+                                        }
+                                    }
                                 } else if cmd.starts_with("ONLINE_RANK_COUNT") {
                                     if let Some(data) = command.get("data") {
                                         let online_count = data
@@ -232,7 +287,11 @@ async fn run_connection(
                                             }),
                                         );
                                     }
-                                } else if let Some(event) = parse_danmaku_command(&command, room_id) {
+                                } else if let Some(mut event) = parse_danmaku_command(&command, room_id) {
+                                    // 查询高能榜排名（所有消息类型均适用）
+                                    if let Some(&rank) = online_rank_cache.get(&event.uid) {
+                                        event.contribution_rank = Some(rank);
+                                    }
                                     let _ = app.emit("danmaku-received", &event);
                                 }
                             }
@@ -249,6 +308,8 @@ async fn run_connection(
                     return Err("连接已关闭".to_string());
                 }
                 _ => {}
+            }
+                }
             }
         }
 
@@ -318,4 +379,47 @@ fn value_as_u64(value: &Value) -> Option<u64> {
         .as_u64()
         .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
         .or_else(|| value.as_str().and_then(|number| number.parse::<u64>().ok()))
+}
+
+/// 通过 HTTP API 获取直播间高能榜前 3 名，返回 uid -> rank 映射
+async fn fetch_online_rank(
+    client: &reqwest::Client,
+    room_id: u64,
+    ruid: u64,
+) -> std::collections::HashMap<u64, u8> {
+    let mut map = std::collections::HashMap::new();
+    let url = format!(
+        "https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId={room_id}&ruid={ruid}&page=1&pageSize=3"
+    );
+    let json: Value = match client.get(&url).send().await {
+        Ok(resp) => match resp.json().await {
+            Ok(v) => v,
+            Err(e) => {
+                log::debug!("[ws] 高能榜 JSON 解析失败: {e}");
+                return map;
+            }
+        },
+        Err(e) => {
+            log::debug!("[ws] 高能榜请求失败: {e}");
+            return map;
+        }
+    };
+    if json.get("code").and_then(Value::as_i64) != Some(0) {
+        return map;
+    }
+    if let Some(items) = json
+        .get("data")
+        .and_then(|d| d.get("OnlineRankItem"))
+        .and_then(Value::as_array)
+    {
+        for item in items {
+            let rank = item.get("userRank").and_then(value_as_u64).unwrap_or(0) as u8;
+            if rank >= 1 && rank <= 3 {
+                if let Some(uid) = item.get("uid").and_then(value_as_u64) {
+                    map.insert(uid, rank);
+                }
+            }
+        }
+    }
+    map
 }
