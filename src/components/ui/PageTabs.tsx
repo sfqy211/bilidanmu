@@ -9,15 +9,17 @@ export function PageTabs({
   tabs,
   activeTab,
   onTabChange,
+  className,
   children
 }: {
   tabs: TabItem[];
   activeTab: string;
   onTabChange: (value: string) => void;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Tabs.Root value={activeTab} onValueChange={onTabChange} className="flex min-h-0 flex-1 flex-col">
+    <Tabs.Root value={activeTab} onValueChange={onTabChange} className={`flex min-h-0 flex-1 flex-col ${className ?? ""}`}>
       <Tabs.List className="mb-4 flex gap-1 border-b border-slate-300 dark:border-white/[0.06]">
         {tabs.map((tab) => (
           <Tabs.Trigger

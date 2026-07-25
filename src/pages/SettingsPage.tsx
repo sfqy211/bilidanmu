@@ -92,9 +92,9 @@ export function SettingsPage() {
 
   return (
     <section className="flex h-full flex-col select-none">
-      <div className="mb-3 flex items-center justify-between gap-4">
+      <div className="app-rise mb-3 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">设置</h2>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">设置</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">发送、接收与外观的核心设置。</p>
         </div>
         <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export function SettingsPage() {
             type="button"
             onClick={() => void handleSave()}
             disabled={loading || saving}
-            className="rounded bg-pink-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 items-center rounded-xl bg-pink-500 px-5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "保存中..." : "保存设置"}
           </button>
@@ -115,6 +115,7 @@ export function SettingsPage() {
         tabs={SETTINGS_TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        className="app-rise"
       >
         <TabContent value="send" className="flex flex-col gap-4">
           <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">

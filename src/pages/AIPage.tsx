@@ -79,9 +79,9 @@ export function AIPage() {
 
   return (
     <section className="flex h-full flex-col select-none">
-      <div className="mb-3 flex items-center justify-between gap-4">
+      <div className="app-rise mb-3 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">AI 代理</h2>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">AI 代理</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             连接 AstrBot 实现 AI 弹幕回复与总结。
           </p>
@@ -93,7 +93,7 @@ export function AIPage() {
       </div>
 
       {/* AstrBot 连接配置 */}
-      <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <div className="app-rise rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
         <h3 className="mb-4 text-lg font-medium text-slate-900 dark:text-white">
           AstrBot 连接
         </h3>
@@ -121,14 +121,14 @@ export function AIPage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || !host || !httpPort}
-            className="rounded bg-pink-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 items-center rounded-xl bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "保存中..." : "保存配置"}
           </button>
           <button
             onClick={() => void handleTestStatus()}
             disabled={!config}
-            className="inline-flex items-center gap-1.5 rounded px-4 py-3 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-cyan-300 dark:hover:bg-cyan-500/10"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             测试连接

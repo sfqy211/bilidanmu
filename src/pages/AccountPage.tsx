@@ -176,9 +176,9 @@ export function AccountPage() {
 
   return (
     <section className="flex h-full flex-col select-none">
-      <div className="mb-3 flex items-center justify-between gap-4">
+      <div className="app-rise mb-3 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">账号</h2>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">账号</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码登录，支持多账号切换。</p>
         </div>
         <div className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export function AccountPage() {
               <button
                 onClick={() => void handleSwitchToAnonymous()}
                 disabled={switchingId === ANONYMOUS_ACCOUNT_ID || activeAccountId === ANONYMOUS_ACCOUNT_ID}
-                className="inline-flex items-center gap-1.5 rounded bg-slate-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-500 px-4 text-sm font-medium text-white transition hover:bg-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {switchingId === ANONYMOUS_ACCOUNT_ID ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -200,7 +200,7 @@ export function AccountPage() {
               </button>
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400"
               >
                 <Plus className="h-4 w-4" />
                 添加账号
@@ -229,13 +229,13 @@ export function AccountPage() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setShowWarning(false)}
-                className="rounded px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                className="rounded-xl px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmWarning}
-                className="rounded bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400"
+                className="rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400"
               >
                 我已知晓，继续
               </button>
@@ -249,7 +249,7 @@ export function AccountPage() {
               <h3 className="text-base font-medium text-slate-900 dark:text-white">扫码登录</h3>
               <button
                 onClick={handleCloseAdd}
-                className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -278,7 +278,7 @@ export function AccountPage() {
               <button
                 onClick={() => void handleCreateQr()}
                 disabled={loading}
-                className="rounded bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "生成中..." : authCode ? "刷新二维码" : "生成二维码"}
               </button>
@@ -296,7 +296,7 @@ export function AccountPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="app-rise space-y-2">
           {/* 匿名模式条目 */}
           {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
             <div className="rounded-lg bg-[#f8f8f8] p-4 shadow-sm ring-2 ring-pink-300 dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] dark:ring-pink-500/40">

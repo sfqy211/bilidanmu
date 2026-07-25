@@ -131,13 +131,12 @@ export function RoomPage() {
     >
       {/* 编辑级页头 */}
       <header className="app-rise mb-6">
-        <div className="flex items-end justify-between gap-6">
+        <div className="flex items-center justify-between gap-6">
           <div className="min-w-0">
-            <p className="overline-label text-pink-500/90 dark:text-pink-400/90">Live Rooms</p>
-            <h2 className="mt-2 text-[34px] font-bold leading-none tracking-tight text-slate-900 dark:text-white">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
               直播间
             </h2>
-            <p className="mt-3 flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
+            <p className="mt-2 flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
               <span className="numeric font-medium text-slate-700 dark:text-slate-200">{rooms.length}</span>
               个已添加
               {liveCount > 0 && (
