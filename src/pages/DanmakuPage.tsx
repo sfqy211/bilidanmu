@@ -1213,20 +1213,30 @@ export function DanmakuPage() {
                 </div>
               </div>
 
-              {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
-                <label key={key} className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span>{label}</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.appearance[key]}
-                    onChange={(e) =>
-                      commitSettings({
-                        appearance: { ...settings.appearance, [key]: e.target.checked }
-                      })
-                    }
-                  />
-                </label>
-              ))}
+              {/* 隐藏元素 */}
+              <div>
+                <p className="mb-1.5 text-xs text-slate-500 dark:text-slate-400">隐藏元素</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        commitSettings({
+                          appearance: { ...settings.appearance, [key]: !settings.appearance[key] }
+                        })
+                      }
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                        settings.appearance[key]
+                          ? "border-pink-500/40 bg-pink-500/10 text-pink-600 dark:border-pink-400/30 dark:bg-pink-500/15 dark:text-pink-400"
+                          : "border-neutral-200 bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </FloatingPanel>
         )}

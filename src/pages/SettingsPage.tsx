@@ -4,7 +4,6 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 import { PageTabs, TabContent } from "@/components/ui/PageTabs";
-import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -309,28 +308,6 @@ export function SettingsPage() {
                 <p>Ctrl + 滚轮：弹幕/AI 文字大小</p>
                 <p>Ctrl + 0：UI 重置</p>
               </div>
-
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
-                <span>显示勋章</span>
-                <Checkbox
-                  checked={settings.appearance.showMedal}
-                  onCheckedChange={(c) =>
-                    patchSettings({ appearance: { ...settings.appearance, showMedal: !!c } })
-                  }
-                />
-              </label>
-
-              {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
-                <label key={key} className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
-                  <span>{label}</span>
-                  <Checkbox
-                    checked={settings.appearance[key]}
-                    onCheckedChange={(c) =>
-                      patchSettings({ appearance: { ...settings.appearance, [key]: !!c } })
-                    }
-                  />
-                </label>
-              ))}
 
               <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
                 <div className="mb-2 flex items-center justify-between">
