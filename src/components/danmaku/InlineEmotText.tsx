@@ -10,10 +10,12 @@ export function InlineEmotText({
   content,
   emots,
   cachedEmotUrls,
+  emoticonStyle = "image",
 }: {
   content: string;
   emots?: Record<string, InlineEmoticon>;
   cachedEmotUrls?: Set<string>;
+  emoticonStyle?: "hidden" | "text" | "image";
 }) {
   if (!emots || Object.keys(emots).length === 0) {
     return <>{content}</>;
@@ -40,8 +42,14 @@ export function InlineEmotText({
 
     const token = match[0];
     const emot = emots[token];
-    if (emot?.url) {
-      // 优先检查是否在已加载的表情包中（本地缓存优先）
+
+    if (emoticonStyle === "hidden") {
+      // 不显示：跳过表情 token
+    } else if (emoticonStyle === "text" || !emot?.url) {
+      // 文字模式：显示原始 token 文本
+      parts.push(emot?.emoji ?? token);
+    } else {
+      // 图片模式（默认）
       const persistent = cachedEmotUrls?.has(emot.url) ?? false;
       parts.push(
         <ProxiedImage
@@ -54,8 +62,6 @@ export function InlineEmotText({
           style={{ width: emot.width ?? 20, height: emot.height ?? 20 }}
         />
       );
-    } else {
-      parts.push(token);
     }
 
     lastIndex = index + token.length;

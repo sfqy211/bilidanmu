@@ -1174,6 +1174,36 @@ export function DanmakuPage() {
                 value={opacity}
                 onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
               />
+
+              {/* 表情样式 */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">表情样式</span>
+                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                  {([
+                    { value: "hidden", label: "不显示" },
+                    { value: "text", label: "文字" },
+                    { value: "image", label: "图片" },
+                  ] as const).map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        commitSettings({
+                          appearance: { ...settings.appearance, emoticonStyle: value }
+                        })
+                      }
+                      className={`px-2.5 py-1 text-xs transition ${
+                        settings.appearance.emoticonStyle === value
+                          ? "bg-pink-500 text-white"
+                          : "bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
                 <label key={key} className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span>{label}</span>

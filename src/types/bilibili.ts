@@ -144,6 +144,7 @@ export interface Settings {
     hideUserIdColor: boolean;
     hideEntryMessage: boolean;
     opacity: number;
+    emoticonStyle: "hidden" | "text" | "image";
   };
   notification: {
     muteAlert: boolean;

@@ -45,7 +45,8 @@ export const defaultSettings: Settings = {
     hideAdminBadge: false,
     hideUserIdColor: false,
     hideEntryMessage: false,
-    opacity: 90
+    opacity: 90,
+    emoticonStyle: "image"
   },
   notification: {
     muteAlert: true,

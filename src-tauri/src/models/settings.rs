@@ -49,10 +49,17 @@ pub struct AppearanceSetting {
     pub hide_entry_message: bool,
     #[serde(default = "default_opacity")]
     pub opacity: u32,
+    /// 表情显示样式：hidden / text / image
+    #[serde(default = "default_emoticon_style")]
+    pub emoticon_style: String,
 }
 
 fn default_opacity() -> u32 {
     90
+}
+
+fn default_emoticon_style() -> String {
+    "image".into()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -193,6 +200,7 @@ impl Default for Settings {
                 hide_user_id_color: false,
                 hide_entry_message: false,
                 opacity: 90,
+                emoticon_style: default_emoticon_style(),
             },
             notification: NotificationSetting {
                 mute_alert: true,

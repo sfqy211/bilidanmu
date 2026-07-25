@@ -229,9 +229,10 @@ export function DanmakuMessageItem({
   const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
   const hideAdminBadge = useSettingsStore((state) => state.settings.appearance.hideAdminBadge);
   const hideUserIdColor = useSettingsStore((state) => state.settings.appearance.hideUserIdColor);
+  const emoticonStyle = useSettingsStore((state) => state.settings.appearance.emoticonStyle ?? "image");
   const scale = fontSize / 14;
   const bigEmoticonSize =
-    item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions
+    item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && emoticonStyle === "image"
       ? getBigEmoticonSize(item.emoticonOptions, scale)
       : null;
 
@@ -247,6 +248,11 @@ export function DanmakuMessageItem({
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
+
+  // 表情弹幕在"不显示"模式下整条隐藏
+  if (emoticonStyle === "hidden" && item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions) {
+    return null;
+  }
 
   return (
     <div className="mb-2 block select-none leading-6 pointer-events-none">
@@ -293,8 +299,10 @@ export function DanmakuMessageItem({
               style={{ width: bigEmoticonSize.width, height: bigEmoticonSize.height }}
             />
           </span>
+        ) : item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && emoticonStyle === "text" ? (
+          item.content
         ) : item.type === "danmaku" ? (
-          <InlineEmotText content={item.content} emots={item.emots} cachedEmotUrls={cachedEmotUrls} />
+          <InlineEmotText content={item.content} emots={item.emots} cachedEmotUrls={cachedEmotUrls} emoticonStyle={emoticonStyle} />
         ) : (
           item.content
         )}
