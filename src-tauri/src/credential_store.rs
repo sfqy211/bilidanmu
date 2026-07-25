@@ -173,6 +173,43 @@ pub fn load_all_access_keys(app: &tauri::AppHandle) -> Result<HashMap<String, St
     Ok(keys)
 }
 
+// ── refresh_token 持久化 ──
+
+const REFRESH_TOKENS_KEY: &str = "refresh_tokens";
+
+/// 保存指定账号的 refresh_token
+pub fn save_refresh_token(app: &tauri::AppHandle, uid: &str, refresh_token: &str) -> Result<(), String> {
+    let store = open_store(app)?;
+
+    let mut keys: HashMap<String, String> = store
+        .get(REFRESH_TOKENS_KEY)
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    keys.insert(uid.to_string(), refresh_token.to_string());
+    store.set(
+        REFRESH_TOKENS_KEY,
+        serde_json::to_value(&keys).map_err(|e| e.to_string())?,
+    );
+
+    store
+        .save()
+        .map_err(|error| format!("保存 refresh_token 失败: {error}"))?;
+
+    Ok(())
+}
+
+/// 加载指定账号的 refresh_token
+pub fn load_refresh_token(app: &tauri::AppHandle, uid: &str) -> Result<Option<String>, String> {
+    let store = open_store(app)?;
+
+    let keys: HashMap<String, String> = store
+        .get(REFRESH_TOKENS_KEY)
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+
+    Ok(keys.get(uid).cloned())
+}
+
 
 /// 账号元数据（用户名、头像），用于托盘显示
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -180,6 +217,9 @@ pub fn load_all_access_keys(app: &tauri::AppHandle) -> Result<HashMap<String, St
 pub struct AccountMeta {
     pub username: String,
     pub avatar: Option<String>,
+    /// Cookie 过期时间（Unix 时间戳，秒）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
 }
 
 const META_KEY: &str = "account_metas";

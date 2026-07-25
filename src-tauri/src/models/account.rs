@@ -18,6 +18,9 @@ pub struct Credential {
     pub avatar: Option<String>,
     pub cookie: String,
     pub bili_jct: Option<String>,
+    /// Cookie 过期时间（Unix 时间戳，秒）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
 }
 
 impl Credential {
@@ -29,6 +32,7 @@ impl Credential {
             avatar: None,
             cookie: "SESSDATA=mock; bili_jct=mock;".into(),
             bili_jct: Some("mock".into()),
+            expires_at: None,
         }
     }
 }

@@ -97,16 +97,54 @@ pub async fn poll_qr(
         return Ok(resp);
     }
 
-    let cookie = headers
+    let set_cookies: Vec<&str> = headers
         .get_all(reqwest::header::SET_COOKIE)
         .iter()
         .filter_map(|value| value.to_str().ok())
+        .collect();
+
+    let cookie = set_cookies
+        .iter()
         .filter_map(|value| value.split(';').next())
         .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join("; ");
 
-    let credential = complete_login_with_cookie(&app, &state, cookie).await?;
+    // 从 SESSDATA 的 Set-Cookie 中解析 Expires 时间
+    let sessdata_expires = set_cookies
+        .iter()
+        .find(|s| s.starts_with("SESSDATA="))
+        .and_then(|s| {
+            s.split(';')
+                .find_map(|attr| {
+                    let attr = attr.trim();
+                    if attr.to_lowercase().starts_with("expires=") {
+                        let date_str = &attr[8..];
+                        // 解析 HTTP 日期格式: "Thu, 01 Jan 2027 00:00:00 GMT"
+                        chrono::DateTime::parse_from_str(date_str, "%a, %d %b %Y %H:%M:%S GMT")
+                            .ok()
+                            .map(|dt| dt.timestamp())
+                    } else {
+                        None
+                    }
+                })
+        });
+
+    let mut credential = complete_login_with_cookie(&app, &state, cookie).await?;
+
+    // 更新 Cookie 过期时间到 AccountMeta
+    if let Some(expires) = sessdata_expires {
+        if expires > 0 {
+            let uid_str = credential.uid.to_string();
+            let mut metas = state.account_metas.lock().unwrap();
+            if let Some(meta) = metas.get_mut(&uid_str) {
+                meta.expires_at = Some(expires);
+            }
+            let _ = credential_store::save_account_metas(&app, &metas);
+            credential.expires_at = Some(expires);
+        }
+    }
+
     Ok(serde_json::json!({
         "status": "success",
         "message": "扫码登录成功",
@@ -158,6 +196,7 @@ async fn complete_login_with_cookie(
 
     // 保存账号元数据（用户名、头像）用于托盘显示
     {
+        let existing_expires = state.account_metas.lock().unwrap().get(&uid).and_then(|m| m.expires_at);
         let meta = credential_store::AccountMeta {
             username: if let Some(ref account) = login_status.account {
                 account.username.clone()
@@ -165,6 +204,7 @@ async fn complete_login_with_cookie(
                 format!("账号 {}", uid)
             },
             avatar: login_status.account.as_ref().and_then(|a| a.avatar.clone()),
+            expires_at: existing_expires,
         };
         credential_store::save_account_meta(&app, &uid, &meta)?;
         let mut account_metas = state.account_metas.lock().unwrap();
@@ -181,7 +221,8 @@ async fn complete_login_with_cookie(
 
     let _ = tray::refresh_tray(&app);
 
-    Ok(build_credential_from_login(&login_status, &parsed, parsed.cookie_header()))
+    let expires_at = state.account_metas.lock().unwrap().get(&uid).and_then(|m| m.expires_at);
+    Ok(build_credential_from_login(&login_status, &parsed, parsed.cookie_header(), expires_at))
 }
 
 // ── TV 扫码登录（获取 access_key） ──
@@ -272,10 +313,15 @@ pub async fn poll_tv_qr(
 
     // outer_code == 0：登录成功
     {
-            // 登录成功，提取 access_token
+            // 登录成功，提取 access_token 和 refresh_token
             let data = json.get("data").ok_or_else(|| "TV 登录响应缺少 data 字段".to_string())?;
             let access_token = data
                 .get("access_token")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            let refresh_token = data
+                .get("refresh_token")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or_default()
                 .to_string();
@@ -287,6 +333,13 @@ pub async fn poll_tv_qr(
             // 同时提取 cookie 信息（如果有的话）
             if let Some(cookie_info) = data.get("cookie_info") {
                 if let Some(cookies) = cookie_info.get("cookies").and_then(serde_json::Value::as_array) {
+                    // 提取 SESSDATA 的过期时间
+                    let sessdata_expires = cookies
+                        .iter()
+                        .find(|c| c.get("name").and_then(serde_json::Value::as_str) == Some("SESSDATA"))
+                        .and_then(|c| c.get("expires"))
+                        .and_then(serde_json::Value::as_i64);
+
                     let cookie_str: String = cookies
                         .iter()
                         .filter_map(|c| {
@@ -299,7 +352,7 @@ pub async fn poll_tv_qr(
 
                     if !cookie_str.is_empty() {
                         // 用 cookie 完成登录（设置凭据、持久化等）
-                        let credential = complete_login_with_cookie(&app, &state, cookie_str).await?;
+                        let mut credential = complete_login_with_cookie(&app, &state, cookie_str).await?;
 
                         // 将 access_key 附加到凭据并持久化
                         let uid_str = credential.uid.to_string();
@@ -318,6 +371,23 @@ pub async fn poll_tv_qr(
                             }
                         }
                         let _ = credential_store::save_access_key(&app, &uid_str, &access_token);
+
+                        // 持久化 refresh_token
+                        if !refresh_token.is_empty() {
+                            let _ = credential_store::save_refresh_token(&app, &uid_str, &refresh_token);
+                        }
+
+                        // 更新 Cookie 过期时间到 AccountMeta
+                        if let Some(expires) = sessdata_expires {
+                            if expires > 0 {
+                                let mut metas = state.account_metas.lock().unwrap();
+                                if let Some(meta) = metas.get_mut(&uid_str) {
+                                    meta.expires_at = Some(expires);
+                                }
+                                let _ = credential_store::save_account_metas(&app, &metas);
+                                credential.expires_at = Some(expires);
+                            }
+                        }
 
                         return Ok(serde_json::json!({
                             "status": "success",
@@ -340,6 +410,7 @@ fn build_credential_from_login(
     login_status: &crate::models::account::LoginStatus,
     cred: &BiliCredential,
     cookie: String,
+    expires_at: Option<i64>,
 ) -> Credential {
     let mut credential = Credential::mock();
     if let Some(ref account) = login_status.account {
@@ -357,6 +428,7 @@ fn build_credential_from_login(
     }
     credential.cookie = cookie;
     credential.bili_jct = cred.bili_jct.clone();
+    credential.expires_at = expires_at;
     credential
 }
 
@@ -378,6 +450,7 @@ pub async fn restore_login(
                 avatar: None,
                 cookie: cred.cookie_header(),
                 bili_jct: None,
+                expires_at: None,
             }));
         }
     }
@@ -474,6 +547,11 @@ pub async fn restore_login(
                 .unwrap_or(0);
             credential.cookie = parsed.cookie_header();
             credential.bili_jct = parsed.bili_jct.clone();
+            credential.expires_at = {
+                let active_id = state.active_account_id.lock().unwrap();
+                let metas = state.account_metas.lock().unwrap();
+                active_id.as_deref().and_then(|id| metas.get(id)).and_then(|m| m.expires_at)
+            };
             return Ok(Some(credential));
         }
     };
@@ -494,7 +572,12 @@ pub async fn restore_login(
         return Ok(None);
     }
 
-    Ok(Some(build_credential_from_login(&login_status, &parsed, parsed.cookie_header())))
+    let expires_at = {
+        let active_id = state.active_account_id.lock().unwrap();
+        let metas = state.account_metas.lock().unwrap();
+        active_id.as_deref().and_then(|id| metas.get(id)).and_then(|m| m.expires_at)
+    };
+    Ok(Some(build_credential_from_login(&login_status, &parsed, parsed.cookie_header(), expires_at)))
 }
 
 /// 停止自动发送 + 断开 WS
@@ -638,6 +721,7 @@ pub async fn switch_account(
 
     // 更新账号元数据（切换后可能需要刷新用户名）
     {
+        let existing_expires = state.account_metas.lock().unwrap().get(&account_id).and_then(|m| m.expires_at);
         let meta = credential_store::AccountMeta {
             username: if let Some(ref account) = login_status.account {
                 account.username.clone()
@@ -645,6 +729,7 @@ pub async fn switch_account(
                 format!("账号 {}", cred.dede_user_id.as_deref().unwrap_or(&account_id))
             },
             avatar: login_status.account.as_ref().and_then(|a| a.avatar.clone()),
+            expires_at: existing_expires,
         };
         credential_store::save_account_meta(&app, &account_id, &meta)?;
         let mut account_metas = state.account_metas.lock().unwrap();
@@ -653,7 +738,8 @@ pub async fn switch_account(
 
     let _ = tray::refresh_tray(&app);
 
-    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header()))
+    let expires_at = state.account_metas.lock().unwrap().get(&account_id).and_then(|m| m.expires_at);
+    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header(), expires_at))
 }
 
 /// 获取所有已登录的账号列表
@@ -679,6 +765,7 @@ pub async fn list_accounts(state: State<'_, AppState>) -> Result<Vec<Credential>
             avatar: meta.and_then(|m| m.avatar.clone()),
             cookie: cred.cookie_header(),
             bili_jct: cred.bili_jct.clone(),
+            expires_at: meta.and_then(|m| m.expires_at),
         });
     }
 
@@ -716,7 +803,8 @@ pub async fn switch_sending_account(
 
     log::info!("已切换发送账号为: {account_id}");
 
-    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header()))
+    let expires_at = state.account_metas.lock().unwrap().get(&account_id).and_then(|m| m.expires_at);
+    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header(), expires_at))
 }
 
 /// 获取当前发送账号 ID（未设置时返回 None）
@@ -773,6 +861,7 @@ pub async fn switch_to_anonymous(
         avatar: None,
         cookie: cookie_header,
         bili_jct: None,
+        expires_at: None,
     };
 
     // 发送跨窗口事件，通知其他窗口更新状态
@@ -780,6 +869,203 @@ pub async fn switch_to_anonymous(
         "accountId": ANONYMOUS_ACCOUNT_ID,
         "credential": credential,
     }));
+
+    Ok(credential)
+}
+
+/// 刷新账号信息（重新验证登录状态，更新用户名和头像）
+#[tauri::command]
+pub async fn refresh_account_info(
+    app: tauri::AppHandle,
+    account_id: String,
+    state: State<'_, AppState>,
+) -> Result<Credential, String> {
+    let cred = {
+        let credentials = state.credentials.lock().unwrap();
+        credentials
+            .get(&account_id)
+            .cloned()
+            .ok_or_else(|| format!("账号 {account_id} 未找到"))?
+    };
+
+    let api = build_api_client(Some(cred.clone()), &state);
+    let login_status = api.verify_login_status().await?;
+
+    if !login_status.is_logged_in {
+        return Err("Cookie 已失效，请重新登录".to_string());
+    }
+
+    // 更新元数据
+    let existing_expires = state.account_metas.lock().unwrap().get(&account_id).and_then(|m| m.expires_at);
+    let meta = credential_store::AccountMeta {
+        username: if let Some(ref account) = login_status.account {
+            account.username.clone()
+        } else {
+            format!("账号 {}", account_id)
+        },
+        avatar: login_status.account.as_ref().and_then(|a| a.avatar.clone()),
+        expires_at: existing_expires,
+    };
+    credential_store::save_account_meta(&app, &account_id, &meta)?;
+    {
+        let mut account_metas = state.account_metas.lock().unwrap();
+        account_metas.insert(account_id.clone(), meta);
+    }
+
+    let _ = tray::refresh_tray(&app);
+
+    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header(), existing_expires))
+}
+
+/// 刷新 Cookie 授权（通过 TV OAuth refresh_token 续期）
+#[tauri::command]
+pub async fn refresh_cookie(
+    app: tauri::AppHandle,
+    account_id: String,
+    state: State<'_, AppState>,
+) -> Result<Credential, String> {
+    // 获取 refresh_token
+    let refresh_token = credential_store::load_refresh_token(&app, &account_id)?
+        .ok_or_else(|| "该账号没有 refresh_token，无法刷新授权。请重新扫码登录。".to_string())?;
+
+    // 获取 access_token
+    let access_token = credential_store::load_access_key(&app, &account_id)?
+        .ok_or_else(|| "该账号没有 access_token，无法刷新授权。请重新扫码登录。".to_string())?;
+
+    let client = state.proxy_client.clone();
+    let ts = crate::bili::unix_secs().to_string();
+
+    // 参数按字母序排列：access_key, appkey, refresh_token, ts
+    let mut params = std::collections::BTreeMap::new();
+    params.insert("access_key".to_string(), access_token);
+    params.insert("appkey".to_string(), TV_APPKEY.to_string());
+    params.insert("refresh_token".to_string(), refresh_token);
+    params.insert("ts".to_string(), ts);
+
+    // 签名：直接拼接 key=value（不做 URL 编码），与参考实现一致
+    let sign_query: String = params
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join("&");
+    let sign = {
+        use md5::Digest;
+        format!("{:x}", md5::Md5::digest(format!("{sign_query}{}", crate::bili::APPSECRET).as_bytes()))
+    };
+    params.insert("sign".to_string(), sign);
+
+    let response = client
+        .post("https://passport.bilibili.com/api/v2/oauth2/refresh_token")
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|error| format!("刷新授权请求失败: {error}"))?;
+
+    let status = response.status();
+    let body_text = response
+        .text()
+        .await
+        .map_err(|error| format!("读取刷新授权响应失败: {error}"))?;
+
+    let json: serde_json::Value = serde_json::from_str(&body_text).map_err(|error| {
+        let snippet = &body_text[..body_text.len().min(200)];
+        format!("解析刷新授权响应失败 (HTTP {status}): {error}\n响应内容: {snippet}")
+    })?;
+
+    let code = json.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1);
+    if code != 0 {
+        let msg = json
+            .get("message")
+            .or_else(|| json.get("msg"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("未知错误");
+        return Err(format!("刷新授权失败 (code={code}): {msg}"));
+    }
+
+    let data = json.get("data").ok_or_else(|| "刷新授权响应缺少 data 字段".to_string())?;
+
+    // 提取新的 access_token 和 refresh_token（可能在 data.token_info 下或直接在 data 下）
+    let token_info = data.get("token_info").unwrap_or(data);
+    let new_access_token = token_info
+        .get("access_token")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let new_refresh_token = token_info
+        .get("refresh_token")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    if new_access_token.is_empty() {
+        log::warn!("刷新授权响应中未找到 access_token，data={data}");
+        return Err("刷新授权响应中未返回有效的 access_token".to_string());
+    }
+
+    // 提取 cookie 信息和 SESSDATA 过期时间
+    let cookie_info = data.get("cookie_info").ok_or_else(|| "刷新授权响应缺少 cookie_info".to_string())?;
+    let cookies = cookie_info.get("cookies").and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "刷新授权响应缺少 cookies".to_string())?;
+
+    let sessdata_expires = cookies
+        .iter()
+        .find(|c| c.get("name").and_then(serde_json::Value::as_str) == Some("SESSDATA"))
+        .and_then(|c| c.get("expires"))
+        .and_then(serde_json::Value::as_i64);
+
+    let cookie_str: String = cookies
+        .iter()
+        .filter_map(|c| {
+            let name = c.get("name")?.as_str()?;
+            let value = c.get("value")?.as_str()?;
+            Some(format!("{name}={value}"))
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+
+    if cookie_str.is_empty() {
+        return Err("刷新授权未返回有效 Cookie".to_string());
+    }
+
+    // 用新 cookie 完成登录
+    let mut credential = complete_login_with_cookie(&app, &state, cookie_str).await?;
+    let uid_str = credential.uid.to_string();
+
+    // 更新 access_key
+    {
+        let mut credentials = state.credentials.lock().unwrap();
+        if let Some(ref mut c) = credentials.get_mut(&uid_str) {
+            c.access_key = Some(new_access_token.clone());
+        }
+    }
+    {
+        let mut cred = state.credential.lock().await;
+        if let Some(ref mut c) = *cred {
+            c.access_key = Some(new_access_token.clone());
+        }
+    }
+    let _ = credential_store::save_access_key(&app, &uid_str, &new_access_token);
+
+    // 更新 refresh_token
+    if !new_refresh_token.is_empty() {
+        let _ = credential_store::save_refresh_token(&app, &uid_str, &new_refresh_token);
+    }
+
+    // 更新过期时间
+    if let Some(expires) = sessdata_expires {
+        if expires > 0 {
+            let mut metas = state.account_metas.lock().unwrap();
+            if let Some(meta) = metas.get_mut(&uid_str) {
+                meta.expires_at = Some(expires);
+            }
+            let _ = credential_store::save_account_metas(&app, &metas);
+            credential.expires_at = Some(expires);
+        }
+    }
+
+    let _ = tray::refresh_tray(&app);
+    log::info!("账号 {account_id} Cookie 授权已刷新");
 
     Ok(credential)
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, ArrowLeftRight, Check, Eye, Loader2, LogOut, Plus, UserRound, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Check, Eye, KeyRound, Loader2, LogOut, Plus, RefreshCw, UserRound, X } from "lucide-react";
 import { getAllWindows } from "@tauri-apps/api/window";
 import { toDataURL } from "qrcode";
 import { ANONYMOUS_ACCOUNT_ID } from "@/lib/constants";
@@ -24,6 +24,7 @@ export function AccountPage() {
   const [qrStatus, setQrStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [msgKey, setMsgKey] = useState(0);
@@ -126,7 +127,7 @@ export function AccountPage() {
       removeAccount(accountId, newActiveId);
       showSuccess("已移除账号");
     } catch (e) {
-      showError(e instanceof Error ? e.message : "移除账号失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "移除账号失败");
     }
   };
 
@@ -146,7 +147,7 @@ export function AccountPage() {
       setActiveAccount(accountId, credential);
       showSuccess(`已切换到 ${credential.username}`);
     } catch (e) {
-      showError(e instanceof Error ? e.message : "切换账号失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "切换账号失败");
     } finally {
       setSwitchingId(null);
     }
@@ -168,10 +169,48 @@ export function AccountPage() {
       setActiveAccount(ANONYMOUS_ACCOUNT_ID, credential);
       showSuccess("已切换到匿名模式");
     } catch (e) {
-      showError(e instanceof Error ? e.message : "切换到匿名模式失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "切换到匿名模式失败");
     } finally {
       setSwitchingId(null);
     }
+  };
+
+  const handleRefreshInfo = async (accountId: string) => {
+    setRefreshingId(accountId);
+    clearMessage();
+    try {
+      const credential = await tauriCommands.auth.refreshAccountInfo(accountId);
+      addAccount(credential);
+      showSuccess("账号信息已刷新");
+    } catch (e) {
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "刷新账号信息失败");
+    } finally {
+      setRefreshingId(null);
+    }
+  };
+
+  const handleRefreshCookie = async (accountId: string) => {
+    setRefreshingId(accountId);
+    clearMessage();
+    try {
+      const credential = await tauriCommands.auth.refreshCookie(accountId);
+      addAccount(credential);
+      showSuccess("Cookie 授权已续期");
+    } catch (e) {
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "刷新 Cookie 失败");
+    } finally {
+      setRefreshingId(null);
+    }
+  };
+
+  const getExpiryText = (expiresAt?: number): { text: string; color: string } => {
+    if (!expiresAt) return { text: "过期时间未知", color: "text-slate-400 dark:text-slate-500" };
+    const now = Date.now() / 1000;
+    if (expiresAt <= now) return { text: "已过期", color: "text-rose-500 dark:text-rose-400" };
+    const days = Math.floor((expiresAt - now) / 86400);
+    if (days <= 0) return { text: "不足1天过期", color: "text-amber-500 dark:text-amber-400" };
+    if (days <= 10) return { text: `${days}天后过期`, color: "text-amber-500 dark:text-amber-400" };
+    return { text: `${days}天后过期`, color: "text-emerald-600 dark:text-emerald-400" };
   };
 
   return (
@@ -324,8 +363,10 @@ export function AccountPage() {
           {accounts.map((account) => {
             const isActive = account.accountId === activeAccountId;
             const isSwitching = switchingId === account.accountId;
+            const isRefreshing = refreshingId === account.accountId;
             // 跳过匿名模式条目（已在上方单独显示）
             if (account.accountId === ANONYMOUS_ACCOUNT_ID) return null;
+            const expiry = getExpiryText(account.expiresAt);
             return (
               <div
                 key={account.accountId}
@@ -357,11 +398,30 @@ export function AccountPage() {
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">UID: {account.uid}</p>
+                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                        UID: {account.uid}
+                        <span className={`ml-2 ${expiry.color}`}>{expiry.text}</span>
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => void handleRefreshInfo(account.accountId)}
+                      disabled={isRefreshing}
+                      title="刷新信息"
+                      className="p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+                    >
+                      {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => void handleRefreshCookie(account.accountId)}
+                      disabled={isRefreshing}
+                      title="更新授权（续期 Cookie）"
+                      className="p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+                    >
+                      <KeyRound className="h-4 w-4" />
+                    </button>
                     {!isActive && (
                       <button
                         onClick={() => void handleSwitchAccount(account.accountId)}

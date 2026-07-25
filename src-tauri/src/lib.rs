@@ -277,6 +277,8 @@ pub fn run() {
             commands::auth::get_sending_account_id,
             commands::auth::list_accounts,
             commands::auth::switch_to_anonymous,
+            commands::auth::refresh_account_info,
+            commands::auth::refresh_cookie,
             commands::room::search_room,
             commands::room::add_room,
             commands::room::remove_room,

@@ -48,7 +48,9 @@ export const tauriCommands = {
     switchSendingAccount: (accountId: string) => invoke<Credential>("switch_sending_account", { accountId }),
     getSendingAccountId: () => invoke<string | null>("get_sending_account_id"),
     listAccounts: () => invoke<Credential[]>("list_accounts"),
-    switchToAnonymous: () => invoke<Credential>("switch_to_anonymous")
+    switchToAnonymous: () => invoke<Credential>("switch_to_anonymous"),
+    refreshAccountInfo: (accountId: string) => invoke<Credential>("refresh_account_info", { accountId }),
+    refreshCookie: (accountId: string) => invoke<Credential>("refresh_cookie", { accountId })
   },
   room: {
     search: (query: string, mode: SearchRoomMode) =>
