@@ -81,10 +81,12 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="danmaku-bg-bar rounded inline-flex items-center gap-1 px-2.5 py-1 text-xs text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+        title={displayName}
+        className="danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
       >
-        <Users className="h-3.5 w-3.5" />
-        {displayName}
+        <span className="text-sm font-bold leading-none">
+          {displayName.charAt(0).toUpperCase()}
+        </span>
       </button>
 
       {open && (
@@ -101,6 +103,9 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
                   onClick={() => void handleSelect(account.accountId)}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
                 >
+                  <span className="w-4 shrink-0 text-center text-sm font-bold leading-none text-slate-500 dark:text-slate-400">
+                    {account.username.charAt(0).toUpperCase()}
+                  </span>
                   <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">
                     {account.username}
                   </span>
