@@ -170,6 +170,7 @@ export function DanmakuPage() {
   const danmakuCount = useDanmakuStore((state) => state.danmakuCount);
   const superChatCount = useDanmakuStore((state) => state.superChatCount);
   const hideEntryMessage = useDanmakuStore((state) => state.hideEntryMessage);
+  const hideLikeMessage = useDanmakuStore((state) => state.hideLikeMessage);
   const rooms = useRoomStore((state) => state.rooms);
   const activeAccountId = useAuthStore((state) => state.activeAccountId);
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
@@ -434,9 +435,13 @@ export function DanmakuPage() {
     return true;
   }), [storeGiftMessages, showGift, showSuperChat, showGuard, batteryFilter]);
   const danmakuMessages = useMemo(() => {
-    if (!hideEntryMessage) return storeDanmakuMessages;
-    return storeDanmakuMessages.filter((m) => m.type !== "entry");
-  }, [storeDanmakuMessages, hideEntryMessage]);
+    if (!hideEntryMessage && !hideLikeMessage) return storeDanmakuMessages;
+    return storeDanmakuMessages.filter((m) => {
+      if (hideEntryMessage && m.type === "entry") return false;
+      if (hideLikeMessage && m.type === "like") return false;
+      return true;
+    });
+  }, [storeDanmakuMessages, hideEntryMessage, hideLikeMessage]);
   const giftTotal = useMemo(() => {
     let total = 0;
     for (const m of storeGiftMessages) {

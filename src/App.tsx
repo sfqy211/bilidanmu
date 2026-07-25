@@ -59,6 +59,7 @@ export default function App() {
         // 同步入场信息屏蔽
         if (settings.appearance) {
           useDanmakuStore.getState().setHideEntryMessage(settings.appearance.hideEntryMessage);
+          useDanmakuStore.getState().setHideLikeMessage(settings.appearance.hideLikeMessage);
         }
 
         // 恢复活跃账号
@@ -157,6 +158,7 @@ export default function App() {
       // 同步入场信息屏蔽
       if (event.payload.appearance) {
         useDanmakuStore.getState().setHideEntryMessage(event.payload.appearance.hideEntryMessage);
+        useDanmakuStore.getState().setHideLikeMessage(event.payload.appearance.hideLikeMessage);
       }
     };
 

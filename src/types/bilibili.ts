@@ -143,6 +143,7 @@ export interface Settings {
     hideAdminBadge: boolean;
     hideUserIdColor: boolean;
     hideEntryMessage: boolean;
+    hideLikeMessage: boolean;
     opacity: number;
     emoticonStyle: "hidden" | "text" | "image";
   };

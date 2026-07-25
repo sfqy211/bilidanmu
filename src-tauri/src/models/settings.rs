@@ -47,6 +47,8 @@ pub struct AppearanceSetting {
     pub hide_user_id_color: bool,
     #[serde(default)]
     pub hide_entry_message: bool,
+    #[serde(default)]
+    pub hide_like_message: bool,
     #[serde(default = "default_opacity")]
     pub opacity: u32,
     /// 表情显示样式：hidden / text / image
@@ -199,6 +201,7 @@ impl Default for Settings {
                 hide_admin_badge: false,
                 hide_user_id_color: false,
                 hide_entry_message: false,
+                hide_like_message: false,
                 opacity: 90,
                 emoticon_style: default_emoticon_style(),
             },
