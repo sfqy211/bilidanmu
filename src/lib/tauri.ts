@@ -138,6 +138,7 @@ export const tauriCommands = {
   },
   dock: {
     expand: (label: string) => invoke<void>("dock_expand", { label }),
+    applyExpand: (label: string) => invoke<void>("dock_apply_expand", { label }),
     collapse: (label: string) => invoke<void>("dock_collapse", { label }),
     exit: (label: string) => invoke<void>("dock_exit", { label }),
     getState: (label: string) => invoke<string>("get_dock_state", { label })

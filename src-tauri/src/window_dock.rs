@@ -218,7 +218,11 @@ fn enter_dock(app: &AppHandle, window: &WebviewWindow, side: DockSide) {
     emit_dock_changed(app, &label, "collapsed", Some(side));
 }
 
-/// 展开：从细条恢复为正常尺寸（仍贴边，保持吸附态）
+/// 展开：更新状态并通知前端，但**不立即改变窗口几何**。
+/// 前端收到 "expanded" 事件后先准备 DOM（卸载收缩条、挂载隐藏态的主内容），
+/// 再回调 dock_apply_expand 命令执行真正的 set_size/set_position，
+/// 避免窗口已扩大但收缩条仍在渲染导致的闪现。
+/// 后端同时 spawn 一个 300ms 兜底任务，防止前端无响应时窗口永久停留在收缩态。
 fn expand_dock(app: &AppHandle, window: &WebviewWindow) {
     let state = app.state::<AppState>();
     let label = window.label().to_string();
@@ -234,17 +238,44 @@ fn expand_dock(app: &AppHandle, window: &WebviewWindow) {
         }
     };
 
+    emit_dock_changed(app, &label, "expanded", Some(side));
+
+    // 兜底：300ms 后若仍处于 Expanded 态（前端可能未回调），直接应用几何
+    let app_clone = app.clone();
+    let label_clone = label.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let Some(win) = app_clone.get_webview_window(&label_clone) else { return };
+        apply_expand_geometry(&app_clone, &win, side, normal_pos, normal_size);
+    });
+}
+
+/// 应用展开几何：恢复窗口到正常尺寸并定位到吸附边缘。
+/// 由前端 dock_apply_expand 命令调用（DOM 已准备好之后），也可被兜底任务调用。
+fn apply_expand_geometry(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    side: DockSide,
+    normal_pos: PhysicalPosition<i32>,
+    normal_size: PhysicalSize<u32>,
+) {
+    let state = app.state::<AppState>();
+    let label = window.label().to_string();
+
+    // 竞态守卫：仅在 Expanded 态应用几何（可能已被 collapse/exit 取消）
+    {
+        let docks = lock_docks(state.inner());
+        match docks.get(&label) {
+            Some(d) if d.phase == DockPhase::Expanded => {}
+            _ => return,
+        }
+    }
+
     let Some(monitor) = window.current_monitor().ok().flatten() else { return };
     let work = monitor.position();
     let work_size = monitor.size();
 
-    // 先夹高度到工作区：窗口可能比当前工作区还高（如运行时拔掉副屏/分辨率下调后），
-    // 否则 clamp 的上界 work.y + work_size.height - normal_size.height 会小于下界 work.y，
-    // i32::clamp 在 min > max 时直接 panic（对齐 enter_dock/collapse_dock 的 .min 处理）。
     let expanded_h = normal_size.height.min(work_size.height);
-    // 展开回到原窗口的 y（normal_pos.y，夹到工作区），而非吸附条当前顶部：
-    // 收缩时吸附条是"垂直居中于原窗口中心"的，若展开改用吸附条顶部，收回时又会以新位置
-    // 重新居中，导致吸附条在隐藏/展开间上下漂移。绕原窗口几何则位置完全稳定。
     let expanded_y = normal_pos
         .y
         .clamp(work.y, work.y + work_size.height as i32 - expanded_h as i32);
@@ -252,13 +283,8 @@ fn expand_dock(app: &AppHandle, window: &WebviewWindow) {
         DockSide::Left => work.x,
         DockSide::Right => work.x + work_size.width as i32 - normal_size.width as i32,
     };
-    // 必须先 set_size 再 set_position：展开前窗口是细条，若先设位置，
-    // 右缘展开的瞬间 win_right 会小于 EXIT 阈值，Moved 处理器会误判"拖离边缘"而 exit_dock。
-    // 先恢复尺寸后，任意中间几何状态下 left_edge 都为 false，不会误退出。
     let _ = window.set_size(PhysicalSize::new(normal_size.width, expanded_h));
     let _ = window.set_position(PhysicalPosition::new(expanded_x, expanded_y));
-
-    emit_dock_changed(app, &label, "expanded", Some(side));
 }
 
 /// 收回：从展开/收回动画状态恢复为细条。
@@ -595,6 +621,24 @@ pub fn dock_expand(label: String, app: AppHandle) -> Result<(), String> {
         .get_webview_window(&label)
         .ok_or_else(|| format!("窗口不存在: {label}"))?;
     expand_dock(&app, &window);
+    Ok(())
+}
+
+/// 前端在 DOM 准备好后回调此命令，执行真正的窗口几何展开
+#[tauri::command]
+pub fn dock_apply_expand(label: String, app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("窗口不存在: {label}"))?;
+    let state = app.state::<AppState>();
+    let (side, normal_pos, normal_size) = {
+        let docks = lock_docks(state.inner());
+        match docks.get(&label) {
+            Some(d) => (d.side, d.normal_pos, d.normal_size),
+            None => return Ok(()),
+        }
+    };
+    apply_expand_geometry(&app, &window, side, normal_pos, normal_size);
     Ok(())
 }
 

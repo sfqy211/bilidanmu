@@ -297,6 +297,7 @@ pub fn run() {
             commands::room::open_drawer_window,
             commands::room::exit_room,
             window_dock::dock_expand,
+            window_dock::dock_apply_expand,
             window_dock::dock_collapse,
             window_dock::dock_exit,
             window_dock::get_dock_state,

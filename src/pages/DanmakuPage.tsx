@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
@@ -716,9 +716,11 @@ export function DanmakuPage() {
   const { phase: dockPhase, side: dockSide, expand: dockExpand } = useWindowDock();
 
   // 侧边吸附滑动动画：展开时内容从屏幕边缘滑入，收回时向边缘滑出。
-  // 窗体几何由后端直接 set_size/set_position（无系统动画），动画做在内容根节点的 transform 上。
-  // 收回由后端驱动：光标离开 250ms 后阶段变 collapsing（发事件），此处据此播滑出动画，
-  // 动画结束回调 dock.collapse 才真正缩窗；期间光标重新进入会被后端取消回 expanded，动画反向滑回。
+  // 展开流程：后端 dock_expand 只更新状态+发事件（不缩放），前端收到事件后在此
+  // useLayoutEffect 中先确认 DOM 已准备好（收缩条已卸载、主内容以 hidden transform 挂载），
+  // 再回调 dock_apply_expand 让后端真正 set_size/set_position，避免窗口已扩大但收缩条
+  // 仍在渲染导致的闪现。收回流程不变：光标离开 250ms 后后端发 collapsing，前端播滑出动画，
+  // 动画结束回调 dock_collapse 才真正缩窗。
   const [slideIn, setSlideIn] = useState(false);
   const [slideOut, setSlideOut] = useState(false);
   const [animSide, setAnimSide] = useState<DockSide>(dockSide);
@@ -726,7 +728,12 @@ export function DanmakuPage() {
   dockPhaseRef.current = dockPhase;
   const prevDockPhaseRef = useRef(dockPhase);
 
-  useEffect(() => {
+  // 在 render 阶段同步检测 collapsed→expanded 转换，确保首次绘制就处于屏幕外（消除闪现）
+  const prevPhaseForSlide = useRef(dockPhase);
+  const justExpanded = prevPhaseForSlide.current === "collapsed" && dockPhase === "expanded";
+  prevPhaseForSlide.current = dockPhase;
+
+  useLayoutEffect(() => {
     if (dockPhase === "collapsing") {
       // 发起收回：播滑出动画
       setAnimSide(dockSide);
@@ -738,9 +745,10 @@ export function DanmakuPage() {
       if (dockPhase === "expanded") {
         setAnimSide(dockSide);
         setSlideIn(true);
-        const raf = requestAnimationFrame(() => {
-          requestAnimationFrame(() => setSlideIn(false));
-        });
+        // DOM 已准备好（收缩条已卸载、主内容 hidden），回调后端执行窗口缩放
+        void tauriCommands.dock.applyExpand(appWindow.label).catch(() => {});
+        // 下一帧移除 hidden 状态，触发 CSS transition 滑入
+        const raf = requestAnimationFrame(() => setSlideIn(false));
         return () => cancelAnimationFrame(raf);
       }
     }
@@ -771,10 +779,13 @@ export function DanmakuPage() {
 
   const hiddenX =
     animSide === "left" ? "-translate-x-full" : "translate-x-full";
+  // justExpanded 时使用 dockSide（当前值），而非 animSide（可能还是旧值）
+  const initialHiddenX =
+    dockSide === "left" ? "-translate-x-full" : "translate-x-full";
   const slideClass = slideOut
     ? `${hiddenX} duration-[180ms] ease-in`
-    : slideIn
-      ? `${hiddenX} transition-none`
+    : (slideIn || justExpanded)
+      ? `${initialHiddenX} transition-none`
       : "translate-x-0 duration-[220ms] ease-out";
 
   return (
