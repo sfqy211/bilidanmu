@@ -77,10 +77,6 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
       if (message.content && state.blockedKeywords.some((kw) => message.content.toLowerCase().includes(kw.toLowerCase()))) {
         return {};
       }
-      if (message.type === "entry" && state.hideEntryMessage) {
-        return {};
-      }
-
       const isGift = message.type === "gift" || message.type === "superChat" || message.type === "guard";
       if (isGift) {
         const limit = state.giftLimit > 0 ? state.giftLimit : Number.MAX_SAFE_INTEGER;
