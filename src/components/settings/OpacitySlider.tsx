@@ -17,9 +17,9 @@ export function OpacitySlider({
   value,
   onChange,
   label = "背景透明度",
-  className = "bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]",
-  labelClassName = "text-sm text-slate-600 dark:text-slate-300",
-  valueClassName = "text-xs text-slate-400 dark:text-slate-500",
+  className = "",
+  labelClassName = "text-xs text-slate-500 dark:text-slate-400",
+  valueClassName = "text-xs text-slate-500 dark:text-slate-400",
 }: OpacitySliderProps) {
   const [local, setLocal] = useState(value);
 
@@ -36,11 +36,8 @@ export function OpacitySlider({
   };
 
   return (
-    <div className={className}>
-      <div className="mb-2 flex items-center justify-between">
-        <span className={labelClassName}>{label}</span>
-        <span className={valueClassName}>{local}%</span>
-      </div>
+    <div className={`flex items-center gap-2 ${className}`}>
+      <span className={`shrink-0 ${labelClassName}`}>{label}</span>
       <input
         type="range"
         min={10}
@@ -57,8 +54,9 @@ export function OpacitySlider({
           }
         }}
         onBlur={(e) => commit(Number((e.currentTarget as HTMLInputElement).value))}
-        className="h-1 w-full cursor-pointer accent-pink-500"
+        className="h-1 min-w-0 flex-1 cursor-pointer accent-pink-500"
       />
+      <span className={`w-9 shrink-0 text-right ${valueClassName}`}>{local}%</span>
     </div>
   );
 }

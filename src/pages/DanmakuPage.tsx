@@ -1188,12 +1188,24 @@ export function DanmakuPage() {
               </div>
 
               <OpacitySlider
-                labelClassName="text-xs text-slate-500 dark:text-slate-400"
-                valueClassName="text-xs text-slate-500 dark:text-slate-400"
-                className=""
                 value={opacity}
                 onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
               />
+
+              {/* 字体大小 */}
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">字体大小</span>
+                <input
+                  type="range"
+                  min={10}
+                  max={32}
+                  step={1}
+                  value={fontSize}
+                  onChange={(e) => commitSettings({ appearance: { fontSize: Number(e.target.value) } } as Partial<SettingsType>)}
+                  className="h-1 min-w-0 flex-1 cursor-pointer accent-pink-500"
+                />
+                <span className="w-9 shrink-0 text-right text-xs text-slate-500 dark:text-slate-400">{fontSize}px</span>
+              </div>
 
               {/* 表情样式 */}
               <div className="flex items-center justify-between gap-2">
