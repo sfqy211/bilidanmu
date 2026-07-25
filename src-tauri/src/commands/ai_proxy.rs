@@ -1,6 +1,7 @@
 use crate::{selections_store, AppState};
 use http_body_util::BodyExt;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::{Manager, State};
 
@@ -145,6 +146,7 @@ pub async fn switch_astrbot_room(
         let body = resp.text().await.unwrap_or_default();
         return Err(format!("AstrBot 切房失败: {body}"));
     }
+    state.astrbot_active.store(true, Ordering::Relaxed);
     Ok(())
 }
 
@@ -165,6 +167,7 @@ pub async fn disconnect_astrbot(state: State<'_, AppState>) -> Result<(), String
         let body = resp.text().await.unwrap_or_default();
         return Err(format!("AstrBot 断开失败: {body}"));
     }
+    state.astrbot_active.store(false, Ordering::Relaxed);
     Ok(())
 }
 

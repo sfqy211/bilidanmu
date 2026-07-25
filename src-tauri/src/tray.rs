@@ -1,4 +1,5 @@
 use crate::{room_store, AppState};
+use std::sync::atomic::Ordering;
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
@@ -125,8 +126,10 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                     }
                 }
 
-                // 断开 AstrBot
-                let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
+                // 断开 AstrBot（仅当确实连接过）
+                if state.astrbot_active.load(Ordering::Relaxed) {
+                    let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
+                }
 
                 // 销毁所有窗口，让 WebView2 干净退出
                 for (_, window) in app_clone.webview_windows() {

@@ -20,6 +20,7 @@ use bili::ws_client::DanmakuWsClient;
 use bili::buvid::ensure_buvid;
 use proxy::stream_proxy::StreamProxyServer;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::Manager;
 use tauri::WindowEvent;
@@ -54,6 +55,8 @@ pub struct AppState {
     pub stream_proxy: Arc<StreamProxyServer>,
     pub astrbot_config: TokioMutex<Option<commands::ai_proxy::AstrbotConfig>>,
     pub astrbot_callback_port: Arc<TokioMutex<u16>>,
+    /// AstrBot 是否处于活跃连接状态（switch-room 成功后为 true）
+    pub astrbot_active: AtomicBool,
     pub ai_summaries: commands::ai_proxy::SummaryStore,
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
     /// 各窗口的侧边吸附状态（label -> DockState）
@@ -76,9 +79,11 @@ pub fn run() {
         .build()
         .expect("failed to build proxy HTTP client");
 
-    // AstrBot 专用客户端，不使用代理（本地连接）
+    // AstrBot 专用客户端，不使用代理（本地连接），短超时兜底
     let astrbot_client = reqwest::Client::builder()
         .no_proxy()
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .timeout(std::time::Duration::from_secs(5))
         .build()
         .expect("failed to build astrbot HTTP client");
 
@@ -121,6 +126,7 @@ pub fn run() {
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
             astrbot_config: TokioMutex::new(None),
             astrbot_callback_port: Arc::new(TokioMutex::new(0)),
+            astrbot_active: AtomicBool::new(false),
             ai_summaries: Arc::new(StdMutex::new(Vec::new())),
             stt_manager: Arc::new(TokioMutex::new(None)),
             window_docks: std::sync::Mutex::new(HashMap::new()),
