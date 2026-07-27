@@ -1,0 +1,159 @@
+/* BiliDanmu 主题色：B 站风格青蓝 #00aeec */
+:root {
+  --vp-c-brand-1: #00aeec;
+  --vp-c-brand-2: #00b5f5;
+  --vp-c-brand-3: #0098d6;
+  --vp-c-brand-soft: rgba(0, 174, 236, 0.14);
+
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: #f7f8fa;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f7f8fa;
+
+  --vp-c-border: #e3e6e8;
+  --vp-c-divider: #ebeef0;
+
+  --vp-c-text-1: #18191c;
+  --vp-c-text-2: #4e5969;
+  --vp-c-text-3: #86909c;
+
+  --vp-font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas,
+    'Courier New', monospace;
+}
+
+.dark {
+  --vp-c-bg: #18191c;
+  --vp-c-bg-alt: #232426;
+  --vp-c-bg-elv: #2b2c2e;
+  --vp-c-bg-soft: #232426;
+
+  --vp-c-border: #3a3d42;
+  --vp-c-divider: #333538;
+
+  --vp-c-text-1: #e5e7eb;
+  --vp-c-text-2: #b3b8c0;
+  --vp-c-text-3: #86909c;
+}
+
+/* 首页 Hero 渐变 */
+.VPHomeHero .container .name {
+  background: linear-gradient(120deg, #00aeec 30%, #fb7299 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.VPHomeHero .container .text {
+  color: var(--vp-c-text-2);
+}
+
+/* 特性卡片 */
+.VPFeatures {
+  padding: 0 24px;
+}
+
+.VPFeatures .container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 1152px;
+  margin: 0 auto;
+}
+
+.VPFeatures .VPFeature {
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-border);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.25s ease;
+}
+
+.VPFeatures .VPFeature:hover {
+  border-color: var(--vp-c-brand-1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 174, 236, 0.12);
+}
+
+.VPFeatures .VPFeature .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.VPFeatures .VPFeature .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+  margin-bottom: 8px;
+}
+
+.VPFeatures .VPFeature .details {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+
+/* 代码块 */
+.vp-code-group .tabs label {
+  font-size: 13px;
+}
+
+div[class*='language-'] {
+  border-radius: 8px;
+}
+
+/* 表格 */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.vp-doc th {
+  background: var(--vp-c-bg-soft);
+}
+
+/* 提示容器 */
+.custom-block {
+  border-radius: 8px;
+}
+
+.custom-block.tip {
+  border-left: 4px solid var(--vp-c-brand-1);
+}
+
+/* 侧边栏 */
+.VPSidebar {
+  scrollbar-width: thin;
+}
+
+.VPSidebarItem.level-0 > .item .link .text {
+  font-weight: 600;
+}
+
+/* 顶部导航 */
+.VPNavBar .container .title {
+  font-weight: 700;
+}
+
+/* 平滑滚动 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 响应式微调 */
+@media (max-width: 768px) {
+  .VPFeatures .container {
+    grid-template-columns: 1fr;
+  }
+}
