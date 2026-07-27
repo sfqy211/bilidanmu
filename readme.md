@@ -96,13 +96,17 @@ src-tauri/                    后端 (Rust)
 
 ## 文档
 
-| 文件                                         | 说明                        |
-| -------------------------------------------- | --------------------------- |
-| [docs/ui-structure.md](docs/ui-structure.md) | 页面布局与交互规范          |
-| [docs/architecture.md](docs/architecture.md) | 技术栈、项目结构、数据流    |
-| [docs/api.md](docs/api.md)                   | B站 API、IPC 命令、事件列表 |
-| [docs/research.md](docs/research.md)         | 技术调研记录                |
-| [docs/design.md](docs/design.md)             | 视觉设计风格规范            |
+`docs/` 目录包含 VitePress 文档站：
+
+| 目录 | 说明 |
+| --- | --- |
+| [docs/guide/](docs/guide/) | 用户指南（快速开始、功能介绍、使用教程） |
+| [docs/architecture/](docs/architecture/) | 技术架构（架构总览、项目结构、数据流） |
+| [docs/api/](docs/api/) | API 参考（B 站 API、IPC 命令、事件列表） |
+| [docs/design/](docs/design/) | 设计规范（设计风格、页面布局） |
+| [docs/research/](docs/research/) | 技术调研（协议调研、方案选型） |
+
+本地预览：`cd docs && npm install && npm run dev`
 
 ## 许可
 

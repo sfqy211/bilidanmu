@@ -24,6 +24,7 @@
 - `src/` is the Vite/React frontend. Vite root is `src`, output is `dist`, dev server is fixed to `http://localhost:3000` (`strictPort: true`).
 - `src-tauri/` is the Tauri/Rust app. `tauri.conf.json` starts the renderer with `beforeDevCommand: npm run dev:renderer` and builds it with `beforeBuildCommand: npm run build:renderer`.
 - Path alias `@/*` points to `src/*`.
+- `docs/` is the VitePress documentation site. Run `npm run dev` in `docs/` to start the docs dev server.
 
 ## Architecture facts that affect edits
 - Frontend boots from `src/main.tsx` with React Router + Zustand; `src/App.tsx` restores login, settings, rooms, and the saved room on startup. Also listens for tray events (`room-switched`, `account-switched`) to sync state.
@@ -48,5 +49,5 @@
 
 ## Existing repo instructions worth preserving
 - `CLAUDE.md` contains the detailed architecture map and command list; use it when you need deeper context.
-- `docs/` directory contains page structure, architecture, API reference, and research docs.
+- `docs/` directory contains the VitePress documentation site (user guides, architecture, API reference).
 - Do not commit unless the user explicitly asks.
