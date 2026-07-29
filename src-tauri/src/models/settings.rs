@@ -173,6 +173,13 @@ pub struct Settings {
     pub stt: SttSetting,
     #[serde(default)]
     pub filter: FilterSetting,
+    /// 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序）
+    #[serde(default = "default_close_behavior")]
+    pub close_behavior: String,
+}
+
+fn default_close_behavior() -> String {
+    "ask".into()
 }
 
 impl Default for Settings {
@@ -221,6 +228,7 @@ impl Default for Settings {
             audio: AudioSetting::default(),
             stt: SttSetting::default(),
             filter: FilterSetting::default(),
+            close_behavior: default_close_behavior(),
         }
     }
 }

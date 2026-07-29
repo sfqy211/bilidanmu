@@ -1,12 +1,19 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Maximize, Minus, X } from "lucide-react";
+import { CloseDialog } from "@/components/ui/CloseDialog";
+import { tauriCommands } from "@/lib/tauri";
+import { useSettingsStore } from "@/stores/settings-store";
 import appIcon from "@/icon.ico";
 
 const appWindow = getCurrentWindow();
 
 export function TitleBar() {
   const dblClickTimer = useRef(0);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const closeBehavior = useSettingsStore((s) => s.settings.closeBehavior);
+  const patchSettings = useSettingsStore((s) => s.patchSettings);
+  const saveSettings = useSettingsStore((s) => s.saveSettings);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // 忽略按钮区域的点击
@@ -26,6 +33,35 @@ export function TitleBar() {
       void appWindow.startDragging();
     }
   }, []);
+
+  const handleClose = useCallback(() => {
+    if (closeBehavior === "exit") {
+      void tauriCommands.app.quit();
+    } else if (closeBehavior === "hide") {
+      void appWindow.hide();
+    } else {
+      setShowCloseDialog(true);
+    }
+  }, [closeBehavior]);
+
+  const handleDialogHide = useCallback(() => {
+    setShowCloseDialog(false);
+    void appWindow.hide();
+  }, []);
+
+  const handleDialogExit = useCallback(() => {
+    setShowCloseDialog(false);
+    void tauriCommands.app.quit();
+  }, []);
+
+  const handleDialogCancel = useCallback(() => {
+    setShowCloseDialog(false);
+  }, []);
+
+  const handleRemember = useCallback((behavior: "hide" | "exit") => {
+    patchSettings({ closeBehavior: behavior });
+    void saveSettings();
+  }, [patchSettings, saveSettings]);
 
   return (
     <div
@@ -55,12 +91,20 @@ export function TitleBar() {
         </button>
         <button
           type="button"
-          onClick={() => appWindow.close()}
+          onClick={handleClose}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      <CloseDialog
+        open={showCloseDialog}
+        onHide={handleDialogHide}
+        onExit={handleDialogExit}
+        onCancel={handleDialogCancel}
+        onRemember={handleRemember}
+      />
     </div>
   );
 }

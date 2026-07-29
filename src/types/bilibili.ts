@@ -167,6 +167,8 @@ export interface Settings {
     blockedUsers: BlockedUser[];
     blockedKeywords: string[];
   };
+  /** 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序） */
+  closeBehavior: "ask" | "hide" | "exit";
 }
 
 export interface AudioSetting {

@@ -262,6 +262,29 @@ export function SettingsPage() {
           <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <label className="block text-sm text-slate-600 dark:text-slate-300">
+                关闭主窗口行为
+                <Select
+                  value={settings.closeBehavior}
+                  onValueChange={(v) =>
+                    patchSettings({ closeBehavior: v as Settings["closeBehavior"] })
+                  }
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ask">每次询问</SelectItem>
+                    <SelectItem value="hide">隐藏到托盘</SelectItem>
+                    <SelectItem value="exit">退出程序</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+            <div className="space-y-4">
+              <label className="block text-sm text-slate-600 dark:text-slate-300">
                 主题
                 <Select
                   value={settings.appearance.theme}

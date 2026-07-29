@@ -7,6 +7,41 @@ use tauri::{
     App, AppHandle, Emitter, Manager,
 };
 
+/// 执行完整的退出清理流程：停止自动任务、断开连接、销毁窗口、退出进程。
+/// 托盘"退出"菜单项与前端 quit_app 命令共用此函数。
+pub fn quit_app(app: &AppHandle) {
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let state = app_clone.state::<AppState>();
+
+        {
+            let mut auto_sender = state.auto_sender.lock().await;
+            if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
+                let _ = shutdown_tx.send(());
+            }
+        }
+        {
+            let mut auto_like = state.auto_like.lock().await;
+            if let Some(shutdown_tx) = auto_like.shutdown_tx.take() {
+                let _ = shutdown_tx.send(());
+            }
+        }
+        {
+            let mut ws_client = state.ws_client.lock().await;
+            if let Some(client) = ws_client.as_mut() {
+                client.disconnect().await;
+            }
+        }
+        if state.astrbot_active.load(Ordering::Relaxed) {
+            let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
+        }
+        for (_, window) in app_clone.webview_windows() {
+            let _ = window.destroy();
+        }
+        app_clone.exit(0);
+    });
+}
+
 pub fn create_tray(app: &App) -> tauri::Result<()> {
     let menu = build_tray_menu(app.handle())?;
 
@@ -100,44 +135,7 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 
     match id {
         "quit" => {
-            let app_clone = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let state = app_clone.state::<crate::AppState>();
-
-                // 停止自动发送/点赞
-                {
-                    let mut auto_sender = state.auto_sender.lock().await;
-                    if let Some(shutdown_tx) = auto_sender.shutdown_tx.take() {
-                        let _ = shutdown_tx.send(());
-                    }
-                }
-                {
-                    let mut auto_like = state.auto_like.lock().await;
-                    if let Some(shutdown_tx) = auto_like.shutdown_tx.take() {
-                        let _ = shutdown_tx.send(());
-                    }
-                }
-
-                // 断开 WebSocket
-                {
-                    let mut ws_client = state.ws_client.lock().await;
-                    if let Some(client) = ws_client.as_mut() {
-                        client.disconnect().await;
-                    }
-                }
-
-                // 断开 AstrBot（仅当确实连接过）
-                if state.astrbot_active.load(Ordering::Relaxed) {
-                    let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
-                }
-
-                // 销毁所有窗口，让 WebView2 干净退出
-                for (_, window) in app_clone.webview_windows() {
-                    let _ = window.destroy();
-                }
-
-                app_clone.exit(0);
-            });
+            quit_app(app);
         }
         _ if id.starts_with("room:") => {
             let room_id_str = &id["room:".len()..];
@@ -277,4 +275,10 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     menu.append(&quit)?;
 
     Ok(menu)
+}
+
+/// 前端可调用的退出命令，执行完整清理后退出进程。
+#[tauri::command]
+pub fn quit_app_cmd(app: AppHandle) {
+    quit_app(&app);
 }

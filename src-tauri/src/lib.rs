@@ -345,7 +345,8 @@ pub fn run() {
             commands::update::check_update,
             commands::download::download_file,
             commands::download::open_file_path,
-            commands::log::open_log_dir
+            commands::log::open_log_dir,
+            tray::quit_app_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

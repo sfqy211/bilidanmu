@@ -173,5 +173,8 @@ export const tauriCommands = {
   },
   log: {
     openDir: () => invoke<void>("open_log_dir"),
+  },
+  app: {
+    quit: () => invoke<void>("quit_app_cmd"),
   }
 };
