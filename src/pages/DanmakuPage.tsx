@@ -9,7 +9,7 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ArrowDown, Bot, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { Bot, ChevronDown, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -1083,11 +1083,9 @@ export function DanmakuPage() {
                 <button
                   data-interactive=""
                   onClick={giftScroll.scrollToBottom}
-                  className="absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-pink-500 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-pink-400"
-                  style={{ bottom: "4px" }}
+                  className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full bg-black/30 px-2.5 py-1 text-white/85 backdrop-blur-sm transition hover:bg-black/45 hover:text-white dark:bg-white/15 dark:hover:bg-white/25"
                 >
-                  <ArrowDown className="h-3.5 w-3.5" />
-                  回到底部
+                  <ChevronDown className="h-3.5 w-3.5" />
                 </button>
               )}
             </>
@@ -1150,10 +1148,9 @@ export function DanmakuPage() {
                 <button
                   data-interactive=""
                   onClick={danmakuScroll.scrollToBottom}
-                  className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-pink-500 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-pink-400"
+                  className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full bg-black/30 px-2.5 py-1 text-white/85 backdrop-blur-sm transition hover:bg-black/45 hover:text-white dark:bg-white/15 dark:hover:bg-white/25"
                 >
-                  <ArrowDown className="h-3.5 w-3.5" />
-                  回到底部
+                  <ChevronDown className="h-3.5 w-3.5" />
                 </button>
               )}
             </>
