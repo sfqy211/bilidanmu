@@ -50,4 +50,7 @@
 ## Existing repo instructions worth preserving
 - `CLAUDE.md` contains the detailed architecture map and command list; use it when you need deeper context.
 - `docs/` directory contains the VitePress documentation site (user guides, architecture, API reference).
-- Do not commit unless the user explicitly asks.
+
+## Commit policy (hard rule, user-mandated)
+- **NEVER run `git commit` unless the user explicitly asks for a commit in their current message.** Implementing, finishing, or verifying a task is NOT commit consent. Leave changes in the working tree; the user commits (or asks) themselves.
+- When the user does ask for commits, use conventional commit subjects with Chinese descriptions, e.g. `feat(danmaku): 解析开播/下播消息并渲染为系统行`, `feat(settings): 新增关闭主窗口行为设置（询问/隐藏/退出）`.
