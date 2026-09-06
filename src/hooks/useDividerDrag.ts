@@ -36,8 +36,12 @@ export function useDividerDrag(
   const draggingRef = useRef(false);
   const storageKeyRef = useRef(storageKey);
   storageKeyRef.current = storageKey;
+  // 拖动节流：pointermove 可能远高于帧率，仅在 rAF 中应用最新比率，
+  // 避免每个事件都触发整页重排（列表大时明显卡顿）
+  const pendingRatioRef = useRef<number | null>(null);
+  const rafRef = useRef(0);
 
-  // 包装 setRatio，始终同步保存到 localStorage
+  // 包装 setRatio，始终同步保存到 localStorage（拖动过程中不保存，松手时写终值）
   const setRatio = useCallback((value: number | ((prev: number) => number)) => {
     _setRatio((prev) => {
       const next = typeof value === "function" ? value(prev) : value;
@@ -46,26 +50,43 @@ export function useDividerDrag(
     });
   }, []);
 
-  const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!draggingRef.current) return;
-    const container = containerRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const newRatio = Math.max(0, Math.min(1, y / rect.height));
-
-    setRatio(newRatio);
-  }, [containerRef, setRatio]);
+  const handlePointerMove = useCallback(
+    (e: PointerEvent) => {
+      if (!draggingRef.current) return;
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      pendingRatioRef.current = Math.max(0, Math.min(1, y / rect.height));
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = 0;
+          if (!draggingRef.current) return;
+          const pending = pendingRatioRef.current;
+          if (pending != null) {
+            _setRatio(pending);
+          }
+        });
+      }
+    },
+    [containerRef],
+  );
 
   const handlePointerUp = useCallback(() => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
 
     _setRatio((prev) => {
-      const final = prev < COLLAPSE_THRESHOLD ? 0 : prev > 1 - COLLAPSE_THRESHOLD ? 1 : prev;
+      const pending = pendingRatioRef.current;
+      pendingRatioRef.current = null;
+      const base = pending ?? prev;
+      const final = base < COLLAPSE_THRESHOLD ? 0 : base > 1 - COLLAPSE_THRESHOLD ? 1 : base;
       saveRatio(storageKeyRef.current, final);
       return final;
     });
@@ -77,6 +98,10 @@ export function useDividerDrag(
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
       if (draggingRef.current) {
         draggingRef.current = false;
         document.body.style.userSelect = "";

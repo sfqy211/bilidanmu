@@ -732,7 +732,7 @@ function CacheLimitCard({ settings, patchSettings }: { settings: Settings; patch
   return (
     <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
       <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
-        消息缓存上限 <span className="font-normal text-slate-400 dark:text-slate-500">（0 = 无限制）</span>
+        消息缓存上限 <span className="font-normal text-slate-400 dark:text-slate-500">（0 = 无限制，内置安全上限 3000）</span>
       </h3>
       <div className="grid grid-cols-2 gap-4">
         <label className="block text-sm text-slate-600 dark:text-slate-300">
