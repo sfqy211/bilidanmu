@@ -107,6 +107,10 @@ pub async fn get_rooms(state: State<'_, AppState>) -> Result<Vec<Room>, String> 
 
 #[tauri::command]
 pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
+    // 虚拟直播间没有真实场次，用 mock 启动时间充当开播时间
+    if room_id == crate::bili::mock::MOCK_ROOM_ID && crate::bili::mock::is_enabled() {
+        return Ok(Some(crate::bili::mock::mock_live_start()));
+    }
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state);
     api.get_live_time(room_id).await
@@ -499,4 +503,10 @@ pub async fn update_favorite_order(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     crate::emoticon_store::update_favorite_order(state.inner(), &account_id, &emoticon_unique, sort_order)
+}
+
+/// 虚拟直播间是否启用（环境变量 BILIDANMU_MOCK=1）
+#[tauri::command]
+pub fn is_mock_enabled() -> bool {
+    crate::bili::mock::is_enabled()
 }

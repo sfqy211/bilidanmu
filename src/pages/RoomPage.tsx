@@ -29,6 +29,11 @@ export function RoomPage() {
   const showError = (msg: string) => { setError(msg); setMsgKey((k) => k + 1); };
   const clearMessage = () => { setError(null); };
   const [liveStatusMap, setLiveStatusMap] = useState<Record<string, boolean>>({});
+  const [mockEnabled, setMockEnabled] = useState(false);
+
+  useEffect(() => {
+    tauriCommands.room.isMockEnabled().then(setMockEnabled).catch(() => {});
+  }, []);
 
   const placeholder = useMemo(
     () => searchModes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容",
@@ -241,6 +246,26 @@ export function RoomPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {mockEnabled && (
+        <div className="app-rise mb-3 flex items-center gap-3 rounded-lg bg-pink-500/5 px-3 py-2.5 shadow-sm ring-1 ring-pink-500/25 dark:bg-pink-500/10">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-900 dark:text-white">测试直播间（虚拟）</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">本地模拟弹幕流，无需连接真实直播间</p>
+          </div>
+          <button
+            onClick={() => {
+              const { width, height } = loadWindowSize("danmaku-window");
+              void tauriCommands.room.openDanmaku(0, width, height);
+            }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-pink-50 hover:text-pink-500 dark:text-slate-400 dark:hover:bg-pink-500/15 dark:hover:text-pink-300"
+            title="打开弹幕"
+          >
+            <MonitorPlay className="h-4 w-4" />
+          </button>
         </div>
       )}
 

@@ -136,6 +136,11 @@ pub fn run() {
         .setup(|app| {
             tray::create_tray(app)?;
 
+            // 虚拟直播间（环境变量 BILIDANMU_MOCK=1 启用，见 bili::mock 模块说明）
+            if bili::mock::is_enabled() {
+                bili::mock::spawn();
+            }
+
             // 侧边吸附仅弹幕窗口挂接（在 open_danmaku_window 创建时 attach）；
             // 主页面窗口不参与吸附（见 window_dock::is_dockable）。
 
@@ -285,6 +290,7 @@ pub fn run() {
             commands::room::get_room_info,
             commands::room::get_rooms,
             commands::room::get_live_time,
+            commands::room::is_mock_enabled,
             commands::room::get_emoticons,
             commands::room::clear_emoticon_cache,
             commands::room::clear_room_emoticon_cache,

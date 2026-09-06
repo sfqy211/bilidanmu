@@ -868,7 +868,7 @@ fn parse_object_medal(value: Option<&Value>) -> Option<Medal> {
     (!name.trim().is_empty()).then_some(Medal { name, level, is_light })
 }
 
-fn make_packet(body: &[u8], operation: u32) -> Result<Vec<u8>, String> {
+pub(crate) fn make_packet(body: &[u8], operation: u32) -> Result<Vec<u8>, String> {
     let pack_len = (HEADER_SIZE + body.len()) as u32;
     let mut packet = Vec::with_capacity(pack_len as usize);
     packet.extend_from_slice(&pack_len.to_be_bytes());

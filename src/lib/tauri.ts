@@ -83,7 +83,8 @@ export const tauriCommands = {
     getRoomsLiveStatus: () =>
       invoke<Record<string, boolean>>("get_rooms_live_status"),
     getLiveTime: (roomId: number) =>
-      invoke<number | null>("get_live_time", { roomId })
+      invoke<number | null>("get_live_time", { roomId }),
+    isMockEnabled: () => invoke<boolean>("is_mock_enabled")
   },
   danmaku: {
     send: (roomId: number, msg: string, options?: SendOptions) =>

@@ -86,43 +86,62 @@ async fn run_connection(
     room_id: u64,
     credential: Option<BiliCredential>,
 ) -> Result<(), String> {
+    // 虚拟直播间（保留房间号 0，需 BILIDANMU_MOCK 启用）：直连本地 mock 服务器，
+    // 跳过 B 站 API 解析；token 用占位值，mock 服务器不校验
+    let mock = room_id == crate::bili::mock::MOCK_ROOM_ID && crate::bili::mock::is_enabled();
+
     // 解析真实房间号和主播 UID，用于心跳上报
-    let (real_room_id, up_id) = match api.get_room_info(room_id).await {
-        Ok(info) => {
-            let rid = info.room.room_id;
-            let uid = info.room.uid.unwrap_or(0);
-            if rid != room_id {
-                log::info!("[ws] 短号 {room_id} → 真实房间号 {rid}");
+    let (url, token, real_room_id, up_id) = if mock {
+        (
+            format!("ws://127.0.0.1:{}/sub", crate::bili::mock::MOCK_WS_PORT),
+            "mock".to_string(),
+            room_id,
+            0,
+        )
+    } else {
+        let (real_room_id, up_id) = match api.get_room_info(room_id).await {
+            Ok(info) => {
+                let rid = info.room.room_id;
+                let uid = info.room.uid.unwrap_or(0);
+                if rid != room_id {
+                    log::info!("[ws] 短号 {room_id} → 真实房间号 {rid}");
+                }
+                (rid, uid)
             }
-            (rid, uid)
-        }
-        Err(_) => (room_id, 0),
+            Err(_) => (room_id, 0),
+        };
+
+        let danmu_info = api.get_danmu_info(room_id).await?;
+        let data = danmu_info
+            .get("data")
+            .ok_or_else(|| "弹幕信息缺少 data 字段".to_string())?;
+        let token = data
+            .get("token")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "弹幕信息缺少 token".to_string())?;
+        let host = data
+            .get("host_list")
+            .and_then(Value::as_array)
+            .and_then(|list| list.first())
+            .and_then(Value::as_object)
+            .ok_or_else(|| "弹幕信息缺少 host_list".to_string())?;
+        let ws_host = host
+            .get("host")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "host_list 缺少 host".to_string())?;
+        let wss_port = host
+            .get("wss_port")
+            .and_then(Value::as_u64)
+            .unwrap_or(443);
+
+        (
+            format!("wss://{ws_host}:{wss_port}/sub"),
+            token.to_string(),
+            real_room_id,
+            up_id,
+        )
     };
 
-    let danmu_info = api.get_danmu_info(room_id).await?;
-    let data = danmu_info
-        .get("data")
-        .ok_or_else(|| "弹幕信息缺少 data 字段".to_string())?;
-    let token = data
-        .get("token")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "弹幕信息缺少 token".to_string())?;
-    let host = data
-        .get("host_list")
-        .and_then(Value::as_array)
-        .and_then(|list| list.first())
-        .and_then(Value::as_object)
-        .ok_or_else(|| "弹幕信息缺少 host_list".to_string())?;
-    let ws_host = host
-        .get("host")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "host_list 缺少 host".to_string())?;
-    let wss_port = host
-        .get("wss_port")
-        .and_then(Value::as_u64)
-        .unwrap_or(443);
-
-    let url = format!("wss://{ws_host}:{wss_port}/sub");
     let (stream, _) = connect_async(&url).await.map_err(|error| error.to_string())?;
     let (mut writer, mut reader) = stream.split();
 
@@ -137,7 +156,7 @@ async fn run_connection(
         .unwrap_or("buvid-missing");
 
     writer
-        .send(Message::Binary(auth_packet(room_id, uid, buvid, token)?.into()))
+        .send(Message::Binary(auth_packet(room_id, uid, buvid, &token)?.into()))
         .await
         .map_err(|error| error.to_string())?;
 
@@ -320,8 +339,8 @@ async fn run_connection(
     // 判断是否为匿名模式（无 SESSDATA）
     let has_sessdata = credential.as_ref().map_or(false, |c| c.has_sessdata());
 
-    let result = if has_sessdata {
-        // 已登录模式：启动心跳上报，同时处理消息
+    let result = if has_sessdata && !mock {
+        // 已登录模式：启动心跳上报，同时处理消息（虚拟直播间无真实房间，跳过上报）
         let heartbeat_credential = credential.clone();
         let heartbeat_client = reqwest::Client::builder()
             .http1_only()

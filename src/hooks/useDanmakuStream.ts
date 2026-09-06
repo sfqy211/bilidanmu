@@ -28,7 +28,8 @@ export function useDanmakuStream(roomId: number | null) {
 
   const connectRef = useRef(() => {
     const rid = roomIdRef.current;
-    if (!rid) {
+    // 房间号 0 是合法值（虚拟直播间），仅 null 视为未进房
+    if (rid == null) {
       return;
     }
 
@@ -49,7 +50,7 @@ export function useDanmakuStream(roomId: number | null) {
 
   useEffect(() => {
     clearMessages();
-    if (roomId) {
+    if (roomId != null) {
       void connectRef.current();
     }
 
