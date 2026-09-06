@@ -344,6 +344,11 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
         )}
         </span>
       </span>
+      {item.type === "superChat" && item.price ? (
+        <span className="ml-2 whitespace-nowrap align-middle text-xs font-semibold text-amber-600 dark:text-amber-200">
+          ¥{item.price}
+        </span>
+      ) : null}
       {contextMenu && createPortal(
         <ContextMenu
           item={item}

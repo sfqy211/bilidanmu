@@ -145,11 +145,15 @@ export interface Settings {
     hideAdminBadge: boolean;
     hideUserIdColor: boolean;
     hideUsername: boolean;
-    hideEntryMessage: boolean;
-    hideLikeMessage: boolean;
     hideContributionRank: boolean;
     opacity: number;
     emoticonStyle: "hidden" | "text" | "image";
+    /** 活动栏（进场/点赞）显示模式：hidden 隐藏 / latest 只看最新一条 / scroll 滚动列表 */
+    activityBarMode: "hidden" | "latest" | "scroll";
+    /** 活动栏过滤：all 全部 / entry 只看进场 / like 只看点赞 */
+    activityFilter: "all" | "entry" | "like";
+    /** 是否在弹幕栏额外显示简化版醒目留言（礼物栏完整卡片不受影响） */
+    scInDanmaku: boolean;
   };
   notification: {
     muteAlert: boolean;
@@ -158,8 +162,8 @@ export interface Settings {
     scAlert: boolean;
   };
   cache: {
-    danmakuLimit: number;
-    giftLimit: number;
+    /** 三栏（弹幕/礼物/动态消息）共用的消息缓存上限，0 表示无限制（内置安全上限 3000） */
+    messageLimit: number;
   };
   audio: AudioSetting;
   stt: SttSetting;

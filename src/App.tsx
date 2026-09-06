@@ -50,16 +50,15 @@ export default function App() {
 
         // 同步消息缓存上限
         if (settings.cache) {
-          useDanmakuStore.getState().setLimits(settings.cache.danmakuLimit, settings.cache.giftLimit);
+          useDanmakuStore.getState().setLimits(settings.cache.messageLimit);
         }
         // 同步屏蔽列表
         if (settings.filter) {
           useDanmakuStore.getState().setBlockFilter(settings.filter.blockedUsers, settings.filter.blockedKeywords);
         }
-        // 同步入场信息屏蔽
+        // 同步简化醒目留言显示
         if (settings.appearance) {
-          useDanmakuStore.getState().setHideEntryMessage(settings.appearance.hideEntryMessage);
-          useDanmakuStore.getState().setHideLikeMessage(settings.appearance.hideLikeMessage);
+          useDanmakuStore.getState().setScInDanmaku(settings.appearance.scInDanmaku);
         }
 
         // 恢复活跃账号
@@ -149,16 +148,15 @@ export default function App() {
       setSettings(event.payload);
       // 同步消息缓存上限
       if (event.payload.cache) {
-        useDanmakuStore.getState().setLimits(event.payload.cache.danmakuLimit, event.payload.cache.giftLimit);
+        useDanmakuStore.getState().setLimits(event.payload.cache.messageLimit);
       }
       // 同步屏蔽列表
       if (event.payload.filter) {
         useDanmakuStore.getState().setBlockFilter(event.payload.filter.blockedUsers, event.payload.filter.blockedKeywords);
       }
-      // 同步入场信息屏蔽
+      // 同步简化醒目留言显示
       if (event.payload.appearance) {
-        useDanmakuStore.getState().setHideEntryMessage(event.payload.appearance.hideEntryMessage);
-        useDanmakuStore.getState().setHideLikeMessage(event.payload.appearance.hideLikeMessage);
+        useDanmakuStore.getState().setScInDanmaku(event.payload.appearance.scInDanmaku);
       }
     };
 

@@ -31,7 +31,7 @@ import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import { loadWindowSize } from "@/hooks/useWindowPersistence";
-import { HIDE_APPEARANCE_OPTIONS } from "@/components/settings/constants";
+import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -175,8 +175,6 @@ export function DanmakuPage() {
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
   const danmakuCount = useDanmakuStore((state) => state.danmakuCount);
   const superChatCount = useDanmakuStore((state) => state.superChatCount);
-  const hideEntryMessage = useDanmakuStore((state) => state.hideEntryMessage);
-  const hideLikeMessage = useDanmakuStore((state) => state.hideLikeMessage);
   const rooms = useRoomStore((state) => state.rooms);
   const activeAccountId = useAuthStore((state) => state.activeAccountId);
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
@@ -440,14 +438,17 @@ export function DanmakuPage() {
     }
     return true;
   }), [storeGiftMessages, showGift, showSuperChat, showGuard, batteryFilter]);
-  const danmakuMessages = useMemo(() => {
-    if (!hideEntryMessage && !hideLikeMessage) return storeDanmakuMessages;
-    return storeDanmakuMessages.filter((m) => {
-      if (hideEntryMessage && m.type === "entry") return false;
-      if (hideLikeMessage && m.type === "like") return false;
-      return true;
-    });
-  }, [storeDanmakuMessages, hideEntryMessage, hideLikeMessage]);
+  // 进场/点赞已拆分到活动栏（activityMessages），弹幕数组即所见
+  const danmakuMessages = storeDanmakuMessages;
+  const storeActivityMessages = useDanmakuStore((state) => state.activityMessages);
+  const droppedActivity = useDanmakuStore((state) => state.droppedActivity);
+  const activityBarMode = settings.appearance.activityBarMode;
+  const activityMessages = useMemo(() => {
+    const filter = settings.appearance.activityFilter;
+    if (filter === "all") return storeActivityMessages;
+    return storeActivityMessages.filter((m) => (filter === "entry" ? m.type === "entry" : m.type === "like"));
+  }, [storeActivityMessages, settings.appearance.activityFilter]);
+  const latestActivity = activityMessages.length > 0 ? activityMessages[activityMessages.length - 1] : null;
   const giftTotal = useMemo(() => {
     let total = 0;
     for (const m of storeGiftMessages) {
@@ -476,10 +477,17 @@ export function DanmakuPage() {
   // ── 分割栏拖拽 ──
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const { ratio, setRatio, onDividerPointerDown, resetDivider } = useDividerDrag(splitContainerRef, { defaultRatio: 0.35 });
+  // 第二分割栏：弹幕栏 / 活动栏 的比例（容器为下部块）
+  const activitySplitRef = useRef<HTMLDivElement | null>(null);
+  const { ratio: activityRatio, setRatio: setActivityRatio, onDividerPointerDown: onActivityDividerPointerDown, resetDivider: resetActivityDivider } = useDividerDrag(activitySplitRef, {
+    storageKey: "activity-divider-ratio",
+    defaultRatio: 0.94,
+  });
 
   // ── 各栏自动滚动 ──
   const giftScroll = useAutoScroll(giftMessages);
   const danmakuScroll = useAutoScroll(danmakuMessages);
+  const activityScroll = useAutoScroll(activityMessages);
 
   // ── 虚拟滚动：行高按类型估算，实际高度由 measureElement 动态回填 ──
   const messageKey = (m: DanmakuMessage) => `${m.roomId}-${m.id}-${m.timestamp}`;
@@ -497,6 +505,13 @@ export function DanmakuPage() {
     overscan: 10,
     getItemKey: (index) => messageKey(danmakuMessages[index]),
   });
+  const activityVirtualizer = useVirtualizer({
+    count: activityMessages.length,
+    getScrollElement: () => activityScroll.scrollRef.current,
+    estimateSize: () => 30,
+    overscan: 10,
+    getItemKey: (index) => messageKey(activityMessages[index]),
+  });
 
   // 虚拟滚动下新行渲染后才会回填真实高度，总高度随之增长；贴底时跟随吸底，避免漂移
   useEffect(() => {
@@ -505,6 +520,9 @@ export function DanmakuPage() {
   useEffect(() => {
     if (danmakuScroll.isAtBottom) danmakuScroll.scrollToBottom();
   }, [danmakuVirtualizer.getTotalSize()]);
+  useEffect(() => {
+    if (activityScroll.isAtBottom) activityScroll.scrollToBottom();
+  }, [activityVirtualizer.getTotalSize()]);
 
   // ── 列表滑窗裁剪 / 容器尺寸变化后的虚拟器自愈 ──
   // 两种情况都会让按 key 的行高缓存与实际渲染不符（滑窗索引移位、宽度变化导致
@@ -514,12 +532,15 @@ export function DanmakuPage() {
   const droppedGift = useDanmakuStore((state) => state.droppedGift);
   const [listEpoch, setListEpoch] = useState(0);
   useEffect(() => {
-    if (!droppedDanmaku && !droppedGift) return;
+    if (!droppedDanmaku && !droppedGift && !droppedActivity) return;
+    setListEpoch((epoch) => epoch + 1);
+  }, [droppedDanmaku, droppedGift, droppedActivity]);
+  // 各栏滚动位置补偿：贴底直接吸底；翻阅时按内容高度差回滚（双 rAF 等重挂载行完成测量）
+  useEffect(() => {
+    if (!droppedDanmaku) return;
     const container = danmakuScroll.scrollRef.current;
     const atBottom = danmakuScroll.isAtBottom;
     const sizeBefore = danmakuVirtualizer.getTotalSize();
-    setListEpoch((epoch) => epoch + 1);
-    // 双 rAF：等重挂载行完成测量后再补偿滚动位置
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         if (!container) return;
@@ -531,9 +552,43 @@ export function DanmakuPage() {
         }
       }),
     );
-  }, [droppedDanmaku, droppedGift]);
+  }, [droppedDanmaku]);
   useEffect(() => {
-    const targets = [giftScroll.scrollRef.current, danmakuScroll.scrollRef.current].filter(
+    if (!droppedGift) return;
+    const container = giftScroll.scrollRef.current;
+    const atBottom = giftScroll.isAtBottom;
+    const sizeBefore = giftVirtualizer.getTotalSize();
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (!container) return;
+        if (atBottom) {
+          container.scrollTo({ top: container.scrollHeight });
+        } else {
+          const delta = sizeBefore - giftVirtualizer.getTotalSize();
+          if (delta > 0) container.scrollTop = Math.max(0, container.scrollTop - delta);
+        }
+      }),
+    );
+  }, [droppedGift]);
+  useEffect(() => {
+    if (!droppedActivity) return;
+    const container = activityScroll.scrollRef.current;
+    const atBottom = activityScroll.isAtBottom;
+    const sizeBefore = activityVirtualizer.getTotalSize();
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (!container) return;
+        if (atBottom) {
+          container.scrollTo({ top: container.scrollHeight });
+        } else {
+          const delta = sizeBefore - activityVirtualizer.getTotalSize();
+          if (delta > 0) container.scrollTop = Math.max(0, container.scrollTop - delta);
+        }
+      }),
+    );
+  }, [droppedActivity]);
+  useEffect(() => {
+    const targets = [giftScroll.scrollRef.current, danmakuScroll.scrollRef.current, activityScroll.scrollRef.current].filter(
       (el): el is HTMLDivElement => el != null,
     );
     if (targets.length === 0) return;
@@ -838,9 +893,10 @@ export function DanmakuPage() {
       requestAnimationFrame(() => {
         danmakuScroll.scrollToBottom();
         giftScroll.scrollToBottom();
+        activityScroll.scrollToBottom();
       });
     }
-  }, [dockPhase, danmakuScroll, giftScroll]);
+  }, [dockPhase, danmakuScroll, giftScroll, activityScroll]);
 
   // 收回动画结束（slide-out 过渡播完）后，通知后端真正缩成细条。
   // 只响应根节点自身的 transform 过渡，避免后代按钮 hover transition 冒泡误触发提前收回。
@@ -1208,60 +1264,192 @@ export function DanmakuPage() {
           <div className="h-px w-full bg-slate-300/60 transition-all group-hover:h-0.5 group-hover:bg-pink-400/60 dark:bg-white/[0.08] dark:group-hover:bg-pink-400/40" />
         </div>
 
-        {/* 弹幕栏 — 始终渲染，flex=1-ratio 控制大小 */}
-        <div className="relative min-h-0 overflow-hidden" style={{ flex: 1 - ratio }}>
-          {showDanmaku && (
-            <>
-              <div
-                ref={danmakuScroll.scrollRef}
-                onScroll={danmakuScroll.checkAtBottom}
-                onMouseDown={handleBlankAreaMouseDown}
-                onContextMenu={(e) => {
-                  // 生产环境禁用空白区域右键菜单，开发环境保留（可检查元素）
-                  if (!import.meta.env.DEV && e.target === e.currentTarget) {
-                    e.preventDefault();
-                  }
-                }}
-                className="h-full overflow-y-auto px-2.5 py-1"
-                style={{ fontSize: `${fontSize}px` }}
-              >
-                {danmakuMessages.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
-                    展示本场直播的弹幕互动消息
-                  </div>
-                ) : (
-                  <div
-                    key={`danmaku-${listEpoch}`}
-                    className="pointer-events-none relative w-full"
-                    style={{ height: danmakuVirtualizer.getTotalSize() }}
-                  >
-                    {danmakuVirtualizer.getVirtualItems().map((virtualItem) => {
-                      const item = danmakuMessages[virtualItem.index];
-                      return (
-                        <div
-                          key={`${listEpoch}-${virtualItem.key}`}
-                          data-index={virtualItem.index}
-                          ref={danmakuVirtualizer.measureElement}
-                          className="absolute top-0 left-0 w-full"
-                          style={{ transform: `translateY(${virtualItem.start}px)` }}
-                        >
-                          <DanmakuMessageItem item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              {!danmakuScroll.isAtBottom && (
-                <button
-                  data-interactive=""
-                  onClick={danmakuScroll.scrollToBottom}
-                  className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full bg-black/30 px-2.5 py-1 text-white/85 backdrop-blur-sm transition hover:bg-black/45 hover:text-white dark:bg-white/15 dark:hover:bg-white/25"
+        {/* 弹幕 + 活动 下部块 — flex=1-ratio 控制大小 */}
+        <div ref={activitySplitRef} className="flex min-h-0 flex-col" style={{ flex: 1 - ratio }}>
+          {/* 弹幕栏 */}
+          <div className="relative min-h-0 overflow-hidden" style={{ flex: activityBarMode === "scroll" ? activityRatio : 1 }}>
+            {showDanmaku && (
+              <>
+                <div
+                  ref={danmakuScroll.scrollRef}
+                  onScroll={danmakuScroll.checkAtBottom}
+                  onMouseDown={handleBlankAreaMouseDown}
+                  onContextMenu={(e) => {
+                    // 生产环境禁用空白区域右键菜单，开发环境保留（可检查元素）
+                    if (!import.meta.env.DEV && e.target === e.currentTarget) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="h-full overflow-y-auto px-2.5 py-1"
+                  style={{ fontSize: `${fontSize}px` }}
                 >
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </button>
+                  {danmakuMessages.length === 0 ? (
+                    <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
+                      展示本场直播的弹幕互动消息
+                    </div>
+                  ) : (
+                    <div
+                      key={`danmaku-${listEpoch}`}
+                      className="pointer-events-none relative w-full"
+                      style={{ height: danmakuVirtualizer.getTotalSize() }}
+                    >
+                      {danmakuVirtualizer.getVirtualItems().map((virtualItem) => {
+                        const item = danmakuMessages[virtualItem.index];
+                        return (
+                          <div
+                            key={`${listEpoch}-${virtualItem.key}`}
+                            data-index={virtualItem.index}
+                            ref={danmakuVirtualizer.measureElement}
+                            className="absolute top-0 left-0 w-full"
+                            style={{ transform: `translateY(${virtualItem.start}px)` }}
+                          >
+                            <DanmakuMessageItem item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                {!danmakuScroll.isAtBottom && (
+                  <button
+                    data-interactive=""
+                    onClick={danmakuScroll.scrollToBottom}
+                    className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full bg-black/30 px-2.5 py-1 text-white/85 backdrop-blur-sm transition hover:bg-black/45 hover:text-white dark:bg-white/15 dark:hover:bg-white/25"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* 第二分割栏（弹幕栏 / 活动栏）— 仅滚动模式渲染 */}
+          {activityBarMode === "scroll" && (
+            <div
+              data-interactive=""
+              role="separator"
+              aria-orientation="horizontal"
+              aria-valuenow={Math.round(activityRatio * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              tabIndex={0}
+              onPointerDown={onActivityDividerPointerDown}
+              onDoubleClick={resetActivityDivider}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActivityRatio((r: number) => Math.min(1, r + 0.05));
+                } else if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActivityRatio((r: number) => Math.max(0, r - 0.05));
+                }
+              }}
+              className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500"
+            >
+              <div className="h-px w-full bg-slate-300/60 transition-all group-hover:h-0.5 group-hover:bg-pink-400/60 dark:bg-white/[0.08] dark:group-hover:bg-pink-400/40" />
+            </div>
+          )}
+
+          {/* 活动栏（进场/点赞）— 三态：scroll 可拖拽滚动 / latest 固定一行 / hidden 隐藏 */}
+          {activityBarMode !== "hidden" && (
+            <div
+              className="relative flex shrink-0 flex-col overflow-hidden"
+              style={activityBarMode === "latest" ? { height: 32 } : { flex: 1 - activityRatio, minHeight: 0 }}
+            >
+              {activityBarMode === "latest" ? (
+                <div
+                  className="flex h-full items-center overflow-hidden px-2.5"
+                  onMouseDown={handleBlankAreaMouseDown}
+                  onContextMenu={(e) => {
+                    if (!import.meta.env.DEV && e.target === e.currentTarget) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  {latestActivity ? (
+                    <div className="w-full pointer-events-none">
+                      <DanmakuMessageItem item={latestActivity} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
+                      进场、点赞等消息显示在这里
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* 内容过滤 — 与礼物栏过滤按钮同款式、同位置（栏内顶部左侧） */}
+                  <div data-interactive="" className="flex shrink-0 items-center gap-1 px-2.5 py-1">
+                    {([
+                      ["all", "全部"],
+                      ["entry", "进场"],
+                      ["like", "点赞"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => commitSettings({ appearance: { ...settings.appearance, activityFilter: value } })}
+                        className={`rounded px-1.5 py-0.5 text-xs transition ${
+                          settings.appearance.activityFilter === value
+                            ? "bg-pink-500/10 text-pink-500"
+                            : "text-slate-400 dark:text-slate-500"
+                        } hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div
+                    ref={activityScroll.scrollRef}
+                    onScroll={activityScroll.checkAtBottom}
+                    onMouseDown={handleBlankAreaMouseDown}
+                    onContextMenu={(e) => {
+                      if (!import.meta.env.DEV && e.target === e.currentTarget) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="relative min-h-0 flex-1 overflow-y-auto px-2.5 py-1"
+                    style={{ fontSize: `${fontSize}px` }}
+                  >
+                    {activityMessages.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500 select-none pointer-events-none">
+                        进场、点赞等消息显示在这里
+                      </div>
+                    ) : (
+                      <div
+                        key={`activity-${listEpoch}`}
+                        className="pointer-events-none relative w-full"
+                        style={{ height: activityVirtualizer.getTotalSize() }}
+                      >
+                        {activityVirtualizer.getVirtualItems().map((virtualItem) => {
+                          const item = activityMessages[virtualItem.index];
+                          return (
+                            <div
+                              key={`${listEpoch}-${virtualItem.key}`}
+                              data-index={virtualItem.index}
+                              ref={activityVirtualizer.measureElement}
+                              className="absolute top-0 left-0 w-full"
+                              style={{ transform: `translateY(${virtualItem.start}px)` }}
+                            >
+                              <DanmakuMessageItem item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {!activityScroll.isAtBottom && (
+                    <button
+                      data-interactive=""
+                      onClick={activityScroll.scrollToBottom}
+                      className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full bg-black/30 px-2.5 py-1 text-white/85 backdrop-blur-sm transition hover:bg-black/45 hover:text-white dark:bg-white/15 dark:hover:bg-white/25"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </>
               )}
-            </>
+            </div>
           )}
         </div>
 
@@ -1356,6 +1544,69 @@ export function DanmakuPage() {
                       }
                       className={`rounded-full border px-2.5 py-1 text-xs transition ${
                         settings.appearance[key]
+                          ? "border-pink-500/40 bg-pink-500/10 text-pink-600 dark:border-pink-400/30 dark:bg-pink-500/15 dark:text-pink-400"
+                          : "border-neutral-200 bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 活动栏（进场/点赞） */}
+              <div>
+                <p className="mb-1.5 text-xs text-slate-500 dark:text-slate-400">活动栏</p>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => commitSettings({ appearance: { ...settings.appearance, activityBarMode: value } })}
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                        settings.appearance.activityBarMode === value
+                          ? "border-pink-500/40 bg-pink-500/10 text-pink-600 dark:border-pink-400/30 dark:bg-pink-500/15 dark:text-pink-400"
+                          : "border-neutral-200 bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {settings.appearance.activityBarMode === "scroll" && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => commitSettings({ appearance: { ...settings.appearance, activityFilter: value } })}
+                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                          settings.appearance.activityFilter === value
+                            ? "border-pink-500/40 bg-pink-500/10 text-pink-600 dark:border-pink-400/30 dark:bg-pink-500/15 dark:text-pink-400"
+                            : "border-neutral-200 bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 简化醒目留言 */}
+              <div>
+                <p className="mb-1.5 text-xs text-slate-500 dark:text-slate-400">弹幕栏简化醒目留言</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    { value: false, label: "不显示" },
+                    { value: true, label: "显示" },
+                  ] as const).map(({ value, label }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => commitSettings({ appearance: { ...settings.appearance, scInDanmaku: value } })}
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                        settings.appearance.scInDanmaku === value
                           ? "border-pink-500/40 bg-pink-500/10 text-pink-600 dark:border-pink-400/30 dark:bg-pink-500/15 dark:text-pink-400"
                           : "border-neutral-200 bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
                       }`}

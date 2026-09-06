@@ -45,11 +45,12 @@ export const defaultSettings: Settings = {
     hideAdminBadge: false,
     hideUserIdColor: false,
     hideUsername: false,
-    hideEntryMessage: false,
-    hideLikeMessage: false,
     hideContributionRank: false,
     opacity: 90,
-    emoticonStyle: "image"
+    emoticonStyle: "image",
+    activityBarMode: "latest",
+    activityFilter: "all",
+    scInDanmaku: false
   },
   notification: {
     muteAlert: true,
@@ -58,8 +59,7 @@ export const defaultSettings: Settings = {
     scAlert: false
   },
   cache: {
-    danmakuLimit: 200,
-    giftLimit: 100
+    messageLimit: 200
   },
   audio: {
     defaultVolume: 80,

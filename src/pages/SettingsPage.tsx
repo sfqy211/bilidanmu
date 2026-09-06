@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAppVersion } from "@/lib/constants";
+import { ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
 import { tauriCommands } from "@/lib/tauri";
 import aboutIcon from "@/assets/icon.png";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -347,6 +348,64 @@ export function SettingsPage() {
                   }
                 />
               </div>
+
+              <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+                <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">活动栏（进场 / 点赞）</p>
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        patchSettings({
+                          appearance: { ...settings.appearance, activityBarMode: value }
+                        })
+                      }
+                      className={`px-2.5 py-1 text-xs transition ${
+                        settings.appearance.activityBarMode === value
+                          ? "bg-pink-500 text-white"
+                          : "bg-white text-slate-500 hover:bg-[#e8e8e8] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">活动栏内容过滤</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        patchSettings({
+                          appearance: { ...settings.appearance, activityFilter: value }
+                        })
+                      }
+                      className={`px-2.5 py-1 text-xs transition ${
+                        settings.appearance.activityFilter === value
+                          ? "bg-pink-500 text-white"
+                          : "bg-white text-slate-500 hover:bg-[#e8e8e8] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+                <span>
+                  弹幕栏显示简化醒目留言
+                  <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">（礼物栏完整卡片不受影响）</span>
+                </span>
+                <Checkbox
+                  checked={settings.appearance.scInDanmaku}
+                  onCheckedChange={(c) =>
+                    patchSettings({ appearance: { ...settings.appearance, scInDanmaku: !!c } })
+                  }
+                />
+              </label>
             </div>
           </div>
         </TabContent>
@@ -732,40 +791,23 @@ function CacheLimitCard({ settings, patchSettings }: { settings: Settings; patch
   return (
     <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
       <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
-        消息缓存上限 <span className="font-normal text-slate-400 dark:text-slate-500">（0 = 无限制，内置安全上限 3000）</span>
+        消息缓存上限 <span className="font-normal text-slate-400 dark:text-slate-500">（弹幕/礼物/动态三栏共用，0 = 无限制，内置安全上限 3000）</span>
       </h3>
-      <div className="grid grid-cols-2 gap-4">
-        <label className="block text-sm text-slate-600 dark:text-slate-300">
-          弹幕消息
-          <input
-            type="number"
-            min={0}
-            step={50}
-            value={settings.cache.danmakuLimit}
-            onChange={(e) =>
-              patchSettings({
-                cache: { ...settings.cache, danmakuLimit: Math.max(0, Number(e.target.value)) }
-              })
-            }
-            className="mt-1 h-9 w-full px-3 text-sm"
-          />
-        </label>
-        <label className="block text-sm text-slate-600 dark:text-slate-300">
-          礼物消息
-          <input
-            type="number"
-            min={0}
-            step={50}
-            value={settings.cache.giftLimit}
-            onChange={(e) =>
-              patchSettings({
-                cache: { ...settings.cache, giftLimit: Math.max(0, Number(e.target.value)) }
-              })
-            }
-            className="mt-1 h-9 w-full px-3 text-sm"
-          />
-        </label>
-      </div>
+      <label className="block w-1/2 text-sm text-slate-600 dark:text-slate-300">
+        消息条数
+        <input
+          type="number"
+          min={0}
+          step={50}
+          value={settings.cache.messageLimit}
+          onChange={(e) =>
+            patchSettings({
+              cache: { messageLimit: Math.max(0, Number(e.target.value)) }
+            })
+          }
+          className="mt-1 h-9 w-full px-3 text-sm"
+        />
+      </label>
     </div>
   );
 }

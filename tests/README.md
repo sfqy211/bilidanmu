@@ -95,6 +95,15 @@ curl.exe -X POST http://127.0.0.1:23331/config -d "{\"delayMs\":1500}"
 curl.exe -X POST http://127.0.0.1:23331/config -d "{\"delayMs\":0}"
 ```
 
+**场景 E：三栏布局**（验证活动栏与简化醒目留言）
+
+```bash
+# 进场/点赞进活动栏；SC 双重显示需先在设置中开启"弹幕栏简化醒目留言"
+curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"entry\"}"
+curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"like\"}"
+curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"superChat\",\"content\":\"双重显示测试\"}"
+```
+
 ## 4. 自动化测试（cargo test）
 
 ```bash

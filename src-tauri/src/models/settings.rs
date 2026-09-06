@@ -30,6 +30,67 @@ pub struct ReceiveSetting {
     pub max_reconnect_interval: u32,
 }
 
+/// 活动栏（进场/点赞）显示模式：hidden / latest / scroll
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ActivityBarMode {
+    Hidden,
+    #[default]
+    Latest,
+    Scroll,
+}
+
+impl<'de> serde::Deserialize<'de> for ActivityBarMode {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Ok(match value.as_str() {
+            "hidden" => Self::Hidden,
+            "scroll" => Self::Scroll,
+            // 未知值回退默认，避免单个坏字段导致整份设置加载失败
+            _ => Self::default(),
+        })
+    }
+}
+
+impl serde::Serialize for ActivityBarMode {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(match self {
+            Self::Hidden => "hidden",
+            Self::Latest => "latest",
+            Self::Scroll => "scroll",
+        })
+    }
+}
+
+/// 活动栏过滤：all / entry / like
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ActivityFilter {
+    #[default]
+    All,
+    Entry,
+    Like,
+}
+
+impl<'de> serde::Deserialize<'de> for ActivityFilter {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Ok(match value.as_str() {
+            "entry" => Self::Entry,
+            "like" => Self::Like,
+            _ => Self::default(),
+        })
+    }
+}
+
+impl serde::Serialize for ActivityFilter {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(match self {
+            Self::All => "all",
+            Self::Entry => "entry",
+            Self::Like => "like",
+        })
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSetting {
@@ -48,16 +109,21 @@ pub struct AppearanceSetting {
     #[serde(default)]
     pub hide_username: bool,
     #[serde(default)]
-    pub hide_entry_message: bool,
-    #[serde(default)]
-    pub hide_like_message: bool,
-    #[serde(default)]
     pub hide_contribution_rank: bool,
     #[serde(default = "default_opacity")]
     pub opacity: u32,
     /// 表情显示样式：hidden / text / image
     #[serde(default = "default_emoticon_style")]
     pub emoticon_style: String,
+    /// 活动栏（进场/点赞）显示模式：hidden / latest / scroll
+    #[serde(default)]
+    pub activity_bar_mode: ActivityBarMode,
+    /// 活动栏过滤：all / entry / like
+    #[serde(default)]
+    pub activity_filter: ActivityFilter,
+    /// 是否在弹幕栏额外显示简化版醒目留言
+    #[serde(default)]
+    pub sc_in_danmaku: bool,
 }
 
 fn default_opacity() -> u32 {
@@ -118,19 +184,22 @@ impl Default for SttSetting {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CacheSetting {
-    /// 弹幕消息缓存上限，0 表示无限制
-    pub danmaku_limit: u32,
-    /// 礼物消息缓存上限，0 表示无限制
-    pub gift_limit: u32,
+    /// 三栏（弹幕/礼物/动态消息）共用的消息缓存上限，0 表示无限制。
+    /// alias 兼容旧版单弹幕上限字段：旧持久化数据无需迁移即可读取。
+    #[serde(default = "default_message_limit", alias = "danmakuLimit")]
+    pub message_limit: u32,
 }
 
 impl Default for CacheSetting {
     fn default() -> Self {
         Self {
-            danmaku_limit: 200,
-            gift_limit: 100,
+            message_limit: default_message_limit(),
         }
     }
+}
+
+fn default_message_limit() -> u32 {
+    200
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -212,11 +281,12 @@ impl Default for Settings {
                 hide_admin_badge: false,
                 hide_user_id_color: false,
                 hide_username: false,
-                hide_entry_message: false,
-                hide_like_message: false,
                 hide_contribution_rank: false,
                 opacity: 90,
                 emoticon_style: default_emoticon_style(),
+                activity_bar_mode: ActivityBarMode::default(),
+                activity_filter: ActivityFilter::default(),
+                sc_in_danmaku: false,
             },
             notification: NotificationSetting {
                 mute_alert: true,
