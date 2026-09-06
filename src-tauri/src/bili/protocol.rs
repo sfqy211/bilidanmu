@@ -146,11 +146,75 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
         return parse_guard_buy(command, room_id);
     }
 
+    if cmd == "LIVE" {
+        return parse_live_status(command, room_id, "live", "开播了");
+    }
+
+    // PREPARING 存在 PREPARINGx 等变体
+    if cmd.starts_with("PREPARING") {
+        return parse_live_status(command, room_id, "preparing", "下播了");
+    }
+
     if cmd.starts_with("LIKE_INFO_V3_CLICK") {
         return parse_like_info_v3_click(command, room_id);
     }
 
     None
+}
+
+/// 开播/下播标记：LIVE 根级携带 live_time（unix 秒）；PREPARING 无 live_time，
+/// 用 send_time（服务器发送时间，unix 毫秒）兜底
+fn parse_live_status(command: &Value, room_id: u64, event_type: &str, content: &str) -> Option<DanmakuEvent> {
+    let timestamp = match event_type {
+        // 文档规定 live_time 在根级（unix 秒）
+        "live" => command.get("live_time").and_then(value_as_u64).unwrap_or_else(system_unix_now),
+        _ => command
+            .get("send_time")
+            .and_then(value_as_u64)
+            .map(|millis| millis / 1000)
+            .unwrap_or_else(system_unix_now),
+    };
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.subsec_nanos())
+        .unwrap_or(0);
+
+    Some(DanmakuEvent {
+        id: format!("{event_type}-{room_id}-{timestamp}-{nanos}"),
+        room_id,
+        event_type: event_type.to_string(),
+        username: String::new(),
+        content: content.to_string(),
+        timestamp,
+        avatar: None,
+        medal: None,
+        wealth_level: None,
+        uid: 0,
+        color: 16_777_215,
+        guard_level: 0,
+        is_admin: false,
+        dm_type: 0,
+        price: None,
+        gift_name: None,
+        count: None,
+        background_color: None,
+        background_bottom_color: None,
+        background_price_color: None,
+        message_font_color: None,
+        background_image: None,
+        emots: None,
+        emoticon_options: None,
+        reply_uid: None,
+        reply_username: None,
+        contribution_rank: None,
+    })
+}
+
+fn system_unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
 }
 
 fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {

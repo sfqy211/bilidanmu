@@ -12,7 +12,9 @@ export type DanmakuMessageType =
   | "guard"
   | "entry"
   | "like"
-  | "system";
+  | "system"
+  | "live"
+  | "preparing";
 
 export interface LikeCountUpdatePayload {
   roomId: number;

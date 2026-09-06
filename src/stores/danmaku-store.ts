@@ -73,12 +73,16 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   hideLikeMessage: false,
   addMessage: (message) =>
     set((state) => {
-      // 屏蔽过滤：用户 UID 或关键词匹配
-      if (message.uid && state.blockedUsers.some((u) => u.uid === message.uid)) {
-        return {};
-      }
-      if (message.content && state.blockedKeywords.some((kw) => message.content.toLowerCase().includes(kw.toLowerCase()))) {
-        return {};
+      // 开播/下播是系统标记，非用户消息，不做屏蔽过滤
+      const isSessionMarker = message.type === "live" || message.type === "preparing";
+      if (!isSessionMarker) {
+        // 屏蔽过滤：用户 UID 或关键词匹配
+        if (message.uid && state.blockedUsers.some((u) => u.uid === message.uid)) {
+          return {};
+        }
+        if (message.content && state.blockedKeywords.some((kw) => message.content.toLowerCase().includes(kw.toLowerCase()))) {
+          return {};
+        }
       }
       const isGift = message.type === "gift" || message.type === "superChat" || message.type === "guard";
       if (isGift) {

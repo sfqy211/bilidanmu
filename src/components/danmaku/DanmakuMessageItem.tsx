@@ -5,6 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
+import { formatTimestamp } from "@/lib/utils";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -254,6 +255,22 @@ export function DanmakuMessageItem({
   // 表情弹幕在"不显示"模式下整条隐藏
   if (emoticonStyle === "hidden" && item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions) {
     return null;
+  }
+
+  // 开播/下播场次标记：文字与时间合成一行居中（开播红色、下播灰色），时间恒用中性灰。
+  // 整行 pointer-events-none，让空白区域的 mousedown 穿透到滚动容器以支持拖动窗口。
+  if (item.type === "live" || item.type === "preparing") {
+    return (
+      <div
+        className="my-2 flex select-none items-baseline justify-center gap-1.5 leading-6 pointer-events-none"
+        style={{ fontSize: Math.round(12 * scale) }}
+      >
+        <span className={item.type === "live" ? "text-rose-500 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"}>
+          {item.content}
+        </span>
+        <span className="text-slate-400 dark:text-slate-500">{formatTimestamp(item.timestamp, true)}</span>
+      </div>
+    );
   }
 
   return (
