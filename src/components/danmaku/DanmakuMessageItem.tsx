@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AtSign, Copy, ExternalLink, ShieldBan, User } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -213,7 +213,8 @@ function ContextMenu({
   );
 }
 
-export function DanmakuMessageItem({
+// memo：分割栏拖动/新消息到达引发的重渲染中，props 未变的行直接跳过
+export const DanmakuMessageItem = memo(function DanmakuMessageItem({
   item,
   fontSize = 14,
   cachedEmotUrls,
@@ -355,4 +356,4 @@ export function DanmakuMessageItem({
       )}
     </div>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { formatTimestamp } from "@/lib/utils";
 import type { DanmakuMessage } from "@/types/danmaku";
@@ -8,7 +9,7 @@ function normalizeHexColor(color?: string, fallback?: string): string | undefine
   return color.startsWith("#") ? color : `#${color}`;
 }
 
-export function SuperChatCard({ item }: { item: DanmakuMessage }) {
+export const SuperChatCard = memo(function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
   const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
   const headerBg = normalizeHexColor(item.backgroundColor, "#EDF5FF");
@@ -43,4 +44,4 @@ export function SuperChatCard({ item }: { item: DanmakuMessage }) {
       )}
     </div>
   );
-}
+});

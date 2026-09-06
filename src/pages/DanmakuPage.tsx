@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { useWindowDock } from "@/hooks/useWindowDock";
 import type { DockSide } from "@/hooks/useWindowDock";
@@ -125,7 +126,12 @@ const PANEL = {
 
 export function DanmakuPage() {
   const { roomId: roomIdParam } = useParams();
-  const roomId = useMemo(() => Number(roomIdParam ?? 0) || null, [roomIdParam]);
+  // 房间号 0 是合法值（虚拟直播间），仅 NaN/缺失视为无房间
+  const roomId = useMemo(() => {
+    if (roomIdParam == null) return null;
+    const parsed = Number(roomIdParam);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [roomIdParam]);
   const [message, setMessage] = useState("");
   const inputBarRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
@@ -179,7 +185,7 @@ export function DanmakuPage() {
   // 匿名模式下，房间可能不在 room store 中，需要从 API 获取房间信息
   const [fetchedRoomInfo, setFetchedRoomInfo] = useState<{ uname: string; title: string } | null>(null);
   useEffect(() => {
-    if (!roomId || currentRoom) {
+    if (roomId === null || currentRoom) {
       setFetchedRoomInfo(null);
       return;
     }
@@ -255,7 +261,7 @@ export function DanmakuPage() {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!roomId) return;
+    if (roomId === null) return;
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -302,7 +308,7 @@ export function DanmakuPage() {
   // 切房时通知 AstrBot（用 ref 防止 StrictMode 双重调用）
   const switchedRoomRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!roomId || switchedRoomRef.current === roomId) return;
+    if (roomId === null || switchedRoomRef.current === roomId) return;
     switchedRoomRef.current = roomId;
     const room = rooms.find((r) => r.roomId === roomId);
     tauriCommands.ai.getCallbackPort().then((port) => {
@@ -474,6 +480,74 @@ export function DanmakuPage() {
   // ── 各栏自动滚动 ──
   const giftScroll = useAutoScroll(giftMessages);
   const danmakuScroll = useAutoScroll(danmakuMessages);
+
+  // ── 虚拟滚动：行高按类型估算，实际高度由 measureElement 动态回填 ──
+  const messageKey = (m: DanmakuMessage) => `${m.roomId}-${m.id}-${m.timestamp}`;
+  const giftVirtualizer = useVirtualizer({
+    count: giftMessages.length,
+    getScrollElement: () => giftScroll.scrollRef.current,
+    estimateSize: (index) => (giftMessages[index]?.type === "superChat" ? 96 : 30),
+    overscan: 10,
+    getItemKey: (index) => messageKey(giftMessages[index]),
+  });
+  const danmakuVirtualizer = useVirtualizer({
+    count: danmakuMessages.length,
+    getScrollElement: () => danmakuScroll.scrollRef.current,
+    estimateSize: () => 30,
+    overscan: 10,
+    getItemKey: (index) => messageKey(danmakuMessages[index]),
+  });
+
+  // 虚拟滚动下新行渲染后才会回填真实高度，总高度随之增长；贴底时跟随吸底，避免漂移
+  useEffect(() => {
+    if (giftScroll.isAtBottom) giftScroll.scrollToBottom();
+  }, [giftVirtualizer.getTotalSize()]);
+  useEffect(() => {
+    if (danmakuScroll.isAtBottom) danmakuScroll.scrollToBottom();
+  }, [danmakuVirtualizer.getTotalSize()]);
+
+  // ── 列表滑窗裁剪 / 容器尺寸变化后的虚拟器自愈 ──
+  // 两种情况都会让按 key 的行高缓存与实际渲染不符（滑窗索引移位、宽度变化导致
+  // 文本重新换行），表现为行重叠/顶部空白。measure() 只清缓存不重触发行的
+  // ref 测量，因此这里递增 epoch 编进行 key，强制可见行卸载重挂、完整重测量。
+  const droppedDanmaku = useDanmakuStore((state) => state.droppedDanmaku);
+  const droppedGift = useDanmakuStore((state) => state.droppedGift);
+  const [listEpoch, setListEpoch] = useState(0);
+  useEffect(() => {
+    if (!droppedDanmaku && !droppedGift) return;
+    const container = danmakuScroll.scrollRef.current;
+    const atBottom = danmakuScroll.isAtBottom;
+    const sizeBefore = danmakuVirtualizer.getTotalSize();
+    setListEpoch((epoch) => epoch + 1);
+    // 双 rAF：等重挂载行完成测量后再补偿滚动位置
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (!container) return;
+        if (atBottom) {
+          container.scrollTo({ top: container.scrollHeight });
+        } else {
+          const delta = sizeBefore - danmakuVirtualizer.getTotalSize();
+          if (delta > 0) container.scrollTop = Math.max(0, container.scrollTop - delta);
+        }
+      }),
+    );
+  }, [droppedDanmaku, droppedGift]);
+  useEffect(() => {
+    const targets = [giftScroll.scrollRef.current, danmakuScroll.scrollRef.current].filter(
+      (el): el is HTMLDivElement => el != null,
+    );
+    if (targets.length === 0) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setListEpoch((epoch) => epoch + 1), 200);
+    });
+    targets.forEach((el) => observer.observe(el));
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -862,7 +936,7 @@ export function DanmakuPage() {
               tauriCommands.stt.stop().catch(() => {});
             }
             tauriCommands.ai.disconnect().catch(() => {});
-            if (roomId) {
+            if (roomId !== null) {
               // exit_room 销毁弹幕/抽屉窗口并按设置恢复主窗口
               tauriCommands.room.exitRoom(roomId).catch(() => {
                 // exit_room 失败时兜底本地销毁，避免窗口残留
@@ -1062,7 +1136,7 @@ export function DanmakuPage() {
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
                 onMouseDown={handleBlankAreaMouseDown}
-                className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
+                className="relative min-h-0 flex-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
                 {giftMessages.length === 0 ? (
@@ -1070,13 +1144,30 @@ export function DanmakuPage() {
                     送礼、醒目留言、上舰消息等显示在这里
                   </div>
                 ) : (
-                  giftMessages.map((item) =>
-                    item.type === "superChat" ? (
-                      <SuperChatCard key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
-                    ) : (
-                      <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} />
-                    )
-                  )
+                  <div
+                    key={`gift-${listEpoch}`}
+                    className="pointer-events-none relative w-full"
+                    style={{ height: giftVirtualizer.getTotalSize() }}
+                  >
+                    {giftVirtualizer.getVirtualItems().map((virtualItem) => {
+                      const item = giftMessages[virtualItem.index];
+                      return (
+                        <div
+                          key={`${listEpoch}-${virtualItem.key}`}
+                          data-index={virtualItem.index}
+                          ref={giftVirtualizer.measureElement}
+                          className="absolute top-0 left-0 w-full"
+                          style={{ transform: `translateY(${virtualItem.start}px)` }}
+                        >
+                          {item.type === "superChat" ? (
+                            <SuperChatCard item={item} />
+                          ) : (
+                            <DanmakuMessageItem item={item} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
               {!giftScroll.isAtBottom && (
@@ -1139,9 +1230,26 @@ export function DanmakuPage() {
                     展示本场直播的弹幕互动消息
                   </div>
                 ) : (
-                  danmakuMessages.map((item) => (
-                    <DanmakuMessageItem key={`${item.roomId}-${item.id}-${item.timestamp}`} item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
-                  ))
+                  <div
+                    key={`danmaku-${listEpoch}`}
+                    className="pointer-events-none relative w-full"
+                    style={{ height: danmakuVirtualizer.getTotalSize() }}
+                  >
+                    {danmakuVirtualizer.getVirtualItems().map((virtualItem) => {
+                      const item = danmakuMessages[virtualItem.index];
+                      return (
+                        <div
+                          key={`${listEpoch}-${virtualItem.key}`}
+                          data-index={virtualItem.index}
+                          ref={danmakuVirtualizer.measureElement}
+                          className="absolute top-0 left-0 w-full"
+                          style={{ transform: `translateY(${virtualItem.start}px)` }}
+                        >
+                          <DanmakuMessageItem item={item} fontSize={fontSize} cachedEmotUrls={cachedEmotUrls} onMention={handleMention} />
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
               {!danmakuScroll.isAtBottom && (
