@@ -4,7 +4,7 @@ import { tauriCommands } from "@/lib/tauri";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 
 export type DockPhase = "normal" | "collapsed" | "expanded" | "collapsing";
-export type DockSide = "left" | "right";
+export type DockSide = "left" | "right" | "top";
 
 interface DockChangedPayload {
   label: string;

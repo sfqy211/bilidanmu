@@ -907,16 +907,25 @@ export function DanmakuPage() {
     }
   }, []);
 
-  const hiddenX =
-    animSide === "left" ? "-translate-x-full" : "translate-x-full";
+  // 滑出/滑入的屏幕外位移：左 = 左移出，右 = 右移出，顶 = 上移出（收缩条贴上缘，向下展开）
+  const hiddenTranslate =
+    animSide === "left"
+      ? "-translate-x-full"
+      : animSide === "right"
+        ? "translate-x-full"
+        : "-translate-y-full";
   // justExpanded 时使用 dockSide（当前值），而非 animSide（可能还是旧值）
-  const initialHiddenX =
-    dockSide === "left" ? "-translate-x-full" : "translate-x-full";
+  const initialHiddenTranslate =
+    dockSide === "left"
+      ? "-translate-x-full"
+      : dockSide === "right"
+        ? "translate-x-full"
+        : "-translate-y-full";
   const slideClass = slideOut
-    ? `${hiddenX} duration-[180ms] ease-in`
+    ? `${hiddenTranslate} duration-[180ms] ease-in`
     : (slideIn || justExpanded)
-      ? `${initialHiddenX} transition-none`
-      : "translate-x-0 duration-[220ms] ease-out";
+      ? `${initialHiddenTranslate} transition-none`
+      : "translate-x-0 translate-y-0 duration-[220ms] ease-out";
 
   return (
     <>

@@ -1,6 +1,6 @@
-//! 侧边吸附（贴边收缩）：把窗口拖到屏幕左/右边缘后收缩为细条，
+//! 侧边吸附（贴边收缩）：把窗口拖到屏幕左/右/上边缘后收缩为细条，
 //! 鼠标悬停展开、离开后延迟收回、展开后拖离边缘退出吸附（QQ 模式）。
-//! 仅对主页面窗口（main）与弹幕窗口（danmaku-*）生效，抽屉窗口不参与。
+//! 底边不参与（与任务栏抢区域）。仅对弹幕窗口（danmaku-*）生效，抽屉窗口不参与。
 
 use crate::AppState;
 use serde::Serialize;
@@ -12,12 +12,13 @@ use tauri::{
     WindowSizeConstraints,
 };
 
-/// 吸附边（仅左右，不含顶/底）
+/// 吸附边（左右与顶部，不含底）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DockSide {
     Left,
     Right,
+    Top,
 }
 
 /// 吸附阶段
@@ -54,8 +55,8 @@ struct DockChangedPayload {
 
 /// 收缩条基准宽度（逻辑像素，100% 缩放下的宽度）。要足够宽以容纳指示条并有充裕的悬停判定区。
 const DOCK_WIDTH: u32 = 20;
-/// 收缩态固定高度（物理像素）：不再随窗口高度，垂直居中于原窗口位置
-const COLLAPSED_HEIGHT: u32 = 160;
+/// 收缩条固定长度（物理像素）：左右条的高度 / 顶条的宽度，居中于原窗口位置
+const COLLAPSED_LENGTH: u32 = 160;
 
 /// 收缩条实际宽度（物理像素）：按显示器缩放换算，保证高 DPI 下逻辑宽度稳定、可点中。
 /// scale_factor 异常时回退为 1.0。
@@ -122,7 +123,8 @@ fn normal_constraints() -> WindowSizeConstraints {
     }
 }
 
-/// 收缩态的几何：固定宽度（按 DPI 换算）× 固定高度，贴死所在边缘、垂直居中于原窗口。
+/// 收缩态的几何：固定细条，贴死所在边缘、居中于原窗口位置
+/// （左右条：固定高度、垂直居中；顶条：固定宽度、水平居中）。
 /// normal_pos/normal_size 为吸附前记录的原窗口外框位置与尺寸。
 /// 返回 (position, size)，供 enter_dock / collapse_dock / restore_if_docked 统一使用。
 fn collapsed_geometry(
@@ -134,7 +136,20 @@ fn collapsed_geometry(
     let work = monitor.position();
     let work_size = monitor.size();
     let dock_w = dock_width_px(monitor);
-    let h = COLLAPSED_HEIGHT.min(work_size.height);
+
+    if side == DockSide::Top {
+        // 顶条：固定宽度、水平居中于原窗口中心，贴死工作区顶缘
+        let w = (COLLAPSED_LENGTH as usize).min(work_size.width as usize) as u32;
+        let eff_w = normal_size.width.min(work_size.width);
+        let eff_x = normal_pos
+            .x
+            .clamp(work.x, work.x + work_size.width as i32 - eff_w as i32);
+        let center_x = eff_x + eff_w as i32 / 2;
+        let x = (center_x - w as i32 / 2).clamp(work.x, work.x + work_size.width as i32 - w as i32);
+        return (PhysicalPosition::new(x, work.y), PhysicalSize::new(w, dock_w));
+    }
+
+    let h = (COLLAPSED_LENGTH as usize).min(work_size.height as usize) as u32;
     // 垂直居中于原窗口中心，再夹回工作区内。
     // 必须用与 expand_dock 一致的 clamp 后几何算中心：expand_dock 会把高度钳到工作区、
     // 把 y 钳到工作区内，若这里直接用未 clamp 的 normal_pos/normal_size，当窗口顶部拖出屏
@@ -148,6 +163,7 @@ fn collapsed_geometry(
     let x = match side {
         DockSide::Left => work.x,
         DockSide::Right => work.x + work_size.width as i32 - dock_w as i32,
+        DockSide::Top => unreachable!("Top 已在上方分支返回"),
     };
     (PhysicalPosition::new(x, y), PhysicalSize::new(dock_w, h))
 }
@@ -275,6 +291,17 @@ fn apply_expand_geometry(
     let work = monitor.position();
     let work_size = monitor.size();
 
+    if side == DockSide::Top {
+        // 顶吸展开：贴死工作区顶缘，宽度钳到工作区、水平位置夹回工作区内
+        let expanded_w = normal_size.width.min(work_size.width);
+        let expanded_x = normal_pos
+            .x
+            .clamp(work.x, work.x + work_size.width as i32 - expanded_w as i32);
+        let _ = window.set_size(PhysicalSize::new(expanded_w, normal_size.height));
+        let _ = window.set_position(PhysicalPosition::new(expanded_x, work.y));
+        return;
+    }
+
     let expanded_h = normal_size.height.min(work_size.height);
     let expanded_y = normal_pos
         .y
@@ -282,6 +309,7 @@ fn apply_expand_geometry(
     let expanded_x = match side {
         DockSide::Left => work.x,
         DockSide::Right => work.x + work_size.width as i32 - normal_size.width as i32,
+        DockSide::Top => unreachable!("Top 已在上方分支返回"),
     };
     let _ = window.set_size(PhysicalSize::new(normal_size.width, expanded_h));
     let _ = window.set_position(PhysicalPosition::new(expanded_x, expanded_y));
@@ -391,9 +419,10 @@ fn cursor_over_window(window: &WebviewWindow, app: &AppHandle) -> bool {
     cursor.x >= left && cursor.x < right && cursor.y >= top && cursor.y < bottom
 }
 
-/// 判定是否贴到屏幕左/右边缘（不含顶/底）。返回 Some(side) 表示应进入吸附。
+/// 判定是否贴到屏幕左/右/上边缘（不含底）。返回 Some(side) 表示应进入吸附。
 /// 贴边语义对齐 QQ：窗口边缘"碰到或越过"屏幕边缘即算贴边，
 /// 允许窗口被拖出屏幕外一段距离（此时窗口边缘已在屏幕外侧，仍视为贴边）。
+/// 角落归属左右优先：同时贴近左/右与上时归左右，顶吸仅在未贴左右时生效。
 fn detect_edge(window: &WebviewWindow) -> Option<DockSide> {
     let pos = window.outer_position().ok()?;
     let size = window.outer_size().ok()?;
@@ -407,11 +436,15 @@ fn detect_edge(window: &WebviewWindow) -> Option<DockSide> {
     let near_left = pos.x <= work.x + ENTER_THRESHOLD;
     // 贴右：窗口右缘不小于屏幕右缘 - 阈值（含已拖出屏幕右侧的情况）
     let near_right = win_right >= work_right - ENTER_THRESHOLD;
+    // 贴上：窗口顶缘不超过屏幕工作区顶缘 + 阈值（含已拖出屏幕上方的情况）
+    let near_top = pos.y <= work.y + ENTER_THRESHOLD;
 
     if near_left {
         Some(DockSide::Left)
     } else if near_right {
         Some(DockSide::Right)
+    } else if near_top {
+        Some(DockSide::Top)
     } else {
         None
     }
@@ -432,10 +465,12 @@ fn left_edge(window: &WebviewWindow, side: DockSide) -> bool {
         DockSide::Left => pos.x > work.x + EXIT_THRESHOLD,
         // 离开右边 = 窗口右缘明显进入屏幕内（不再贴右）
         DockSide::Right => win_right < work_right - EXIT_THRESHOLD,
+        // 离开上边 = 窗口顶缘明显进入屏幕内（不再贴上）
+        DockSide::Top => pos.y > work.y + EXIT_THRESHOLD,
     }
 }
 
-/// 窗口是否已同时远离左右两条边缘（解除拖动冷却的判定）
+/// 窗口是否已同时远离左/右/上三条边缘（解除拖动冷却的判定）
 fn far_from_edges(window: &WebviewWindow) -> bool {
     let Ok(pos) = window.outer_position() else { return false };
     let Ok(size) = window.outer_size() else { return false };
@@ -447,7 +482,8 @@ fn far_from_edges(window: &WebviewWindow) -> bool {
 
     let near_left = pos.x <= work.x + EXIT_THRESHOLD;
     let near_right = win_right >= work_right - EXIT_THRESHOLD;
-    !near_left && !near_right
+    let near_top = pos.y <= work.y + EXIT_THRESHOLD;
+    !near_left && !near_right && !near_top
 }
 
 /// 给可吸附窗口挂接吸附逻辑：
