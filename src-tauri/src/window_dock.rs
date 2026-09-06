@@ -74,8 +74,10 @@ const DANMAKU_MIN_H: f64 = 160.0;
 const DANMAKU_MAX_W: f64 = 1200.0;
 const DANMAKU_MAX_H: f64 = 900.0;
 
-/// 光标轮询间隔（毫秒）
+/// 光标轮询间隔（毫秒）：吸附各态需要收回延迟判定精度，用高频；
+/// normal 态只做贴边检测，用低频降低常驻空转开销
 const POLL_INTERVAL_MS: u64 = 50;
+const POLL_INTERVAL_IDLE_MS: u64 = 100;
 /// 光标持续在窗口外多久后收回（毫秒）
 const COLLAPSE_AFTER_MS: u128 = 250;
 
@@ -86,9 +88,13 @@ fn poll_tasks() -> &'static Mutex<HashMap<String, Arc<AtomicBool>>> {
     POLL_TASKS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn lock_poll_tasks() -> MutexGuard<'static, std::collections::HashMap<String, Arc<AtomicBool>>> {
+    poll_tasks().lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// 停止某窗口的轮询任务（若存在）
 fn stop_polling(label: &str) {
-    if let Some(flag) = poll_tasks().lock().unwrap().remove(label) {
+    if let Some(flag) = lock_poll_tasks().remove(label) {
         flag.store(true, Ordering::Relaxed);
     }
 }
@@ -390,33 +396,48 @@ fn exit_dock(app: &AppHandle, window: &WebviewWindow) {
     emit_dock_changed(app, &label, "normal", None);
 }
 
-/// 光标是否已离开窗口区域（松手/移开的判定，替代不可靠的前端 mouseleave）
-fn cursor_outside(window: &WebviewWindow, app: &AppHandle) -> bool {
-    let Ok(cursor) = app.cursor_position() else { return false };
-    let Ok(pos) = window.outer_position() else { return false };
-    let Ok(size) = window.outer_size() else { return false };
+/// 光标位置与窗口外框矩形（cx, cy, left, top, right, bottom）。
+/// 任一几何/光标获取失败返回 None，调用方各自决定失败语义。
+fn cursor_window_geometry(
+    window: &WebviewWindow,
+    app: &AppHandle,
+) -> Option<(f64, f64, f64, f64, f64, f64)> {
+    let cursor = app.cursor_position().ok()?;
+    let pos = window.outer_position().ok()?;
+    let size = window.outer_size().ok()?;
 
     let left = pos.x as f64;
     let top = pos.y as f64;
-    let right = left + size.width as f64;
-    let bottom = top + size.height as f64;
+    Some((
+        cursor.x,
+        cursor.y,
+        left,
+        top,
+        left + size.width as f64,
+        top + size.height as f64,
+    ))
+}
 
-    cursor.x < left || cursor.x >= right || cursor.y < top || cursor.y >= bottom
+/// 光标是否已离开窗口区域（松手/移开的判定，替代不可靠的前端 mouseleave）。
+/// 获取失败按"未离开"处理，避免误发起收回。
+fn cursor_outside(window: &WebviewWindow, app: &AppHandle) -> bool {
+    match cursor_window_geometry(window, app) {
+        Some((cx, cy, left, top, right, bottom)) => {
+            cx < left || cx >= right || cy < top || cy >= bottom
+        }
+        None => false,
+    }
 }
 
 /// 光标是否落在窗口区域内（用于收缩条悬停展开的后端判定）。
 /// 所有取几何/光标失败的路径一律返回 false，避免误判"在窗口内"而误触发展开。
 fn cursor_over_window(window: &WebviewWindow, app: &AppHandle) -> bool {
-    let Ok(cursor) = app.cursor_position() else { return false };
-    let Ok(pos) = window.outer_position() else { return false };
-    let Ok(size) = window.outer_size() else { return false };
-
-    let left = pos.x as f64;
-    let top = pos.y as f64;
-    let right = left + size.width as f64;
-    let bottom = top + size.height as f64;
-
-    cursor.x >= left && cursor.x < right && cursor.y >= top && cursor.y < bottom
+    match cursor_window_geometry(window, app) {
+        Some((cx, cy, left, top, right, bottom)) => {
+            cx >= left && cx < right && cy >= top && cy < bottom
+        }
+        None => false,
+    }
 }
 
 /// 判定是否贴到屏幕左/右/上边缘（不含底）。返回 Some(side) 表示应进入吸附。
@@ -450,8 +471,8 @@ fn detect_edge(window: &WebviewWindow) -> Option<DockSide> {
     }
 }
 
-/// 窗口是否已离开所在边缘（退出吸附判定，滞回阈值）
-fn left_edge(window: &WebviewWindow, side: DockSide) -> bool {
+/// 窗口是否已拖离所在边缘（退出吸附判定，滞回阈值）
+fn dragged_off_edge(window: &WebviewWindow, side: DockSide) -> bool {
     let Ok(pos) = window.outer_position() else { return false };
     let Ok(size) = window.outer_size() else { return false };
     let Some(monitor) = window.current_monitor().ok().flatten() else { return false };
@@ -508,7 +529,7 @@ pub fn attach(window: &WebviewWindow, app: &AppHandle) {
 
             // 仅"展开态拖离边缘 → 退出吸附"；冷却解除交给轮询里的 far_from_edges
             if let Some((DockPhase::Expanded, side)) = current {
-                if left_edge(&win, side) {
+                if dragged_off_edge(&win, side) {
                     exit_dock(&app_handle, &win);
                 }
             }
@@ -524,7 +545,7 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
     stop_polling(&label); // 防御：先停掉同名旧任务
 
     let stop = Arc::new(AtomicBool::new(false));
-    poll_tasks().lock().unwrap().insert(label.clone(), stop.clone());
+    lock_poll_tasks().insert(label.clone(), stop.clone());
 
     let app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -535,7 +556,6 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
             if stop.load(Ordering::Relaxed) {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(POLL_INTERVAL_MS)).await;
 
             let Some(win) = app_handle.get_webview_window(&label) else {
                 break;
@@ -550,17 +570,24 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
                 docks.get(&label).map(|d| (d.phase, d.side))
             };
 
+            // 分级：仅 normal 态可低频（只做贴边检测），吸附各态保持高频
+            let interval_ms = match current {
+                None => POLL_INTERVAL_IDLE_MS,
+                _ => POLL_INTERVAL_MS,
+            };
+            tokio::time::sleep(std::time::Duration::from_millis(interval_ms)).await;
+
             match current {
                 // 正常态：贴边 + 光标离开窗口（= 已松手）→ 进入吸附
                 None => {
                     let in_cooldown = lock_cooldowns(state.inner()).contains(&label);
                     if in_cooldown {
-                        // 冷却中：拖离左右边缘后解除冷却
+                        // 冷却中：拖离三条边缘后解除冷却
                         if far_from_edges(&win) {
                             lock_cooldowns(state.inner()).remove(&label);
                         }
-                    } else if detect_edge(&win).is_some() && cursor_outside(&win, &app_handle) {
-                        if let Some(side) = detect_edge(&win) {
+                    } else if let Some(side) = detect_edge(&win) {
+                        if cursor_outside(&win, &app_handle) {
                             enter_dock(&app_handle, &win, side);
                         }
                     }

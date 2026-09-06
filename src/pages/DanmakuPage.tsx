@@ -531,6 +531,9 @@ export function DanmakuPage() {
   const droppedDanmaku = useDanmakuStore((state) => state.droppedDanmaku);
   const droppedGift = useDanmakuStore((state) => state.droppedGift);
   const [listEpoch, setListEpoch] = useState(0);
+  // 吸附展开后的 RO 抑制窗口：窗口放大瞬间容器尺寸变化会触发 epoch 重挂载，
+  // 三列可见行全部卸载重测正好砸在滑入动画中间（展开卡顿的一个来源），故暂时忽略 RO
+  const suppressRoUntilRef = useRef(0);
   useEffect(() => {
     if (!droppedDanmaku && !droppedGift && !droppedActivity) return;
     setListEpoch((epoch) => epoch + 1);
@@ -594,6 +597,8 @@ export function DanmakuPage() {
     if (targets.length === 0) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const observer = new ResizeObserver(() => {
+      // 吸附展开瞬间的容器变化不触发重挂载（抑制期见 suppressRoUntilRef 定义处）
+      if (Date.now() < suppressRoUntilRef.current) return;
       clearTimeout(timer);
       timer = setTimeout(() => setListEpoch((epoch) => epoch + 1), 200);
     });
@@ -876,6 +881,8 @@ export function DanmakuPage() {
         setSlideIn(true);
         // DOM 已准备好（收缩条已卸载、主内容 hidden），回调后端执行窗口缩放
         void tauriCommands.dock.applyExpand(appWindow.label).catch(() => {});
+        // 窗口放大会触发容器 ResizeObserver，抑制展开瞬间的 epoch 重挂载（见 suppressRoUntilRef 定义处）
+        suppressRoUntilRef.current = Date.now() + 600;
         // 下一帧移除 hidden 状态，触发 CSS transition 滑入
         const raf = requestAnimationFrame(() => setSlideIn(false));
         return () => cancelAnimationFrame(raf);
