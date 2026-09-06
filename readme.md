@@ -64,11 +64,16 @@ npm run dev
 | 命令                                   | 说明                         |
 | -------------------------------------- | ---------------------------- |
 | `npm run dev`                          | 完整开发模式（前端 + Tauri） |
+| `npm run dev:mock`                     | 开发模式 + 虚拟直播间（无需真实直播间） |
 | `npm run dev:renderer`                 | 仅前端（Vite）               |
 | `npm run typecheck`                    | TypeScript 类型检查          |
 | `cargo check` (在 src-tauri/)          | Rust 编译检查                |
 | `npm run build`                        | 构建发布包                   |
 | `.\scripts\bump-version.ps1 <version>` | 更新所有版本号               |
+
+## 测试
+
+虚拟直播间：`npm run dev:mock` 启动后，房间列表出现"测试直播间（虚拟）"，本地模拟弹幕服务器提供弹幕/礼物/SC/舰长/进场/点赞/上下播等全事件流，并通过本地 HTTP 控制面（`127.0.0.1:23331`）注入断线重连、消息洪峰、网络延迟、指定事件等场景——不连接真实直播间即可完成所有功能测试。详见 [tests/README.md](tests/README.md)。
 
 ## 项目结构
 
@@ -92,6 +97,8 @@ src-tauri/                    后端 (Rust)
 ├── src/proxy/                本地 HTTP 流代理（hyper 1.x，STT 字节流 tee）
 ├── src/tray.rs               系统托盘（单击切换弹幕窗口，右键菜单）
 └── src/lib.rs                应用入口 + AppState
+
+tests/                        测试（测试手册 + 场景脚本，见 tests/README.md）
 ```
 
 ## 文档

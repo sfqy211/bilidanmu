@@ -15,6 +15,12 @@
 - Default expectation: run `npm run typecheck` and `cargo check`.
 - If you touched STT or AI code, verify both feature areas still compile.
 
+## Testing
+- `tests/README.md` is the testing handbook — read it before driving any manual or scripted test; put new test scripts in `tests/`.
+- `npm run dev:mock` starts the app with the mock virtual live room (env `BILIDANMU_MOCK=1`): local danmaku server on `127.0.0.1:23330` speaking the real bilibili binary protocol, HTTP control plane on `127.0.0.1:23331` (curl-driven scenarios: rates, live/preparing, kick, burst, delay, single-event injection), reserved room id `0` shows a "测试直播间（虚拟）" card in the room list. Without the env var the same binary is fully unaffected.
+- `cargo test --lib bili::mock` (in `src-tauri/`) runs the mock end-to-end regression test; it binds ports 23330/23331, so close any running `dev:mock` instance first.
+- Mock-room limitations are intentional: no audio/STT (no real stream), sending danmaku/emoticons and emoticon fetching are skipped (avoid touching real rooms).
+
 ## Release flow (CI)
 - `.github/workflows/publish-tauri.yml`: pushing to `main` with a change to `src-tauri/tauri.conf.json` publishes a GitHub release tagged `app-v<version>` (skipped if the tag already exists). Treat version bumps as release triggers.
 - Release changelog is parsed from conventional commit subjects (`feat:` / `fix:` / `refactor:`); anything else lands in "其他".
