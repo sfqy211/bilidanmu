@@ -60,6 +60,11 @@ export function useDanmakuStream(roomId: number | null) {
   }, [roomId]);
 
   useTauriEvent<DanmakuMessage>("danmaku-received", (payload) => {
+    // 常驻窗口原地切房间时，旧连接的尾巴事件可能晚于清屏到达，按房间号丢弃
+    const currentRoomId = useDanmakuStore.getState().roomId;
+    if (currentRoomId != null && payload.roomId !== currentRoomId) {
+      return;
+    }
     addMessage(payload);
   });
 

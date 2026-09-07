@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useWindowPersistence } from "@/hooks/useWindowPersistence";
@@ -12,6 +12,7 @@ const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
 import { Bot, ChevronDown, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
+import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { MessageClipboardPanel } from "@/components/danmaku/MessageClipboardPanel";
@@ -159,6 +160,15 @@ export function DanmakuPage() {
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
   const passthroughIgnoredRef = useRef(false);
   const { disconnect } = useDanmakuStream(roomId);
+
+  const navigate = useNavigate();
+  // 常驻弹幕窗口不销毁：托盘/页内切换直播间时原地切路由，
+  // 所有按 roomId 挂钩的副作用（弹幕流/表情/音频/AI/STT）自动重置
+  useTauriEvent<number>("room-switched", (payload) => {
+    if (payload !== roomId) {
+      navigate(`/danmaku/${payload}`);
+    }
+  });
 
   const storeDanmakuMessages = useDanmakuStore((state) => state.danmakuMessages);
   const storeGiftMessages = useDanmakuStore((state) => state.giftMessages);
@@ -995,6 +1005,7 @@ export function DanmakuPage() {
         >
           <X className="h-3.5 w-3.5" />
         </button>
+        <RoomSwitcher roomId={roomId} />
         <button
           type="button"
           onClick={async () => {
