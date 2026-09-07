@@ -64,6 +64,8 @@ pub struct AppState {
     /// 退出吸附后的拖动冷却集合：冷却中的窗口即使贴边也不重新吸附，
     /// 直到被拖离边缘才移出冷却（对齐 QQ：展开后拖离边缘即保持正常窗口）
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
+    /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
+    pub live_status: std::sync::Mutex<Option<HashMap<u64, bool>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -131,6 +133,7 @@ pub fn run() {
             stt_manager: Arc::new(TokioMutex::new(None)),
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
+            live_status: std::sync::Mutex::new(None),
         }
         })
         .setup(|app| {
@@ -169,6 +172,20 @@ pub fn run() {
                     let queue = send_queue::SendQueue::new(proxy_client, wbi_cache, 1000);
                     *send_queue_slot.lock().await = Some(queue);
                     log::info!("发送队列已初始化");
+                });
+            }
+
+            // 周期拉取已保存房间的开播状态缓存，驱动托盘"仅显示开播中"的直播间子菜单
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        let changed = commands::room::refresh_live_status_cache(&app_handle).await;
+                        if changed {
+                            let _ = tray::refresh_tray(&app_handle);
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    }
                 });
             }
 
@@ -300,6 +317,7 @@ pub fn run() {
             commands::room::remove_favorite_emoticon,
             commands::room::update_favorite_order,
             commands::room::open_danmaku_window,
+            commands::room::switch_room,
             commands::room::open_drawer_window,
             commands::room::exit_room,
             window_dock::dock_expand,

@@ -185,17 +185,18 @@ fn emit_dock_changed(app: &AppHandle, label: &str, phase: &str, side: Option<Doc
     );
 }
 
-/// 该 label 是否参与吸附（仅弹幕窗口 danmaku-*）。
+/// 该 label 是否参与吸附（仅常驻弹幕窗口 danmaku）。
 /// 主页面窗口不参与：它是常规管理窗口、非置顶，吸附条会被其它窗口盖住，
 /// 且任务栏 hide/show 还原路径与吸附态冲突（曾导致还原后窗口错乱的恶性 bug）。
 /// 弹幕窗口 transparent + always_on_top，走托盘 hide/show（restore_if_docked 覆盖），吸附稳定。
 fn is_dockable(label: &str) -> bool {
-    label.starts_with("danmaku-")
+    label.starts_with("danmaku")
 }
 
 /// 窗口销毁时清理该 label 的吸附残留：DockState、拖动冷却、轮询任务。
-/// 弹幕窗口 label 是确定性的 danmaku-{room_id}，若不清理，同 label 重建窗口时
-/// 轮询会读到上一世残留的陈旧相位，把新窗口误当吸附态驱动（搬到旧边缘/压成细条）。
+/// 弹幕窗口 label 固定为 danmaku，退出直播间销毁窗口后再次进入会以同 label
+/// 重建，若不清理，轮询会读到上一世残留的陈旧相位，把新窗口误当吸附态驱动
+/// （搬到旧边缘/压成细条）。
 pub fn cleanup(label: &str, app: &AppHandle) {
     if !is_dockable(label) {
         return;

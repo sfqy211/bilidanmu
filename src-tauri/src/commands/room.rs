@@ -7,6 +7,10 @@ use crate::tray;
 use crate::AppState;
 use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
+/// 常驻弹幕窗口的固定 label。弹幕窗口全应用唯一：切换直播间时窗口不销毁，
+/// 仅在窗口内原地切换路由。
+pub const DANMAKU_WINDOW_LABEL: &str = "danmaku";
+
 #[tauri::command]
 pub async fn search_room(
     query: String,
@@ -195,7 +199,6 @@ pub async fn clear_room_specific_emoticons(state: State<'_, AppState>) -> Result
 }
 
 /// 关闭指定房间的所有抽屉窗口
-#[allow(dead_code)]
 pub(crate) fn close_drawer_windows(app: &tauri::AppHandle, room_id: u64) {
     let prefix = format!("drawer-{room_id}-");
     for (label, window) in app.webview_windows() {
@@ -227,8 +230,7 @@ pub async fn open_drawer_window(
     }
 
     // 获取弹幕窗口位置，将抽屉定位在其右侧
-    let danmaku_label = format!("danmaku-{room_id}");
-    let (pos_x, pos_y, danmaku_h) = if let Some(danmaku_win) = app.get_webview_window(&danmaku_label) {
+    let (pos_x, pos_y, danmaku_h) = if let Some(danmaku_win) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
         let pos = danmaku_win.outer_position().map_err(|e| e.to_string())?;
         let size = danmaku_win.outer_size().map_err(|e| e.to_string())?;
         (pos.x as f64 + size.width as f64, pos.y as f64, size.height as f64)
@@ -278,11 +280,11 @@ pub async fn open_drawer_window(
     // 监听弹幕窗口移动，同步重定位抽屉窗口
     let app_handle = app.clone();
     let drawer_label = label.clone();
-    if let Some(danmaku_win) = app.get_webview_window(&danmaku_label) {
+    if let Some(danmaku_win) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
         danmaku_win.on_window_event(move |event| {
             if let WindowEvent::Moved(_) = event {
                 if let (Some(dm), Some(drawer)) = (
-                    app_handle.get_webview_window(&danmaku_label),
+                    app_handle.get_webview_window(DANMAKU_WINDOW_LABEL),
                     app_handle.get_webview_window(&drawer_label),
                 ) {
                     if let (Ok(pos), Ok(size)) = (dm.outer_position(), dm.outer_size()) {
@@ -299,54 +301,59 @@ pub async fn open_drawer_window(
     Ok(())
 }
 
-/// 关闭除指定房间外的所有弹幕窗口
-pub(crate) fn close_other_danmaku_windows(app: &tauri::AppHandle, keep_room_id: u64) {
-    let keep_label = format!("danmaku-{keep_room_id}");
-    for (label, window) in app.webview_windows() {
-        if label.starts_with("danmaku-") && label != keep_label {
-            let _ = window.destroy();
-        }
-    }
+fn danmaku_window_title(state: &AppState, room_id: u64) -> String {
+    room_store::get_room_display_info(state, room_id)
+        .map(|(uname, room_title)| format!("{uname} - {room_title}"))
+        .unwrap_or_else(|| format!("房间 {room_id}"))
 }
 
-#[tauri::command]
-pub async fn open_danmaku_window(
-    app: tauri::AppHandle,
+/// 切换当前房间并做全部联动：保存选择、刷新托盘、关闭旧房间抽屉窗、
+/// 通知前端原地切路由。返回房间是否真的发生了变化。
+fn apply_room_switch_bookkeeping(
+    app: &tauri::AppHandle,
+    room_id: u64,
+    state: &AppState,
+) -> Result<bool, String> {
+    let previous = crate::selections_store::load_values(state, &["currentRoomId".to_string()])
+        .ok()
+        .and_then(|mut m| m.remove("currentRoomId"))
+        .and_then(|v| v.as_u64());
+
+    if previous == Some(room_id) {
+        return Ok(false);
+    }
+
+    let mut entries = serde_json::Map::new();
+    entries.insert("currentRoomId".to_string(), serde_json::json!(room_id));
+    crate::selections_store::save_values(state, &entries).map_err(|e| e.to_string())?;
+    let _ = tray::refresh_tray(app);
+
+    if let Some(previous_room) = previous {
+        close_drawer_windows(app, previous_room);
+    }
+
+    use tauri::Emitter;
+    let _ = app.emit("room-switched", room_id);
+    Ok(true)
+}
+
+async fn create_danmaku_window(
+    app: &tauri::AppHandle,
     room_id: u64,
     width: Option<f64>,
     height: Option<f64>,
-    state: State<'_, AppState>,
+    state: &AppState,
 ) -> Result<(), String> {
-    // Hold this guard for the whole open/show sequence so danmaku windows stay mutually exclusive.
-    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
-
-    // 关闭其他房间的弹幕窗口，弹幕窗口互斥
-    close_other_danmaku_windows(&app, room_id);
-
-    let label = format!("danmaku-{room_id}");
-
-    if let Some(window) = app.get_webview_window(&label) {
-        // 确保已存在的弹幕窗口也不可最大化（兼容旧版本创建的窗口）
-        let _ = window.set_maximizable(false);
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-        hide_main_window(&app);
-        return Ok(());
-    }
-
     let path = format!("/danmaku/{room_id}")
         .parse()
         .map_err(|error| format!("解析弹幕窗口路由失败: {error}"))?;
 
-    let w = width.filter(|v| *v >= 240.0 && *v <= 1200.0).unwrap_or(420.0);
-    let h = height.filter(|v| *v >= 160.0 && *v <= 900.0).unwrap_or(320.0);
+    let w = width.filter(|v| *v >= 240.0 && *v <= 1200.0).unwrap_or(240.0);
+    let h = height.filter(|v| *v >= 160.0 && *v <= 900.0).unwrap_or(160.0);
 
-    let title = room_store::get_room_display_info(state.inner(), room_id)
-        .map(|(uname, room_title)| format!("{uname} - {room_title}"))
-        .unwrap_or_else(|| format!("房间 {room_id}"));
+    let title = danmaku_window_title(state, room_id);
 
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path))
+    let window = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
         .title(title)
         .inner_size(w, h)
         .min_inner_size(240.0, 160.0)
@@ -364,8 +371,61 @@ pub async fn open_danmaku_window(
         .map_err(|error| error.to_string())?;
 
     // 弹幕窗口挂接侧边吸附
-    crate::window_dock::attach(&window, &app);
+    crate::window_dock::attach(&window, app);
+    Ok(())
+}
 
+#[tauri::command]
+pub async fn open_danmaku_window(
+    app: tauri::AppHandle,
+    room_id: u64,
+    width: Option<f64>,
+    height: Option<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // Hold this guard for the whole open/show sequence so danmaku windows stay mutually exclusive.
+    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    apply_room_switch_bookkeeping(&app, room_id, state.inner())?;
+
+    if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
+        // 常驻窗口已存在：更新标题后显示并聚焦（进入直播间的语义）
+        let _ = window.set_title(&danmaku_window_title(state.inner(), room_id));
+        let _ = window.set_maximizable(false);
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        hide_main_window(&app);
+        return Ok(());
+    }
+
+    create_danmaku_window(&app, room_id, width, height, state.inner()).await?;
+    hide_main_window(&app);
+    Ok(())
+}
+
+/// 快速切换直播间：常驻弹幕窗口不销毁，仅在窗口内原地切换。
+/// 保持窗口可见性：隐藏保持隐藏，可见保持可见且不抢焦点。
+#[tauri::command]
+pub async fn switch_room(
+    app: tauri::AppHandle,
+    room_id: u64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    let changed = apply_room_switch_bookkeeping(&app, room_id, state.inner())?;
+
+    if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
+        if changed {
+            let _ = window.set_title(&danmaku_window_title(state.inner(), room_id));
+        }
+        // 可见性与焦点保持不变
+        return Ok(());
+    }
+
+    // 常驻窗口不存在（当前停留在主窗口）：按进入直播间处理
+    create_danmaku_window(&app, room_id, None, None, state.inner()).await?;
     hide_main_window(&app);
     Ok(())
 }
@@ -394,14 +454,13 @@ pub async fn exit_room(
     room_id: u64,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    // 与 open_danmaku_window 互斥，避免开窗/退窗流程交错
+    // 与 open_danmaku_window/switch_room 互斥，避免开窗/退窗流程交错
     let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
 
-    // 销毁该房间的弹幕窗口与抽屉窗口
-    let danmaku_label = format!("danmaku-{room_id}");
+    // 销毁常驻弹幕窗口与该房间的抽屉窗口
     let drawer_prefix = format!("drawer-{room_id}-");
     for (label, window) in app.webview_windows() {
-        if label == danmaku_label || label.starts_with(&drawer_prefix) {
+        if label == DANMAKU_WINDOW_LABEL || label.starts_with(&drawer_prefix) {
             let _ = window.destroy();
         }
     }
@@ -463,6 +522,30 @@ pub async fn get_rooms_live_status(state: State<'_, AppState>) -> Result<std::co
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state);
     api.get_rooms_live_status(&uids).await
+}
+
+/// 拉取全部已保存房间的开播状态并写入 AppState 缓存，返回缓存是否发生变化。
+/// 供托盘菜单构建使用（有缓存时仅显示开播中的房间）；拉取失败保留旧缓存。
+pub(crate) async fn refresh_live_status_cache(app: &tauri::AppHandle) -> bool {
+    let state = app.state::<AppState>();
+    let rooms = room_store::load_rooms(state.inner()).unwrap_or_default();
+    let uids: Vec<u64> = rooms.iter().filter_map(|r| r.uid).collect();
+    if uids.is_empty() {
+        return false;
+    }
+
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state);
+    let Ok(fresh) = api.get_rooms_live_status(&uids).await else {
+        return false;
+    };
+
+    let mut cache = state.live_status.lock().unwrap();
+    let changed = cache.as_ref() != Some(&fresh);
+    if changed {
+        *cache = Some(fresh);
+    }
+    changed
 }
 
 /// 获取收藏表情列表

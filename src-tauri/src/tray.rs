@@ -95,7 +95,7 @@ fn handle_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
 fn current_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
     app.webview_windows()
         .into_iter()
-        .find(|(label, _)| label.starts_with("danmaku-"))
+        .find(|(label, _)| label.starts_with("danmaku"))
         .map(|(_, win)| win)
         .or_else(|| app.get_webview_window("main"))
 }
@@ -120,7 +120,7 @@ fn toggle_window(window: &tauri::WebviewWindow) {
 /// 弹幕窗口保持 maximizable=false，确保其窗口样式始终不含 WS_MAXIMIZEBOX，
 /// 避免拖到屏幕边缘触发 Windows Snap 吸附/分屏。
 fn show_window(window: &tauri::WebviewWindow) {
-    if window.label().starts_with("danmaku-") {
+    if window.label().starts_with("danmaku") {
         let _ = window.set_maximizable(false);
     }
     let _ = window.unminimize();
@@ -140,22 +140,14 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         _ if id.starts_with("room:") => {
             let room_id_str = &id["room:".len()..];
             if let Ok(room_id) = room_id_str.parse::<u64>() {
-                // 保存为当前房间
-                let state = app.state::<AppState>();
-                let mut entries = serde_json::Map::new();
-                entries.insert("currentRoomId".to_string(), serde_json::json!(room_id));
-                let _ = crate::selections_store::save_values(state.inner(), &entries);
-                let _ = refresh_tray(app);
-                let _ = app.emit("room-switched", room_id);
-
+                // switch_room 负责保存选择、刷新托盘、关闭旧房间抽屉窗，
+                // 并保持弹幕窗口可见性不变（隐藏不弹出、可见不抢焦点）
                 let app_clone = app.clone();
                 tauri::async_runtime::spawn(async move {
                     let state = app_clone.state::<AppState>();
-                    let _ = crate::commands::room::open_danmaku_window(
+                    let _ = crate::commands::room::switch_room(
                         app_clone.clone(),
                         room_id,
-                        None,
-                        None,
                         state,
                     )
                     .await;
@@ -239,8 +231,22 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     drop(active_id);
     drop(metas);
 
-    // 直播间子菜单
+    // 直播间子菜单：仅显示开播中的房间（状态来自 60s 轮询缓存；
+    // 缓存尚未建立时退回显示全部，避免启动期空列表）。
+    // 注意状态映射按 UID 键控（get_status_info_by_uids），不是房间号。
     let rooms = room_store::load_rooms(state.inner()).unwrap_or_default();
+    let live_status = state.live_status.lock().unwrap().clone();
+    let visible_rooms: Vec<_> = match &live_status {
+        Some(map) => rooms
+            .iter()
+            .filter(|room| {
+                room.uid
+                    .map(|uid| map.get(&uid).copied().unwrap_or(false))
+                    .unwrap_or(false)
+            })
+            .collect(),
+        None => rooms.iter().collect(),
+    };
     let current_room_id = crate::selections_store::load_values(
         state.inner(),
         &["currentRoomId".to_string()],
@@ -249,12 +255,17 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     .and_then(|mut m| m.remove("currentRoomId"))
     .and_then(|v| v.as_u64());
 
-    if rooms.is_empty() {
-        let empty = MenuItem::with_id(app, "rooms-empty", "直播间：暂无", false, None::<&str>)?;
+    if visible_rooms.is_empty() {
+        let label = if live_status.is_some() {
+            "直播间：暂无开播"
+        } else {
+            "直播间：暂无"
+        };
+        let empty = MenuItem::with_id(app, "rooms-empty", label, false, None::<&str>)?;
         menu.append(&empty)?;
     } else {
         let room_submenu = Submenu::with_id(app, "rooms", "直播间", true)?;
-        for room in rooms.iter().take(10) {
+        for room in visible_rooms.into_iter().take(10) {
             let is_current = current_room_id == Some(room.room_id);
             let item = CheckMenuItem::with_id(
                 app,
