@@ -1,5 +1,5 @@
 # Update all version files
-# Usage: .\scripts\bump-version.ps1 0.3.1
+# Usage: .\scripts\bump-version.ps1 0.5.0
 
 param(
     [Parameter(Mandatory=$true)]
