@@ -313,6 +313,7 @@ export function DanmakuPage() {
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
+  const dockAnimMs = useSettingsStore((s) => s.settings.appearance.dockAnimMs);
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
@@ -844,14 +845,21 @@ export function DanmakuPage() {
   const { phase: dockPhase, side: dockSide, expand: dockExpand } = useWindowDock();
 
   // 侧边吸附滑动动画：展开时内容从屏幕边缘滑入，收回时向边缘滑出。
-  // 展开流程：后端 dock_expand 只更新状态+发事件（不缩放），前端收到事件后在此
-  // useLayoutEffect 中先确认 DOM 已准备好（收缩条已卸载、主内容以 hidden transform 挂载），
-  // 再回调 dock_apply_expand 让后端真正 set_size/set_position，避免窗口已扩大但收缩条
-  // 仍在渲染导致的闪现。收回流程不变：光标离开 250ms 后后端发 collapsing，前端播滑出动画，
-  // 动画结束回调 dock_collapse 才真正缩窗。
+  // 展开流程：后端 dock_expand 只更新状态+发事件（不缩放），前端收到事件后先以
+  // hidden transform 挂载主内容，双 rAF 等该帧上屏，再回调 dock_apply_expand 让
+  // 后端 set_size/set_position，并等其返回（窗口确已放大）后才解除 hidden 触发
+  // CSS transition 滑入——四步串行保证任何时刻屏幕上都不会出现旧内容：
+  // 未上屏就扩窗，旧帧的收缩条会在放大区左上角闪现；未放大就解除 hidden，
+  // 滑入动画会在小窗里提前跑掉。收回流程不变：光标离开 250ms 后后端发
+  // collapsing，前端播滑出动画，动画结束回调 dock_collapse 才真正缩窗。
   const [slideIn, setSlideIn] = useState(false);
   const [slideOut, setSlideOut] = useState(false);
   const [animSide, setAnimSide] = useState<DockSide>(dockSide);
+  // 吸附动画时长（设置项）。effect 内只读 ref，避免改设置时重跑动画 effect
+  const dockAnimMsRef = useRef(dockAnimMs);
+  dockAnimMsRef.current = dockAnimMs;
+  // 展开动画解除 hidden 用的 rAF 句柄（applyExpand 完成后才排入，供 effect 清理取消）
+  const unhideRafRef = useRef<number | null>(null);
   const dockPhaseRef = useRef(dockPhase);
   dockPhaseRef.current = dockPhase;
   const prevDockPhaseRef = useRef(dockPhase);
@@ -863,23 +871,49 @@ export function DanmakuPage() {
 
   useLayoutEffect(() => {
     if (dockPhase === "collapsing") {
-      // 发起收回：播滑出动画
+      // 发起收回：播滑出动画；时长为 0（关闭动画）时 0ms 过渡不会触发
+      // transitionend，直接跳过动画立即收回
       setAnimSide(dockSide);
-      setSlideOut(true);
-      setSlideIn(false);
+      if (dockAnimMsRef.current === 0) {
+        setSlideOut(false);
+        setSlideIn(false);
+        void tauriCommands.dock.collapse(appWindow.label).catch(() => {});
+      } else {
+        setSlideOut(true);
+        setSlideIn(false);
+      }
     } else if (dockPhase === "expanded" || dockPhase === "normal") {
       // 取消收回（反向滑回）或正常展开
       setSlideOut(false);
       if (dockPhase === "expanded") {
         setAnimSide(dockSide);
         setSlideIn(true);
-        // DOM 已准备好（收缩条已卸载、主内容 hidden），回调后端执行窗口缩放
-        void tauriCommands.dock.applyExpand(appWindow.label).catch(() => {});
         // 窗口放大会触发容器 ResizeObserver，抑制展开瞬间的 epoch 重挂载（见 suppressRoUntilRef 定义处）
         suppressRoUntilRef.current = Date.now() + 600;
-        // 下一帧移除 hidden 状态，触发 CSS transition 滑入
-        const raf = requestAnimationFrame(() => setSlideIn(false));
-        return () => cancelAnimationFrame(raf);
+        // 双 rAF 等「主内容 hidden 态」真正绘制上屏后再扩窗：layout effect 只保证
+        // DOM 已变更、不保证已绘制，若扩窗 IPC 抢在首帧绘制前执行，窗口放大后
+        // 左上角会短暂挂着上一帧的收缩条（闪现）。单 rAF 仍可能在本帧绘制前触发，
+        // 双 rAF 保证至少错过一次 paint。之后还须等扩窗 IPC 返回再解除 hidden，
+        // 保证滑入动画在已放大的窗口里完整播放（见下）。
+        let raf2 = 0;
+        const raf1 = requestAnimationFrame(() => {
+          raf2 = requestAnimationFrame(() => {
+            void tauriCommands.dock
+              .applyExpand(appWindow.label)
+              .catch(() => {})
+              .finally(() => {
+                unhideRafRef.current = requestAnimationFrame(() => setSlideIn(false));
+              });
+          });
+        });
+        return () => {
+          cancelAnimationFrame(raf1);
+          if (raf2) cancelAnimationFrame(raf2);
+          if (unhideRafRef.current !== null) {
+            cancelAnimationFrame(unhideRafRef.current);
+            unhideRafRef.current = null;
+          }
+        };
       }
     }
     // collapsed：渲染收缩条，无动画状态需要维护
@@ -923,10 +957,10 @@ export function DanmakuPage() {
         ? "translate-x-full"
         : "-translate-y-full";
   const slideClass = slideOut
-    ? `${hiddenTranslate} duration-[180ms] ease-in`
+    ? `${hiddenTranslate} ease-in`
     : (slideIn || justExpanded)
       ? `${initialHiddenTranslate} transition-none`
-      : "translate-x-0 translate-y-0 duration-[220ms] ease-out";
+      : "translate-x-0 translate-y-0 ease-out";
 
   return (
     <>
@@ -937,7 +971,7 @@ export function DanmakuPage() {
     ) : (
     <main
       className={`danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-slate-900 dark:text-slate-100 transition-transform ${slideClass}`}
-      style={{ "--bg-a": bgAlpha } as React.CSSProperties}
+      style={{ "--bg-a": bgAlpha, transitionDuration: `${dockAnimMs}ms` } as React.CSSProperties}
       onTransitionEnd={slideOut ? handleSlideOutEnd : undefined}
     >
       {/* 标题栏 */}
@@ -1529,6 +1563,32 @@ export function DanmakuPage() {
                       }
                       className={`px-2.5 py-1 text-xs transition ${
                         settings.appearance.emoticonStyle === value
+                          ? "bg-pink-500 text-white"
+                          : "bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 侧边吸附动画速度 */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">吸附动画</span>
+                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                  {([
+                    { value: 350, label: "慢" },
+                    { value: 220, label: "标准" },
+                    { value: 120, label: "快" },
+                    { value: 0, label: "关" },
+                  ] as const).map(({ value, label }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => commitSettings({ appearance: { dockAnimMs: value } } as Partial<SettingsType>)}
+                      className={`px-2.5 py-1 text-xs transition ${
+                        settings.appearance.dockAnimMs === value
                           ? "bg-pink-500 text-white"
                           : "bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
                       }`}

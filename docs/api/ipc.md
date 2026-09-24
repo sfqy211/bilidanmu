@@ -99,7 +99,7 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `dock_apply_expand` | `label` | `void` | 应用展开 |
 | `dock_collapse` | `label` | `void` | 折叠窗口 |
 | `dock_exit` | `label` | `void` | 退出窗口 |
-| `get_dock_state` | `label` | `string` | 获取 Dock 状态 |
+| `get_dock_state` | `label` | `{ phase, side? }` | 获取 Dock 状态（phase + side） |
 
 ## 代理命令 (`proxy::*`)
 

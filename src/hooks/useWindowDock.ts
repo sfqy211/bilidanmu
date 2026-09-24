@@ -25,18 +25,23 @@ export function useWindowDock() {
   const [phase, setPhase] = useState<DockPhase>("normal");
   const [side, setSide] = useState<DockSide>("left");
 
-  // 启动时同步初始吸附状态
+  // 启动时同步初始吸附状态（phase + side 一起同步：吸附事件可能早于本组件
+  // 挂载而丢失，side 若不在此补齐，右/顶缘吸附条会按默认 left 渲染成镜像形状）
   useEffect(() => {
     let cancelled = false;
     void tauriCommands.dock
       .getState(label)
-      .then((p) => {
+      .then((s) => {
+        if (cancelled) return;
         if (
-          !cancelled &&
-          (p === "collapsed" || p === "expanded" || p === "normal" || p === "collapsing")
+          s.phase === "collapsed" ||
+          s.phase === "expanded" ||
+          s.phase === "normal" ||
+          s.phase === "collapsing"
         ) {
-          setPhase(p);
+          setPhase(s.phase);
         }
+        if (s.side) setSide(s.side);
       })
       .catch(() => {});
     return () => {

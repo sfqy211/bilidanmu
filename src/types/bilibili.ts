@@ -140,6 +140,8 @@ export interface Settings {
     activityFilter: "all" | "entry" | "like";
     /** 是否在弹幕栏额外显示简化版醒目留言（礼物栏完整卡片不受影响） */
     scInDanmaku: boolean;
+    /** 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画 */
+    dockAnimMs: number;
   };
   notification: {
     muteAlert: boolean;

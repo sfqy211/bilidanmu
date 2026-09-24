@@ -41,6 +41,9 @@ pub struct DockState {
     /// 吸附前的外框位置与尺寸（退出吸附时恢复）
     pub normal_pos: PhysicalPosition<i32>,
     pub normal_size: PhysicalSize<u32>,
+    /// 展开几何是否已被应用（前端 dock_apply_expand 或兜底任务）。
+    /// 兜底任务据此跳过已确认的展开，避免前端正在播滑入动画时重复 set_size/set_position。
+    pub geometry_applied: bool,
 }
 
 /// 发给前端的吸附状态变化事件
@@ -228,15 +231,16 @@ fn enter_dock(app: &AppHandle, window: &WebviewWindow, side: DockSide) {
     // 记录吸附前几何
     {
         let mut docks = lock_docks(state.inner());
-        docks.insert(
-            label.clone(),
-            DockState {
-                side,
-                phase: DockPhase::Collapsed,
-                normal_pos: pos,
-                normal_size: size,
-            },
-        );
+            docks.insert(
+                label.clone(),
+                DockState {
+                    side,
+                    phase: DockPhase::Collapsed,
+                    normal_pos: pos,
+                    normal_size: size,
+                    geometry_applied: false,
+                },
+            );
     }
 
     // 放宽尺寸约束才能缩成细条
@@ -264,6 +268,8 @@ fn expand_dock(app: &AppHandle, window: &WebviewWindow) {
         match docks.get_mut(&label) {
             Some(d) if d.phase == DockPhase::Collapsed => {
                 d.phase = DockPhase::Expanded;
+                // 新一轮展开：清除上一轮的应用确认，兜底任务据此重新接管
+                d.geometry_applied = false;
                 (d.side, d.normal_pos, d.normal_size)
             }
             _ => return,
@@ -272,11 +278,15 @@ fn expand_dock(app: &AppHandle, window: &WebviewWindow) {
 
     emit_dock_changed(app, &label, "expanded", Some(side));
 
-    // 兜底：300ms 后若仍处于 Expanded 态（前端可能未回调），直接应用几何
+    // 兜底：仅当前端迟迟未回调 dock_apply_expand（webview 无响应）时才代为应用几何。
+    // apply_expand_geometry 内部检查 geometry_applied：前端已确认应用则直接跳过，
+    // 不会在其播放滑入动画期间重复 set_size/set_position 造成闪扰。
+    // 超时放宽到 1s：正常展开要等前端重挂载主内容（重列表可达数百毫秒），
+    // 兜底抢先扩窗会把仍在渲染的收缩条拉伸成全尺寸（闪一下）。
     let app_clone = app.clone();
     let label_clone = label.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
         let Some(win) = app_clone.get_webview_window(&label_clone) else { return };
         apply_expand_geometry(&app_clone, &win, side, normal_pos, normal_size);
     });
@@ -294,11 +304,17 @@ fn apply_expand_geometry(
     let state = app.state::<AppState>();
     let label = window.label().to_string();
 
-    // 竞态守卫：仅在 Expanded 态应用几何（可能已被 collapse/exit 取消）
+    // 竞态守卫：仅在 Expanded 态应用几何（可能已被 collapse/exit 取消）；
+    // 已应用过则跳过（重复应用无意义，且可能干扰前端正在播放的滑入动画）
     {
-        let docks = lock_docks(state.inner());
-        match docks.get(&label) {
-            Some(d) if d.phase == DockPhase::Expanded => {}
+        let mut docks = lock_docks(state.inner());
+        match docks.get_mut(&label) {
+            Some(d) if d.phase == DockPhase::Expanded => {
+                if d.geometry_applied {
+                    return;
+                }
+                d.geometry_applied = true;
+            }
             _ => return,
         }
     }
@@ -733,16 +749,36 @@ pub fn dock_exit(label: String, app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// 查询窗口吸附状态：normal / collapsed / expanded / collapsing
+/// 查询窗口吸附状态：phase + side 一起返回。
+/// side 必须随查询返回：webview 挂载可能晚于吸附事件（如贴边状态下退出重进，
+/// 窗口原生层先显示，轮询几十毫秒内就自动吸附并广播事件，而此时 React 监听器
+/// 尚未就绪，事件丢失）——前端只能靠本命令同步初始状态，side 缺失会把
+/// 右缘/顶缘的吸附条按默认 left 渲染，圆角朝向与指示线方向全部镜像。
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockStateSnapshot {
+    pub phase: String,
+    pub side: Option<DockSide>,
+}
+
+/// 查询窗口吸附状态
 #[tauri::command]
-pub fn get_dock_state(label: String, app: AppHandle) -> Result<String, String> {
+pub fn get_dock_state(label: String, app: AppHandle) -> Result<DockStateSnapshot, String> {
     let state = app.state::<AppState>();
     let docks = lock_docks(state.inner());
-    let phase = match docks.get(&label).map(|d| d.phase) {
-        Some(DockPhase::Collapsed) => "collapsed",
-        Some(DockPhase::Expanded) => "expanded",
-        Some(DockPhase::Collapsing) => "collapsing",
-        None => "normal",
-    };
-    Ok(phase.to_string())
+    Ok(match docks.get(&label) {
+        Some(d) => DockStateSnapshot {
+            phase: match d.phase {
+                DockPhase::Collapsed => "collapsed",
+                DockPhase::Expanded => "expanded",
+                DockPhase::Collapsing => "collapsing",
+            }
+            .to_string(),
+            side: Some(d.side),
+        },
+        None => DockStateSnapshot {
+            phase: "normal".to_string(),
+            side: None,
+        },
+    })
 }

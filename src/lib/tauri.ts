@@ -121,7 +121,8 @@ export const tauriCommands = {
     applyExpand: (label: string) => invoke<void>("dock_apply_expand", { label }),
     collapse: (label: string) => invoke<void>("dock_collapse", { label }),
     exit: (label: string) => invoke<void>("dock_exit", { label }),
-    getState: (label: string) => invoke<string>("get_dock_state", { label })
+    getState: (label: string) =>
+      invoke<{ phase: "normal" | "collapsed" | "expanded" | "collapsing"; side?: "left" | "right" | "top" }>("get_dock_state", { label })
   },
   proxy: {
     image: (url: string, persistent?: boolean) =>

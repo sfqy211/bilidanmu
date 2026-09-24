@@ -50,7 +50,8 @@ export const defaultSettings: Settings = {
     emoticonStyle: "image",
     activityBarMode: "latest",
     activityFilter: "all",
-    scInDanmaku: false
+    scInDanmaku: false,
+    dockAnimMs: 220
   },
   notification: {
     muteAlert: true,

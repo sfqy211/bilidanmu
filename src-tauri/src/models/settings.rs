@@ -124,6 +124,13 @@ pub struct AppearanceSetting {
     /// 是否在弹幕栏额外显示简化版醒目留言
     #[serde(default)]
     pub sc_in_danmaku: bool,
+    /// 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画
+    #[serde(default = "default_dock_anim_ms")]
+    pub dock_anim_ms: u32,
+}
+
+fn default_dock_anim_ms() -> u32 {
+    220
 }
 
 fn default_opacity() -> u32 {
@@ -287,6 +294,7 @@ impl Default for Settings {
                 activity_bar_mode: ActivityBarMode::default(),
                 activity_filter: ActivityFilter::default(),
                 sc_in_danmaku: false,
+                dock_anim_ms: default_dock_anim_ms(),
             },
             notification: NotificationSetting {
                 mute_alert: true,
