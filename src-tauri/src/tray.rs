@@ -31,6 +31,8 @@ pub fn quit_app(app: &AppHandle) {
                 client.disconnect().await;
             }
         }
+        // 退出前把弹幕窗口当前正常尺寸落盘（Resized 防抖可能尚未写库）
+        crate::window_state::save_now(&app_clone);
         for (_, window) in app_clone.webview_windows() {
             let _ = window.destroy();
         }

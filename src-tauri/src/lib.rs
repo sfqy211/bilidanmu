@@ -13,6 +13,7 @@ mod settings_store;
 mod stt;
 mod tray;
 mod window_dock;
+mod window_state;
 
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
@@ -233,6 +234,13 @@ pub fn run() {
                     if window.label() == "main" {
                         api.prevent_close();
                         let _ = window.hide();
+                    }
+                }
+                // 弹幕窗口几何持久化：Resized/Moved 事件防抖落盘（吸附态由 window_state
+                // 自行取吸附前几何；位置为物理像素，尺寸换算为逻辑像素）
+                WindowEvent::Resized(_) | WindowEvent::Moved(_) => {
+                    if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
+                        window_state::on_geometry_changed(window.app_handle());
                     }
                 }
                 // 窗口销毁时清理其侧边吸附残留（DockState/冷却/轮询任务），

@@ -36,7 +36,7 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `add_room` | `roomId` | `RoomInfo` | 添加房间 |
 | `remove_room` | `roomId` | `void` | 移除房间 |
 | `get_room_info` | `roomId` | `RoomInfo` | 获取房间信息 |
-| `open_danmaku_window` | `roomId, width?, height?` | `void` | 打开弹幕窗口 |
+| `open_danmaku_window` | `roomId` | `void` | 打开弹幕窗口（位置与尺寸由后端持久化恢复） |
 | `exit_room` | `roomId` | `void` | 退出房间 |
 | `get_emoticons` | `roomId, force?, accountId?` | `EmoticonPackage[]` | 获取表情列表 |
 | `clear_emoticon_cache` | — | `void` | 清除表情缓存 |

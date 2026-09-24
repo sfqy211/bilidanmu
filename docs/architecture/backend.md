@@ -28,6 +28,7 @@ graph TB
         proxy["proxy/<br/>本地 HTTP 代理"]
         tray["tray.rs<br/>系统托盘"]
         window["window_dock.rs<br/>窗口 Dock"]
+        state["window_state.rs<br/>窗口几何持久化"]
     end
 
     commands --> bili

@@ -4,7 +4,6 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { tauriCommands } from "@/lib/tauri";
-import { loadWindowSize } from "@/hooks/useWindowPersistence";
 import { useRoomStore } from "@/stores/room-store";
 import type { SearchRoomMode } from "@/types/bilibili";
 
@@ -258,8 +257,7 @@ export function RoomPage() {
           </div>
           <button
             onClick={() => {
-              const { width, height } = loadWindowSize("danmaku-window");
-              void tauriCommands.room.openDanmaku(0, width, height);
+              void tauriCommands.room.openDanmaku(0);
             }}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-pink-50 hover:text-pink-500 dark:text-slate-400 dark:hover:bg-pink-500/15 dark:hover:text-pink-300"
             title="打开弹幕"
@@ -311,8 +309,7 @@ export function RoomPage() {
                       onClick={() => {
                         setCurrentRoomId(room.id);
                         void tauriCommands.selections.save({ currentRoomId: room.roomId });
-                        const { width, height } = loadWindowSize("danmaku-window");
-                        void tauriCommands.room.openDanmaku(room.roomId, width, height);
+                        void tauriCommands.room.openDanmaku(room.roomId);
                       }}
                       className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-pink-50 hover:text-pink-500 dark:text-slate-400 dark:hover:bg-pink-500/15 dark:hover:text-pink-300"
                       title="打开弹幕"
@@ -387,8 +384,7 @@ export function RoomPage() {
                             onClick={() => {
                               setCurrentRoomId(room.id);
                               void tauriCommands.selections.save({ currentRoomId: room.roomId });
-                              const { width, height } = loadWindowSize("danmaku-window");
-                              void tauriCommands.room.openDanmaku(room.roomId, width, height);
+                              void tauriCommands.room.openDanmaku(room.roomId);
                             }}
                             className="flex h-8 w-8 items-center justify-center bg-white/20 text-white backdrop-blur transition hover:bg-white/30"
                             title="打开弹幕"

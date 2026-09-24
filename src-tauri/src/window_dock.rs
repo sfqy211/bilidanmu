@@ -2,6 +2,7 @@
 //! 鼠标悬停展开、离开后延迟收回、展开后拖离边缘退出吸附（QQ 模式）。
 //! 底边不参与（与任务栏抢区域）。仅对弹幕窗口（danmaku-*）生效，抽屉窗口不参与。
 
+use crate::window_state::{DANMAKU_MAX_H, DANMAKU_MAX_W, DANMAKU_MIN_H, DANMAKU_MIN_W};
 use crate::AppState;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -67,12 +68,6 @@ fn dock_width_px(monitor: &tauri::Monitor) -> u32 {
 const ENTER_THRESHOLD: i32 = 12;
 /// 退出吸附的边缘距离阈值（滞回，大于进入阈值）
 const EXIT_THRESHOLD: i32 = 28;
-
-/// 弹幕窗口的正常尺寸约束（与 open_danmaku_window 的 min/max_inner_size 一致）
-const DANMAKU_MIN_W: f64 = 240.0;
-const DANMAKU_MIN_H: f64 = 160.0;
-const DANMAKU_MAX_W: f64 = 1200.0;
-const DANMAKU_MAX_H: f64 = 900.0;
 
 /// 光标轮询间隔（毫秒）：吸附各态需要收回延迟判定精度，用高频；
 /// normal 态只做贴边检测，用低频降低常驻空转开销
@@ -205,6 +200,20 @@ pub fn cleanup(label: &str, app: &AppHandle) {
     lock_docks(state.inner()).remove(label);
     lock_cooldowns(state.inner()).remove(label);
     stop_polling(label);
+}
+
+/// 窗口当前的「正常几何」（物理像素）：吸附中（细条/展开预览/收回动画）的窗口
+/// 几何不是用户摆放结果，返回 DockState 记录的吸附前位置与尺寸；未吸附返回
+/// 当前外框位置与尺寸。供窗口几何持久化（window_state）取值。
+pub fn normal_geometry(
+    window: &WebviewWindow,
+    app: &AppHandle,
+) -> Option<(PhysicalPosition<i32>, PhysicalSize<u32>)> {
+    let state = app.state::<AppState>();
+    if let Some(docked) = lock_docks(state.inner()).get(window.label()) {
+        return Some((docked.normal_pos, docked.normal_size));
+    }
+    Some((window.outer_position().ok()?, window.outer_size().ok()?))
 }
 
 /// 进入吸附：记录正常几何，收缩为贴边细条

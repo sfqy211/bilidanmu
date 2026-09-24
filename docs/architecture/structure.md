@@ -81,6 +81,7 @@ src-tauri/
 │   │   └── stream_proxy.rs
 │   ├── tray.rs         # 系统托盘
 │   ├── window_dock.rs  # 窗口 Dock
+│   ├── window_state.rs # 弹幕窗口几何持久化（位置+尺寸）
 │   └── lib.rs          # 应用入口 + AppState
 ├── icons/              # 应用图标
 ├── Cargo.toml          # Rust 依赖
@@ -106,3 +107,4 @@ src-tauri/
 | 本地代理 | `src-tauri/src/proxy/` | HTTP 流代理，绕过 CORS |
 | 系统托盘 | `src-tauri/src/tray.rs` | 托盘图标与菜单 |
 | 窗口 Dock | `src-tauri/src/window_dock.rs` | 窗口折叠 / 展开 |
+| 窗口几何持久化 | `src-tauri/src/window_state.rs` | 弹幕窗口位置与尺寸保存 / 恢复（位置物理像素、尺寸逻辑像素） |

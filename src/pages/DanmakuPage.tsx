@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useWindowPersistence } from "@/hooks/useWindowPersistence";
 import { useWindowDock } from "@/hooks/useWindowDock";
 import type { DockSide } from "@/hooks/useWindowDock";
 import { DockCollapsedBar } from "@/components/DockCollapsedBar";
@@ -31,7 +30,6 @@ import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
-import { loadWindowSize } from "@/hooks/useWindowPersistence";
 import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
 import { useAuthStore } from "@/stores/auth-store";
@@ -374,8 +372,11 @@ export function DanmakuPage() {
     };
   }, [sttAvailable]);
 
-  // 窗口尺寸变化时保存到 localStorage
-  useWindowPersistence("danmaku-window");
+  // 窗口尺寸持久化已迁移到 Rust 侧（app_metadata 表）；清理旧版 localStorage 里的物理像素脏数据
+  useEffect(() => {
+    localStorage.removeItem("danmaku-window-width");
+    localStorage.removeItem("danmaku-window-height");
+  }, []);
   useZoom();
 
   // 弹幕窗口启用透明背景

@@ -4,6 +4,7 @@ use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomR
 use crate::models::stream::StreamInfo;
 use crate::room_store;
 use crate::tray;
+use crate::window_state;
 use crate::AppState;
 use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
 
@@ -247,24 +248,25 @@ fn apply_room_switch_bookkeeping(
 async fn create_danmaku_window(
     app: &tauri::AppHandle,
     room_id: u64,
-    width: Option<f64>,
-    height: Option<f64>,
     state: &AppState,
 ) -> Result<(), String> {
     let path = format!("/danmaku/{room_id}")
         .parse()
         .map_err(|error| format!("解析弹幕窗口路由失败: {error}"))?;
 
-    let w = width.filter(|v| *v >= 240.0 && *v <= 1200.0).unwrap_or(240.0);
-    let h = height.filter(|v| *v >= 160.0 && *v <= 900.0).unwrap_or(160.0);
+    // 恢复上次几何：尺寸为逻辑像素；位置为物理像素（坐标失效时回退系统默认定位）
+    let saved = window_state::load_geometry(app);
+    let (w, h) = saved
+        .size
+        .unwrap_or((window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H));
 
     let title = danmaku_window_title(state, room_id);
 
     let window = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
         .title(title)
         .inner_size(w, h)
-        .min_inner_size(240.0, 160.0)
-        .max_inner_size(1200.0, 900.0)
+        .min_inner_size(window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H)
+        .max_inner_size(window_state::DANMAKU_MAX_W, window_state::DANMAKU_MAX_H)
         .resizable(true)
         .maximizable(false)
         .decorations(false)
@@ -274,11 +276,22 @@ async fn create_danmaku_window(
         // 弹幕窗口全程不进任务栏（对齐 QQ：看直播/吸附时任务栏不留图标）。
         // 系统托盘图标保留，仍可通过托盘或弹幕窗的退出按钮切回主页面。
         .skip_taskbar(true)
+        // 先隐藏创建：位置在 build 后按保存值以物理坐标设置，再显示。
+        // 若不显式定位，Windows 按级联规则摆放新窗口——每次重建都向右下
+        // 偏移一点、累积触底后跳回初始位置（即「窗口位移」bug 的来源）。
+        .visible(false)
         .build()
         .map_err(|error| error.to_string())?;
 
     // 弹幕窗口挂接侧边吸附
     crate::window_dock::attach(&window, app);
+
+    if let Some((x, y)) = saved.position {
+        if window_state::position_on_screen(&window, x, y) {
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        }
+    }
+    let _ = window.show();
     Ok(())
 }
 
@@ -286,8 +299,6 @@ async fn create_danmaku_window(
 pub async fn open_danmaku_window(
     app: tauri::AppHandle,
     room_id: u64,
-    width: Option<f64>,
-    height: Option<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     // Hold this guard for the whole open/show sequence so danmaku windows stay mutually exclusive.
@@ -306,7 +317,7 @@ pub async fn open_danmaku_window(
         return Ok(());
     }
 
-    create_danmaku_window(&app, room_id, width, height, state.inner()).await?;
+    create_danmaku_window(&app, room_id, state.inner()).await?;
     hide_main_window(&app);
     Ok(())
 }
@@ -332,7 +343,7 @@ pub async fn switch_room(
     }
 
     // 常驻窗口不存在（当前停留在主窗口）：按进入直播间处理
-    create_danmaku_window(&app, room_id, None, None, state.inner()).await?;
+    create_danmaku_window(&app, room_id, state.inner()).await?;
     hide_main_window(&app);
     Ok(())
 }
@@ -363,6 +374,9 @@ pub async fn exit_room(
 ) -> Result<(), String> {
     // 与 open_danmaku_window/switch_room 互斥，避免开窗/退窗流程交错
     let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    // 销毁前把当前正常尺寸落盘（Resized 防抖可能尚未写库）
+    window_state::save_now(&app);
 
     // 销毁常驻弹幕窗口与该房间的抽屉窗口
     let drawer_prefix = format!("drawer-{room_id}-");
