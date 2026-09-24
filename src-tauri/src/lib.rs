@@ -20,7 +20,6 @@ use bili::ws_client::DanmakuWsClient;
 use bili::buvid::ensure_buvid;
 use proxy::stream_proxy::StreamProxyServer;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::Manager;
 use tauri::WindowEvent;
@@ -51,13 +50,7 @@ pub struct AppState {
     pub db: Arc<StdMutex<Option<rusqlite::Connection>>>,
     pub send_queue: Arc<TokioMutex<Option<send_queue::SendQueue>>>,
     pub proxy_client: reqwest::Client,
-    pub astrbot_client: reqwest::Client,
     pub stream_proxy: Arc<StreamProxyServer>,
-    pub astrbot_config: TokioMutex<Option<commands::ai_proxy::AstrbotConfig>>,
-    pub astrbot_callback_port: Arc<TokioMutex<u16>>,
-    /// AstrBot 是否处于活跃连接状态（switch-room 成功后为 true）
-    pub astrbot_active: AtomicBool,
-    pub ai_summaries: commands::ai_proxy::SummaryStore,
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
     /// 各窗口的侧边吸附状态（label -> DockState）
     pub window_docks: std::sync::Mutex<HashMap<String, window_dock::DockState>>,
@@ -80,14 +73,6 @@ pub fn run() {
         .tcp_keepalive(std::time::Duration::from_secs(30))
         .build()
         .expect("failed to build proxy HTTP client");
-
-    // AstrBot 专用客户端，不使用代理（本地连接），短超时兜底
-    let astrbot_client = reqwest::Client::builder()
-        .no_proxy()
-        .connect_timeout(std::time::Duration::from_secs(2))
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .expect("failed to build astrbot HTTP client");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -124,12 +109,7 @@ pub fn run() {
             db: Arc::new(StdMutex::new(None)),
             send_queue: Arc::new(TokioMutex::new(None)),
             proxy_client: proxy_client.clone(),
-            astrbot_client,
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
-            astrbot_config: TokioMutex::new(None),
-            astrbot_callback_port: Arc::new(TokioMutex::new(0)),
-            astrbot_active: AtomicBool::new(false),
-            ai_summaries: Arc::new(StdMutex::new(Vec::new())),
             stt_manager: Arc::new(TokioMutex::new(None)),
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
@@ -237,29 +217,6 @@ pub fn run() {
                 }
             }
 
-            // 启动 AstrBot 回调 HTTP 服务
-            {
-                let app_handle = app.handle().clone();
-                let state = app.state::<AppState>();
-                // 从配置读取用户指定的回调端口，0=随机
-                let desired_port = {
-                    let cfg = state.astrbot_config.try_lock();
-                    cfg.ok().and_then(|c| c.as_ref().map(|c| c.callback_port)).unwrap_or(0)
-                };
-                let port_state = state.inner().astrbot_callback_port.clone();
-                tauri::async_runtime::spawn(async move {
-                    match commands::ai_proxy::start_callback_server(app_handle, desired_port).await {
-                        Ok(port) => {
-                            // port_state is Arc<TokioMutex<u16>>, lock to write
-                            let mut p = port_state.lock().await;
-                            *p = port;
-                            log::info!("AstrBot 回调服务已启动: http://127.0.0.1:{port}/astrbot/callback");
-                        }
-                        Err(e) => log::error!("启动 AstrBot 回调服务失败: {e}"),
-                    }
-                });
-            }
-
             let _ = tray::refresh_tray(app.handle());
 
             // 后台刷新所有房间信息（标题、封面等）
@@ -318,7 +275,6 @@ pub fn run() {
             commands::room::update_favorite_order,
             commands::room::open_danmaku_window,
             commands::room::switch_room,
-            commands::room::open_drawer_window,
             commands::room::exit_room,
             window_dock::dock_expand,
             window_dock::dock_apply_expand,
@@ -335,16 +291,6 @@ pub fn run() {
             commands::danmaku::stop_auto_send,
             commands::danmaku::start_auto_like,
             commands::danmaku::stop_auto_like,
-            commands::ai_proxy::configure_astrbot,
-            commands::ai_proxy::get_astrbot_config,
-            commands::ai_proxy::switch_astrbot_room,
-            commands::ai_proxy::trigger_astrbot,
-            commands::ai_proxy::get_astrbot_status,
-            commands::ai_proxy::get_callback_port,
-            commands::ai_proxy::disconnect_astrbot,
-            commands::ai_proxy::learn_astrbot,
-            commands::ai_proxy::get_ai_summaries,
-            commands::ai_proxy::clear_ai_summaries,
             commands::websocket::connect_danmaku_stream,
             commands::websocket::disconnect_danmaku_stream,
             commands::proxy::proxy_image,
@@ -353,7 +299,6 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::is_stt_available,
-            commands::settings::is_ai_available,
             commands::selections::load_selections,
             commands::selections::save_selections,
             commands::stt::start_stt,

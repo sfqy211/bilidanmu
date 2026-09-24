@@ -57,7 +57,6 @@ graph TB
 | `auth.rs` | 账号登录、切换、刷新 |
 | `room.rs` | 房间搜索、添加、移除、表情 |
 | `danmaku.rs` | 弹幕发送、自动发送、自动点赞 |
-| `ai_proxy.rs` | AI 助手代理配置、触发、学习 |
 | `settings.rs` | 设置读写 |
 | `stt.rs` | 语音识别控制 |
 | `proxy.rs` | 图片代理、缓存 |
@@ -115,9 +114,6 @@ classDiagram
         +Arc~StdMutex~Option~Connection~~ db
         +reqwest::Client http_client
         +Arc~StreamProxyServer~ proxy
-        +TokioMutex~Option~AstrbotConfig~~ astrbot_config
-        +Arc~TokioMutex~u16~~ callback_port
-        +Arc~StdMutex~Vec~AiSuggestion~~ ai_summaries
         +Arc~TokioMutex~Option~SttManager~~ stt
     }
 ```

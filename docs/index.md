@@ -38,8 +38,8 @@ features:
     title: 语音转字幕
     details: sherpa-onnx 流式识别，字幕叠加层实时显示，本地推理无需联网。
   - icon: 🧠
-    title: AI 助手
-    details: 对接 AstrBot，多条回复选项、自定义输入、自动总结、记忆学习。
+    title: AI 接入（开发中）
+    details: AI 互动能力正在开发中，敬请期待。
   - icon: 🪟
     title: 桌面原生体验
     details: 系统托盘常驻、窗口 Dock 折叠、透明度调节、透传模式、自定义标题栏。

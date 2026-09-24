@@ -59,7 +59,7 @@ const config = defineConfig({
             { text: '自动发送与点赞', link: '/guide/auto' },
             { text: '直播播放', link: '/guide/live' },
             { text: '语音转字幕', link: '/guide/stt' },
-            { text: 'AI 助手', link: '/guide/ai' },
+            { text: 'AI 接入（开发中）', link: '/guide/ai' },
             { text: '窗口与 Dock', link: '/guide/window' },
             { text: '消息模板', link: '/guide/template' },
             { text: '图片代理与缓存', link: '/guide/proxy' },

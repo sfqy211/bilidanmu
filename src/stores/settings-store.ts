@@ -80,10 +80,8 @@ export const defaultSettings: Settings = {
 interface SettingsState {
   settings: Settings;
   sttAvailable: boolean;
-  aiAvailable: boolean;
   setSettings: (settings: Settings) => void;
   setSttAvailable: (available: boolean) => void;
-  setAiAvailable: (available: boolean) => void;
   patchSettings: (partial: Partial<Settings>) => void;
   saveSettings: () => Promise<void>;
 }
@@ -91,12 +89,10 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: defaultSettings,
   sttAvailable: true, // optimistic default; updated on app init
-  aiAvailable: false, // conservative default; set to true on app init if ai feature enabled
   setSettings: (settings) => set({
     settings: mergeSettings(defaultSettings, settings),
   }),
   setSttAvailable: (sttAvailable) => set({ sttAvailable }),
-  setAiAvailable: (aiAvailable) => set({ aiAvailable }),
   patchSettings: (partial) => {
     set((state) => ({
       settings: mergeSettings(state.settings, partial),

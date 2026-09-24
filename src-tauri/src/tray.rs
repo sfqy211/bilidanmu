@@ -1,5 +1,4 @@
 use crate::{room_store, AppState};
-use std::sync::atomic::Ordering;
 use tauri::{
     image::Image,
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
@@ -31,9 +30,6 @@ pub fn quit_app(app: &AppHandle) {
             if let Some(client) = ws_client.as_mut() {
                 client.disconnect().await;
             }
-        }
-        if state.astrbot_active.load(Ordering::Relaxed) {
-            let _ = crate::commands::ai_proxy::disconnect_astrbot(state).await;
         }
         for (_, window) in app_clone.webview_windows() {
             let _ = window.destroy();

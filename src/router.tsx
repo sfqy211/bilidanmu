@@ -6,7 +6,6 @@ import { AccountPage } from "@/pages/AccountPage";
 import { AIPage } from "@/pages/AIPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { DanmakuPage } from "@/pages/DanmakuPage";
-import { DrawerPage } from "@/pages/DrawerPage";
 
 export const router = createBrowserRouter([
   {
@@ -23,8 +22,7 @@ export const router = createBrowserRouter([
           { path: "/settings", element: <SettingsPage /> },
         ]
       },
-      { path: "/danmaku/:roomId", element: <DanmakuPage /> },
-      { path: "/drawer/:roomId/:panel", element: <DrawerPage /> }
+      { path: "/danmaku/:roomId", element: <DanmakuPage /> }
     ]
   }
 ]);

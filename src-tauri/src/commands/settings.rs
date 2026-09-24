@@ -10,12 +10,6 @@ pub fn is_stt_available() -> bool {
     true
 }
 
-/// AI features are always available in this build.
-#[tauri::command]
-pub fn is_ai_available() -> bool {
-    true
-}
-
 #[tauri::command]
 pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
     settings_store::load_settings(&state)

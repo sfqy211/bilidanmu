@@ -1,7 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AiSuggestion,
-  AstrbotConfig,
   Credential,
   Emoticon,
   EmoticonPackage,
@@ -61,8 +59,6 @@ export const tauriCommands = {
     openDanmaku: (roomId: number, width?: number, height?: number) =>
       invoke<void>("open_danmaku_window", { roomId, width: width ?? null, height: height ?? null }),
     switchRoom: (roomId: number) => invoke<void>("switch_room", { roomId }),
-    openDrawer: (roomId: number, panel: string) =>
-      invoke<void>("open_drawer_window", { roomId, panel }),
     exitRoom: (roomId: number) => invoke<void>("exit_room", { roomId }),
     getEmoticons: (roomId: number, force?: boolean, accountId?: string) =>
       invoke<EmoticonPackage[]>("get_emoticons", { roomId, force: force ?? false, accountId: accountId ?? null }),
@@ -109,27 +105,10 @@ export const tauriCommands = {
     connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),
     disconnect: () => invoke<void>("disconnect_danmaku_stream")
   },
-  ai: {
-    configure: (host: string, httpPort: number, callbackPort: number) =>
-      invoke<void>("configure_astrbot", { host, httpPort, callbackPort }),
-    getConfig: () => invoke<AstrbotConfig | null>("get_astrbot_config"),
-    switchRoom: (roomId: number, callbackUrl?: string, uname?: string, title?: string) =>
-      invoke<void>("switch_astrbot_room", { roomId, callbackUrl: callbackUrl ?? null, uname: uname ?? null, title: title ?? null }),
-    disconnect: () => invoke<void>("disconnect_astrbot"),
-    trigger: (action: string, context: string) =>
-      invoke<string[]>("trigger_astrbot", { action, context }),
-    learn: (chosen: string, options: string[]) =>
-      invoke<void>("learn_astrbot", { chosen, options }),
-    getStatus: () => invoke<Record<string, unknown>>("get_astrbot_status"),
-    getCallbackPort: () => invoke<number>("get_callback_port"),
-    getSummaries: () => invoke<AiSuggestion[]>("get_ai_summaries"),
-    clearSummaries: () => invoke<void>("clear_ai_summaries"),
-  },
   settings: {
     get: () => invoke<Settings>("get_settings"),
     update: (settings: Settings) => invoke<void>("update_settings", { settings }),
-    isSttAvailable: () => invoke<boolean>("is_stt_available"),
-    isAiAvailable: () => invoke<boolean>("is_ai_available")
+    isSttAvailable: () => invoke<boolean>("is_stt_available")
   },
   state: {
     getRooms: () => invoke<Room[]>("get_rooms")

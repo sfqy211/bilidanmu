@@ -322,14 +322,14 @@ export function SettingsPage() {
                   className="mt-2 h-11 w-full px-4 text-sm"
                 />
                 <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                  快捷键：Ctrl + 滚轮 调整弹幕/AI 文字大小
+                  快捷键：Ctrl + 滚轮 调整弹幕文字大小
                 </p>
               </label>
 
               <div className="rounded bg-[#f0f0f0] px-4 py-3 text-xs text-slate-500 dark:bg-[#0e1018] dark:text-slate-400">
                 <p className="mb-1 font-medium">快捷键</p>
                 <p>Ctrl + - / +：UI 整体缩放（全局）</p>
-                <p>Ctrl + 滚轮：弹幕/AI 文字大小</p>
+                <p>Ctrl + 滚轮：弹幕文字大小</p>
                 <p>Ctrl + 0：UI 重置</p>
               </div>
 

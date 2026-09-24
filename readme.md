@@ -18,11 +18,10 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 - 图片代理（SSRF 白名单 + LRU 缓存，绕过 CDN Referer 防盗链）
 - 实时直播音频流播放（v2 API + 本地代理绕过 CORS + mpegts.js FLV 播放）
 - 实时语音转字幕（sherpa-onnx 流式识别 + 字幕叠加层）
-- AI 助手（对接 AstrBot，多条回复选项/自定义输入/自动总结/记忆学习）
 - 弹幕窗口透明度调节（0-100%，全局背景跟随主题）
 - 窗口透传模式（点击穿透，仅交互元素响应）
 - 自定义窗口标题栏（无原生装饰，全部窗口统一风格）
-- STT 和 AI 功能内置，可在设置中按需开启/关闭
+- STT 功能内置，可在设置中按需开启/关闭；AI 接入开发中（侧边栏为占位页）
 
 ## 技术栈
 
@@ -79,19 +78,19 @@ npm run dev
 
 ```
 src/                          前端 (React + TypeScript)
-├── pages/                    页面（RoomPage, DanmakuPage, DrawerPage, AccountPage, AIPage, SettingsPage）
+├── pages/                    页面（RoomPage, DanmakuPage, AccountPage, AIPage, SettingsPage）
 ├── components/               组件
 │   ├── danmaku/              弹幕相关（DanmakuMessageItem, AccountSwitcher, EmoticonPickerPanel, AutoSendPanel...）
 │   ├── layout/               布局（AppLayout, AppSidebar, TitleBar, SplitLayout）
 │   └── ui/                   通用 UI（PageTabs, ProxiedImage, InlineMessage）
 ├── hooks/                    React Hooks（useDanmakuStream, useAutoSend, useAutoLike, useAudioPlayer, useTheme...）
-├── stores/                   Zustand 状态管理（auth, room, danmaku, ai, settings）
+├── stores/                   Zustand 状态管理（auth, room, danmaku, settings）
 ├── lib/tauri.ts              Tauri IPC 调用封装
 └── types/                    TypeScript 类型定义
 
 src-tauri/                    后端 (Rust)
 ├── src/bili/                 B站协议实现（API、WebSocket、WBI 签名、协议解析）
-├── src/commands/             Tauri IPC 命令处理（auth, room, danmaku, ai_proxy, settings, proxy, stt...）
+├── src/commands/             Tauri IPC 命令处理（auth, room, danmaku, settings, proxy, stt...）
 ├── src/models/               数据模型
 ├── src/stt/                  语音识别模块（FLV 解复用、AAC 解码、sherpa-onnx 流式识别）
 ├── src/proxy/                本地 HTTP 流代理（hyper 1.x，STT 字节流 tee）
@@ -131,7 +130,6 @@ tests/                        测试（测试手册 + 场景脚本，见 tests/R
 | [simple_live_app](https://github.com/xiaoyaocz/dart_simple_live)                           | MIT          |
 | [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)             | CC BY-NC 4.0 |
 | [bilibili-api](https://github.com/Nemo2011/bilibili-api)                                   | GPLv3        |
-| [astrbot_plugin_bilibili_live](https://github.com/Raven95676/astrbot_plugin_bilibili_live) | AGPLv3       |
 | [fansMedalHelper](https://github.com/XiaoMiku01/fansMedalHelper)                           | GPLv3        |
 | [danmuai](https://github.com/PEPETII/danmuai)                                              | GPLv3        |
 | [chatterbox](https://github.com/laplace-live/chatterbox)                                   | AGPLv3       |

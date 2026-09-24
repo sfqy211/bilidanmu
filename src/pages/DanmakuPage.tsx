@@ -10,7 +10,7 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { Bot, ChevronDown, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ChevronDown, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
@@ -147,8 +147,6 @@ export function DanmakuPage() {
   const [favoriteMap, setFavoriteMap] = useState<Map<string, Emoticon[]>>(new Map());
   const [loadingEmoticons, setLoadingEmoticons] = useState(false);
   const [emoticonError, setEmoticonError] = useState<string | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiErrorKey, setAiErrorKey] = useState(0);
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
   const autoSendOpen = activePanel === PANEL.AUTO_SEND;
   const settingsOpen = activePanel === PANEL.SETTINGS;
@@ -313,27 +311,12 @@ export function DanmakuPage() {
     return `${m}m`;
   }, [liveTime, now]);
 
-  // 切房时通知 AstrBot（用 ref 防止 StrictMode 双重调用）
-  const switchedRoomRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (roomId === null || switchedRoomRef.current === roomId) return;
-    switchedRoomRef.current = roomId;
-    const room = rooms.find((r) => r.roomId === roomId);
-    tauriCommands.ai.getCallbackPort().then((port) => {
-      const callbackUrl = port > 0 ? `http://127.0.0.1:${port}/astrbot/callback` : undefined;
-      return tauriCommands.ai.switchRoom(roomId, callbackUrl, room?.uname, room?.title);
-    }).catch(() => {
-      // AstrBot 未配置时静默忽略
-    });
-  }, [roomId, rooms]);
-
   const { send, sendEmoticon, sending } = useDanmaku();
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
-  const aiAvailable = useSettingsStore((s) => s.aiAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
   const settings = useSettingsStore((s) => s.settings);
 
@@ -1018,7 +1001,6 @@ export function DanmakuPage() {
             if (sttAvailable) {
               tauriCommands.stt.stop().catch(() => {});
             }
-            tauriCommands.ai.disconnect().catch(() => {});
             if (roomId !== null) {
               // exit_room 销毁弹幕/抽屉窗口并按设置恢复主窗口
               tauriCommands.room.exitRoom(roomId).catch(() => {
@@ -1709,9 +1691,6 @@ export function DanmakuPage() {
 
       {/* 发送栏 */}
       <div data-interactive="" className="danmaku-bg-panel relative px-3 py-2">
-        {aiError && (
-          <InlineMessage key={aiErrorKey} type="error" className="mb-2">{aiError}</InlineMessage>
-        )}
         {sendError && (
           <InlineMessage key={sendErrorKey} type="error" className="mb-2">{sendError}</InlineMessage>
         )}
@@ -1779,23 +1758,6 @@ export function DanmakuPage() {
           >
             <ClipboardList className="h-3.5 w-3.5" />
           </button>
-          {aiAvailable && (
-            <button
-              type="button"
-              onClick={() => {
-                tauriCommands.ai.getStatus().then(() => {
-                  if (roomId) void tauriCommands.room.openDrawer(roomId, "ai");
-                }).catch(() => {
-                  setAiError("未连接 AstrBot，请先配置 AI 代理");
-                  setAiErrorKey((k) => k + 1);
-                });
-              }}
-              title="AI 助手"
-              className="danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-violet-100 hover:text-violet-600 dark:text-slate-300 dark:hover:bg-violet-500/20 dark:hover:text-violet-400"
-            >
-              <Bot className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
 
         {/* 弹幕输入行 */}

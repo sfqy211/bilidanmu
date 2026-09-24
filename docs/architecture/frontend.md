@@ -85,7 +85,6 @@ interface AuthState {
 | `room` | 房间相关 |
 | `danmaku` | 弹幕相关 |
 | `ws` | WebSocket 连接 |
-| `ai` | AI 助手 |
 | `settings` | 设置 |
 | `state` | 状态查询 |
 | `selections` | 选项持久化 |

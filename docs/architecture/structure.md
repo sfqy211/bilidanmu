@@ -25,9 +25,8 @@ src/
 ├── pages/              # 页面
 │   ├── RoomPage        # 房间列表页
 │   ├── DanmakuPage     # 弹幕页
-│   ├── DrawerPage      # 抽屉页
 │   ├── AccountPage     # 账号页
-│   ├── AIPage          # AI 助手页
+│   ├── AIPage          # AI 接入页（开发中占位）
 │   └── SettingsPage    # 设置页
 ├── components/         # 组件
 │   ├── danmaku/        # 弹幕相关组件
@@ -63,7 +62,6 @@ src-tauri/
 │   │   ├── auth.rs     # 账号命令
 │   │   ├── room.rs     # 房间命令
 │   │   ├── danmaku.rs  # 弹幕命令
-│   │   ├── ai_proxy.rs # AI 代理命令
 │   │   ├── settings.rs # 设置命令
 │   │   ├── stt.rs      # 语音识别命令
 │   │   ├── proxy.rs    # 代理命令

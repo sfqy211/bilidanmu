@@ -37,7 +37,6 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `remove_room` | `roomId` | `void` | 移除房间 |
 | `get_room_info` | `roomId` | `RoomInfo` | 获取房间信息 |
 | `open_danmaku_window` | `roomId, width?, height?` | `void` | 打开弹幕窗口 |
-| `open_drawer_window` | `roomId, panel` | `void` | 打开抽屉窗口 |
 | `exit_room` | `roomId` | `void` | 退出房间 |
 | `get_emoticons` | `roomId, force?, accountId?` | `EmoticonPackage[]` | 获取表情列表 |
 | `clear_emoticon_cache` | — | `void` | 清除表情缓存 |
@@ -71,21 +70,6 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `connect_danmaku_stream` | `roomId` | `void` | 连接弹幕流 |
 | `disconnect_danmaku_stream` | — | `void` | 断开弹幕流 |
 
-## AI 命令 (`ai::*`)
-
-| 命令 | 参数 | 返回 | 说明 |
-| --- | --- | --- | --- |
-| `configure_astrbot` | `host, httpPort, callbackPort` | `void` | 配置 AstrBot |
-| `get_astrbot_config` | — | `AstrbotConfig \| null` | 获取配置 |
-| `switch_astrbot_room` | `roomId, callbackUrl?, uname?, title?` | `void` | 切换房间 |
-| `disconnect_astrbot` | — | `void` | 断开连接 |
-| `trigger_astrbot` | `action, context` | `string[]` | 触发 AI |
-| `learn_astrbot` | `chosen, options` | `void` | 学习 |
-| `get_astrbot_status` | — | `Record<string, unknown>` | 获取状态 |
-| `get_callback_port` | — | `number` | 获取回调端口 |
-| `get_ai_summaries` | — | `AiSuggestion[]` | 获取 AI 总结 |
-| `clear_ai_summaries` | — | `void` | 清除总结 |
-
 ## 设置命令 (`settings::*`)
 
 | 命令 | 参数 | 返回 | 说明 |
@@ -93,7 +77,6 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `get_settings` | — | `Settings` | 获取设置 |
 | `update_settings` | `settings` | `void` | 更新设置 |
 | `is_stt_available` | — | `boolean` | STT 是否可用 |
-| `is_ai_available` | — | `boolean` | AI 是否可用 |
 
 ## 状态命令 (`state::*`)
 

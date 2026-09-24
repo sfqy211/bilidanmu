@@ -73,7 +73,6 @@ await listen<DanmakuMessage>('danmaku-received', (event) => {
 | `auth` | 账号、登录状态 |
 | `room` | 当前房间、房间列表 |
 | `danmaku` | 弹幕列表、过滤规则 |
-| `ai` | AI 助手对话、配置 |
 | `settings` | 应用设置 |
 
 ## 典型数据流示例
