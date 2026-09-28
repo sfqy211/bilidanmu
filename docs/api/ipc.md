@@ -36,6 +36,7 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `add_room` | `roomId` | `RoomInfo` | 添加房间 |
 | `remove_room` | `roomId` | `void` | 移除房间 |
 | `reorder_rooms` | `roomIds` | `void` | 拖拽排序（按完整显示顺序重排） |
+| `get_follow_lives` | — | `SearchRoomResult[]` | 关注列表中正在直播的主播（需登录） |
 | `get_room_info` | `roomId` | `RoomInfo` | 获取房间信息 |
 | `open_danmaku_window` | `roomId` | `void` | 打开弹幕窗口（位置与尺寸由后端持久化恢复） |
 | `exit_room` | `roomId` | `void` | 退出房间 |

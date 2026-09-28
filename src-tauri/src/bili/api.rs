@@ -256,6 +256,58 @@ impl BiliApiClient {
         Ok(result)
     }
 
+    /// 关注列表中正在直播的主播（添加主播子页的默认展示，需登录 Cookie）。
+    /// 接口参考 PiliPlus：xlive/web-ucenter/user/following，仅保留 live_status == 1 的条目。
+    pub async fn get_follow_lives(&self) -> Result<Vec<SearchRoomResult>, String> {
+        let params = BTreeMap::from([
+            ("page".to_string(), "1".to_string()),
+            ("page_size".to_string(), "30".to_string()),
+            ("ignoreRecord".to_string(), "1".to_string()),
+            ("hit_ab".to_string(), "true".to_string()),
+        ]);
+        let response = self
+            .get_json(
+                "https://api.live.bilibili.com/xlive/web-ucenter/user/following",
+                Some(params),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let list = response
+            .pointer("/data/list")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "following 响应缺少 data.list".to_string())?;
+
+        let mut result = Vec::new();
+        for item in list {
+            if item.get("live_status").and_then(Value::as_u64) != Some(1) {
+                continue;
+            }
+            let Some(room_id) = item.get("roomid").and_then(Value::as_u64) else {
+                continue;
+            };
+            result.push(SearchRoomResult {
+                room_id,
+                uid: item.get("uid").and_then(Value::as_u64),
+                uname: item
+                    .get("uname")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                title: item
+                    .get("title")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                cover: item.get("room_cover").and_then(Value::as_str).map(String::from),
+                avatar: None,
+                is_live: true,
+            });
+        }
+
+        Ok(result)
+    }
+
     pub async fn search_rooms_by_name(&self, keyword: &str, page: u32) -> Result<Vec<SearchRoomResult>, String> {
         let response = self
             .get_json(

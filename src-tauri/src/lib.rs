@@ -284,6 +284,7 @@ pub fn run() {
             commands::room::open_danmaku_window,
             commands::room::switch_room,
             commands::room::reorder_rooms,
+            commands::room::get_follow_lives,
             commands::room::exit_room,
             window_dock::dock_expand,
             window_dock::dock_apply_expand,

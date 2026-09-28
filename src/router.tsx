@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import App from "@/App";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RoomPage } from "@/pages/RoomPage";
+import { RoomAddPage } from "@/pages/RoomAddPage";
 import { AccountPage } from "@/pages/AccountPage";
 import { AIPage } from "@/pages/AIPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: "/rooms", element: <RoomPage /> },
+          { path: "/rooms/add", element: <RoomAddPage /> },
           { path: "/accounts", element: <AccountPage /> },
           { path: "/ai", element: <AIPage /> },
           { path: "/settings", element: <SettingsPage /> },

@@ -116,6 +116,17 @@ pub async fn reorder_rooms(room_ids: Vec<u64>, state: State<'_, AppState>) -> Re
     room_store::reorder_rooms(state.inner(), &room_ids)
 }
 
+/// 关注列表中正在直播的主播（添加主播子页的默认展示，需登录）
+#[tauri::command]
+pub async fn get_follow_lives(state: State<'_, AppState>) -> Result<Vec<SearchRoomResult>, String> {
+    let credential = state.credential.lock().await.clone();
+    if credential.is_none() {
+        return Err("未登录，无法获取关注列表".to_string());
+    }
+    let api = build_api_client(credential, &state);
+    api.get_follow_lives().await
+}
+
 #[tauri::command]
 pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
     // 虚拟直播间没有真实场次，用 mock 启动时间充当开播时间

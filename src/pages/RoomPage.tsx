@@ -1,29 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { LayoutGrid, List, MonitorPlay, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
-import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
-import type { Room, SearchRoomMode } from "@/types/bilibili";
-
-const searchModes: Array<{ value: SearchRoomMode; label: string; placeholder: string }> = [
-  { value: "name", label: "主播名字", placeholder: "输入主播名字搜索直播间" },
-  { value: "roomId", label: "直播间号", placeholder: "输入直播间号" },
-  { value: "link", label: "直播链接", placeholder: "粘贴 bilibili 直播间链接" },
-  { value: "uid", label: "UID", placeholder: "输入主播 UID" }
-];
+import type { Room } from "@/types/bilibili";
 
 export function RoomPage() {
-  const { rooms, currentRoomId, searchResults, viewMode, setSearchResults, addRoom, removeRoom, setCurrentRoomId, setViewMode } =
+  const navigate = useNavigate();
+  const { rooms, currentRoomId, viewMode, removeRoom, setCurrentRoomId, setViewMode } =
     useRoomStore();
-  const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<SearchRoomMode>("name");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [msgKey, setMsgKey] = useState(0);
-  const [addingRoomIds, setAddingRoomIds] = useState<Set<number>>(new Set());
-  const [showSearch, setShowSearch] = useState(false);
   const [filterText, setFilterText] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   // 拖拽排序用指针事件实现（mousedown/mousemove/mouseup）：WebView2 的原生文件
@@ -40,19 +26,12 @@ export function RoomPage() {
   } | null>(null);
   const dragOrderIdsRef = useRef<string[] | null>(null);
 
-  const showError = (msg: string) => { setError(msg); setMsgKey((k) => k + 1); };
-  const clearMessage = () => { setError(null); };
   const [liveStatusMap, setLiveStatusMap] = useState<Record<string, boolean>>({});
   const [mockEnabled, setMockEnabled] = useState(false);
 
   useEffect(() => {
     tauriCommands.room.isMockEnabled().then(setMockEnabled).catch(() => {});
   }, []);
-
-  const placeholder = useMemo(
-    () => searchModes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容",
-    [mode]
-  );
 
   const liveCount = useMemo(
     () => rooms.filter((r) => r.uid != null && liveStatusMap[String(r.uid)]).length,
@@ -206,46 +185,6 @@ export function RoomPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAddRoom = async (roomId: number) => {
-    setAddingRoomIds((prev) => new Set(prev).add(roomId));
-    try {
-      const roomInfo = await tauriCommands.room.add(roomId);
-      addRoom(roomInfo);
-      setShowSearch(false);
-      void refreshLiveStatus();
-    } catch (addError) {
-      showError(addError instanceof Error ? addError.message : "添加失败");
-    } finally {
-      setAddingRoomIds((prev) => {
-        const next = new Set(prev);
-        next.delete(roomId);
-        return next;
-      });
-    }
-  };
-
-  const handleSearch = async () => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      showError("请输入搜索内容");
-      setSearchResults([]);
-      return;
-    }
-
-    setLoading(true);
-    clearMessage();
-
-    try {
-      const results = await tauriCommands.room.search(trimmed, mode);
-      setSearchResults(results);
-    } catch (searchError) {
-      showError(searchError instanceof Error ? searchError.message : "搜索失败");
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <section
       className="flex h-full flex-col select-none"
@@ -312,90 +251,15 @@ export function RoomPage() {
               {viewMode === "card" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
             <button
-              onClick={() => setShowSearch((v) => !v)}
+              onClick={() => navigate("/rooms/add")}
               className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-pink-500 px-4 text-sm font-medium text-white shadow-[0_4px_16px_-4px_rgba(236,72,153,0.5)] transition hover:bg-pink-400 active:scale-[0.97]"
             >
-              {showSearch ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {showSearch ? "关闭" : "添加"}
+              <Plus className="h-4 w-4" />
+              添加
             </button>
           </div>
         </div>
       </header>
-
-      {showSearch && (
-        <div className="app-rise mb-4 flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-            <div className="flex gap-2">
-              <Select value={mode} onValueChange={(v) => setMode(v as SearchRoomMode)}>
-                <SelectTrigger className="h-9 w-auto shrink-0 gap-1.5 px-3">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {searchModes.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void handleSearch();
-                  }
-                }}
-                placeholder={placeholder}
-                className="h-9 flex-1 px-3 text-sm"
-              />
-              <button
-                onClick={() => void handleSearch()}
-                disabled={loading}
-                className="shrink-0 rounded-md bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? "搜索中..." : "搜索"}
-              </button>
-            </div>
-            {error && <InlineMessage key={msgKey} type="error" className="mt-3">{error}</InlineMessage>}
-          </div>
-
-          {searchResults.length > 0 && (
-            <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">搜索结果</h3>
-                <span className="numeric text-xs text-slate-400 dark:text-slate-500">{searchResults.length} 个</span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {searchResults.map((room) => {
-                  const added = rooms.some((item) => item.roomId === room.roomId);
-                  return (
-                    <div
-                      key={`search-${room.roomId}`}
-                      className="flex items-center gap-3 rounded-lg bg-[#f8f8f8] p-3 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
-                    >
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${room.isLive ? "live-dot bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
-                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{room.title}</p>
-                      </div>
-                      <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
-                      <button
-                        onClick={() => void handleAddRoom(room.roomId)}
-                        disabled={added || addingRoomIds.has(room.roomId)}
-                        className="shrink-0 rounded p-1.5 text-pink-500 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-pink-300 dark:hover:bg-pink-500/20"
-                        title={added ? "已添加" : "添加"}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {mockEnabled && (
         <div className="app-rise mb-3 flex items-center gap-3 rounded-lg bg-pink-500/5 px-3 py-2.5 shadow-sm ring-1 ring-pink-500/25 dark:bg-pink-500/10">

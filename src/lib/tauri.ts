@@ -56,6 +56,7 @@ export const tauriCommands = {
     add: (roomId: number) => invoke<RoomInfo>("add_room", { roomId }),
     remove: (roomId: number) => invoke<void>("remove_room", { roomId }),
     reorderRooms: (roomIds: number[]) => invoke<void>("reorder_rooms", { roomIds }),
+    getFollowLives: () => invoke<SearchRoomResult[]>("get_follow_lives"),
     getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId }),
     openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
     switchRoom: (roomId: number) => invoke<void>("switch_room", { roomId }),
