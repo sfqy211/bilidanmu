@@ -134,6 +134,7 @@ impl BiliApiClient {
                     .unwrap_or_default()
                     .to_string(),
                 uname,
+                sort_order: 0,
                 cover: data
                     .get("user_cover")
                     .or_else(|| data.get("cover"))

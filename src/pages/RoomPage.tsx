@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { LayoutGrid, List, MonitorPlay, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LayoutGrid, List, MonitorPlay, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
-import type { SearchRoomMode } from "@/types/bilibili";
+import type { Room, SearchRoomMode } from "@/types/bilibili";
 
 const searchModes: Array<{ value: SearchRoomMode; label: string; placeholder: string }> = [
   { value: "name", label: "主播名字", placeholder: "输入主播名字搜索直播间" },
@@ -24,6 +24,21 @@ export function RoomPage() {
   const [msgKey, setMsgKey] = useState(0);
   const [addingRoomIds, setAddingRoomIds] = useState<Set<number>>(new Set());
   const [showSearch, setShowSearch] = useState(false);
+  const [filterText, setFilterText] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  // 拖拽排序用指针事件实现（mousedown/mousemove/mouseup）：WebView2 的原生文件
+  // 拖放处理器会拦截 HTML5 DnD 事件（draggable/dragstart 不触发），指针事件绕开
+  // 该限制。draggingId 为拖动中的房间；dragOrderIds 为拖拽预览顺序（房间 id 列表）。
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOrderIds, setDragOrderIds] = useState<string[] | null>(null);
+  const dragStateRef = useRef<{
+    roomId: string;
+    startX: number;
+    startY: number;
+    active: boolean;
+    baseIds: string[];
+  } | null>(null);
+  const dragOrderIdsRef = useRef<string[] | null>(null);
 
   const showError = (msg: string) => { setError(msg); setMsgKey((k) => k + 1); };
   const clearMessage = () => { setError(null); };
@@ -51,6 +66,113 @@ export function RoomPage() {
     } catch {
       // 忽略刷新失败
     }
+  };
+
+  const handleRefreshLiveStatus = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await refreshLiveStatus();
+    setRefreshing(false);
+  };
+
+  // 显示顺序：sort_order 升序（默认后添加在前），直播中优先分组、组内顺序稳定
+  const displayRooms = useMemo(() => {
+    const isLive = (r: Room) => r.uid != null && Boolean(liveStatusMap[String(r.uid)]);
+    const ordered = [...rooms].sort((a, b) => a.sortOrder - b.sortOrder);
+    return [...ordered.filter(isLive), ...ordered.filter((r) => !isLive(r))];
+  }, [rooms, liveStatusMap]);
+
+  // 模糊筛选：一并匹配 uid / 房间号 / 主播名 / 直播间标题
+  const filterQuery = filterText.trim().toLowerCase();
+  const filterActive = filterQuery.length > 0;
+  const visibleRooms = useMemo(() => {
+    if (!filterActive) return displayRooms;
+    return displayRooms.filter(
+      (room) =>
+        room.uname.toLowerCase().includes(filterQuery) ||
+        room.title.toLowerCase().includes(filterQuery) ||
+        String(room.roomId).includes(filterQuery) ||
+        (room.uid != null && String(room.uid).includes(filterQuery))
+    );
+  }, [displayRooms, filterActive, filterQuery]);
+
+  // 拖拽预览：拖拽中按预览顺序渲染，否则按筛选后的显示顺序
+  const previewRooms = useMemo(() => {
+    if (!dragOrderIds) return visibleRooms;
+    const byId = new Map(rooms.map((r) => [r.id, r] as const));
+    return dragOrderIds
+      .map((id) => byId.get(id))
+      .filter((r): r is Room => r != null);
+  }, [dragOrderIds, visibleRooms, rooms]);
+
+  const handleDragMouseDown = (room: Room, event: React.MouseEvent) => {
+    // 筛选态下顺序语义不完整，禁用拖拽；按在按钮上不启动拖拽，避免误触发点击
+    if (filterActive || event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+
+    const setPreviewOrder = (ids: string[] | null) => {
+      dragOrderIdsRef.current = ids;
+      setDragOrderIds(ids);
+    };
+    const applyPreview = (targetId: string) => {
+      const current = dragOrderIdsRef.current;
+      if (!current) return;
+      const from = current.indexOf(room.id);
+      const to = current.indexOf(targetId);
+      if (from < 0 || to < 0 || from === to) return;
+      const next = [...current];
+      next.splice(from, 1);
+      next.splice(to, 0, room.id);
+      setPreviewOrder(next);
+    };
+
+    const onMove = (move: MouseEvent) => {
+      const state = dragStateRef.current;
+      if (!state) return;
+      if (!state.active) {
+        // 位移超过阈值才算拖拽，与普通点击区分
+        if (Math.hypot(move.clientX - state.startX, move.clientY - state.startY) < 6) return;
+        state.active = true;
+        setDraggingId(room.id);
+        setPreviewOrder(state.baseIds);
+      }
+      move.preventDefault();
+      const hovered = document
+        .elementFromPoint(move.clientX, move.clientY)
+        ?.closest<HTMLElement>("[data-room-id]");
+      if (hovered?.dataset.roomId) applyPreview(hovered.dataset.roomId);
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      const state = dragStateRef.current;
+      dragStateRef.current = null;
+      if (state?.active && dragOrderIdsRef.current) {
+        const ids = dragOrderIdsRef.current;
+        // 持久化完整显示顺序（直播中在前），后续开播状态变化时组内仍按该顺序排列
+        void tauriCommands.room.reorderRooms(ids.map(Number));
+        const indexOf = new Map(ids.map((id, i) => [id, i] as const));
+        useRoomStore.setState((store) => ({
+          rooms: store.rooms.map((r) => {
+            const idx = indexOf.get(r.id);
+            return idx != null ? { ...r, sortOrder: idx } : r;
+          })
+        }));
+      }
+      setDraggingId(null);
+      setPreviewOrder(null);
+    };
+
+    dragStateRef.current = {
+      roomId: room.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+      baseIds: visibleRooms.map((r) => r.id),
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
   const toggleViewMode = () => {
@@ -155,6 +277,33 @@ export function RoomPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={filterText}
+                onChange={(event) => setFilterText(event.target.value)}
+                placeholder="UID/房间号/名称/标题"
+                title="模糊筛选：UID、房间号、主播名、直播间标题"
+                className="h-9 w-52 pl-8 pr-7 text-sm"
+              />
+              {filterText && (
+                <button
+                  onClick={() => setFilterText("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200"
+                  title="清除筛选"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => void handleRefreshLiveStatus()}
+              disabled={refreshing}
+              className="glass-panel inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 disabled:cursor-not-allowed dark:text-slate-400 dark:hover:text-white"
+              title="刷新直播状态"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
             <button
               onClick={toggleViewMode}
               className="glass-panel inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
@@ -280,15 +429,25 @@ export function RoomPage() {
               </p>
             </div>
           </div>
+        ) : previewRooms.length === 0 ? (
+          <div className="app-rise rounded-lg bg-[#f8f8f8] px-6 py-16 text-center text-sm text-slate-400 shadow-sm dark:bg-[#0e1018] dark:text-slate-500 dark:ring-1 dark:ring-white/[0.06]">
+            没有匹配的直播间
+          </div>
         ) : viewMode === "list" ? (
           <div className="app-rise flex flex-col gap-2">
-            {rooms.map((room) => {
+            {previewRooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];
               return (
                 <div
                   key={room.id}
-                  className="group flex items-center gap-3 rounded-lg bg-[#f8f8f8] px-3 py-2.5 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
+                  data-room-id={room.id}
+                  onMouseDown={(e) => handleDragMouseDown(room, e)}
+                  className={`group flex items-center gap-3 rounded-lg bg-[#f8f8f8] px-3 py-2.5 shadow-sm transition-opacity dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] ${
+                    draggingId === room.id
+                      ? "opacity-60 outline outline-2 outline-pink-500/70"
+                      : ""
+                  } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"}`}
                 >
                   <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "live-dot bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
                   <div className="min-w-0 flex-1">
@@ -337,13 +496,19 @@ export function RoomPage() {
           </div>
         ) : (
           <div className="app-rise grid gap-3 sm:grid-cols-3">
-            {rooms.map((room) => {
+            {previewRooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];
               return (
                 <div
                   key={room.id}
-                  className="group overflow-hidden rounded-lg shadow-sm transition dark:ring-1 dark:ring-white/[0.06]"
+                  data-room-id={room.id}
+                  onMouseDown={(e) => handleDragMouseDown(room, e)}
+                  className={`group overflow-hidden rounded-lg shadow-sm transition-opacity dark:ring-1 dark:ring-white/[0.06] ${
+                    draggingId === room.id
+                      ? "opacity-60 outline outline-2 outline-pink-500/70"
+                      : ""
+                  } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"}`}
                 >
                   <div className="relative aspect-video bg-[#ebebeb] dark:bg-[#0e1018]">
                     {room.cover ? (

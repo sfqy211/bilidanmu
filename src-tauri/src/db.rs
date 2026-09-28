@@ -114,6 +114,19 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
     // 迁移: 添加主播头像列
     let _ = connection.execute_batch("ALTER TABLE rooms ADD COLUMN avatar TEXT");
 
+    // 迁移: 添加房间排序值列（拖拽排序）。ALTER 成功 = 列刚加上，此时为存量房间
+    // 一次性编号：room_id 越大（添加越晚）sort_order 越小、排在前（对齐既有展示顺序）。
+    // 只在该分支执行，避免每次启动都覆盖用户拖拽出的自定义顺序。
+    if connection
+        .execute_batch("ALTER TABLE rooms ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+        .is_ok()
+    {
+        let _ = connection.execute(
+            "UPDATE rooms SET sort_order = (SELECT COUNT(*) FROM rooms AS r2 WHERE r2.room_id >= rooms.room_id)",
+            [],
+        );
+    }
+
     Ok(())
 }
 

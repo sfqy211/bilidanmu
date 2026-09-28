@@ -8,6 +8,8 @@ pub struct Room {
     pub uname: String,
     pub cover: Option<String>,
     pub avatar: Option<String>,
+    /// 显示排序值：越小越靠前（直播中分组优先；默认后添加的越小、排在前）
+    pub sort_order: i64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -32,6 +34,7 @@ impl RoomInfo {
                 uname: "示例主播".into(),
                 cover: None,
                 avatar: None,
+                sort_order: 0,
             },
             area_name: Some("原神".into()),
             parent_area_name: Some("手游".into()),

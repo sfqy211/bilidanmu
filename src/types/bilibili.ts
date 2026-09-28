@@ -30,6 +30,8 @@ export interface Room {
   uname: string;
   cover?: string;
   avatar?: string;
+  /** 显示排序值：越小越靠前（直播中分组优先，组内默认后添加在前，拖拽可改） */
+  sortOrder: number;
 }
 
 export interface RoomInfo extends Room {

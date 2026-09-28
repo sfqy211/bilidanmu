@@ -110,6 +110,12 @@ pub async fn get_rooms(state: State<'_, AppState>) -> Result<Vec<Room>, String> 
     room_store::load_rooms(state.inner())
 }
 
+/// 拖拽排序：按前端给定的完整显示顺序重排房间
+#[tauri::command]
+pub async fn reorder_rooms(room_ids: Vec<u64>, state: State<'_, AppState>) -> Result<(), String> {
+    room_store::reorder_rooms(state.inner(), &room_ids)
+}
+
 #[tauri::command]
 pub async fn get_live_time(room_id: u64, state: State<'_, AppState>) -> Result<Option<u64>, String> {
     // 虚拟直播间没有真实场次，用 mock 启动时间充当开播时间
