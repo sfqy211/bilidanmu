@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { HardDrive, Info, MessageSquare, SlidersHorizontal, Volume2 } from "lucide-react";
+import { HardDrive, Headphones, Info, MessageSquare, SlidersHorizontal, Volume2 } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { DanmakuSettings } from "@/components/settings/DanmakuSettings";
 import { AudioSettings } from "@/components/settings/AudioSettings";
+import { ListenSettings } from "@/components/settings/ListenSettings";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
 
 const SETTINGS_CATEGORIES = [
   { value: "general", label: "通用", description: "主题、颜色与窗口行为", icon: SlidersHorizontal, component: GeneralSettings },
   { value: "danmaku", label: "弹幕窗口", description: "文字、消息、活动栏与屏蔽", icon: MessageSquare, component: DanmakuSettings },
-  { value: "audio", label: "音频与字幕", description: "直播音频与本地语音识别", icon: Volume2, component: AudioSettings },
+  { value: "audio", label: "直播音频", description: "直播音频与实时语音字幕", icon: Volume2, component: AudioSettings },
+  { value: "listen", label: "听视频", description: "播放偏好、视频字幕与封面外观", icon: Headphones, component: ListenSettings },
   { value: "storage", label: "存储", description: "消息保留与图片缓存", icon: HardDrive, component: StorageSettings },
   { value: "about", label: "关于", description: "版本、更新与帮助", icon: Info, component: AboutSettings },
 ];

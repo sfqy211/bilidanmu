@@ -19,6 +19,7 @@ import { tauriCommands } from "@/lib/tauri";
 import { useAmbientColor } from "@/hooks/useAmbientColor";
 import { seasonToQueue, useVideoAudioStore, videoToQueue } from "@/stores/video-audio-store";
 import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/settings-store";
 
 const LYRIC_MASK = "[mask-image:linear-gradient(to_bottom,transparent,black_14%,black_86%,transparent)]";
 
@@ -54,10 +55,11 @@ export function VideoPlayerPage() {
     setVolume,
   } = useVideoAudioStore();
 
+  const preferences = useSettingsStore((state) => state.settings.listen);
   const isCurrentVideo = video?.bvid === bvid;
   const track = queue?.tracks[index];
   // 环境色：从封面提取主色，做页面顶部的沉浸渐变
-  const ambientColor = useAmbientColor(isCurrentVideo ? video?.cover : undefined);
+  const ambientColor = useAmbientColor(isCurrentVideo && preferences.ambientBackground ? video?.cover : undefined);
 
   // 直接打开本页（如刷新）且播放器没有加载该视频时：解析并自动从第一 P 播
   useEffect(() => {
@@ -126,21 +128,22 @@ export function VideoPlayerPage() {
     }, 3000);
   };
   useEffect(() => {
-    if (activeSubtitleIndex < 0 || !autoScrollLyrics.current) return;
+    if (!preferences.subtitleAutoFollow || activeSubtitleIndex < 0 || !autoScrollLyrics.current) return;
     const el = lyricScrollRef.current?.querySelector(`[data-line="${activeSubtitleIndex}"]`);
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [activeSubtitleIndex]);
+  }, [activeSubtitleIndex, preferences.subtitleAutoFollow, preferences.subtitleFontSize, preferences.subtitleShowTime]);
 
   // ── 歌词视图（字幕占满全屏，播放器缩为底部小横条） ──
-  const [lyricsFocus, setLyricsFocus] = useState(false);
+  const [lyricsFocusOverride, setLyricsFocus] = useState<boolean | null>(null);
+  const lyricsFocus = lyricsFocusOverride ?? (preferences.defaultView === "subtitles");
   const focusScrollRef = useRef<HTMLDivElement>(null);
   const focusAutoScroll = useRef(true);
   const focusAutoTimer = useRef(0);
   useEffect(() => {
-    if (!lyricsFocus || activeSubtitleIndex < 0 || !focusAutoScroll.current) return;
+    if (!preferences.subtitleAutoFollow || !lyricsFocus || activeSubtitleIndex < 0 || !focusAutoScroll.current) return;
     const el = focusScrollRef.current?.querySelector(`[data-line="${activeSubtitleIndex}"]`);
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [activeSubtitleIndex, lyricsFocus]);
+  }, [activeSubtitleIndex, lyricsFocus, preferences.subtitleAutoFollow, preferences.subtitleFontSize, preferences.subtitleShowTime]);
 
   // ── 可切换的队列：分 P 专辑 / 所属合集 ──
   const alternateQueues = useMemo(() => {
@@ -229,10 +232,10 @@ export function VideoPlayerPage() {
                   key={`${line.from}-${i}`}
                   data-line={i}
                   onClick={() => seek(line.from)}
-                  className="grid w-full grid-cols-[64px_1fr] items-baseline gap-3 text-left"
+                  className={cn("grid w-full items-baseline gap-3 text-left", preferences.subtitleShowTime ? "grid-cols-[64px_1fr]" : "grid-cols-1")}
                 >
-                  <span className="numeric text-xs text-slate-400 dark:text-slate-500">{formatTime(line.from)}</span>
-                  <span className={cn("text-[17px] leading-relaxed", lyricLineClass(i))}>{line.content}</span>
+                  {preferences.subtitleShowTime && <span className="numeric text-xs text-slate-400 dark:text-slate-500">{formatTime(line.from)}</span>}
+                  <span style={{ fontSize: `${Math.min(24, Math.max(14, preferences.subtitleFontSize))}px` }} className={cn("leading-relaxed", lyricLineClass(i))}>{line.content}</span>
                 </button>
               ))}
             </div>
@@ -417,8 +420,10 @@ export function VideoPlayerPage() {
                         key={`${line.from}-${i}`}
                         data-line={i}
                         onClick={() => seek(line.from)}
-                        className={cn("text-[15px] leading-relaxed", lyricLineClass(i))}
+                        style={{ fontSize: `${Math.min(24, Math.max(14, preferences.subtitleFontSize))}px` }}
+                        className={cn("leading-relaxed", lyricLineClass(i))}
                       >
+                        {preferences.subtitleShowTime && <span className="numeric mr-3 text-xs text-slate-400 dark:text-slate-500">{formatTime(line.from)}</span>}
                         {line.content}
                       </p>
                     ))}

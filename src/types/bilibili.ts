@@ -271,6 +271,7 @@ export interface Settings {
     messageLimit: number;
   };
   audio: AudioSetting;
+  listen: ListenSetting;
   stt: SttSetting;
   filter: {
     blockedUsers: BlockedUser[];
@@ -283,6 +284,16 @@ export interface Settings {
 export interface AudioSetting {
   defaultVolume: number;
   autoPlay: boolean;
+}
+
+export interface ListenSetting {
+  defaultView: "cover" | "subtitles";
+  defaultVolume: number;
+  autoNext: boolean;
+  subtitleFontSize: number;
+  subtitleAutoFollow: boolean;
+  subtitleShowTime: boolean;
+  ambientBackground: boolean;
 }
 
 export interface BlockedUser {

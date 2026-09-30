@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { tauriCommands } from "@/lib/tauri";
+import { useSettingsStore } from "./settings-store";
 import type { SeasonInfo, VideoInfo } from "@/types/bilibili";
 
 /**
@@ -111,7 +112,7 @@ function ensureAudio(get: () => VideoAudioStore, set: (partial: Partial<VideoAud
   el.addEventListener("ended", () => {
     // 队列联播：当前曲目播完自动下一首，最后一首播完即停
     const { queue, index, next } = get();
-    if (queue && index < queue.tracks.length - 1) {
+    if (useSettingsStore.getState().settings.listen.autoNext && queue && index < queue.tracks.length - 1) {
       void next();
     } else {
       set({ playing: false });
@@ -175,7 +176,7 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
     loading: false,
     currentTime: 0,
     duration: 0,
-    volume: 80,
+    volume: useSettingsStore.getState().settings.listen.defaultVolume,
     error: null,
 
     playQueue: (queue, index) => playTrackAt(queue, index),
@@ -260,4 +261,11 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
       });
     },
   };
+});
+
+// 加载持久化设置或调整默认音量时同步；普通设置刷新不覆盖播放器的临时音量。
+useSettingsStore.subscribe((state, previous) => {
+  if (state.settings.listen.defaultVolume !== previous.settings.listen.defaultVolume) {
+    useVideoAudioStore.getState().setVolume(state.settings.listen.defaultVolume);
+  }
 });

@@ -6,7 +6,7 @@ import type { Settings } from "@/types/bilibili";
 /** 需要深合并的子对象键 */
 const DEEP_KEYS = [
   "sendInterval", "rateLimit", "riskControl", "receive",
-  "appearance", "notification", "cache", "audio", "stt", "filter",
+  "appearance", "notification", "cache", "audio", "listen", "stt", "filter",
 ] as const;
 
 /** 将部分设置与默认值深合并，确保所有子对象字段完整 */
@@ -67,6 +67,15 @@ export const defaultSettings: Settings = {
   audio: {
     defaultVolume: 80,
     autoPlay: false
+  },
+  listen: {
+    defaultView: "cover",
+    defaultVolume: 80,
+    autoNext: true,
+    subtitleFontSize: 16,
+    subtitleAutoFollow: true,
+    subtitleShowTime: false,
+    ambientBackground: true
   },
   stt: {
     enabled: false,
