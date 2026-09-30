@@ -66,7 +66,7 @@ export function TitleBar() {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className="relative z-20 flex h-10 select-none items-center"
+      className="workspace-titlebar relative z-20 flex h-10 shrink-0 select-none items-center"
     >
       <div className="flex flex-1 items-center gap-2 px-3">
         <ModeToggle />
@@ -74,6 +74,7 @@ export function TitleBar() {
       <div className="flex h-full">
         <button
           type="button"
+          aria-label="最小化窗口"
           onClick={() => appWindow.minimize()}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-black/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
         >
@@ -81,6 +82,7 @@ export function TitleBar() {
         </button>
         <button
           type="button"
+          aria-label="最大化或还原窗口"
           onClick={() => appWindow.toggleMaximize()}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-black/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
         >
@@ -88,6 +90,7 @@ export function TitleBar() {
         </button>
         <button
           type="button"
+          aria-label="关闭窗口"
           onClick={handleClose}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
         >

@@ -1,33 +1,19 @@
-import { Outlet } from "react-router-dom";
 import { Eye } from "lucide-react";
-import { AppSidebar } from "@/components/layout/AppSidebar";
-import { TitleBar } from "@/components/layout/TitleBar";
-import { MiniPlayer } from "@/components/listen/MiniPlayer";
+import { AppSidebar } from "./AppSidebar";
+import { MusicSidebar } from "./MusicSidebar";
+import { WorkspaceLayout } from "./WorkspaceLayout";
 import { useAuthStore } from "@/stores/auth-store";
+import { useWorkspaceMode } from "@/hooks/useWorkspaceMode";
 
 export function AppLayout() {
+  const isListening = useWorkspaceMode() === "listen";
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
-
   return (
-    <div className="window-rounded app-atmosphere app-scope flex h-full flex-col overflow-hidden text-slate-900 dark:text-slate-100">
-      <TitleBar />
-      <div className="flex min-h-0 flex-1">
-        <AppSidebar />
-        <main className="flex min-w-0 flex-1 flex-col overflow-auto">
-          {/* 匿名模式横幅 */}
-          {isAnonymous && (
-            <div className="glass-panel m-4 mb-0 flex items-center gap-2 rounded-xl px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
-              <Eye className="h-3.5 w-3.5 shrink-0" />
-              <span>匿名模式：仅可接收弹幕和音频流，无法发送弹幕、点赞或使用表情。</span>
-            </div>
-          )}
-          <div className="min-h-0 flex-1 px-8 pb-8 pt-6">
-            <Outlet />
-          </div>
-          {/* 听视频后台播放条（有播放任务时出现在主窗口底部） */}
-          <MiniPlayer />
-        </main>
-      </div>
-    </div>
+    <WorkspaceLayout sidebar={isListening ? <MusicSidebar /> : <AppSidebar />} notice={!isListening && isAnonymous && (
+      <p className="workspace-notice flex items-start gap-2 text-xs leading-relaxed text-ink-muted">
+        <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>匿名模式：仅可接收弹幕和音频流，无法发送弹幕、点赞或使用表情。</span>
+      </p>
+    )} />
   );
 }
