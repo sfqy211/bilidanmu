@@ -12,6 +12,7 @@ import { ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components
 import { tauriCommands } from "@/lib/tauri";
 import aboutIcon from "@/assets/icon.png";
 import { useSettingsStore } from "@/stores/settings-store";
+import { BRAND_PRESETS } from "@/lib/brand-theme";
 import type { Settings } from "@/types/bilibili";
 
 const SETTINGS_TABS = [
@@ -104,7 +105,7 @@ export function SettingsPage() {
             type="button"
             onClick={() => void handleSave()}
             disabled={loading || saving}
-            className="inline-flex h-9 items-center rounded-xl bg-pink-500 px-5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 items-center rounded-xl bg-brand px-5 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "保存中..." : "保存设置"}
           </button>
@@ -118,7 +119,7 @@ export function SettingsPage() {
         className="app-rise"
       >
         <TabContent value="send" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm text-slate-600 dark:text-slate-300">
@@ -152,7 +153,7 @@ export function SettingsPage() {
                 </label>
               </div>
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>启用随机间隔</span>
                 <Checkbox
                   checked={settings.riskControl.randomInterval}
@@ -162,7 +163,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>启用间隔抖动</span>
                 <Checkbox
                   checked={settings.riskControl.jitter}
@@ -176,9 +177,9 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="receive" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>自动连接弹幕流</span>
                 <Checkbox
                   checked={settings.receive.autoConnect}
@@ -188,7 +189,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>断线自动重连</span>
                 <Checkbox
                   checked={settings.receive.autoReconnect}
@@ -236,7 +237,7 @@ export function SettingsPage() {
 
               <div className="my-2" />
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>禁言提醒</span>
                 <Checkbox
                   checked={settings.notification.muteAlert}
@@ -246,7 +247,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>Cookie 过期提醒</span>
                 <Checkbox
                   checked={settings.notification.cookieExpiry}
@@ -260,7 +261,7 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="appearance" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <label className="block text-sm text-slate-600 dark:text-slate-300">
                 关闭主窗口行为
@@ -283,7 +284,7 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="space-y-4">
               <label className="block text-sm text-slate-600 dark:text-slate-300">
                 主题
@@ -306,6 +307,60 @@ export function SettingsPage() {
                 </Select>
               </label>
 
+              <div className="block text-sm text-slate-600 dark:text-slate-300">
+                主题色
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {BRAND_PRESETS.map((preset) => {
+                    const active =
+                      settings.appearance.themeAccentLight.toLowerCase() === preset.light.toLowerCase();
+                    return (
+                      <button
+                        key={preset.name}
+                        onClick={() =>
+                          patchSettings({
+                            appearance: { ...settings.appearance, themeAccentLight: preset.light, themeAccentDark: preset.dark }
+                          })
+                        }
+                        title={preset.name}
+                        className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition ${
+                          active
+                            ? "border-brand bg-brand/10 text-ink"
+                            : "border-subtle bg-app-card text-slate-500 hover:bg-black/[0.04] dark:text-slate-400 dark:hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        <span
+                          className="h-3.5 w-3.5 rounded-full"
+                          style={{ background: `linear-gradient(90deg, ${preset.light} 50%, ${preset.dark} 50%)` }}
+                        />
+                        {preset.name.split(" ")[0]}
+                      </button>
+                    );
+                  })}
+                  <label
+                    className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-subtle bg-app-card px-2.5 text-xs text-slate-500 transition hover:bg-black/[0.04] dark:text-slate-400 dark:hover:bg-white/[0.04]"
+                    title="自定义主题色（亮暗同色）"
+                  >
+                    <input
+                      type="color"
+                      value={settings.appearance.themeAccentLight || "#3F3F46"}
+                      onChange={(event) => {
+                        const hex = event.target.value;
+                        patchSettings({
+                          appearance: { ...settings.appearance, themeAccentLight: hex, themeAccentDark: hex }
+                        });
+                      }}
+                      className="h-3.5 w-3.5 cursor-pointer appearance-none rounded-full border-none p-0"
+                      style={{ background: settings.appearance.themeAccentLight || "#3F3F46" }}
+                    />
+                    自定义
+                  </label>
+                </div>
+                <p className="mt-1.5 numeric text-xs text-slate-400 dark:text-slate-500">
+                  当前：{settings.appearance.themeAccentLight || "默认石墨"}（亮）/
+                  {" "}{settings.appearance.themeAccentDark || "默认石墨"}（暗）
+                </p>
+              </div>
+
               <label className="block text-sm text-slate-600 dark:text-slate-300">
                 弹幕字号
                 <input
@@ -326,14 +381,14 @@ export function SettingsPage() {
                 </p>
               </label>
 
-              <div className="rounded bg-[#f0f0f0] px-4 py-3 text-xs text-slate-500 dark:bg-[#0e1018] dark:text-slate-400">
+              <div className="rounded bg-app-card px-4 py-3 text-xs text-slate-500 dark:bg-app-page dark:text-slate-400">
                 <p className="mb-1 font-medium">快捷键</p>
                 <p>Ctrl + - / +：UI 整体缩放（全局）</p>
                 <p>Ctrl + 滚轮：弹幕文字大小</p>
                 <p>Ctrl + 0：UI 重置</p>
               </div>
 
-              <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+              <div className="rounded bg-app-card px-4 py-3 dark:bg-app-page">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm text-slate-600 dark:text-slate-300">默认弹幕窗口透明度</span>
                   <span className="numeric text-xs text-slate-400 dark:text-slate-500">{settings.appearance.opacity}%</span>
@@ -349,7 +404,7 @@ export function SettingsPage() {
                 />
               </div>
 
-              <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+              <div className="rounded bg-app-card px-4 py-3 dark:bg-app-page">
                 <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">活动栏（进场 / 点赞）</p>
                 <div className="mb-3 flex flex-wrap gap-1.5">
                   {ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => (
@@ -363,8 +418,8 @@ export function SettingsPage() {
                       }
                       className={`px-2.5 py-1 text-xs transition ${
                         settings.appearance.activityBarMode === value
-                          ? "bg-pink-500 text-white"
-                          : "bg-white text-slate-500 hover:bg-[#e8e8e8] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                          ? "bg-brand text-white"
+                          : "bg-white text-slate-500 hover:bg-[#e8e8e8] dark:bg-app-card dark:text-slate-400 dark:hover:bg-ink/[0.06]"
                       }`}
                     >
                       {label}
@@ -384,8 +439,8 @@ export function SettingsPage() {
                       }
                       className={`px-2.5 py-1 text-xs transition ${
                         settings.appearance.activityFilter === value
-                          ? "bg-pink-500 text-white"
-                          : "bg-white text-slate-500 hover:bg-[#e8e8e8] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                          ? "bg-brand text-white"
+                          : "bg-white text-slate-500 hover:bg-[#e8e8e8] dark:bg-app-card dark:text-slate-400 dark:hover:bg-ink/[0.06]"
                       }`}
                     >
                       {label}
@@ -394,7 +449,7 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>
                   弹幕栏显示简化醒目留言
                   <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">（礼物栏完整卡片不受影响）</span>
@@ -411,7 +466,7 @@ export function SettingsPage() {
         </TabContent>
 
         <TabContent value="audio" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">音频</h3>
             <div className="space-y-4">
               <label className="text-sm text-slate-600 dark:text-slate-300">
@@ -433,7 +488,7 @@ export function SettingsPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+              <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                 <span>进入直播间时自动播放音频</span>
                 <Checkbox
                   checked={settings.audio.autoPlay}
@@ -446,10 +501,10 @@ export function SettingsPage() {
           </div>
 
           {sttAvailable && (
-            <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+            <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
               <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">语音识别</h3>
               <div className="space-y-4">
-                <label className="flex items-center justify-between gap-3 bg-[#f0f0f0] px-4 py-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300">
+                <label className="flex items-center justify-between gap-3 bg-app-card px-4 py-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300">
                   <span>启用语音识别</span>
                   <Checkbox
                     checked={settings.stt.enabled}
@@ -500,7 +555,7 @@ export function SettingsPage() {
                   </p>
                   {modelDir && (
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 truncate rounded bg-[#ebebeb] px-2 py-1 text-xs text-slate-600 dark:bg-[#0e1018] dark:text-slate-400">
+                      <code className="flex-1 truncate rounded bg-ink/[0.05] px-2 py-1 text-xs text-slate-600 dark:bg-app-page dark:text-slate-400">
                         {modelDir}
                       </code>
                       <button
@@ -572,7 +627,7 @@ function AboutTab() {
   };
 
   return (
-    <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+    <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
       <div className="flex items-center gap-4">
         <img
           src={aboutIcon}
@@ -593,7 +648,7 @@ function AboutTab() {
             type="button"
             onClick={() => void handleCheckUpdate()}
             disabled={checking}
-            className="rounded bg-pink-500 px-3 py-1 text-xs font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded bg-brand px-3 py-1 text-xs font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {checking ? "检查中..." : "检查更新"}
           </button>
@@ -639,7 +694,7 @@ function AboutTab() {
       </div>
 
       {/* 免责声明 */}
-      <div className="mt-4 rounded-lg bg-[#f0f0f0] p-4 text-xs leading-relaxed text-slate-500 dark:bg-[#0e1018] dark:text-slate-400">
+      <div className="mt-4 rounded-lg bg-app-card p-4 text-xs leading-relaxed text-slate-500 dark:bg-app-page dark:text-slate-400">
         <p className="mb-2 font-medium text-slate-600 dark:text-slate-300">免责声明</p>
         <p>
           本软件为开源项目，仅供学习和研究使用。使用本软件所产生的任何后果由使用者自行承担。
@@ -702,7 +757,7 @@ function CacheCard() {
 
   return (
     <>
-      <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">缓存占用</h3>
           <div className="flex items-center gap-2">
@@ -724,7 +779,7 @@ function CacheCard() {
         </div>
         {stats ? (
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+            <div className="rounded bg-app-card px-4 py-3 dark:bg-app-page">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400 dark:text-slate-500">封面与头像</p>
                 <button
@@ -738,7 +793,7 @@ function CacheCard() {
               <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{formatSize(stats.imageSize)}</p>
               <p className="text-xs text-slate-400 dark:text-slate-500">{stats.imageCount} 张</p>
             </div>
-            <div className="rounded bg-[#f0f0f0] px-4 py-3 dark:bg-[#0e1018]">
+            <div className="rounded bg-app-card px-4 py-3 dark:bg-app-page">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400 dark:text-slate-500">表情包</p>
                 <button
@@ -789,7 +844,7 @@ function CacheCard() {
 
 function CacheLimitCard({ settings, patchSettings }: { settings: Settings; patchSettings: (patch: Partial<Settings>) => void }) {
   return (
-    <div className="rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+    <div className="rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
       <h3 className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
         消息缓存上限 <span className="font-normal text-slate-400 dark:text-slate-500">（弹幕/礼物/动态三栏共用，0 = 无限制，内置安全上限 3000）</span>
       </h3>

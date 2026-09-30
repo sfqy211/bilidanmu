@@ -32,7 +32,7 @@ export function AppSidebar() {
               cn(
                 "group relative flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-xl text-slate-400 transition-all duration-200 hover:bg-black/[0.05] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-white",
                 isActive &&
-                  "glass-panel text-pink-500 hover:text-pink-500 dark:text-pink-400 dark:hover:text-pink-400"
+                  "glass-panel text-brand hover:text-brand"
               )
             }
           >

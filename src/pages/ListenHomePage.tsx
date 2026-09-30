@@ -80,7 +80,7 @@ export function ListenHomePage() {
       </header>
 
       {/* BV 号直达 */}
-      <div className="app-rise mb-4 rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <div className="app-rise mb-4 rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
         <div className="flex gap-2">
           <input
             value={bvid}
@@ -94,7 +94,7 @@ export function ListenHomePage() {
           <button
             onClick={() => void handlePlay()}
             disabled={loading}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SquarePlay className="h-4 w-4" />}
             {loading ? "解析中..." : "播放"}
@@ -105,7 +105,7 @@ export function ListenHomePage() {
 
       {/* 我的收藏夹（专辑） */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-300">
               <ListMusic className="h-4 w-4" />
@@ -135,7 +135,7 @@ export function ListenHomePage() {
                 <button
                   key={folder.id}
                   onClick={() => navigate(`/listen/fav/${folder.id}`)}
-                  className="group rounded-lg bg-[#f0f0f0] p-4 text-left shadow-sm transition hover:bg-[#ebebeb] dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
+                  className="group rounded-lg bg-app-card p-4 text-left shadow-sm transition hover:bg-ink/[0.05] dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
                 >
                   <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{folder.title}</p>
                   <p className="mt-1 numeric text-xs text-slate-400 dark:text-slate-500">

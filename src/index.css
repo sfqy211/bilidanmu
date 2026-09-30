@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --background: 220 14% 96%;
+  --background: 220 8% 92%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
-  --primary: 350 100% 68%;
-  --primary-foreground: 0 0% 100%;
+  --primary: var(--primary-hsl-light, 0 0% 27%);
+  --primary-foreground: var(--brand-contrast-light, #ffffff);
   --secondary: 220 14% 94%;
   --secondary-foreground: 222 47% 11%;
   --muted: 220 14% 94%;
@@ -17,26 +17,54 @@
   --accent-foreground: 222 47% 11%;
   --border: 220 13% 89%;
   --input: 220 13% 89%;
-  --ring: 338 85% 61%;
+  --ring: var(--ring-hsl-light, 0 0% 27%);
   --radius: 0.875rem;
+
+  /* ── 设计 token：品牌色（可由设置动态覆盖；亮暗 HSL 映射的静态兜底为玫红）── */
+  --brand-rgb-light: 225 29 72;
+  --brand-rgb-dark: 251 113 133;
+  --brand-contrast-light: #ffffff;
+  --brand-contrast-dark: #18181b;
+  --primary-hsl-light: 346 77% 50%;
+  --primary-hsl-dark: 340 82% 72%;
+  --ring-hsl-light: 346 77% 50%;
+  --ring-hsl-dark: 340 82% 72%;
+  --brand-rgb: var(--brand-rgb-light);
+  --brand-contrast: var(--brand-contrast-light);
+
+  /* ── 设计 token：表面与文字（亮色）── */
+  --app-page: #ececee;
+  --app-card: #f6f6f7;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --ink: #1b1b1f;
+  --ink-muted: #6f6f7a;
 }
 
 .dark {
-  --background: 222 47% 7%;
+  --background: 240 5% 13%;
   --foreground: 210 40% 98%;
-  --card: 222 30% 10%;
+  --card: 240 5% 16%;
   --card-foreground: 210 40% 98%;
-  --primary: 350 100% 68%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 222 25% 12%;
+  --primary: var(--primary-hsl-dark, 340 82% 72%);
+  --primary-foreground: var(--brand-contrast-dark, #18181b);
+  --secondary: 240 5% 19%;
   --secondary-foreground: 210 40% 98%;
-  --muted: 222 25% 12%;
-  --muted-foreground: 215 20% 55%;
+  --muted: 240 5% 19%;
+  --muted-foreground: 220 6% 62%;
   --accent: 196 87% 55%;
   --accent-foreground: 222 47% 7%;
-  --border: 222 25% 16%;
-  --input: 222 25% 16%;
+  --border: 240 5% 26%;
+  --input: 240 5% 26%;
   --ring: 338 85% 61%;
+
+  /* ── 设计 token：表面与文字（暗色）── */
+  --app-page: #232327;
+  --app-card: #2a2a2f;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --ink: #e8e8ea;
+  --ink-muted: #9a9aa3;
+  --brand-rgb: var(--brand-rgb-dark);
+  --brand-contrast: var(--brand-contrast-dark);
 }
 
 * {
@@ -111,10 +139,10 @@ body {
 
 /* 应用底色：浅色米白、深色墨蓝 */
 .app-atmosphere {
-  background-color: #f4f4f6;
+  background-color: #eaeaec;
 }
 .dark .app-atmosphere {
-  background-color: #0a0c14;
+  background-color: #202024;
 }
 
 /* 玻璃面板：半透明 + 背景模糊 + 极细描边 */
@@ -126,7 +154,7 @@ body {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.10);
 }
 .dark .glass-panel {
-  background-color: rgba(20, 23, 34, 0.55);
+  background-color: rgba(42, 42, 48, 0.6);
   border-color: rgba(255, 255, 255, 0.06);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 12px 32px -12px rgba(0, 0, 0, 0.45);
 }

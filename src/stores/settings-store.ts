@@ -51,7 +51,9 @@ export const defaultSettings: Settings = {
     activityBarMode: "latest",
     activityFilter: "all",
     scInDanmaku: false,
-    dockAnimMs: 220
+    dockAnimMs: 220,
+    themeAccentLight: "#E11D48",
+    themeAccentDark: "#FB7185"
   },
   notification: {
     muteAlert: true,

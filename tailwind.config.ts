@@ -44,7 +44,23 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        // 设计 token（见 .impeccable.md / index.css）：brand 支持透明度修饰符
+        brand: {
+          DEFAULT: "rgb(var(--brand-rgb) / <alpha-value>)",
+          contrast: "var(--brand-contrast)",
+        },
+        app: {
+          page: "var(--app-page)",
+          card: "var(--app-card)",
+        },
+        ink: {
+          DEFAULT: "var(--ink)",
+          muted: "var(--ink-muted)",
         }
+      },
+      borderColor: {
+        subtle: "var(--border-subtle)"
       },
       borderRadius: {
         lg: "var(--radius)",

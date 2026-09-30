@@ -117,7 +117,7 @@ export function ListenFavPage() {
       {error && <InlineMessage key={msgKey} type="error" className="mb-3">{error}</InlineMessage>}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
           {loading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : resources.length > 0 ? (
@@ -128,7 +128,7 @@ export function ListenFavPage() {
                     key={resource.bvid}
                     onClick={() => void handlePlay(resource, index)}
                     disabled={playingBvid != null}
-                    className="group flex items-center gap-3 rounded-lg bg-[#f0f0f0] p-2.5 text-left shadow-sm transition hover:bg-[#ebebeb] disabled:cursor-not-allowed dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
+                    className="group flex items-center gap-3 rounded-lg bg-app-card p-2.5 text-left shadow-sm transition hover:bg-ink/[0.05] disabled:cursor-not-allowed dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
                   >
                     {resource.cover ? (
                       <ProxiedImage
@@ -137,7 +137,7 @@ export function ListenFavPage() {
                         className="h-11 w-[72px] shrink-0 rounded object-cover"
                       />
                     ) : (
-                      <div className="flex h-11 w-[72px] shrink-0 items-center justify-center rounded bg-pink-500/10 text-pink-500">
+                      <div className="flex h-11 w-[72px] shrink-0 items-center justify-center rounded bg-brand/10 text-brand">
                         <Disc3 className="h-4 w-4" />
                       </div>
                     )}
@@ -148,7 +148,7 @@ export function ListenFavPage() {
                     <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">
                       {formatDuration(resource.duration)}
                     </span>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-pink-500 transition group-hover:bg-pink-500/10">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
                       {playingBvid === resource.bvid ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (

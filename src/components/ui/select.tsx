@@ -173,7 +173,7 @@ const SelectTrigger = React.forwardRef<
       className={cn(
         "flex h-11 w-full items-center justify-between gap-2 whitespace-nowrap rounded-[0.625rem] border border-slate-300/60 bg-white/70 px-4 text-sm text-slate-900 shadow-sm outline-none transition",
         "hover:border-pink-400/60",
-        "focus-visible:border-pink-500/55 focus-visible:bg-white/95 focus-visible:shadow-[0_0_0_3px_rgba(244,63,94,0.14)]",
+        "focus-visible:border-brand/55 focus-visible:bg-white/95 focus-visible:shadow-[0_0_0_3px_rgba(244,63,94,0.14)]",
         "disabled:cursor-not-allowed disabled:opacity-55",
         "dark:border-white/12 dark:bg-white/[0.06] dark:text-slate-100",
         "dark:hover:border-pink-400/50",
@@ -272,13 +272,13 @@ const SelectItem = React.forwardRef<
       onMouseEnter={() => setHighlightedIndex(myIndex)}
       className={cn(
         "relative flex w-full cursor-pointer select-none items-center whitespace-nowrap rounded-lg py-2.5 pl-3 pr-8 text-sm text-slate-700 outline-none transition-colors",
-        "hover:bg-pink-500/10 hover:text-pink-700",
-        isHighlighted && "bg-pink-500/10 text-pink-700",
-        isSelected && "font-medium text-pink-600",
+        "hover:bg-brand/10 hover:text-pink-700",
+        isHighlighted && "bg-brand/10 text-pink-700",
+        isSelected && "font-medium text-brand",
         "dark:text-slate-300",
-        "dark:hover:bg-pink-500/15 dark:hover:text-pink-300",
-        isHighlighted && "dark:bg-pink-500/15 dark:text-pink-300",
-        isSelected && "dark:text-pink-400",
+        "dark:hover:bg-brand/15 dark:hover:text-brand",
+        isHighlighted && "dark:bg-brand/15 dark:text-brand",
+        isSelected && "dark:text-brand",
         className
       )}
       {...props}
@@ -286,7 +286,7 @@ const SelectItem = React.forwardRef<
       <span>{children}</span>
       {isSelected && (
         <span className="absolute right-2.5 flex h-3.5 w-3.5 items-center justify-center">
-          <Check className="h-3.5 w-3.5 text-pink-500 [&_path]:stroke-[3]" />
+          <Check className="h-3.5 w-3.5 text-brand [&_path]:stroke-[3]" />
         </span>
       )}
     </div>

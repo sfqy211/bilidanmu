@@ -25,7 +25,7 @@ export function PageTabs({
           <Tabs.Trigger
             key={tab.value}
             value={tab.value}
-            className="relative px-4 py-2.5 text-sm text-slate-500 transition hover:text-slate-700 data-[state=active]:text-slate-900 data-[state=active]:after:absolute data-[state=active]:after:inset-x-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-pink-500 dark:text-slate-400 dark:hover:text-slate-200 dark:data-[state=active]:text-white"
+            className="relative px-4 py-2.5 text-sm text-slate-500 transition hover:text-slate-700 data-[state=active]:text-slate-900 data-[state=active]:after:absolute data-[state=active]:after:inset-x-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-brand dark:text-slate-400 dark:hover:text-slate-200 dark:data-[state=active]:text-white"
           >
             {tab.label}
           </Tabs.Trigger>

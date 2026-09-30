@@ -102,7 +102,7 @@ export function RoomAddPage() {
     return (
       <div
         key={`${keyPrefix}-${room.roomId}`}
-        className="flex items-center gap-3 rounded-lg bg-[#f8f8f8] p-3 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06]"
+        className="flex items-center gap-3 rounded-lg bg-app-card p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:ring-1 dark:ring-white/[0.06]"
       >
         {room.avatar ? (
           <ProxiedImage
@@ -111,7 +111,7 @@ export function RoomAddPage() {
             className="h-9 w-9 shrink-0 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pink-500/10 text-sm font-medium text-pink-500 dark:text-pink-300">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-medium text-brand">
             {room.uname.charAt(0)}
           </div>
         )}
@@ -119,7 +119,7 @@ export function RoomAddPage() {
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
             {room.isLive && (
-              <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-rose-500" />
+              <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-brand" />
             )}
           </div>
           <p className="truncate text-xs text-slate-500 dark:text-slate-400">{room.title}</p>
@@ -131,7 +131,7 @@ export function RoomAddPage() {
           <button
             onClick={() => void handleAdd(room.roomId)}
             disabled={addingRoomIds.has(room.roomId)}
-            className="shrink-0 rounded p-1.5 text-pink-500 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-pink-300 dark:hover:bg-pink-500/20"
+            className="shrink-0 rounded p-1.5 text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-50"
             title="添加"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ export function RoomAddPage() {
             <button
               onClick={() => void handleSearch()}
               disabled={loading}
-              className="shrink-0 rounded-md bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="shrink-0 rounded-md bg-brand px-4 text-sm font-medium text-brand-contrast transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "搜索中..." : "搜索"}
             </button>

@@ -52,9 +52,9 @@ export function CloseDialog({ open, onHide, onExit, onCancel, onRemember }: Clos
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         ref={dialogRef}
-        className="flex w-full max-w-sm flex-col items-center rounded-lg bg-[#f8f8f8] p-6 shadow-lg dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]"
+        className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-card p-6 shadow-lg dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100 text-pink-500 dark:bg-pink-500/15 dark:text-pink-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/10 text-brand dark:bg-brand/15 dark:text-brand">
           <X className="h-5 w-5" />
         </div>
         <h3 className="mt-3 text-base font-medium text-slate-900 dark:text-white">关闭窗口</h3>
@@ -71,7 +71,7 @@ export function CloseDialog({ open, onHide, onExit, onCancel, onRemember }: Clos
           </button>
           <button
             onClick={handleExit}
-            className="flex-1 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
+            className="flex-1 rounded bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
           >
             退出程序
           </button>

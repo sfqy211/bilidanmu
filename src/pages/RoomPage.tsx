@@ -207,8 +207,8 @@ export function RoomPage() {
                 {liveCount > 0 && (
                   <>
                     <span className="text-slate-300 dark:text-slate-600">·</span>
-                    <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-rose-500" />
-                    <span className="numeric font-medium text-rose-500">{liveCount}</span>
+                    <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-brand" />
+                    <span className="numeric font-medium text-brand">{liveCount}</span>
                     个直播中
                   </>
               )}
@@ -252,7 +252,7 @@ export function RoomPage() {
             </button>
             <button
               onClick={() => navigate("/rooms/add")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-pink-500 px-4 text-sm font-medium text-white shadow-[0_4px_16px_-4px_rgba(236,72,153,0.5)] transition hover:bg-pink-400 active:scale-[0.97]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-medium text-brand-contrast transition hover:opacity-90 active:scale-[0.97]"
             >
               <Plus className="h-4 w-4" />
               添加
@@ -262,7 +262,7 @@ export function RoomPage() {
       </header>
 
       {mockEnabled && (
-        <div className="app-rise mb-3 flex items-center gap-3 rounded-lg bg-pink-500/5 px-3 py-2.5 shadow-sm ring-1 ring-pink-500/25 dark:bg-pink-500/10">
+        <div className="app-rise mb-3 flex items-center gap-3 rounded-lg bg-brand/[0.06] px-3 py-2.5 shadow-sm ring-1 ring-brand/20">
           <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-900 dark:text-white">测试直播间（虚拟）</p>
@@ -272,7 +272,7 @@ export function RoomPage() {
             onClick={() => {
               void tauriCommands.room.openDanmaku(0);
             }}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-pink-50 hover:text-pink-500 dark:text-slate-400 dark:hover:bg-pink-500/15 dark:hover:text-pink-300"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-brand/10 hover:text-brand dark:hover:bg-brand/15 dark:hover:text-brand"
             title="打开弹幕"
           >
             <MonitorPlay className="h-4 w-4" />
@@ -282,8 +282,8 @@ export function RoomPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rooms.length === 0 ? (
-          <div className="app-rise flex flex-col items-center justify-center gap-4 rounded-lg bg-[#f8f8f8] px-6 py-20 text-center shadow-sm dark:bg-[#0e1018] dark:ring-1 dark:ring-white/[0.06]">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-500/10 text-pink-500 dark:text-pink-400">
+          <div className="app-rise flex flex-col items-center justify-center gap-4 rounded-lg bg-app-card px-6 py-20 text-center shadow-sm dark:bg-[#232327] dark:ring-1 dark:ring-white/[0.06]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-brand dark:text-brand">
               <MonitorPlay className="h-8 w-8" strokeWidth={1.6} />
             </div>
             <div>
@@ -294,11 +294,11 @@ export function RoomPage() {
             </div>
           </div>
         ) : previewRooms.length === 0 ? (
-          <div className="app-rise rounded-lg bg-[#f8f8f8] px-6 py-16 text-center text-sm text-slate-400 shadow-sm dark:bg-[#0e1018] dark:text-slate-500 dark:ring-1 dark:ring-white/[0.06]">
+          <div className="app-rise rounded-lg bg-app-card px-6 py-16 text-center text-sm text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:bg-[#232327] dark:text-slate-500 dark:ring-1 dark:ring-white/[0.06]">
             没有匹配的直播间
           </div>
         ) : viewMode === "list" ? (
-          <div className="app-rise flex flex-col gap-2">
+          <div className="app-rise flex flex-col gap-1.5">
             {previewRooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];
@@ -307,24 +307,28 @@ export function RoomPage() {
                   key={room.id}
                   data-room-id={room.id}
                   onMouseDown={(e) => handleDragMouseDown(room, e)}
-                  className={`group flex items-center gap-3 rounded-lg bg-[#f8f8f8] px-3 py-2.5 shadow-sm transition-opacity dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] ${
+                  className={`group flex items-center gap-3 rounded-lg px-3 py-1.5 transition-colors ${
                     draggingId === room.id
-                      ? "opacity-60 outline outline-2 outline-pink-500/70"
+                      ? "opacity-60 outline outline-2 outline-brand"
                       : ""
-                  } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"}`}
+                  } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"} ${
+                    isLive ? "bg-brand/[0.06]" : "hover:bg-ink/[0.04]"
+                  }`}
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "live-dot bg-rose-500" : "bg-slate-400 dark:bg-slate-500"}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>
-                      {active && (
-                        <span className="shrink-0 rounded bg-pink-500/15 px-1.5 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-300">当前</span>
-                      )}
-                    </div>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{room.title}</p>
-                  </div>
-                  <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
-                  <span className={`shrink-0 text-xs font-medium ${isLive ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`}>
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                      isLive ? "live-dot bg-brand" : "bg-slate-400 dark:bg-slate-500"
+                    }`}
+                  />
+                  <p className="shrink-0 text-[13px] font-medium text-ink">{room.uname}</p>
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink-muted">
+                    {room.title || " "}
+                  </span>
+                  {active && (
+                    <span className="shrink-0 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">当前</span>
+                  )}
+                  <span className="numeric shrink-0 text-xs text-ink-muted">{room.roomId}</span>
+                  <span className={`w-12 shrink-0 text-right text-xs ${isLive ? "text-brand" : "text-ink-muted"}`}>
                     {isLive ? "直播中" : "未开播"}
                   </span>
                   <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
@@ -334,7 +338,7 @@ export function RoomPage() {
                         void tauriCommands.selections.save({ currentRoomId: room.roomId });
                         void tauriCommands.room.openDanmaku(room.roomId);
                       }}
-                      className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-pink-50 hover:text-pink-500 dark:text-slate-400 dark:hover:bg-pink-500/15 dark:hover:text-pink-300"
+                      className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-brand/10 hover:text-brand dark:hover:bg-brand/15 dark:hover:text-brand"
                       title="打开弹幕"
                     >
                       <MonitorPlay className="h-4 w-4" />
@@ -368,13 +372,13 @@ export function RoomPage() {
                   key={room.id}
                   data-room-id={room.id}
                   onMouseDown={(e) => handleDragMouseDown(room, e)}
-                  className={`group overflow-hidden rounded-lg shadow-sm transition-opacity dark:ring-1 dark:ring-white/[0.06] ${
+                  className={`group overflow-hidden rounded-xl bg-app-card shadow-[0_1px_2px_rgba(0,0,0,0.06),0_4px_12px_-4px_rgba(0,0,0,0.08)] transition-[opacity,box-shadow] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_10px_24px_-8px_rgba(0,0,0,0.16)] ${
                     draggingId === room.id
-                      ? "opacity-60 outline outline-2 outline-pink-500/70"
+                      ? "opacity-60 outline outline-2 outline-brand"
                       : ""
                   } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"}`}
                 >
-                  <div className="relative aspect-video bg-[#ebebeb] dark:bg-[#0e1018]">
+                  <div className="relative aspect-video bg-ink/[0.05] dark:bg-[#232327]">
                     {room.cover ? (
                       <ProxiedImage
                         src={room.cover}
@@ -444,11 +448,11 @@ export function RoomPage() {
 
                     <div className="absolute right-2 top-2 flex items-center gap-1.5">
                       {active && (
-                        <span className="bg-pink-500/80 px-2 py-0.5 text-xs font-medium text-white">当前</span>
+                        <span className="bg-brand px-2 py-0.5 text-xs font-medium text-brand-contrast">当前</span>
                       )}
                       <span className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium ${
                         isLive
-                          ? "bg-rose-500/80 text-white"
+                          ? "bg-brand text-brand-contrast"
                           : "bg-black/40 text-white/70"
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-white animate-pulse" : "bg-white/50"}`} />

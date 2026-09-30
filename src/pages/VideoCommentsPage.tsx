@@ -334,8 +334,8 @@ export function VideoCommentsPage() {
               onClick={() => setSort(value)}
               className={`px-3 py-1.5 text-xs transition ${
                 sort === value
-                  ? "bg-pink-500 text-white"
-                  : "bg-[#f8f8f8] text-slate-500 hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-slate-400 dark:hover:bg-[#22242e]"
+                  ? "bg-brand text-white"
+                  : "bg-app-card text-slate-500 hover:bg-ink/[0.05] dark:bg-app-card dark:text-slate-400 dark:hover:bg-ink/[0.06]"
               }`}
             >
               {label}
@@ -347,7 +347,7 @@ export function VideoCommentsPage() {
       {error && <InlineMessage key={msgKey} type="error" className="mb-3">{error}</InlineMessage>}
 
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
           {loading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : comments.length > 0 ? (
@@ -365,7 +365,7 @@ export function VideoCommentsPage() {
                           className="h-9 w-9 shrink-0 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pink-500/10 text-sm text-pink-500">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm text-brand">
                           {comment.memberName.charAt(0)}
                         </div>
                       )}
@@ -408,7 +408,7 @@ export function VideoCommentsPage() {
                               isAnonymous
                                 ? "cursor-default"
                                 : isLiked
-                                  ? "text-pink-500 dark:text-pink-300"
+                                  ? "text-brand dark:text-brand"
                                   : "hover:text-slate-600 dark:hover:text-slate-300"
                             )}
                             title={isAnonymous ? "登录后可点赞" : isLiked ? "取消点赞" : "点赞"}
@@ -430,7 +430,7 @@ export function VideoCommentsPage() {
                                     className="h-6 w-6 shrink-0 rounded-full object-cover"
                                   />
                                 ) : (
-                                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pink-500/10 text-[10px] text-pink-500">
+                                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[10px] text-brand">
                                     {sub.memberName.charAt(0)}
                                   </div>
                                 )}
@@ -462,7 +462,7 @@ export function VideoCommentsPage() {
                             {subState.list.length < subState.total && (
                               <button
                                 onClick={() => void loadMoreReplies(comment.rpid)}
-                                className="self-start text-xs text-pink-500 transition hover:text-pink-400"
+                                className="self-start text-xs text-brand transition hover:text-brand"
                               >
                                 查看更多回复（{subState.list.length}/{subState.total}）
                               </button>
@@ -494,7 +494,7 @@ export function VideoCommentsPage() {
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 w-36 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/10 dark:bg-[#1a1c24] dark:ring-white/10"
+            className="fixed z-50 w-36 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/10 dark:bg-app-card dark:ring-white/10"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -520,12 +520,12 @@ export function VideoCommentsPage() {
       {/* 输入框固定在页面底部 */}
       <div
         className={cn(
-          "relative z-30 mt-3 shrink-0 rounded-lg bg-[#f8f8f8] p-3 shadow-sm transition-shadow dark:bg-[#12141e] dark:ring-1",
+          "relative z-30 mt-3 shrink-0 rounded-lg bg-app-card p-3 shadow-sm transition-shadow dark:bg-app-card dark:ring-1",
           replyTo ? "ring-2 ring-pink-500/60 dark:ring-pink-500/60" : "dark:ring-white/[0.06]"
         )}
       >
         {replyTo && (
-          <div className="mb-2 flex items-center gap-1.5 text-xs text-pink-500 dark:text-pink-300">
+          <div className="mb-2 flex items-center gap-1.5 text-xs text-brand dark:text-brand">
             <CornerDownRight className="h-3 w-3" />
             正在回复 @{replyTo.memberName}
             <button
@@ -558,7 +558,7 @@ export function VideoCommentsPage() {
           <button
             onClick={() => void sendComment()}
             disabled={isAnonymous || sending || !draft.trim()}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
             title={isAnonymous ? "登录后可发布评论" : "发布"}
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

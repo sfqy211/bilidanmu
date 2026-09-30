@@ -239,7 +239,7 @@ export function AccountPage() {
               </button>
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90"
               >
                 <Plus className="h-4 w-4" />
                 添加账号
@@ -251,7 +251,7 @@ export function AccountPage() {
 
       {showWarning ? (
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="flex w-full max-w-lg flex-col items-center rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="flex w-full max-w-lg flex-col items-center rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
               <AlertTriangle className="h-6 w-6" />
             </div>
@@ -274,7 +274,7 @@ export function AccountPage() {
               </button>
               <button
                 onClick={handleConfirmWarning}
-                className="rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400"
+                className="rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand/90"
               >
                 我已知晓，继续
               </button>
@@ -283,12 +283,12 @@ export function AccountPage() {
         </div>
       ) : showAdd ? (
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-[#f8f8f8] p-6 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+          <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex w-full items-center justify-between">
               <h3 className="text-base font-medium text-slate-900 dark:text-white">扫码登录</h3>
               <button
                 onClick={handleCloseAdd}
-                className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-ink/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -305,7 +305,7 @@ export function AccountPage() {
                   className="h-[180px] w-[180px] bg-white"
                 />
               ) : (
-                <div className="flex h-[180px] w-[180px] items-center justify-center bg-[#f0f0f0] dark:bg-[#0e1018]">
+                <div className="flex h-[180px] w-[180px] items-center justify-center bg-app-card dark:bg-app-page">
                   {loading ? (
                     <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                   ) : (
@@ -317,7 +317,7 @@ export function AccountPage() {
               <button
                 onClick={() => void handleCreateQr()}
                 disabled={loading}
-                className="rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "生成中..." : authCode ? "刷新二维码" : "生成二维码"}
               </button>
@@ -330,7 +330,7 @@ export function AccountPage() {
         </div>
       ) : accounts.length === 0 && activeAccountId !== ANONYMOUS_ACCOUNT_ID ? (
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="rounded-lg bg-[#f0f0f0] p-6 text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-[#0e1018] dark:text-slate-500 dark:ring-white/[0.06]">
+          <div className="rounded-lg bg-app-card p-6 text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-app-page dark:text-slate-500 dark:ring-white/[0.06]">
             当前还没有登录账号。点击右上角「添加账号」扫码登录，或使用「匿名模式」。
           </div>
         </div>
@@ -338,7 +338,7 @@ export function AccountPage() {
         <div className="app-rise space-y-2">
           {/* 匿名模式条目 */}
           {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
-            <div className="rounded-lg bg-[#f8f8f8] p-4 shadow-sm ring-2 ring-pink-300 dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] dark:ring-pink-500/40">
+            <div className="rounded-lg bg-app-card p-4 shadow-sm ring-2 ring-pink-300 dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:ring-pink-500/40">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
@@ -370,8 +370,8 @@ export function AccountPage() {
             return (
               <div
                 key={account.accountId}
-                className={`rounded-lg bg-[#f8f8f8] p-4 shadow-sm dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] ${
-                  isActive ? "ring-2 ring-pink-300 dark:ring-pink-500/40" : ""
+                className={`rounded-lg bg-app-card p-4 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] ${
+                  isActive ? "ring-2 ring-brand dark:ring-brand/40" : ""
                 }`}
               >
                 <div className="flex items-center justify-between gap-4">
@@ -384,7 +384,7 @@ export function AccountPage() {
                         className="h-12 w-12 shrink-0 object-cover"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-[#ebebeb] text-slate-400 dark:bg-[#0e1018] dark:text-slate-300">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-ink/[0.05] text-slate-400 dark:bg-app-page dark:text-slate-300">
                         <UserRound className="h-5 w-5" />
                       </div>
                     )}
@@ -427,7 +427,7 @@ export function AccountPage() {
                         onClick={() => void handleSwitchAccount(account.accountId)}
                         disabled={isSwitching}
                         title="切换"
-                        className="p-1.5 text-pink-600 transition hover:bg-pink-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-pink-300 dark:hover:bg-pink-500/10"
+                        className="p-1.5 text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-60 dark:text-brand dark:hover:bg-brand/10"
                       >
                         {isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
                       </button>

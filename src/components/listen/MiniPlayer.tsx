@@ -16,11 +16,11 @@ export function MiniPlayer() {
   if (!track) return null;
 
   return (
-    <div className="app-rise fixed bottom-0 left-0 right-0 z-40 flex items-center gap-3 border-t border-black/5 bg-[#f8f8f8]/95 px-4 py-2 shadow-[0_-4px_20px_-8px_rgba(0,0,0,0.15)] backdrop-blur dark:border-white/[0.06] dark:bg-[#161822]/95">
+    <div className="app-rise fixed bottom-0 left-0 right-0 z-40 flex items-center gap-3 border-t border-black/5 bg-app-card/95 px-4 py-2 shadow-[0_-4px_20px_-8px_rgba(0,0,0,0.15)] backdrop-blur dark:border-white/[0.06] dark:bg-app-card/95">
       {track.cover ? (
         <ProxiedImage src={track.cover} alt="" className="h-9 w-14 shrink-0 rounded object-cover" />
       ) : (
-        <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded bg-pink-500/10 text-pink-500">
+        <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded bg-brand/10 text-brand">
           <ListMusic className="h-4 w-4" />
         </div>
       )}
@@ -43,7 +43,7 @@ export function MiniPlayer() {
         </button>
         <button
           onClick={() => void togglePlay()}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-500 text-white transition hover:bg-pink-400"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand/90"
           title={playing ? "暂停" : "播放"}
         >
           {loading ? (

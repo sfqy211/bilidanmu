@@ -116,7 +116,7 @@ export function ListenSearchPage() {
         </p>
       </header>
 
-      <div className="app-rise mb-4 rounded-lg bg-[#f8f8f8] p-4 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+      <div className="app-rise mb-4 rounded-lg bg-app-card p-4 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
         <div className="flex gap-2">
           <input
             value={keyword}
@@ -130,7 +130,7 @@ export function ListenSearchPage() {
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-pink-500 px-4 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
             {loading ? "搜索中..." : "搜索"}
@@ -140,7 +140,7 @@ export function ListenSearchPage() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
           {loading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : !searched ? (
@@ -157,12 +157,12 @@ export function ListenSearchPage() {
                     key={item.bvid}
                     onClick={() => void handlePlay(item, index)}
                     disabled={playingBvid != null}
-                    className="group flex items-center gap-3 rounded-lg bg-[#f0f0f0] p-2.5 text-left shadow-sm transition hover:bg-[#ebebeb] disabled:cursor-not-allowed dark:bg-[#161822] dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
+                    className="group flex items-center gap-3 rounded-lg bg-app-card p-2.5 text-left shadow-sm transition hover:bg-ink/[0.05] disabled:cursor-not-allowed dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
                   >
                     {item.cover ? (
                       <ProxiedImage src={item.cover} alt="" className="h-11 w-[72px] shrink-0 rounded object-cover" />
                     ) : (
-                      <div className="h-11 w-[72px] shrink-0 rounded bg-pink-500/10" />
+                      <div className="h-11 w-[72px] shrink-0 rounded bg-brand/10" />
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
@@ -171,7 +171,7 @@ export function ListenSearchPage() {
                     <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">
                       {formatDuration(item.duration)}
                     </span>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-pink-500 transition group-hover:bg-pink-500/10">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
                       {playingBvid === item.bvid ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (

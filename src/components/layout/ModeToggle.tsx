@@ -23,7 +23,7 @@ export function ModeToggle() {
       className={cn(
         "flex h-7 shrink-0 items-center gap-2 rounded-full border p-0.5 transition-colors",
         mode === "live"
-          ? "border-pink-500/50 bg-pink-500/10"
+          ? "border-brand/50 bg-brand/10"
           : "border-black/10 bg-black/[0.04] dark:border-white/10 dark:bg-white/[0.06]"
       )}
     >
@@ -33,7 +33,7 @@ export function ModeToggle() {
       <span
         className={cn(
           "flex h-6 w-6 items-center justify-center rounded-full shadow-sm",
-          mode === "live" ? "bg-pink-500 text-white" : "bg-white text-pink-500 dark:text-pink-400"
+          mode === "live" ? "bg-brand text-brand-contrast" : "bg-white text-brand dark:text-brand"
         )}
       >
         {mode === "live" ? <MonitorPlay className="h-3.5 w-3.5" /> : <Headphones className="h-3.5 w-3.5" />}

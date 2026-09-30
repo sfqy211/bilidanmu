@@ -54,7 +54,7 @@ export function OpacitySlider({
           }
         }}
         onBlur={(e) => commit(Number((e.currentTarget as HTMLInputElement).value))}
-        className="h-1 min-w-0 flex-1 cursor-pointer accent-pink-500"
+        className="h-1 min-w-0 flex-1 cursor-pointer accent-brand"
       />
       <span className={`w-9 shrink-0 text-right ${valueClassName}`}>{local}%</span>
     </div>

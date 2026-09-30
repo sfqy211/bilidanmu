@@ -104,7 +104,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         ref={dialogRef}
-        className="flex w-full max-w-md flex-col rounded-lg bg-[#f8f8f8] p-6 shadow-lg dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]"
+        className="flex w-full max-w-md flex-col rounded-lg bg-app-card p-6 shadow-lg dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]"
       >
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
           发现新版本 v{updateInfo.latestVersion}
@@ -117,7 +117,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
         </p>
 
         <div
-          className="update-changelog mt-4 max-h-48 overflow-y-auto rounded bg-[#f0f0f0] p-3 text-sm text-slate-600 dark:bg-[#0e1018] dark:text-slate-300"
+          className="update-changelog mt-4 max-h-48 overflow-y-auto rounded bg-app-card p-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300"
           dangerouslySetInnerHTML={{ __html: changelogHtml }}
         />
 
@@ -137,7 +137,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10 dark:bg-white/[0.06]">
               <div
-                className="h-full bg-pink-500 transition-all"
+                className="h-full bg-brand transition-all"
                 style={{ width: progress.total > 0 ? `${downloadPercent}%` : "100%" }}
               />
             </div>
@@ -168,7 +168,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
                 <button
                   onClick={() => void handleDownload(cdnUrl(asset.downloadUrl), asset.name)}
                   disabled={isDownloading}
-                  className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Zap className="h-4 w-4" />
                   {asset.name.endsWith(".exe") ? "EXE 加速" : asset.name.endsWith(".msi") ? "MSI 加速" : "ZIP 加速"}
@@ -188,7 +188,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
               href={updateInfo.releaseUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded bg-pink-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-pink-400"
+              className="inline-flex items-center gap-1.5 rounded bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
             >
               <ExternalLink className="h-4 w-4" />
               前往 GitHub 下载

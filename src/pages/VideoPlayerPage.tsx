@@ -170,7 +170,7 @@ export function VideoPlayerPage() {
     cn(
       "cursor-pointer transition-colors",
       i === activeSubtitleIndex
-        ? "font-semibold text-pink-500 dark:text-pink-300"
+        ? "font-semibold text-brand dark:text-brand"
         : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
     );
 
@@ -237,14 +237,14 @@ export function VideoPlayerPage() {
         </div>
 
         {/* 底部小横条播放器 */}
-        <div className="relative shrink-0 border-t border-black/5 bg-[#f8f8f8]/95 dark:border-white/[0.06] dark:bg-[#161822]/95">
+        <div className="relative shrink-0 border-t border-black/5 bg-app-card/95 dark:border-white/[0.06] dark:bg-app-card/95">
           {/* 迷你进度线 */}
           <div
             onClick={handleSeek}
             className="absolute inset-x-0 top-0 h-1 cursor-pointer bg-black/[0.06] dark:bg-white/[0.06]"
           >
             <div
-              className="h-full bg-pink-500"
+              className="h-full bg-brand"
               style={{ width: displayDuration ? `${(currentTime / displayDuration) * 100}%` : "0%" }}
             />
           </div>
@@ -252,7 +252,7 @@ export function VideoPlayerPage() {
             {video.cover ? (
               <ProxiedImage src={video.cover} alt="" className="h-9 w-14 shrink-0 rounded object-cover" />
             ) : (
-              <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded bg-pink-500/10 text-pink-500">
+              <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded bg-brand/10 text-brand">
                 <Disc3 className="h-4 w-4" />
               </div>
             )}
@@ -273,7 +273,7 @@ export function VideoPlayerPage() {
               </button>
               <button
                 onClick={() => void togglePlay()}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-500 text-white transition hover:bg-pink-400"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand/90"
                 title={playing ? "暂停" : "播放"}
               >
                 {loading ? (
@@ -341,12 +341,12 @@ export function VideoPlayerPage() {
               {video.cover ? (
                 <ProxiedImage src={video.cover} alt={video.title} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-pink-500/20 text-pink-500">
+                <div className="flex h-full w-full items-center justify-center bg-brand/20 text-brand">
                   <Disc3 className="h-8 w-8" />
                 </div>
               )}
             </div>
-            <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f8f8f8] dark:bg-[#12141e]" />
+            <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-app-card dark:bg-app-card" />
           </div>
         </div>
 
@@ -422,7 +422,7 @@ export function VideoPlayerPage() {
             title="拖动进度"
           >
             <div
-              className="h-full rounded-full bg-pink-500 transition-[width] duration-150"
+              className="h-full rounded-full bg-brand transition-[width] duration-150"
               style={{ width: displayDuration ? `${(currentTime / displayDuration) * 100}%` : "0%" }}
             />
           </div>
@@ -453,7 +453,7 @@ export function VideoPlayerPage() {
             </button>
             <button
               onClick={() => void togglePlay()}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-500 text-white shadow-[0_4px_16px_-4px_rgba(236,72,153,0.5)] transition hover:bg-pink-400"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-white shadow-[0_4px_16px_-4px_rgba(236,72,153,0.5)] transition hover:bg-brand/90"
               title={playing ? "暂停" : "播放"}
             >
               {loading ? (
@@ -487,7 +487,7 @@ export function VideoPlayerPage() {
                   <ChevronDown className={cn("h-3 w-3 transition-transform", queueMenuOpen && "rotate-180")} />
                 </button>
                 {queueMenuOpen && (
-                  <div className="absolute bottom-full right-0 z-30 mb-2 w-56 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/10 dark:bg-[#1a1c24] dark:ring-white/10">
+                  <div className="absolute bottom-full right-0 z-30 mb-2 w-56 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/10 dark:bg-app-card dark:ring-white/10">
                     <p className="px-3 pb-1 pt-2.5 text-[11px] text-slate-400 dark:text-slate-500">
                       当前：{queue.title}
                     </p>
@@ -507,7 +507,7 @@ export function VideoPlayerPage() {
                           }}
                           className={cn(
                             "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-black/5 dark:hover:bg-white/[0.06]",
-                            isCurrent ? "text-pink-500" : "text-slate-600 dark:text-slate-300"
+                            isCurrent ? "text-brand" : "text-slate-600 dark:text-slate-300"
                           )}
                         >
                           <Disc3 className="h-3.5 w-3.5 shrink-0" />
@@ -528,7 +528,7 @@ export function VideoPlayerPage() {
                 max={100}
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
-                className="h-1 w-full cursor-pointer accent-pink-500"
+                className="h-1 w-full cursor-pointer accent-brand"
                 title="音量"
               />
               <span className="numeric w-7 shrink-0 text-right text-xs text-slate-400 dark:text-slate-500">

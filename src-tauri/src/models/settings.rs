@@ -127,6 +127,12 @@ pub struct AppearanceSetting {
     /// 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画
     #[serde(default = "default_dock_anim_ms")]
     pub dock_anim_ms: u32,
+    /// 自定义主题色（亮色模式 hex，空 = 默认石墨）
+    #[serde(default)]
+    pub theme_accent_light: String,
+    /// 自定义主题色（暗色模式 hex，空 = 默认石墨）
+    #[serde(default)]
+    pub theme_accent_dark: String,
 }
 
 fn default_dock_anim_ms() -> u32 {
@@ -295,6 +301,8 @@ impl Default for Settings {
                 activity_filter: ActivityFilter::default(),
                 sc_in_danmaku: false,
                 dock_anim_ms: default_dock_anim_ms(),
+                theme_accent_light: String::new(),
+                theme_accent_dark: String::new(),
             },
             notification: NotificationSetting {
                 mute_alert: true,

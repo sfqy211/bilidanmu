@@ -255,6 +255,10 @@ export interface Settings {
     scInDanmaku: boolean;
     /** 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画 */
     dockAnimMs: number;
+    /** 自定义主题色（亮色模式 hex，空 = 默认石墨） */
+    themeAccentLight: string;
+    /** 自定义主题色（暗色模式 hex，空 = 默认石墨） */
+    themeAccentDark: string;
   };
   notification: {
     muteAlert: boolean;
