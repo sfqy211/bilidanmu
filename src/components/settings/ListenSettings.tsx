@@ -22,8 +22,6 @@ export function ListenSettings({ settings, patchSettings }: SettingsPanelProps) 
         <SettingsChoice title="默认播放器视图" description="进入播放器时使用此视图，播放中仍可随时切换。"
           value={settings.listen.defaultView} onChange={(value) => update({ defaultView: value === "subtitles" ? "subtitles" : "cover" })}
           options={[{ value: "cover", label: "封面与字幕" }, { value: "subtitles", label: "专注字幕" }]} />
-        <SettingsToggle title="封面氛围色" description="从封面提取淡淡的背景色；关闭后使用标准页面背景。"
-          checked={settings.listen.ambientBackground} onChange={(ambientBackground) => update({ ambientBackground })} />
       </SettingsGroup>
     </>
   );

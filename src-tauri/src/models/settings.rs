@@ -201,7 +201,6 @@ pub struct ListenSetting {
     pub subtitle_font_size: u32,
     pub subtitle_auto_follow: bool,
     pub subtitle_show_time: bool,
-    pub ambient_background: bool,
 }
 
 impl Default for ListenSetting {
@@ -213,7 +212,6 @@ impl Default for ListenSetting {
             subtitle_font_size: 16,
             subtitle_auto_follow: true,
             subtitle_show_time: false,
-            ambient_background: true,
         }
     }
 }

@@ -74,8 +74,7 @@ export const defaultSettings: Settings = {
     autoNext: true,
     subtitleFontSize: 16,
     subtitleAutoFollow: true,
-    subtitleShowTime: false,
-    ambientBackground: true
+    subtitleShowTime: false
   },
   stt: {
     enabled: false,

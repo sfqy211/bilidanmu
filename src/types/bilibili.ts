@@ -293,7 +293,6 @@ export interface ListenSetting {
   subtitleFontSize: number;
   subtitleAutoFollow: boolean;
   subtitleShowTime: boolean;
-  ambientBackground: boolean;
 }
 
 export interface BlockedUser {
