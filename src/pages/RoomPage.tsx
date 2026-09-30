@@ -187,7 +187,7 @@ export function RoomPage() {
 
   return (
     <section
-      className="flex h-full flex-col select-none"
+      className="room-workspace flex h-full flex-col select-none"
       onContextMenu={(e) => {
         if (!import.meta.env.DEV) {
           e.preventDefault();
@@ -195,35 +195,33 @@ export function RoomPage() {
       }}
     >
       {/* 编辑级页头 */}
-      <header className="app-rise mb-6">
-        <div className="flex items-center justify-between gap-6">
+      <header className="app-rise mb-7">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
           <div className="min-w-0">
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
+            <h2 className="text-[22px] font-semibold tracking-tight text-ink">
               直播间
             </h2>
-              <p className="mt-2 flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <span className="numeric font-medium text-slate-700 dark:text-slate-200">{rooms.length}</span>
-                个已添加
+              <p className="mt-1.5 flex items-center gap-2 text-xs text-ink-muted">
+                <span><span className="numeric">{rooms.length}</span> 个直播间</span>
                 {liveCount > 0 && (
                   <>
-                    <span className="text-slate-300 dark:text-slate-600">·</span>
-                    <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-brand" />
-                    <span className="numeric font-medium text-brand">{liveCount}</span>
-                    个直播中
+                    <span aria-hidden="true">·</span>
+                    <span><span className="numeric">{liveCount}</span> 个直播中</span>
                   </>
               )}
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex max-w-full items-center gap-1">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 value={filterText}
                 onChange={(event) => setFilterText(event.target.value)}
-                placeholder="UID/房间号/名称/标题"
+                placeholder="搜索直播间"
+                aria-label="搜索直播间：UID、房间号、主播名或标题"
                 title="模糊筛选：UID、房间号、主播名、直播间标题"
-                className="h-9 w-52 pl-8 pr-7 text-sm"
+                className="room-search h-8 w-48 max-w-full pl-8 pr-7 text-[13px]"
               />
               {filterText && (
                 <button
@@ -238,21 +236,23 @@ export function RoomPage() {
             <button
               onClick={() => void handleRefreshLiveStatus()}
               disabled={refreshing}
-              className="glass-panel inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 disabled:cursor-not-allowed dark:text-slate-400 dark:hover:text-white"
+              className="room-tool-button ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="刷新直播状态"
               title="刷新直播状态"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={toggleViewMode}
-              className="glass-panel inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+              className="room-tool-button inline-flex h-8 w-8 shrink-0 items-center justify-center"
+              aria-label={viewMode === "card" ? "切换为列表显示" : "切换为封面显示"}
               title={viewMode === "card" ? "切换为列表显示" : "切换为封面显示"}
             >
               {viewMode === "card" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
             <button
               onClick={() => navigate("/rooms/add")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-medium text-brand-contrast transition hover:opacity-90 active:scale-[0.97]"
+              className="ml-2 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-brand px-3 text-[13px] font-medium text-brand-contrast transition hover:opacity-90 active:scale-[0.97]"
             >
               <Plus className="h-4 w-4" />
               添加
@@ -298,7 +298,15 @@ export function RoomPage() {
             没有匹配的直播间
           </div>
         ) : viewMode === "list" ? (
-          <div className="app-rise flex flex-col gap-1.5">
+          <div className="app-rise room-list">
+            <div className="room-list-heading room-list-grid" aria-hidden="true">
+              <span>主播</span>
+              <span>直播标题</span>
+              <span />
+              <span className="room-id text-right">房间号</span>
+              <span className="text-right">状态</span>
+              <span />
+            </div>
             {previewRooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];
@@ -307,31 +315,27 @@ export function RoomPage() {
                   key={room.id}
                   data-room-id={room.id}
                   onMouseDown={(e) => handleDragMouseDown(room, e)}
-                  className={`group flex items-center gap-3 rounded-lg px-3 py-1.5 transition-colors ${
+                  className={`room-list-row room-list-grid group ${
                     draggingId === room.id
                       ? "opacity-60 outline outline-2 outline-brand"
                       : ""
                   } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"} ${
-                    isLive ? "bg-brand/[0.06]" : "hover:bg-ink/[0.04]"
+                    active ? "room-list-row-current" : ""
                   }`}
                 >
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                      isLive ? "live-dot bg-brand" : "bg-slate-400 dark:bg-slate-500"
-                    }`}
-                  />
-                  <p className="shrink-0 text-[13px] font-medium text-ink">{room.uname}</p>
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink-muted">
+                  <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={room.uname}>{room.uname}</p>
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink-muted" title={room.title || undefined}>
                     {room.title || " "}
                   </span>
-                  {active && (
-                    <span className="shrink-0 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">当前</span>
-                  )}
-                  <span className="numeric shrink-0 text-xs text-ink-muted">{room.roomId}</span>
-                  <span className={`w-12 shrink-0 text-right text-xs ${isLive ? "text-brand" : "text-ink-muted"}`}>
+                  <span className="flex justify-end">
+                    {active && <span className="room-current-label text-[11px] font-medium">当前</span>}
+                  </span>
+                  <span className="room-id numeric text-right text-xs">{room.roomId}</span>
+                  <span className="flex items-center justify-end gap-1.5 whitespace-nowrap text-xs text-ink-muted">
+                    {isLive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />}
                     {isLive ? "直播中" : "未开播"}
                   </span>
-                  <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
+                  <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     <button
                       onClick={() => {
                         setCurrentRoomId(room.id);
@@ -363,7 +367,7 @@ export function RoomPage() {
             })}
           </div>
         ) : (
-          <div className="app-rise grid gap-3 sm:grid-cols-3">
+          <div className="app-rise room-cover-grid">
             {previewRooms.map((room) => {
               const active = currentRoomId === room.id;
               const isLive = room.uid != null && liveStatusMap[String(room.uid)];
@@ -372,13 +376,13 @@ export function RoomPage() {
                   key={room.id}
                   data-room-id={room.id}
                   onMouseDown={(e) => handleDragMouseDown(room, e)}
-                  className={`group overflow-hidden rounded-xl bg-app-card shadow-[0_1px_2px_rgba(0,0,0,0.06),0_4px_12px_-4px_rgba(0,0,0,0.08)] transition-[opacity,box-shadow] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_10px_24px_-8px_rgba(0,0,0,0.16)] ${
+                  className={`room-cover-item group min-w-0 ${
                     draggingId === room.id
                       ? "opacity-60 outline outline-2 outline-brand"
                       : ""
                   } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"}`}
                 >
-                  <div className="relative aspect-video bg-ink/[0.05] dark:bg-[#232327]">
+                  <div className="room-cover-image relative aspect-video overflow-hidden rounded-lg bg-app-card">
                     {room.cover ? (
                       <ProxiedImage
                         src={room.cover}
@@ -392,34 +396,48 @@ export function RoomPage() {
                       </div>
                     )}
 
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 pb-3 pt-10">
-                      <div className="flex items-end justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
+                    <div className="room-cover-top absolute inset-x-0 top-0 flex items-center gap-2 px-3 pb-6 pt-3">
+                      <p className="min-w-0 flex-1 truncate text-[13px] font-medium" title={room.title || undefined}>
+                        {room.title || "暂无直播标题"}
+                      </p>
+                      {active && <span className="room-cover-badge room-cover-current shrink-0 px-2 py-0.5 text-[11px] font-medium">当前</span>}
+                      {isLive ? (
+                        <span className="room-cover-live flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium" title="直播中">
+                          <span className="room-cover-live-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
+                          直播中
+                        </span>
+                      ) : (
+                        <span className="room-cover-badge shrink-0 px-2 py-0.5 text-[11px]">未开播</span>
+                      )}
+                    </div>
+                    <div className="room-cover-bottom absolute inset-x-0 bottom-0 flex min-w-0 items-center gap-2 px-3 pb-3 pt-8">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
                           {room.avatar ? (
                             <ProxiedImage
                               src={room.avatar}
                               alt={room.uname}
                               persistent
-                              className="h-8 w-8 shrink-0 rounded-full border border-white/30 object-cover"
+                              className="h-7 w-7 shrink-0 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm text-white/60">
+                            <div className="room-cover-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs">
                               {room.uname.charAt(0)}
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-white/90">{room.uname}</p>
+                            <p className="truncate text-[13px] font-medium" title={`${room.uname} · 房间号 ${room.roomId}`}>{room.uname}</p>
                           </div>
                         </div>
 
-                        <div className="flex shrink-0 gap-1.5 opacity-0 transition group-hover:opacity-100">
+                      <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             onClick={() => {
                               setCurrentRoomId(room.id);
                               void tauriCommands.selections.save({ currentRoomId: room.roomId });
                               void tauriCommands.room.openDanmaku(room.roomId);
                             }}
-                            className="flex h-8 w-8 items-center justify-center bg-white/20 text-white backdrop-blur transition hover:bg-white/30"
+                            className="room-cover-button flex h-7 w-7 items-center justify-center"
+                            aria-label={`打开 ${room.uname} 的弹幕`}
                             title="打开弹幕"
                           >
                             <MonitorPlay className="h-4 w-4" />
@@ -433,31 +451,13 @@ export function RoomPage() {
                                 void tauriCommands.selections.save({ currentRoomId: null });
                               }
                             }}
-                            className="flex h-8 w-8 items-center justify-center bg-white/20 text-white backdrop-blur transition hover:bg-rose-500/60"
+                            className="room-cover-button room-cover-delete flex h-7 w-7 items-center justify-center"
+                            aria-label={`删除 ${room.uname} 的直播间`}
                             title="删除"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent px-3 pb-4 pt-2">
-                      <p className="truncate text-sm font-medium text-white">{room.title}</p>
-                    </div>
-
-                    <div className="absolute right-2 top-2 flex items-center gap-1.5">
-                      {active && (
-                        <span className="bg-brand px-2 py-0.5 text-xs font-medium text-brand-contrast">当前</span>
-                      )}
-                      <span className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium ${
-                        isLive
-                          ? "bg-brand text-brand-contrast"
-                          : "bg-black/40 text-white/70"
-                      }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-white animate-pulse" : "bg-white/50"}`} />
-                        {isLive ? "直播中" : "未开播"}
-                      </span>
                     </div>
                   </div>
                 </div>

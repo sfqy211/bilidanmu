@@ -186,6 +186,192 @@ body {
   font-feature-settings: "tnum";
 }
 
+/* 直播间工作台：固定阅读轨道，状态与当前连接各自表达。 */
+.room-workspace {
+  container-type: inline-size;
+  --room-hover: color-mix(in srgb, var(--ink) 4%, transparent);
+  --room-current: color-mix(in srgb, var(--ink) 3%, transparent);
+  --room-rule: color-mix(in srgb, var(--ink) 7%, transparent);
+  --room-tertiary: color-mix(in srgb, var(--ink-muted) 85%, var(--app-page));
+  --room-control-radius: 6px;
+}
+
+.room-list-grid {
+  display: grid;
+  grid-template-columns: minmax(100px, 148px) minmax(0, 1fr) 40px 82px 64px 60px;
+  align-items: center;
+  column-gap: 16px;
+  padding-inline: 12px;
+}
+
+.room-list-heading {
+  min-height: 30px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--room-rule);
+  color: var(--room-tertiary);
+  font-size: 11px;
+}
+
+.room-list-row {
+  min-height: 42px;
+  border-radius: var(--room-control-radius);
+  transition: background-color 150ms ease;
+}
+
+.room-list-row-current {
+  background: var(--room-current);
+}
+
+.room-list-row:hover,
+.room-list-row:focus-within {
+  background: var(--room-hover);
+}
+
+.room-current-label {
+  color: var(--ink-muted);
+  border: 1px solid var(--room-rule);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.room-id {
+  color: var(--room-tertiary);
+}
+
+.room-cover-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.room-cover-item {
+  border-radius: var(--radius);
+}
+
+.room-cover-image {
+  --cover-ink: #fff;
+  --cover-scrim: 0 0 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--room-rule);
+  color: var(--cover-ink);
+}
+
+.room-cover-top {
+  background: linear-gradient(to bottom, rgb(var(--cover-scrim) / 0.55), transparent);
+}
+
+.room-cover-bottom {
+  background: linear-gradient(to top, rgb(var(--cover-scrim) / 0.65), transparent);
+}
+
+.room-cover-badge,
+.room-cover-button,
+.room-cover-live {
+  border-radius: calc(var(--radius) - 4px);
+  background: rgb(var(--cover-scrim) / 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.room-cover-live {
+  --live-status-rgb: 255 107 125;
+  color: var(--cover-ink);
+}
+
+.room-cover-current {
+  background: rgb(var(--brand-rgb) / 0.85);
+  color: var(--brand-contrast);
+}
+
+.room-cover-button {
+  transition: background-color 150ms ease;
+}
+
+.room-cover-button:hover {
+  background: rgb(var(--cover-scrim) / 0.65);
+}
+
+.room-cover-button:focus-visible {
+  outline: 2px solid var(--cover-ink);
+  outline-offset: 2px;
+}
+
+.room-cover-delete:hover {
+  background: rgb(var(--brand-rgb) / 0.85);
+  color: var(--brand-contrast);
+}
+
+.room-cover-live-dot {
+  background: rgb(var(--live-status-rgb));
+}
+
+@container (max-width: 650px) {
+  .room-cover-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 380px) {
+  .room-cover-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.room-tool-button {
+  color: var(--ink-muted);
+  border-radius: var(--room-control-radius);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.room-tool-button:hover {
+  color: var(--ink);
+  background: var(--room-hover);
+}
+
+.room-tool-button:focus-visible {
+  outline: 2px solid rgb(var(--brand-rgb) / 0.6);
+  outline-offset: 2px;
+}
+
+.app-scope .room-workspace input.room-search,
+.dark .app-scope .room-workspace input.room-search {
+  border-radius: var(--room-control-radius);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--app-card) 65%, transparent);
+  border-color: var(--room-rule);
+  font-size: 13px;
+}
+
+.app-scope .room-workspace input.room-search::placeholder,
+.dark .app-scope .room-workspace input.room-search::placeholder {
+  color: var(--ink-muted);
+}
+
+.app-scope .room-workspace input.room-search:focus,
+.dark .app-scope .room-workspace input.room-search:focus {
+  border-color: rgb(var(--brand-rgb) / 0.5);
+  box-shadow: 0 0 0 2px rgb(var(--brand-rgb) / 0.1);
+}
+
+@container (max-width: 650px) {
+  .room-list-grid {
+    grid-template-columns: 112px minmax(0, 1fr) 40px 72px 60px 60px;
+    column-gap: 10px;
+  }
+}
+
+@container (max-width: 540px) {
+  .room-list-grid {
+    grid-template-columns: 96px minmax(0, 1fr) 40px 60px 60px;
+    column-gap: 8px;
+    padding-inline: 8px;
+  }
+
+  .room-list-grid > .room-id {
+    display: none;
+  }
+}
+
 /* 页面载入错落渐入 */
 @keyframes app-rise {
   from {

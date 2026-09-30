@@ -16,6 +16,7 @@ import {
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
+import { useAmbientColor } from "@/hooks/useAmbientColor";
 import { seasonToQueue, useVideoAudioStore, videoToQueue } from "@/stores/video-audio-store";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,8 @@ export function VideoPlayerPage() {
 
   const isCurrentVideo = video?.bvid === bvid;
   const track = queue?.tracks[index];
+  // 环境色：从封面提取主色，做页面顶部的沉浸渐变
+  const ambientColor = useAmbientColor(isCurrentVideo ? video?.cover : undefined);
 
   // 直接打开本页（如刷新）且播放器没有加载该视频时：解析并自动从第一 P 播
   useEffect(() => {
@@ -168,9 +171,9 @@ export function VideoPlayerPage() {
   // ── 字幕行渲染（普通面板与歌词视图共用样式逻辑） ──
   const lyricLineClass = (i: number) =>
     cn(
-      "cursor-pointer transition-colors",
+      "cursor-pointer transition-all duration-300 origin-left",
       i === activeSubtitleIndex
-        ? "font-semibold text-brand dark:text-brand"
+        ? "scale-[1.06] font-semibold text-brand dark:text-brand"
         : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
     );
 
@@ -316,6 +319,17 @@ export function VideoPlayerPage() {
         }
       }}
     >
+      {/* 环境色沉浸：封面主色自顶部向下淡出 */}
+      {ambientColor && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 transition-opacity duration-700"
+          style={{
+            background: `linear-gradient(to bottom, color-mix(in srgb, ${ambientColor} 22%, transparent), transparent)`,
+          }}
+        />
+      )}
+
       {error && <InlineMessage type="error" className="mb-3">{error}</InlineMessage>}
 
       <div className="flex min-h-0 flex-1 items-center gap-8">
@@ -323,7 +337,10 @@ export function VideoPlayerPage() {
         <div className="relative mx-auto hidden h-64 w-64 shrink-0 sm:block">
           <div
             className="absolute -top-2 right-6 z-10 h-28 w-1.5 origin-top rounded-full bg-gradient-to-b from-slate-300 to-slate-400 shadow transition-transform duration-500 dark:from-slate-500 dark:to-slate-400"
-            style={{ transform: playing ? "rotate(12deg)" : "rotate(-18deg)" }}
+            style={{
+              transform: playing ? "rotate(12deg)" : "rotate(-18deg)",
+              ...(ambientColor ? { filter: `drop-shadow(0 0 6px ${ambientColor}66)` } : null),
+            }}
           >
             <div className="absolute -left-1 -top-1.5 h-4 w-4 rounded-full bg-slate-400 shadow dark:bg-slate-500" />
             <div className="absolute bottom-0 left-1/2 h-5 w-2.5 -translate-x-1/2 rounded-b bg-slate-200 dark:bg-slate-300" />

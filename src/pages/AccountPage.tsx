@@ -217,8 +217,8 @@ export function AccountPage() {
     <section className="flex h-full flex-col select-none">
       <div className="app-rise mb-3 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">账号</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">扫码登录，支持多账号切换。</p>
+          <h2 className="text-2xl font-semibold text-ink">账号</h2>
+          <p className="mt-1 text-sm text-ink-muted">扫码登录，支持多账号切换。</p>
         </div>
         <div className="flex items-center gap-2">
           {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
@@ -255,7 +255,7 @@ export function AccountPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <h3 className="mt-4 text-base font-medium text-slate-900 dark:text-white">风险提示</h3>
+            <h3 className="mt-4 text-base font-medium text-ink">风险提示</h3>
             <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               程序请求与浏览器内正常使用所发送的请求不完全一致，能通过分析请求日志识别出来。
             </p>
@@ -285,7 +285,7 @@ export function AccountPage() {
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex w-full items-center justify-between">
-              <h3 className="text-base font-medium text-slate-900 dark:text-white">扫码登录</h3>
+              <h3 className="text-base font-medium text-ink">扫码登录</h3>
               <button
                 onClick={handleCloseAdd}
                 className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-ink/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
@@ -293,7 +293,7 @@ export function AccountPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-1 self-start text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 self-start text-xs text-ink-muted">
               使用 Bilibili App 扫码，获取观看时长所需的 access_key。
             </p>
 
@@ -330,31 +330,27 @@ export function AccountPage() {
         </div>
       ) : accounts.length === 0 && activeAccountId !== ANONYMOUS_ACCOUNT_ID ? (
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="rounded-lg bg-app-card p-6 text-sm text-slate-400 ring-1 ring-slate-200 dark:bg-app-page dark:text-slate-500 dark:ring-white/[0.06]">
+          <div className="py-10 text-center text-sm text-ink-muted">
             当前还没有登录账号。点击右上角「添加账号」扫码登录，或使用「匿名模式」。
           </div>
         </div>
       ) : (
-        <div className="app-rise space-y-2">
+        <div className="app-rise divide-y divide-subtle">
           {/* 匿名模式条目 */}
           {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
-            <div className="rounded-lg bg-app-card p-4 shadow-sm ring-2 ring-pink-300 dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:ring-pink-500/40">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
-                    <Eye className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-base font-medium text-slate-900 dark:text-white">匿名模式</p>
-                      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        <Check className="h-3 w-3" />
-                        当前
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">仅可接收弹幕和音频流</p>
-                  </div>
+            <div className="flex items-center gap-4 px-3 py-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
+                <Eye className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[15px] font-medium text-ink">匿名模式</p>
+                  <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
+                    <Check className="h-3 w-3" />
+                    当前
+                  </span>
                 </div>
+                <p className="mt-0.5 text-[13px] text-ink-muted">仅可接收弹幕和音频流</p>
               </div>
             </div>
           )}
@@ -370,40 +366,39 @@ export function AccountPage() {
             return (
               <div
                 key={account.accountId}
-                className={`rounded-lg bg-app-card p-4 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] ${
-                  isActive ? "ring-2 ring-brand dark:ring-brand/40" : ""
+                className={`flex items-center gap-4 px-3 py-3.5 ${
+                  isActive ? "bg-brand/[0.06]" : ""
                 }`}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    {account.avatar ? (
-                      <ProxiedImage
-                        src={account.avatar}
-                        alt={account.username}
-                        persistent
-                        className="h-12 w-12 shrink-0 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-ink/[0.05] text-slate-400 dark:bg-app-page dark:text-slate-300">
-                        <UserRound className="h-5 w-5" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-base font-medium text-slate-900 dark:text-white">{account.username}</p>
-                        {isActive && (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
-                            <Check className="h-3 w-3" />
-                            当前
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                        UID: {account.uid}
-                        <span className={`ml-2 ${expiry.color}`}>{expiry.text}</span>
-                      </p>
+                <div className="flex items-center gap-4">
+                  {account.avatar ? (
+                    <ProxiedImage
+                      src={account.avatar}
+                      alt={account.username}
+                      persistent
+                      className="h-11 w-11 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-slate-400 dark:text-slate-300">
+                      <UserRound className="h-5 w-5" />
                     </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[15px] font-medium text-ink">{account.username}</p>
+                      {isActive && (
+                        <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
+                          <Check className="h-3 w-3" />
+                          当前
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[13px] text-ink-muted">
+                      UID: {account.uid}
+                      <span className={`ml-2 ${expiry.color}`}>{expiry.text}</span>
+                    </p>
                   </div>
+                </div>
 
                   <div className="flex shrink-0 items-center gap-1">
                     <button
@@ -440,7 +435,6 @@ export function AccountPage() {
                       <LogOut className="h-4 w-4" />
                     </button>
                   </div>
-                </div>
               </div>
             );
           })}
