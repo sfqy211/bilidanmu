@@ -308,6 +308,597 @@ impl BiliApiClient {
         Ok(result)
     }
 
+    /// 视频信息（标题、UP 主、分 P 列表）。听视频模式用，无需 WBI 签名。
+    pub async fn get_video_info(&self, bvid: &str) -> Result<crate::models::video::VideoInfo, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/web-interface/view",
+                Some(BTreeMap::from([("bvid".to_string(), bvid.to_string())])),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let data = response.get("data").cloned().unwrap_or_default();
+        let pages = data
+            .get("pages")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        // 合集/系列（ugc_season）：拍平全部 section 的 episodes 供联播
+        let season = data.get("ugc_season").and_then(|s| {
+            let title = s.get("title").and_then(Value::as_str)?.to_string();
+            let id = s.get("id").and_then(Value::as_u64)?;
+            let mut episodes = Vec::new();
+            for section in s.get("sections").and_then(Value::as_array).cloned().unwrap_or_default() {
+                for ep in section.get("episodes").and_then(Value::as_array).cloned().unwrap_or_default() {
+                    let Some(bvid) = ep.get("bvid").and_then(Value::as_str).map(String::from) else { continue };
+                    let Some(cid) = ep.get("cid").and_then(Value::as_u64) else { continue };
+                    episodes.push(crate::models::video::SeasonEpisode {
+                        bvid,
+                        cid,
+                        title: ep
+                            .get("title")
+                            .and_then(Value::as_str)
+                            .or_else(|| ep.pointer("/arc/title").and_then(Value::as_str))
+                            .unwrap_or_default()
+                            .to_string(),
+                        owner_name: ep
+                            .pointer("/arc/owner/name")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default()
+                            .to_string(),
+                        cover: ep.pointer("/arc/pic").and_then(Value::as_str).map(String::from),
+                        duration: ep.pointer("/arc/duration").and_then(Value::as_u64).unwrap_or(0),
+                    });
+                }
+            }
+            Some(crate::models::video::SeasonInfo { id, title, episodes })
+        });
+
+        Ok(crate::models::video::VideoInfo {
+            bvid: data
+                .get("bvid")
+                .and_then(Value::as_str)
+                .unwrap_or(bvid)
+                .to_string(),
+            aid: data.get("aid").and_then(Value::as_u64).unwrap_or(0),
+            title: data
+                .get("title")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            owner_name: data
+                .pointer("/owner/name")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            owner_avatar: data.pointer("/owner/face").and_then(Value::as_str).map(String::from),
+            cover: data.get("pic").and_then(Value::as_str).map(String::from),
+            duration: data.get("duration").and_then(Value::as_u64).unwrap_or(0),
+            pages: pages
+                .iter()
+                .filter_map(|p| {
+                    Some(crate::models::video::VideoPage {
+                        cid: p.get("cid").and_then(Value::as_u64)?,
+                        page: p.get("page").and_then(Value::as_u64).unwrap_or(1) as u32,
+                        part: p
+                            .get("part")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default()
+                            .to_string(),
+                        duration: p.get("duration").and_then(Value::as_u64).unwrap_or(0),
+                    })
+                })
+                .collect(),
+            season,
+        })
+    }
+
+    /// 视频字幕（CC）：取第一条可用字幕轨的全文。无字幕返回空数组。
+    pub async fn get_video_subtitle(&self, bvid: &str, cid: u64) -> Result<Vec<crate::models::video::SubtitleLine>, String> {
+        let keys = self.get_or_fetch_wbi_keys().await?;
+        let params = BTreeMap::from([
+            ("bvid".to_string(), bvid.to_string()),
+            ("cid".to_string(), cid.to_string()),
+        ]);
+        let signed = sign_wbi(params, &keys.mixin_key());
+        let response = self
+            .get_json("https://api.bilibili.com/x/player/wbi/v2", Some(signed))
+            .await?;
+        ensure_success(&response)?;
+
+        let track = response
+            .pointer("/data/subtitle/subtitles")
+            .and_then(Value::as_array)
+            .and_then(|list| list.first())
+            .cloned();
+        let Some(track) = track else { return Ok(Vec::new()) };
+        let subtitle_url = track
+            .get("subtitle_url")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "字幕轨缺少 subtitle_url".to_string())?;
+        let subtitle_url = if subtitle_url.starts_with("//") {
+            format!("https:{subtitle_url}")
+        } else {
+            subtitle_url.to_string()
+        };
+
+        let body = self.get_json(&subtitle_url, None).await?;
+        let lines = body
+            .get("body")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        Ok(lines
+            .iter()
+            .filter_map(|line| {
+                Some(crate::models::video::SubtitleLine {
+                    from: line.get("from").and_then(Value::as_f64)?,
+                    to: line.get("to").and_then(Value::as_f64).unwrap_or(0.0),
+                    content: line
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                })
+            })
+            .collect())
+    }
+
+    /// 视频评论（只读，type=1 视频评论）。sort：0 按时间，1 按点赞。
+    pub async fn get_video_comments(
+        &self,
+        aid: u64,
+        page: u32,
+        sort: u32,
+    ) -> Result<crate::models::video::CommentPage, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/v2/reply",
+                Some(BTreeMap::from([
+                    ("oid".to_string(), aid.to_string()),
+                    ("type".to_string(), "1".to_string()),
+                    ("sort".to_string(), sort.to_string()),
+                    ("pn".to_string(), page.to_string()),
+                    ("ps".to_string(), "20".to_string()),
+                ])),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let total = response
+            .pointer("/data/cursor/all_count")
+            .and_then(Value::as_i64)
+            .or_else(|| response.pointer("/data/page/acount").and_then(Value::as_i64))
+            .unwrap_or(0);
+        let replies = response
+            .pointer("/data/replies")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        let list = replies
+            .iter()
+            .filter_map(|item| {
+                Some(crate::models::video::VideoComment {
+                    rpid: item.get("rpid").and_then(Value::as_u64)?,
+                    member_name: item
+                        .pointer("/member/uname")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    member_avatar: item.pointer("/member/avatar").and_then(Value::as_str).map(String::from),
+                    content: item
+                        .pointer("/content/message")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    like: item.get("like").and_then(Value::as_u64).unwrap_or(0),
+                    ctime: item.get("ctime").and_then(Value::as_i64).unwrap_or(0),
+                    reply_count: item.get("rcount").and_then(Value::as_u64).unwrap_or(0),
+                    action: item.get("action").and_then(Value::as_u64).unwrap_or(0),
+                })
+            })
+            .collect();
+
+        Ok(crate::models::video::CommentPage { total, list })
+    }
+
+    /// 搜索视频（听视频模式）。结果标题含高亮标签需剥除；时长为 mm:ss 字符串需换算秒。
+    pub async fn search_videos(&self, keyword: &str, page: u32) -> Result<crate::models::video::SearchVideoPage, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/web-interface/search/type",
+                Some(BTreeMap::from([
+                    ("search_type".to_string(), "video".to_string()),
+                    ("keyword".to_string(), keyword.to_string()),
+                    ("page".to_string(), page.to_string()),
+                    ("cover_type".to_string(), "user_cover".to_string()),
+                ])),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let data = response.get("data").cloned().unwrap_or_default();
+        let total = data.get("numResults").and_then(Value::as_i64).unwrap_or(0);
+        let results = data.get("result").and_then(Value::as_array).cloned().unwrap_or_default();
+
+        let strip_html = |text: &str| -> String {
+            let mut out = String::with_capacity(text.len());
+            let mut in_tag = false;
+            for ch in text.chars() {
+                match ch {
+                    '<' => in_tag = true,
+                    '>' => in_tag = false,
+                    c if !in_tag => out.push(c),
+                    _ => {}
+                }
+            }
+            out
+        };
+
+        let parse_duration = |text: &str| -> u64 {
+            let parts: Vec<u64> = text.split(':').filter_map(|p| p.trim().parse().ok()).collect();
+            match parts.as_slice() {
+                [s] => *s,
+                [m, s] => m * 60 + s,
+                [h, m, s] => h * 3600 + m * 60 + s,
+                _ => 0,
+            }
+        };
+
+        let list = results
+            .iter()
+            .filter_map(|item| {
+                Some(crate::models::video::SearchVideoItem {
+                    bvid: item.get("bvid").and_then(Value::as_str)?.to_string(),
+                    title: item
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .map(|t| strip_html(t))
+                        .unwrap_or_default(),
+                    author: item
+                        .get("author")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    cover: item.get("pic").and_then(Value::as_str).map(|u| {
+                        if u.starts_with("//") { format!("https:{u}") } else { u.to_string() }
+                    }),
+                    duration: item
+                        .get("duration")
+                        .and_then(Value::as_str)
+                        .map(parse_duration)
+                        .unwrap_or(0),
+                })
+            })
+            .collect();
+
+        Ok(crate::models::video::SearchVideoPage { total, keyword: keyword.to_string(), list })
+    }
+
+    /// 点赞/取消点赞评论（需登录）。like=true 点赞，false 取消。
+    pub async fn like_reply(&self, oid: u64, rpid: u64, like: bool, csrf: &str) -> Result<(), String> {
+        let form = BTreeMap::from([
+            ("oid".to_string(), oid.to_string()),
+            ("type".to_string(), "1".to_string()),
+            ("rpid".to_string(), rpid.to_string()),
+            ("action".to_string(), if like { "1" } else { "0" }.to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+        ]);
+        let response = self
+            .post_form("https://api.bilibili.com/x/v2/reply/action", &form)
+            .await?;
+        ensure_success(&response)?;
+        Ok(())
+    }
+
+    /// 发表评论（需登录）。root 非空时为回复子评论。
+    pub async fn add_video_comment(
+        &self,
+        oid: u64,
+        message: &str,
+        root: Option<u64>,
+        parent: Option<u64>,
+        csrf: &str,
+    ) -> Result<crate::models::video::VideoComment, String> {
+        let mut form = BTreeMap::from([
+            ("type".to_string(), "1".to_string()),
+            ("oid".to_string(), oid.to_string()),
+            ("message".to_string(), message.to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+        ]);
+        if let Some(root) = root {
+            form.insert("root".to_string(), root.to_string());
+            form.insert("parent".to_string(), parent.unwrap_or(root).to_string());
+        }
+        let response = self
+            .post_form("https://api.bilibili.com/x/v2/reply/add", &form)
+            .await?;
+        ensure_success(&response)?;
+
+        // 接口会回传创建的评论（data.reply），解析后供前端原位插入
+        let reply = response
+            .pointer("/data/reply")
+            .cloned()
+            .ok_or_else(|| "发评响应缺少 data.reply".to_string())?;
+        Ok(crate::models::video::VideoComment {
+            rpid: reply.get("rpid").and_then(Value::as_u64).unwrap_or(0),
+            member_name: reply
+                .pointer("/member/uname")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            member_avatar: reply.pointer("/member/avatar").and_then(Value::as_str).map(String::from),
+            content: reply
+                .pointer("/content/message")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            like: 0,
+            ctime: reply.get("ctime").and_then(Value::as_i64).unwrap_or(0),
+            reply_count: 0,
+            action: 1,
+        })
+    }
+
+    /// 评论的子评论（楼中楼，分页）
+    pub async fn get_comment_replies(
+        &self,
+        oid: u64,
+        root: u64,
+        page: u32,
+    ) -> Result<crate::models::video::CommentPage, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/v2/reply/reply",
+                Some(BTreeMap::from([
+                    ("oid".to_string(), oid.to_string()),
+                    ("root".to_string(), root.to_string()),
+                    ("type".to_string(), "1".to_string()),
+                    ("pn".to_string(), page.to_string()),
+                    ("ps".to_string(), "10".to_string()),
+                    ("sort".to_string(), "1".to_string()),
+                ])),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let total = response
+            .pointer("/data/page/count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let replies = response
+            .pointer("/data/replies")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        let list = replies
+            .iter()
+            .filter_map(|item| {
+                Some(crate::models::video::VideoComment {
+                    rpid: item.get("rpid").and_then(Value::as_u64)?,
+                    member_name: item
+                        .pointer("/member/uname")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    member_avatar: item.pointer("/member/avatar").and_then(Value::as_str).map(String::from),
+                    content: item
+                        .pointer("/content/message")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    like: item.get("like").and_then(Value::as_u64).unwrap_or(0),
+                    ctime: item.get("ctime").and_then(Value::as_i64).unwrap_or(0),
+                    reply_count: 0,
+                    action: item.get("action").and_then(Value::as_u64).unwrap_or(0),
+                })
+            })
+            .collect();
+
+        Ok(crate::models::video::CommentPage { total, list })
+    }
+
+    /// 稍后再看列表（只读取来听）
+    pub async fn list_watch_later(&self) -> Result<Vec<crate::models::video::WatchLaterItem>, String> {
+        let response = self
+            .get_json("https://api.bilibili.com/x/v2/history/toview/web", None)
+            .await?;
+        ensure_success(&response)?;
+
+        let list = response
+            .pointer("/data/list")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(list
+            .iter()
+            .filter_map(|item| {
+                Some(crate::models::video::WatchLaterItem {
+                    bvid: item.get("bvid").and_then(Value::as_str)?.to_string(),
+                    cid: item.get("cid").and_then(Value::as_u64).unwrap_or(0),
+                    title: item
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    owner_name: item
+                        .pointer("/owner/name")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    cover: item.get("pic").and_then(Value::as_str).map(String::from),
+                    duration: item.get("duration").and_then(Value::as_u64).unwrap_or(0),
+                })
+            })
+            .collect())
+    }
+
+    /// 视频音频流：DASH 音轨里取最高码率的 CDN 地址（需经本地代理补 Referer 取流）。
+    /// playurl 需要 WBI 签名；fnval=16 即 DASH，音轨 id 越大码率越高（30280=192k）。
+    pub async fn get_video_audio_url(&self, bvid: &str, cid: u64) -> Result<(String, String), String> {
+        let keys = self.get_or_fetch_wbi_keys().await?;
+        let params = BTreeMap::from([
+            ("bvid".to_string(), bvid.to_string()),
+            ("cid".to_string(), cid.to_string()),
+            ("qn".to_string(), "80".to_string()),
+            ("fnval".to_string(), "16".to_string()),
+            ("fnver".to_string(), "0".to_string()),
+            ("fourk".to_string(), "1".to_string()),
+        ]);
+        let signed = sign_wbi(params, &keys.mixin_key());
+
+        let response = self
+            .get_json("https://api.bilibili.com/x/player/wbi/playurl", Some(signed))
+            .await?;
+        ensure_success(&response)?;
+
+        let audio = response
+            .pointer("/data/dash/audio")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "playurl 响应缺少 dash.audio（视频可能不支持 DASH）".to_string())?;
+        if audio.is_empty() {
+            return Err("dash.audio 为空".to_string());
+        }
+
+        // 选轨策略（借鉴 azusa-player）：按真实带宽降序，优先 mp4a 编码
+        // （flac/dolby 音轨带宽更高但 WebView2 可能不支持解码），兜底取最高带宽轨
+        let mut candidates: Vec<&Value> = audio.iter().collect();
+        candidates.sort_by(|a, b| {
+            let score = |v: &Value| {
+                v.get("bandwidth")
+                    .and_then(Value::as_u64)
+                    .or_else(|| v.get("id").and_then(Value::as_u64))
+                    .unwrap_or(0)
+            };
+            score(b).cmp(&score(a))
+        });
+        let best = candidates
+            .iter()
+            .find(|a| {
+                a.get("codecs")
+                    .and_then(Value::as_str)
+                    .map(|c| c.contains("mp4a"))
+                    .unwrap_or(true)
+            })
+            .unwrap_or(&candidates[0]);
+
+        // URL 兜底链：base_url 失效时依次尝试 backup_url
+        let url = ["base_url", "backup_url"]
+            .iter()
+            .find_map(|key| {
+                match best.get(key) {
+                    Some(Value::String(u)) => Some(u.clone()),
+                    Some(Value::Array(list)) => list
+                        .iter()
+                        .find_map(|u| u.as_str().map(String::from)),
+                    _ => None,
+                }
+            })
+            .filter(|u| !u.is_empty())
+            .ok_or_else(|| "音轨缺少可用 URL".to_string())?;
+        let codec = best
+            .get("codecs")
+            .and_then(Value::as_str)
+            .unwrap_or("mp4a.40.2")
+            .to_string();
+        Ok((url, codec))
+    }
+
+    /// 我创建的收藏夹列表（听视频模式的专辑入口，需登录）
+    pub async fn list_fav_folders(&self, mid: u64) -> Result<Vec<crate::models::video::FavFolder>, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/v3/fav/folder/created/list-all",
+                Some(BTreeMap::from([("up_mid".to_string(), mid.to_string())])),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let list = response
+            .pointer("/data/list")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(list
+            .iter()
+            .filter_map(|item| {
+                Some(crate::models::video::FavFolder {
+                    id: item.get("id").and_then(Value::as_u64)?,
+                    title: item
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    media_count: item.get("media_count").and_then(Value::as_u64).unwrap_or(0),
+                })
+            })
+            .collect())
+    }
+
+    /// 收藏夹内视频（分页，type=2 仅视频稿件）
+    pub async fn list_fav_resources(
+        &self,
+        media_id: u64,
+        page: u32,
+        size: u32,
+    ) -> Result<crate::models::video::FavResourcePage, String> {
+        let response = self
+            .get_json(
+                "https://api.bilibili.com/x/v3/fav/resource/list",
+                Some(BTreeMap::from([
+                    ("media_id".to_string(), media_id.to_string()),
+                    ("pn".to_string(), page.to_string()),
+                    ("ps".to_string(), size.to_string()),
+                    ("keyword".to_string(), String::new()),
+                    ("order".to_string(), "mtime".to_string()),
+                    ("type".to_string(), "2".to_string()),
+                    ("tid".to_string(), "0".to_string()),
+                    ("platform".to_string(), "web".to_string()),
+                ])),
+            )
+            .await?;
+        ensure_success(&response)?;
+
+        let total = response
+            .pointer("/data/info/media_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let medias = response
+            .pointer("/data/medias")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        let list = medias
+            .iter()
+            .filter_map(|item| {
+                Some(crate::models::video::FavResource {
+                    bvid: item.get("bvid").and_then(Value::as_str)?.to_string(),
+                    title: item
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    upper_name: item
+                        .pointer("/upper/name")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    cover: item.get("cover").and_then(Value::as_str).map(String::from),
+                    duration: item.get("duration").and_then(Value::as_u64).unwrap_or(0),
+                })
+            })
+            .collect();
+
+        Ok(crate::models::video::FavResourcePage { total, list })
+    }
+
     pub async fn search_rooms_by_name(&self, keyword: &str, page: u32) -> Result<Vec<SearchRoomResult>, String> {
         let response = self
             .get_json(

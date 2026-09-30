@@ -15,6 +15,8 @@ use futures_util::StreamExt;
 /// 运行时的流代理状态（端口 + 共享 URL + STT 发送器）
 pub struct StreamProxyState {
     stream_url: Arc<TokioMutex<Option<String>>>,
+    /// 听视频模式的音频流 URL（与直播流独立槽位，互不抢占）
+    vod_url: Arc<TokioMutex<Option<String>>>,
     port: u16,
     /// #15: `stt_sender` is `Arc<Mutex<Option<...>>>` — the outer Arc is shared
     /// between StreamProxyServer and StreamProxyState (cloned into each hyper
@@ -64,7 +66,9 @@ impl StreamProxyServer {
             .port();
 
         let stream_url: Arc<TokioMutex<Option<String>>> = Arc::new(TokioMutex::new(None));
+        let vod_url: Arc<TokioMutex<Option<String>>> = Arc::new(TokioMutex::new(None));
         let stream_url_clone = stream_url.clone();
+        let vod_url_clone = vod_url.clone();
         let proxy_client_clone = proxy_client.clone();
         let stt_sender_clone = stt_sender.clone();
         let active_stt_stream_clone = active_stt_stream.clone();
@@ -82,6 +86,7 @@ impl StreamProxyServer {
 
                 let io = TokioIo::new(tcp_stream);
                 let stream_url = stream_url_clone.clone();
+                let vod_url = vod_url_clone.clone();
                 let proxy_client = proxy_client_clone.clone();
                 let stt_sender = stt_sender_clone.clone();
                 let active_stt_stream = active_stt_stream_clone.clone();
@@ -89,11 +94,12 @@ impl StreamProxyServer {
                 tokio::spawn(async move {
                     let service = service_fn(move |req: Request<Incoming>| {
                         let stream_url = stream_url.clone();
+                        let vod_url = vod_url.clone();
                         let proxy_client = proxy_client.clone();
                         let stt_sender = stt_sender.clone();
                         let active_stt_stream = active_stt_stream.clone();
                         async move {
-                            handle_proxy_request(req, stream_url, proxy_client, stt_sender, active_stt_stream).await
+                            handle_proxy_request(req, stream_url, vod_url, proxy_client, stt_sender, active_stt_stream).await
                         }
                     });
 
@@ -109,6 +115,7 @@ impl StreamProxyServer {
 
         let state = StreamProxyState {
             stream_url,
+            vod_url,
             port,
             stt_sender,
         };
@@ -143,6 +150,21 @@ impl StreamProxyServer {
         Ok(())
     }
 
+    /// 设置听视频模式的音频流 CDN URL
+    pub async fn set_vod_stream_url(&self, url: String) -> Result<(), String> {
+        let state = self.ensure_started().await?;
+        *state.vod_url.lock().await = Some(url);
+        Ok(())
+    }
+
+    /// 清除听视频模式的音频流
+    pub async fn clear_vod_stream_url(&self) -> Result<(), String> {
+        if let Some(state) = self.state.get() {
+            *state.vod_url.lock().await = None;
+        }
+        Ok(())
+    }
+
     /// 设置 STT 字节发送器（从 SttManager 注入）
     pub async fn set_stt_sender(&self, sender: Option<mpsc::Sender<Bytes>>) -> Result<(), String> {
         let state = self.ensure_started().await?;
@@ -154,6 +176,12 @@ impl StreamProxyServer {
     pub async fn proxy_url(&self) -> Result<String, String> {
         let state = self.ensure_started().await?;
         Ok(format!("http://127.0.0.1:{}/live-audio", state.port))
+    }
+
+    /// 获取听视频模式的本地代理 URL（支持 Range/206，可直接作为 audio src）
+    pub async fn vod_proxy_url(&self) -> Result<String, String> {
+        let state = self.ensure_started().await?;
+        Ok(format!("http://127.0.0.1:{}/vod-audio", state.port))
     }
 }
 
@@ -168,6 +196,7 @@ fn full_body(data: impl Into<Bytes>) -> BoxBody<Bytes, std::io::Error> {
 async fn handle_proxy_request(
     req: Request<Incoming>,
     stream_url: Arc<TokioMutex<Option<String>>>,
+    vod_url: Arc<TokioMutex<Option<String>>>,
     proxy_client: reqwest::Client,
     stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
     active_stt_stream: Arc<AtomicU64>,
@@ -184,11 +213,106 @@ async fn handle_proxy_request(
             .unwrap());
     }
 
-    if req.method() != Method::GET || req.uri().path() != "/live-audio" {
-        return Ok(Response::builder()
+    match req.uri().path() {
+        "/live-audio" => {
+            handle_live_audio(req, stream_url, proxy_client, stt_sender, active_stt_stream).await
+        }
+        // 听视频模式：DASH 音轨代理，Range/206 直通以支持进度条拖动
+        "/vod-audio" => handle_vod_audio(req, vod_url, proxy_client).await,
+        _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .header("Access-Control-Allow-Origin", "*")
             .body(full_body("Not Found"))
+            .unwrap()),
+    }
+}
+
+async fn handle_vod_audio(
+    req: Request<Incoming>,
+    vod_url: Arc<TokioMutex<Option<String>>>,
+    proxy_client: reqwest::Client,
+) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
+    if req.method() != Method::GET {
+        return Ok(Response::builder()
+            .status(StatusCode::METHOD_NOT_ALLOWED)
+            .header("Access-Control-Allow-Origin", "*")
+            .body(full_body("Method Not Allowed"))
+            .unwrap());
+    }
+
+    let url = vod_url.lock().await.clone();
+    let url = match url {
+        Some(u) => u,
+        None => {
+            return Ok(Response::builder()
+                .status(StatusCode::SERVICE_UNAVAILABLE)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(full_body("No audio stream configured"))
+                .unwrap());
+        }
+    };
+
+    let mut upstream = proxy_client
+        .get(&url)
+        .header("Referer", crate::bili::BILI_REFERER);
+    // 透传浏览器的 Range 请求（audio 元素 seek 时发起），CDN 返回 206 分段
+    if let Some(range) = req.headers().get("range") {
+        if let Ok(v) = range.to_str() {
+            upstream = upstream.header("Range", v);
+        }
+    }
+
+    let response = match upstream.send().await {
+        Ok(r) => r,
+        Err(e) => {
+            return Ok(Response::builder()
+                .status(StatusCode::BAD_GATEWAY)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(full_body(format!("CDN request failed: {e}")))
+                .unwrap());
+        }
+    };
+
+    if !response.status().is_success() {
+        return Ok(Response::builder()
+            .status(StatusCode::BAD_GATEWAY)
+            .header("Access-Control-Allow-Origin", "*")
+            .body(full_body(format!("CDN returned: {}", response.status())))
+            .unwrap());
+    }
+
+    let mut builder = Response::builder()
+        .status(response.status())
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Accept-Ranges", "bytes");
+    for name in ["content-type", "content-length", "content-range"] {
+        if let Some(value) = response.headers().get(name) {
+            builder = builder.header(name, value);
+        }
+    }
+
+    let stream = response.bytes_stream().map(|result: Result<Bytes, reqwest::Error>| {
+        match result {
+            Ok(bytes) => Ok(Frame::data(bytes)),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        }
+    });
+
+    Ok(builder.body(BodyExt::boxed(StreamBody::new(stream))).unwrap())
+}
+
+async fn handle_live_audio(
+    req: Request<Incoming>,
+    stream_url: Arc<TokioMutex<Option<String>>>,
+    proxy_client: reqwest::Client,
+    stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
+    active_stt_stream: Arc<AtomicU64>,
+) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
+    if req.method() != Method::GET {
+        return Ok(Response::builder()
+            .status(StatusCode::METHOD_NOT_ALLOWED)
+            .header("Access-Control-Allow-Origin", "*")
+            .body(full_body("Method Not Allowed"))
             .unwrap());
     }
 

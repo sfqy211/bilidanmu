@@ -2,9 +2,9 @@ import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Maximize, Minus, X } from "lucide-react";
 import { CloseDialog } from "@/components/ui/CloseDialog";
+import { ModeToggle } from "@/components/layout/ModeToggle";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
-import appIcon from "@/icon.ico";
 
 const appWindow = getCurrentWindow();
 
@@ -68,11 +68,8 @@ export function TitleBar() {
       onMouseDown={handleMouseDown}
       className="relative z-20 flex h-10 select-none items-center"
     >
-      <div className="flex flex-1 items-center gap-2 px-4">
-        <img src={appIcon} alt="" className="h-4 w-4" />
-        <span className="text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400">
-          BiliDanmu
-        </span>
+      <div className="flex flex-1 items-center gap-2 px-3">
+        <ModeToggle />
       </div>
       <div className="flex h-full">
         <button

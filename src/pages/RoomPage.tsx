@@ -201,16 +201,16 @@ export function RoomPage() {
             <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
               直播间
             </h2>
-            <p className="mt-2 flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-              <span className="numeric font-medium text-slate-700 dark:text-slate-200">{rooms.length}</span>
-              个已添加
-              {liveCount > 0 && (
-                <>
-                  <span className="text-slate-300 dark:text-slate-600">·</span>
-                  <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-rose-500" />
-                  <span className="numeric font-medium text-rose-500">{liveCount}</span>
-                  个直播中
-                </>
+              <p className="mt-2 flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
+                <span className="numeric font-medium text-slate-700 dark:text-slate-200">{rooms.length}</span>
+                个已添加
+                {liveCount > 0 && (
+                  <>
+                    <span className="text-slate-300 dark:text-slate-600">·</span>
+                    <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-rose-500" />
+                    <span className="numeric font-medium text-rose-500">{liveCount}</span>
+                    个直播中
+                  </>
               )}
             </p>
           </div>

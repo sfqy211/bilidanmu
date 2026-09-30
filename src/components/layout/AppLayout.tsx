@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Eye } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TitleBar } from "@/components/layout/TitleBar";
+import { MiniPlayer } from "@/components/listen/MiniPlayer";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function AppLayout() {
@@ -20,9 +21,11 @@ export function AppLayout() {
               <span>匿名模式：仅可接收弹幕和音频流，无法发送弹幕、点赞或使用表情。</span>
             </div>
           )}
-          <div className="flex-1 px-8 pb-8 pt-6">
+          <div className="min-h-0 flex-1 px-8 pb-8 pt-6">
             <Outlet />
           </div>
+          {/* 听视频后台播放条（有播放任务时出现在主窗口底部） */}
+          <MiniPlayer />
         </main>
       </div>
     </div>

@@ -173,6 +173,21 @@ body {
   animation: app-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+/* 听视频：评论区自底部滑入 */
+@keyframes listen-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.listen-slide-up {
+  animation: listen-slide-up 0.36s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
 /* 直播状态呼吸点 */
 @keyframes live-ping {
   0% {

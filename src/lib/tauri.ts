@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  AudioStreamInfo,
+  CommentPage,
   Credential,
+  FavFolder,
+  FavResourcePage,
+  SearchVideoPage,
+  SubtitleLine,
+  VideoComment,
+  WatchLaterItem,
   Emoticon,
   EmoticonPackage,
   MessageTemplate,
@@ -12,7 +20,8 @@ import type {
   Settings,
   StreamInfo,
   SttTranscript,
-  UpdateInfo
+  UpdateInfo,
+  VideoInfo
 } from "@/types/bilibili";
 
 export interface SendOptions {
@@ -105,6 +114,25 @@ export const tauriCommands = {
   ws: {
     connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),
     disconnect: () => invoke<void>("disconnect_danmaku_stream")
+  },
+  video: {
+    getInfo: (bvid: string) => invoke<VideoInfo>("get_video_info", { bvid }),
+    getAudio: (bvid: string, cid: number) => invoke<AudioStreamInfo>("get_video_audio", { bvid, cid }),
+    stopAudio: () => invoke<void>("stop_video_audio"),
+    listFavFolders: () => invoke<FavFolder[]>("list_fav_folders"),
+    listFavResources: (mediaId: number, page?: number, size?: number) =>
+      invoke<FavResourcePage>("list_fav_resources", { mediaId, page: page ?? 1, size: size ?? 20 }),
+    getSubtitle: (bvid: string, cid: number) => invoke<SubtitleLine[]>("get_video_subtitle", { bvid, cid }),
+    getComments: (aid: number, page?: number, sort?: number) =>
+      invoke<CommentPage>("get_video_comments", { aid, page: page ?? 1, sort: sort ?? 1 }),
+    searchVideos: (keyword: string, page?: number) => invoke<SearchVideoPage>("search_videos", { keyword, page: page ?? 1 }),
+    listWatchLater: () => invoke<WatchLaterItem[]>("list_watch_later"),
+    likeComment: (oid: number, rpid: number, like: boolean) =>
+      invoke<void>("like_comment", { oid, rpid, like }),
+    addComment: (oid: number, message: string, root?: number, parent?: number) =>
+      invoke<VideoComment>("add_video_comment", { oid, message, root: root ?? null, parent: parent ?? null }),
+    getCommentReplies: (oid: number, root: number, page?: number) =>
+      invoke<CommentPage>("get_comment_replies", { oid, root, page: page ?? 1 }),
   },
   settings: {
     get: () => invoke<Settings>("get_settings"),

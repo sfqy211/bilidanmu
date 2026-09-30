@@ -1,5 +1,116 @@
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
+/** 视频的一个分 P（听视频模式里的"一首歌"） */
+export interface VideoPage {
+  cid: number;
+  page: number;
+  part: string;
+  duration: number;
+}
+
+export interface VideoInfo {
+  bvid: string;
+  aid: number;
+  title: string;
+  ownerName: string;
+  ownerAvatar?: string;
+  cover?: string;
+  duration: number;
+  pages: VideoPage[];
+  /** 视频所属的合集/系列（联播用，可能为空） */
+  season?: SeasonInfo;
+}
+
+export interface SeasonInfo {
+  id: number;
+  title: string;
+  episodes: SeasonEpisode[];
+}
+
+export interface SeasonEpisode {
+  bvid: string;
+  cid: number;
+  title: string;
+  ownerName: string;
+  cover?: string;
+  duration: number;
+}
+
+/** 字幕行（听视频模式右侧字幕面板） */
+export interface SubtitleLine {
+  from: number;
+  to: number;
+  content: string;
+}
+
+/** 视频评论（只读） */
+export interface VideoComment {
+  rpid: number;
+  memberName: string;
+  memberAvatar?: string;
+  content: string;
+  like: number;
+  ctime: number;
+  replyCount: number;
+  /** 当前用户是否已点赞（>=1 已点赞；未登录恒为 0） */
+  action: number;
+}
+
+export interface CommentPage {
+  total: number;
+  list: VideoComment[];
+}
+
+export interface SearchVideoItem {
+  bvid: string;
+  title: string;
+  author: string;
+  cover?: string;
+  duration: number;
+}
+
+export interface SearchVideoPage {
+  total: number;
+  keyword: string;
+  list: SearchVideoItem[];
+}
+
+export interface WatchLaterItem {
+  bvid: string;
+  cid: number;
+  title: string;
+  ownerName: string;
+  cover?: string;
+  duration: number;
+}
+
+export interface AudioStreamInfo {
+  /** 本地代理 URL（Range/206 直通，可直接作为 audio src） */
+  url: string;
+  codec: string;
+}
+
+/** 我创建的收藏夹（听视频模式里的"专辑列表"入口） */
+export interface FavFolder {
+  id: number;
+  title: string;
+  mediaCount: number;
+}
+
+/** 收藏夹内的一个视频 */
+export interface FavResource {
+  bvid: string;
+  title: string;
+  upperName: string;
+  cover?: string;
+  duration: number;
+}
+
+export interface FavResourcePage {
+  total: number;
+  list: FavResource[];
+}
+
 export interface Credential {
   accountId: string;
   uid: number;

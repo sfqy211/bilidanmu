@@ -14,6 +14,7 @@ pub mod selections;
 pub mod settings;
 pub mod stt;
 pub mod update;
+pub mod video;
 pub mod websocket;
 
 pub fn build_api_client(

@@ -72,6 +72,16 @@ const rooms = await tauriCommands.room.search('test', 'name')
 | `connect_danmaku_stream` | `roomId` | `void` | 连接弹幕流 |
 | `disconnect_danmaku_stream` | — | `void` | 断开弹幕流 |
 
+## 视频命令 (`video::*`)
+
+| 命令 | 参数 | 返回 | 说明 |
+| --- | --- | --- | --- |
+| `get_video_info` | `bvid` | `VideoInfo` | 视频信息（标题、UP 主、分 P 列表） |
+| `get_video_audio` | `bvid, cid` | `AudioStreamInfo` | 解析 DASH 音轨并注册本地代理（Range/206） |
+| `stop_video_audio` | — | `void` | 停止音频代理 |
+| `list_fav_folders` | — | `FavFolder[]` | 我创建的收藏夹（需登录） |
+| `list_fav_resources` | `mediaId, page?, size?` | `FavResourcePage` | 收藏夹内视频（分页） |
+
 ## 设置命令 (`settings::*`)
 
 | 命令 | 参数 | 返回 | 说明 |
