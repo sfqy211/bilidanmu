@@ -7,6 +7,7 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuth } from "@/hooks/useAuth";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export function AccountPage() {
   const {
@@ -214,21 +215,15 @@ export function AccountPage() {
   };
 
   return (
-    <section className="flex h-full flex-col select-none">
-      <div className="app-rise mb-3 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-ink">账号</h2>
-          <p className="mt-1 text-sm text-ink-muted">扫码登录，支持多账号切换。</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {error && <InlineMessage key={msgKey} type="error">{error}</InlineMessage>}
-          {success && <InlineMessage key={msgKey} type="success">{success}</InlineMessage>}
+    <section className="flex h-full min-h-0 flex-col select-none">
+      <PageHeader title="账号" description="扫码登录，支持多账号切换。" actions={
+        <div className="flex flex-wrap items-center gap-2">
           {!showAdd && !showWarning && (
             <>
               <button
                 onClick={() => void handleSwitchToAnonymous()}
                 disabled={switchingId === ANONYMOUS_ACCOUNT_ID || activeAccountId === ANONYMOUS_ACCOUNT_ID}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-500 px-4 text-sm font-medium text-white transition hover:bg-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="workspace-button"
               >
                 {switchingId === ANONYMOUS_ACCOUNT_ID ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -239,7 +234,7 @@ export function AccountPage() {
               </button>
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90"
+                className="workspace-button workspace-button-primary"
               >
                 <Plus className="h-4 w-4" />
                 添加账号
@@ -247,7 +242,9 @@ export function AccountPage() {
             </>
           )}
         </div>
-      </div>
+      } />
+      {error && <InlineMessage key={msgKey} type="error" className="mb-3">{error}</InlineMessage>}
+      {success && <InlineMessage key={msgKey} type="success" className="mb-3">{success}</InlineMessage>}
 
       {showWarning ? (
         <div className="flex flex-1 flex-col items-center justify-center">
@@ -335,11 +332,11 @@ export function AccountPage() {
           </div>
         </div>
       ) : (
-        <div className="app-rise divide-y divide-subtle">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {/* 匿名模式条目 */}
           {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
-            <div className="flex items-center gap-4 px-3 py-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
+            <div className="workspace-account-row" data-current="true">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
                 <Eye className="h-5 w-5" />
               </div>
               <div>
@@ -366,26 +363,25 @@ export function AccountPage() {
             return (
               <div
                 key={account.accountId}
-                className={`flex items-center gap-4 px-3 py-3.5 ${
-                  isActive ? "bg-brand/[0.06]" : ""
-                }`}
+                className="workspace-account-row"
+                data-current={isActive}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   {account.avatar ? (
                     <ProxiedImage
                       src={account.avatar}
                       alt={account.username}
                       persistent
-                      className="h-11 w-11 shrink-0 rounded-full object-cover"
+                      className="h-8 w-8 shrink-0 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-slate-400 dark:text-slate-300">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
                       <UserRound className="h-5 w-5" />
                     </div>
                   )}
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-[15px] font-medium text-ink">{account.username}</p>
+                      <p className="truncate text-[13px] font-medium text-ink" title={account.username}>{account.username}</p>
                       {isActive && (
                         <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
                           <Check className="h-3 w-3" />
@@ -393,14 +389,14 @@ export function AccountPage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[13px] text-ink-muted">
+                    <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-ink-muted">
                       UID: {account.uid}
-                      <span className={`ml-2 ${expiry.color}`}>{expiry.text}</span>
+                      <span className={expiry.color}>{expiry.text}</span>
                     </p>
                   </div>
                 </div>
 
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
                     <button
                       onClick={() => void handleRefreshInfo(account.accountId)}
                       disabled={isRefreshing}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LayoutGrid, List, MonitorPlay, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
 import type { Room } from "@/types/bilibili";
@@ -187,21 +188,15 @@ export function RoomPage() {
 
   return (
     <section
-      className="room-workspace flex h-full flex-col select-none"
+      className="room-workspace flex h-full min-h-0 flex-col select-none"
       onContextMenu={(e) => {
         if (!import.meta.env.DEV) {
           e.preventDefault();
         }
       }}
     >
-      {/* 编辑级页头 */}
-      <header className="app-rise mb-7">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-          <div className="min-w-0">
-            <h2 className="text-[22px] font-semibold tracking-tight text-ink">
-              直播间
-            </h2>
-              <p className="mt-1.5 flex items-center gap-2 text-xs text-ink-muted">
+      <PageHeader title="直播间" description={
+              <p className="flex items-center gap-2">
                 <span><span className="numeric">{rooms.length}</span> 个直播间</span>
                 {liveCount > 0 && (
                   <>
@@ -210,10 +205,9 @@ export function RoomPage() {
                   </>
               )}
             </p>
-          </div>
-
-          <div className="flex max-w-full items-center gap-1">
-            <div className="relative">
+      } actions={
+          <div className="room-toolbar flex max-w-full flex-wrap items-center gap-1">
+            <div className="room-search-wrap relative min-w-0">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 value={filterText}
@@ -252,14 +246,13 @@ export function RoomPage() {
             </button>
             <button
               onClick={() => navigate("/rooms/add")}
-              className="ml-2 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-brand px-3 text-[13px] font-medium text-brand-contrast transition hover:opacity-90 active:scale-[0.97]"
+              className="workspace-button workspace-button-primary ml-2"
             >
               <Plus className="h-4 w-4" />
               添加
             </button>
           </div>
-        </div>
-      </header>
+      } />
 
       {mockEnabled && (
         <div className="app-rise mb-3 flex items-center gap-3 rounded-lg bg-brand/[0.06] px-3 py-2.5 shadow-sm ring-1 ring-brand/20">
@@ -282,10 +275,7 @@ export function RoomPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rooms.length === 0 ? (
-          <div className="app-rise flex flex-col items-center justify-center gap-4 rounded-lg bg-app-card px-6 py-20 text-center shadow-sm dark:bg-[#232327] dark:ring-1 dark:ring-white/[0.06]">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-brand dark:text-brand">
-              <MonitorPlay className="h-8 w-8" strokeWidth={1.6} />
-            </div>
+          <div className="workspace-empty">
             <div>
               <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200">还没有添加直播间</p>
               <p className="mt-1.5 text-[13px] text-slate-400 dark:text-slate-500">
@@ -294,7 +284,7 @@ export function RoomPage() {
             </div>
           </div>
         ) : previewRooms.length === 0 ? (
-          <div className="app-rise rounded-lg bg-app-card px-6 py-16 text-center text-sm text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:bg-[#232327] dark:text-slate-500 dark:ring-1 dark:ring-white/[0.06]">
+          <div className="workspace-empty">
             没有匹配的直播间
           </div>
         ) : viewMode === "list" ? (

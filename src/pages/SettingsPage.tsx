@@ -9,6 +9,7 @@ import { AudioSettings } from "@/components/settings/AudioSettings";
 import { ListenSettings } from "@/components/settings/ListenSettings";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const SETTINGS_CATEGORIES = [
   { value: "general", label: "通用", description: "主题、颜色与窗口行为", icon: SlidersHorizontal, component: GeneralSettings },
@@ -60,8 +61,7 @@ export function SettingsPage() {
 
   return (
     <section className="settings-workspace flex h-full min-h-0 flex-col select-none">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[22px] font-semibold tracking-tight text-ink">设置</h2>
+      <PageHeader title="设置" actions={
         <div className="flex items-center gap-3">
           <span className="text-xs text-ink-muted" role="status">{loading ? "加载中…" : dirty ? "有未保存的更改" : saved !== null ? "设置已保存" : ""}</span>
           <button type="button" onClick={() => void save()} disabled={loading || saving || !!loadError || !dirty}
@@ -69,7 +69,7 @@ export function SettingsPage() {
             {saving ? "保存中…" : "保存设置"}
           </button>
         </div>
-      </header>
+      } />
       {saveError && <p className="mb-3 text-xs text-rose-600 dark:text-rose-300" role="alert">{saveError}</p>}
       <Tabs.Root value={activeCategory} onValueChange={setActiveCategory} orientation="vertical" className="settings-layout min-h-0 flex-1">
         <Tabs.List aria-label="设置分类" className="settings-navigation">

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MonitorPlay, Plus, RefreshCw, X } from "lucide-react";
+import { ArrowLeft, MonitorPlay, Plus, RefreshCw } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
 import type { SearchRoomMode, SearchRoomResult } from "@/types/bilibili";
@@ -102,7 +102,7 @@ export function RoomAddPage() {
     return (
       <div
         key={`${keyPrefix}-${room.roomId}`}
-        className="flex items-center gap-3 rounded-lg bg-app-card p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:ring-1 dark:ring-white/[0.06]"
+        className="flex items-center gap-3 border-b border-subtle py-3"
       >
         {room.avatar ? (
           <ProxiedImage
@@ -131,8 +131,9 @@ export function RoomAddPage() {
           <button
             onClick={() => void handleAdd(room.roomId)}
             disabled={addingRoomIds.has(room.roomId)}
-            className="shrink-0 rounded p-1.5 text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="workspace-button workspace-icon-button shrink-0"
             title="添加"
+            aria-label={`添加 ${room.uname}`}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -143,104 +144,76 @@ export function RoomAddPage() {
 
   return (
     <section
-      className="flex h-full flex-col select-none"
+      className="flex h-full min-h-0 flex-col select-none"
       onContextMenu={(e) => {
         if (!import.meta.env.DEV) {
           e.preventDefault();
         }
       }}
     >
-      {/* 子页页头：返回 + 标题 */}
-      <header className="app-rise mb-6 flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
+      <PageHeader title="添加直播间" description="搜索直播间，或从正在直播的关注中直接添加。" leading={
           <button
             onClick={() => navigate("/rooms")}
-            className="glass-panel inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+            className="workspace-button workspace-icon-button shrink-0"
             title="返回直播间列表"
+            aria-label="返回直播间列表"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <div className="min-w-0">
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">添加主播</h2>
-            <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-              搜索直播间，或从正在直播的关注中直接添加
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => void loadFollowLives()}
-            disabled={followLoading}
-            className="glass-panel inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 disabled:cursor-not-allowed dark:text-slate-400 dark:hover:text-white"
-            title="刷新正在直播的关注"
-          >
-            <RefreshCw className={`h-4 w-4 ${followLoading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            onClick={() => navigate("/rooms")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#f0f0f0] px-4 text-sm font-medium text-slate-600 transition hover:bg-[#ebebeb] dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.1]"
-            title="关闭并返回"
-          >
-            <X className="h-4 w-4" />
-            关闭
-          </button>
-        </div>
-      </header>
+      } />
 
       {/* 顶部搜索框（与原内联搜索一致） */}
-      <div className="app-rise mb-4">
-        <div className="rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
-          <div className="flex gap-2">
-            <Select value={mode} onValueChange={(v) => setMode(v as SearchRoomMode)}>
-              <SelectTrigger className="h-9 w-auto shrink-0 gap-1.5 px-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
+      <div className="mb-6 border-b border-subtle pb-5">
+          <div className="room-add-search flex flex-wrap gap-2">
+            <select value={mode} onChange={(event) => setMode(event.target.value as SearchRoomMode)} aria-label="搜索方式" className="workspace-select h-8 shrink-0 px-3 text-[13px]">
                 {searchModes.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
+                  <option key={item.value} value={item.value}>
                     {item.label}
-                  </SelectItem>
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
+            </select>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
+                if (event.key === "Enter" && !event.nativeEvent.isComposing && !loading) {
                   void handleSearch();
                 }
               }}
               placeholder={searchModes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容"}
-              className="h-9 flex-1 px-3 text-sm"
+              aria-label="搜索内容"
+              className="h-8 min-w-0 flex-1 px-3 text-[13px]"
             />
             <button
               onClick={() => void handleSearch()}
               disabled={loading}
-              className="shrink-0 rounded-md bg-brand px-4 text-sm font-medium text-brand-contrast transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="workspace-button workspace-button-primary shrink-0"
             >
               {loading ? "搜索中..." : "搜索"}
             </button>
           </div>
           {error && <InlineMessage key={msgKey} type="error" className="mt-3">{error}</InlineMessage>}
-        </div>
       </div>
 
       {/* 结果区：搜索后展示搜索结果，未搜索时默认展示正在直播的关注 */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-[#f8f8f8] p-5 shadow-sm dark:bg-[#12141e] dark:ring-1 dark:ring-white/[0.06]">
+        <div>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">
               {searched ? "搜索结果" : "正在直播的关注"}
             </h3>
-            <span className="numeric text-xs text-slate-400 dark:text-slate-500">
+            <div className="flex items-center gap-2"><span className="numeric text-xs text-ink-muted">
               {searched ? `${searchResults.length} 个` : `${followLives.length} 个`}
             </span>
+            {!searched && <button type="button" onClick={() => void loadFollowLives()} disabled={followLoading}
+              className="workspace-button workspace-icon-button" aria-label="刷新正在直播的关注" title="刷新正在直播的关注">
+              <RefreshCw className={`h-3.5 w-3.5 ${followLoading ? "animate-spin" : ""}`} />
+            </button>}</div>
           </div>
 
           {searched ? (
             searchResults.length > 0 ? (
-              <div className="flex flex-col gap-2">{searchResults.map((room) => renderRow(room, "search"))}</div>
+              <div>{searchResults.map((room) => renderRow(room, "search"))}</div>
             ) : (
               <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">
                 没有匹配的直播间
@@ -249,7 +222,7 @@ export function RoomAddPage() {
           ) : followLoading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : followLives.length > 0 ? (
-            <div className="flex flex-col gap-2">{followLives.map((room) => renderRow(room, "follow"))}</div>
+            <div>{followLives.map((room) => renderRow(room, "follow"))}</div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               <MonitorPlay className="h-8 w-8" strokeWidth={1.6} />

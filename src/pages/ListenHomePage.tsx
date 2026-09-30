@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Disc3, ListMusic, Loader2, RefreshCw, SquarePlay } from "lucide-react";
+import { Loader2, RefreshCw, SquarePlay } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { tauriCommands } from "@/lib/tauri";
 import type { FavFolder } from "@/types/bilibili";
@@ -61,40 +62,32 @@ export function ListenHomePage() {
 
   return (
     <section
-      className="flex h-full flex-col select-none"
+      className="flex h-full min-h-0 flex-col select-none"
       onContextMenu={(e) => {
         if (!import.meta.env.DEV) {
           e.preventDefault();
         }
       }}
     >
-      <header className="app-rise mb-6">
-        <div className="flex items-center justify-between gap-6">
-          <div className="min-w-0">
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">听视频</h2>
-            <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-              把 B 站视频当音乐听：分 P 是歌单，收藏夹是专辑
-            </p>
-          </div>
-        </div>
-      </header>
+      <PageHeader title="收藏夹" description="把 B 站视频当音乐听：分 P 是歌单，收藏夹是专辑。" />
 
       {/* BV 号直达 */}
-      <div className="app-rise mb-4 rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
+      <div className="app-rise mb-6 border-b border-subtle pb-5">
         <div className="flex gap-2">
           <input
             value={bvid}
             onChange={(event) => setBvid(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") void handlePlay();
+              if (event.key === "Enter" && !event.nativeEvent.isComposing && !loading) void handlePlay();
             }}
             placeholder="输入 BV 号或视频链接，如 BV1GJ411x7h7"
-            className="h-9 flex-1 px-3 text-sm"
+            aria-label="BV 号或视频链接"
+            className="h-8 min-w-0 flex-1 px-3 text-[13px]"
           />
           <button
             onClick={() => void handlePlay()}
             disabled={loading}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="workspace-button workspace-button-primary shrink-0"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SquarePlay className="h-4 w-4" />}
             {loading ? "解析中..." : "播放"}
@@ -105,16 +98,15 @@ export function ListenHomePage() {
 
       {/* 我的收藏夹（专辑） */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-300">
-              <ListMusic className="h-4 w-4" />
+        <div>
+          <div className="app-rise mb-3 flex items-center justify-between">
+            <h3 className="text-[13px] font-semibold text-ink">
               我的收藏夹
             </h3>
             <button
               onClick={() => void loadFolders()}
               disabled={foldersLoading}
-              className="inline-flex items-center gap-1 rounded p-1 text-xs text-slate-400 transition hover:text-slate-600 disabled:cursor-not-allowed dark:hover:text-slate-200"
+              className="workspace-button"
               title="刷新收藏夹"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${foldersLoading ? "animate-spin" : ""}`} />
@@ -125,28 +117,26 @@ export function ListenHomePage() {
           {foldersLoading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : foldersError ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
-              <Disc3 className="h-8 w-8" strokeWidth={1.6} />
+            <div className="app-rise flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               {foldersError}
             </div>
           ) : folders.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="app-rise divide-y divide-subtle border-t border-subtle">
               {folders.map((folder) => (
                 <button
                   key={folder.id}
                   onClick={() => navigate(`/listen/fav/${folder.id}`)}
-                  className="group rounded-lg bg-app-card p-4 text-left shadow-sm transition hover:bg-ink/[0.05] dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
+                  className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:bg-ink/[0.04]"
                 >
-                  <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{folder.title}</p>
-                  <p className="mt-1 numeric text-xs text-slate-400 dark:text-slate-500">
+                  <p className="min-w-0 truncate text-[13px] font-medium text-ink">{folder.title}</p>
+                  <p className="numeric shrink-0 text-xs text-ink-muted">
                     {folder.mediaCount} 个视频
                   </p>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
-              <Disc3 className="h-8 w-8" strokeWidth={1.6} />
+            <div className="app-rise flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               还没有创建收藏夹
             </div>
           )}
