@@ -5,13 +5,15 @@ const REPO_URL = 'https://github.com/sfqy211/bilidanmu'
 
 const config = defineConfig({
   title: 'BiliDanmu',
-  description: 'Windows 桌面端 B 站直播间弹幕客户端，基于 Tauri 2 + React 18 构建。',
+  description: '把热闹，轻轻放在身边。BiliDanmu 为 Windows 桌面带来透明弹幕窗、贴边收起、直播互动与听视频。',
   lang: 'zh-CN',
   lastUpdated: true,
   cleanUrls: true,
   head: [
     ['link', { rel: 'icon', href: '/favicon.svg' }],
-    ['meta', { name: 'theme-color', content: '#00aeec' }],
+    ['meta', { name: 'theme-color', content: '#fcfdff' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'BiliDanmu' }],
   ],
   markdown: {
     lineNumbers: true,
@@ -28,13 +30,13 @@ const config = defineConfig({
     siteTitle: 'BiliDanmu',
     nav: [
       { text: '首页', link: '/' },
-      { text: '用户指南', link: '/guide/start' },
+      { text: '用户指南', link: '/guide/quick-start' },
       { text: '技术架构', link: '/architecture/overview' },
       { text: 'API 参考', link: '/api/bili' },
       {
         text: '更多',
         items: [
-          { text: '设计规范', link: '/design/overview' },
+          { text: '下载软件', link: `${REPO_URL}/releases/latest` },
           { text: '技术调研', link: '/research/notes' },
           { text: 'GitHub', link: REPO_URL },
         ],
@@ -45,6 +47,7 @@ const config = defineConfig({
         {
           text: '快速开始',
           items: [
+            { text: '快速上手', link: '/guide/quick-start' },
             { text: '项目介绍', link: '/guide/start' },
             { text: '安装与启动', link: '/guide/install' },
             { text: '功能总览', link: '/guide/features' },
@@ -58,6 +61,7 @@ const config = defineConfig({
             { text: '弹幕收发', link: '/guide/danmaku' },
             { text: '自动发送与点赞', link: '/guide/auto' },
             { text: '直播播放', link: '/guide/live' },
+            { text: '听视频', link: '/guide/listen' },
             { text: '语音转字幕', link: '/guide/stt' },
             { text: 'AI 接入（开发中）', link: '/guide/ai' },
             { text: '窗口与 Dock', link: '/guide/window' },
@@ -85,15 +89,6 @@ const config = defineConfig({
             { text: 'B 站 API', link: '/api/bili' },
             { text: 'IPC 命令', link: '/api/ipc' },
             { text: '事件列表', link: '/api/events' },
-          ],
-        },
-      ],
-      '/design/': [
-        {
-          text: '设计规范',
-          items: [
-            { text: '设计风格', link: '/design/overview' },
-            { text: '页面布局', link: '/design/layout' },
           ],
         },
       ],

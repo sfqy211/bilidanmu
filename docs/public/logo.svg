@@ -1,11 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#00aeec"/>
-      <stop offset="100%" stop-color="#fb7299"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <text x="32" y="44" text-anchor="middle" font-family="-apple-system, 'Segoe UI', sans-serif"
-        font-size="34" font-weight="800" fill="#fff">B</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="logo06-title logo06-desc">
+  <title id="logo06-title">声窗 · 对称精修版</title>
+  <desc id="logo06-desc">深灰耳机拱形沿画布中线左右对称，两端等高，内外弧线平滑连接；保留粉色气泡及右下方圆润尾角。透明背景。</desc>
+  <path fill="#35445c" style="fill:var(--logo-ink, #35445c)" d="
+    M256 113
+    C370 113 462 207 462 326
+    V338
+    C462 357.9 445.9 374 426 374
+    C406.1 374 390 357.9 390 338
+    V307
+    C390 230 331 173 256 173
+    C181 173 122 230 122 307
+    V338
+    C122 357.9 105.9 374 86 374
+    C66.1 374 50 357.9 50 338
+    V326
+    C50 207 142 113 256 113Z"/>
+  <path fill="#e95780" style="fill:var(--logo-accent, #e95780)" d="M198 295H317C341 295 361 314 361 338C361 355 359 375 355 388C353 400 344 402 336 393C326 382 320 376 304 376H198C174 376 154 359 154 337C154 314 173 295 198 295Z"/>
 </svg>
