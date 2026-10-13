@@ -25,5 +25,12 @@ docs/.vitepress/cache/
 # 生成模型
 src-tauri/models/
 
-# Claude Code 工具
+# AI 工具
 .agents/
+.zcodeignore
+promo/
+design/
+
+# 本地临时测试，保留测试开发指南
+/tests/*
+!/tests/README.md
