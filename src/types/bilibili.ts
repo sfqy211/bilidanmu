@@ -220,6 +220,7 @@ export interface UpdateInfo {
 }
 
 export interface Settings {
+  visual: VisualSetting;
   sendInterval: { min: number; max: number };
   rateLimit: { maxPerWindow: number; windowSec: number };
   riskControl: {
@@ -279,6 +280,22 @@ export interface Settings {
   };
   /** 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序） */
   closeBehavior: "ask" | "hide" | "exit";
+}
+
+export type VisualFont = "system" | "yahei" | "dengxian" | "serif";
+export interface VisualProfile {
+  accent: string;
+  background: string;
+  foreground: string;
+  fontFamily: VisualFont;
+  contentFontFamily: VisualFont | "inherit";
+}
+export interface VisualSetting {
+  light: VisualProfile;
+  dark: VisualProfile;
+  uiFontSize: number;
+  contentFontSize: number;
+  contrast: number;
 }
 
 export interface AudioSetting {

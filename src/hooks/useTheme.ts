@@ -1,17 +1,15 @@
 import { useEffect } from "react";
-import { applyTheme } from "@/lib/theme";
+import { applyVisualTheme } from "@/lib/visual-theme";
 import { useSettingsStore } from "@/stores/settings-store";
 
 export function useTheme() {
-  const theme = useSettingsStore((state) => state.settings.appearance.theme);
+  const settings = useSettingsStore((state) => state.settings);
 
   useEffect(() => {
-    applyTheme(theme);
-    if (theme !== "system") return;
-
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => applyTheme(theme);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [theme]);
+    const apply = () => applyVisualTheme(settings);
+    apply();
+    const queries = [window.matchMedia("(prefers-color-scheme: dark)"), window.matchMedia("(prefers-reduced-motion: reduce)")];
+    queries.forEach(query => query.addEventListener("change", apply));
+    return () => queries.forEach(query => query.removeEventListener("change", apply));
+  }, [settings]);
 }

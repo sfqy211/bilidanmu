@@ -281,8 +281,54 @@ impl Default for FilterSetting {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct VisualProfile {
+    pub accent: String,
+    pub background: String,
+    pub foreground: String,
+    pub font_family: String,
+    pub content_font_family: String,
+}
+
+impl Default for VisualProfile {
+    fn default() -> Self {
+        Self {
+            accent: String::new(),
+            background: String::new(),
+            foreground: String::new(),
+            font_family: "system".into(),
+            content_font_family: "inherit".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct VisualSetting {
+    pub light: VisualProfile,
+    pub dark: VisualProfile,
+    pub ui_font_size: u32,
+    pub content_font_size: u32,
+    pub contrast: u32,
+}
+
+impl Default for VisualSetting {
+    fn default() -> Self {
+        Self {
+            light: VisualProfile::default(),
+            dark: VisualProfile::default(),
+            ui_font_size: 14,
+            content_font_size: 14,
+            contrast: 40,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
+    #[serde(default)]
+    pub visual: VisualSetting,
     pub send_interval: RangeSetting,
     pub rate_limit: RateLimitSetting,
     pub risk_control: RiskControlSetting,
@@ -311,6 +357,7 @@ fn default_close_behavior() -> String {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            visual: VisualSetting::default(),
             send_interval: RangeSetting { min: 1.5, max: 3.0 },
             rate_limit: RateLimitSetting {
                 max_per_window: 20,

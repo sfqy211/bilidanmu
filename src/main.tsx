@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
 import { router } from "@/router";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
+import { applyVisualTheme } from "@/lib/visual-theme";
 import { queryClient } from "@/lib/query-client";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -15,7 +16,7 @@ async function bootstrap() {
   try {
     const settings = await tauriCommands.settings.get();
     useSettingsStore.getState().setSettings(settings);
-    applyTheme(settings.appearance.theme);
+    applyVisualTheme(useSettingsStore.getState().settings);
   } catch {
     applyTheme(getStoredTheme() ?? "system");
   }

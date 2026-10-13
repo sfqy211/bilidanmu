@@ -3,7 +3,6 @@ import { Outlet } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
 import type { Credential, Settings } from "@/types/bilibili";
-import { applyBrandTheme } from "@/lib/brand-theme";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -43,7 +42,6 @@ export default function App() {
         }
 
         setSettings(settings);
-        applyBrandTheme(settings);
         setSttAvailable(sttAvailable);
         setRooms(rooms);
 
@@ -145,7 +143,6 @@ export default function App() {
   useEffect(() => {
     const handleSettingsChanged = (event: { payload: Settings }) => {
       setSettings(event.payload);
-      applyBrandTheme(event.payload);
       // 同步消息缓存上限
       if (event.payload.cache) {
         useDanmakuStore.getState().setLimits(event.payload.cache.messageLimit);

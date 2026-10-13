@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { emit } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
 import type { Settings } from "@/types/bilibili";
+import { DEFAULT_VISUAL, normalizeVisual } from "@/lib/visual-defaults";
 
 /** 需要深合并的子对象键 */
 const DEEP_KEYS = [
@@ -17,10 +18,12 @@ function mergeSettings(base: Settings, incoming: Partial<Settings>): Settings {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 跨 key 联合类型无法静态推断
     (merged as Settings)[k] = { ...(base[k] as object), ...((incoming[k] ?? {}) as object) } as any;
   }
+  merged.visual = normalizeVisual(base.visual, incoming.visual);
   return merged;
 }
 
 export const defaultSettings: Settings = {
+  visual: DEFAULT_VISUAL,
   sendInterval: { min: 1.5, max: 3 },
   rateLimit: { maxPerWindow: 20, windowSec: 30 },
   riskControl: {

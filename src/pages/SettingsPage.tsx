@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { HardDrive, Headphones, Info, MessageSquare, SlidersHorizontal, Volume2 } from "lucide-react";
+import { HardDrive, Headphones, Info, MessageSquare, Palette, SlidersHorizontal, Volume2 } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
+import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { DanmakuSettings } from "@/components/settings/DanmakuSettings";
 import { AudioSettings } from "@/components/settings/AudioSettings";
 import { ListenSettings } from "@/components/settings/ListenSettings";
@@ -12,7 +13,8 @@ import { AboutSettings } from "@/components/settings/AboutSettings";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 const SETTINGS_CATEGORIES = [
-  { value: "general", label: "通用", description: "主题、颜色与窗口行为", icon: SlidersHorizontal, component: GeneralSettings },
+  { value: "general", label: "通用", description: "窗口行为与快捷键", icon: SlidersHorizontal, component: GeneralSettings },
+  { value: "appearance", label: "外观", description: "", icon: Palette, component: AppearanceSettings },
   { value: "danmaku", label: "弹幕窗口", description: "文字、消息、活动栏与屏蔽", icon: MessageSquare, component: DanmakuSettings },
   { value: "audio", label: "直播音频", description: "直播音频与实时语音字幕", icon: Volume2, component: AudioSettings },
   { value: "listen", label: "听视频", description: "播放偏好、视频字幕与封面外观", icon: Headphones, component: ListenSettings },
@@ -83,8 +85,8 @@ export function SettingsPage() {
           {SETTINGS_CATEGORIES.map(({ value, label, description, component: Panel }) => (
             <Tabs.Content key={value} value={value} className="outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
               <header className="mb-5">
-                <h3 className="text-base font-semibold text-ink">{label}</h3>
-                <p className="mt-1 text-xs text-ink-muted">{description}</p>
+                <h3 className={`${value === "appearance" ? "appearance-title" : "text-base"} font-semibold text-ink`}>{label}</h3>
+                {description && <p className="mt-1 text-xs text-ink-muted">{description}</p>}
               </header>
               {value === "about" ? <AboutSettings /> : loading ? (
                 <p className="text-[13px] text-ink-muted" role="status">正在加载设置…</p>
