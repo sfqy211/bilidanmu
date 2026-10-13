@@ -380,7 +380,7 @@ export function VideoCommentsPage() {
                           title={isAnonymous ? undefined : `回复 @${comment.memberName}`}
                         >
                           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{comment.memberName}</p>
-                          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-800 dark:text-slate-100">
+                          <p className="content-typography mt-1 whitespace-pre-wrap break-words text-ink">
                             {comment.content}
                           </p>
                         </div>
@@ -449,7 +449,7 @@ export function VideoCommentsPage() {
                                       {formatTime(sub.ctime)}
                                     </span>
                                   </p>
-                                  <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-slate-700 dark:text-slate-200">
+                                  <p className="content-typography mt-0.5 whitespace-pre-wrap break-words text-ink">
                                     {sub.content}
                                   </p>
                                 </div>

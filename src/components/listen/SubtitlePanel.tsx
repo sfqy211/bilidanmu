@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Maximize2, Minimize2, RotateCcw } from "lucide-react";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
 
 export interface SubtitleLine { from: number; to: number; content: string }
@@ -15,6 +16,7 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
   focus: boolean; onFocusChange: (focus: boolean) => void; onSeek: (seconds: number) => void; onRetry: () => void;
 }) {
   const preferences = useSettingsStore((state) => state.settings.listen);
+  const reducedMotion = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
   const resumeTimer = useRef(0);
   const animationFrame = useRef(0);
@@ -35,6 +37,7 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
       const target = Math.min(Math.max(0, start + offset - container.clientHeight / 2 + line.clientHeight / 2),
         Math.max(0, container.scrollHeight - container.clientHeight));
       const distance = target - start;
+      if (reducedMotion) { container.scrollTop = target; return; }
       if (Math.abs(distance) < 1) return;
       const duration = Math.min(420, 240 + Math.abs(distance) * 0.6);
       let startedAt: number | undefined;
@@ -50,16 +53,19 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
     centerCurrentLine();
     let width = container.clientWidth;
     let height = container.clientHeight;
+    let contentHeight = container.scrollHeight;
     const observer = new ResizeObserver(() => {
       // ResizeObserver 首次通知不重新启动刚开始的滚动。
-      if (container.clientWidth === width && container.clientHeight === height) return;
+      if (container.clientWidth === width && container.clientHeight === height && container.scrollHeight === contentHeight) return;
       width = container.clientWidth;
       height = container.clientHeight;
+      contentHeight = container.scrollHeight;
       centerCurrentLine();
     });
     observer.observe(container);
+    if (container.firstElementChild) observer.observe(container.firstElementChild);
     return () => { cancelAnimationFrame(animationFrame.current); observer.disconnect(); };
-  }, [activeIndex, following, focus, lines, preferences.subtitleAutoFollow, preferences.subtitleFontSize, preferences.subtitleShowTime]);
+  }, [activeIndex, following, focus, lines, reducedMotion, preferences.subtitleAutoFollow, preferences.subtitleFontSize, preferences.subtitleShowTime]);
 
   const pauseFollowing = () => {
     if (!preferences.subtitleAutoFollow) return;
@@ -114,7 +120,7 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
                 className={cn("listen-subtitle-line", index === activeIndex && "listen-subtitle-current")}
                 title={`跳转到 ${formatTime(line.from)}`}>
                 {preferences.subtitleShowTime && <span className="listen-subtitle-time numeric">{formatTime(line.from)}</span>}
-                <span className="min-w-0 break-words">{line.content}</span>
+                <span className="content-typography min-w-0 break-words">{line.content}</span>
               </button>
             ))}
           </div>

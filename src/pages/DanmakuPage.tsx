@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useWindowDock } from "@/hooks/useWindowDock";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { DockSide } from "@/hooks/useWindowDock";
 import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
@@ -313,7 +314,8 @@ export function DanmakuPage() {
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
-  const dockAnimMs = useSettingsStore((s) => s.settings.appearance.dockAnimMs);
+  const preferredDockAnimMs = useSettingsStore((s) => s.settings.appearance.dockAnimMs);
+  const dockAnimMs = useReducedMotion() ? 0 : preferredDockAnimMs;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
