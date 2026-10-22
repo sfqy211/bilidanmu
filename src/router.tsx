@@ -5,7 +5,7 @@ import { RoomPage } from "@/pages/RoomPage";
 import { RoomAddPage } from "@/pages/RoomAddPage";
 import { ListenHomePage } from "@/pages/ListenHomePage";
 import { ListenFavPage } from "@/pages/ListenFavPage";
-import { ListenSearchPage } from "@/pages/ListenSearchPage";
+import { VideoAddPage } from "@/pages/VideoAddPage";
 import { VideoPlayerPage } from "@/pages/VideoPlayerPage";
 import { VideoCommentsPage } from "@/pages/VideoCommentsPage";
 import { WatchLaterPage } from "@/pages/WatchLaterPage";
@@ -30,7 +30,8 @@ export const router = createBrowserRouter([
           { path: "/ai", element: <AIPage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "/listen", element: <ListenHomePage /> },
-          { path: "/listen/search", element: <ListenSearchPage /> },
+          { path: "/listen/add", element: <VideoAddPage /> },
+          { path: "/listen/search", element: <Navigate to="/listen/add" replace /> },
           { path: "/listen/watchlater", element: <WatchLaterPage /> },
           { path: "/listen/fav/:mediaId", element: <ListenFavPage /> },
           { path: "/listen/video/:bvid", element: <VideoPlayerPage /> },
