@@ -1,9 +1,17 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { TitleBar } from "./TitleBar";
 import { MiniPlayer } from "@/components/listen/MiniPlayer";
+import { rememberRoute } from "@/lib/app-history";
 
 export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notice?: ReactNode }) {
+  const location = useLocation();
+  const isVideoRoute = location.pathname.startsWith("/listen/video/");
+  useEffect(() => {
+    if (!isVideoRoute) rememberRoute(location.pathname);
+  }, [isVideoRoute, location.pathname]);
+
   return (
     <div className="window-rounded app-atmosphere app-scope workspace-shell flex h-full flex-col overflow-hidden text-ink">
       <TitleBar />

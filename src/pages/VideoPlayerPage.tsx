@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ImageIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, ImageIcon, Loader2 } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PlayerControls } from "@/components/listen/PlayerControls";
 import { SubtitlePanel, type SubtitleLine } from "@/components/listen/SubtitlePanel";
 import { tauriCommands } from "@/lib/tauri";
+import { getRememberedRoute } from "@/lib/app-history";
 import { useProxyImage } from "@/hooks/useProxyImage";
 import { useVideoAudioStore } from "@/stores/video-audio-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -18,8 +19,6 @@ export function VideoPlayerPage() {
   const isCurrentVideo = video?.bvid === bvid;
   const track = queue?.tracks[index];
   const coverSource = useProxyImage(isCurrentVideo ? video?.cover : undefined);
-  const [focusOverride, setFocus] = useState<boolean | null>(null);
-  const focus = focusOverride ?? false;
   const showCovers = preferences.showCovers;
   const [reloadKey, setReloadKey] = useState(0);
   const [subtitle, setSubtitle] = useState<{ loading: boolean; failed: boolean; lines: SubtitleLine[] }>({ loading: false, failed: false, lines: [] });
@@ -64,11 +63,19 @@ export function VideoPlayerPage() {
   if (!video || !queue || !track) return <div className="workspace-empty h-full">没有加载中的视频</div>;
 
   return (
-    <section className="listen-player app-rise" data-subtitle-focus={focus || undefined}
+    <section className="listen-player app-rise"
       onContextMenu={(event) => { if (!import.meta.env.DEV) event.preventDefault(); }}>
       <header className="listen-player-heading">
         <div className="listen-player-heading-row">
-          {showCovers && !focus && (
+          <button
+            onClick={() => navigate(getRememberedRoute())}
+            className="glass-panel inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+            title="返回上一页"
+            aria-label="返回上一页"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          {showCovers && (
             <figure className="listen-player-cover-thumb">
               {video.cover ? <img src={coverSource} alt="" /> : <ImageIcon className="h-4 w-4" />}
             </figure>
@@ -81,7 +88,7 @@ export function VideoPlayerPage() {
       </header>
       <div className="listen-player-body">
         <SubtitlePanel lines={subtitle.lines} loading={subtitle.loading} failed={subtitle.failed} activeIndex={activeIndex}
-          currentTime={currentTime} focus={focus} onFocusChange={setFocus} onSeek={seek} onRetry={() => setReloadKey((key) => key + 1)} />
+          currentTime={currentTime} onSeek={seek} onRetry={() => setReloadKey((key) => key + 1)} />
       </div>
       <PlayerControls onComments={() => navigate(`/listen/video/${video.bvid}/comments`)} />
     </section>

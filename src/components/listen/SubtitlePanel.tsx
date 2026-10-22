@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Maximize2, Minimize2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
@@ -11,9 +11,9 @@ function formatTime(seconds: number) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime, focus, onFocusChange, onSeek, onRetry }: {
+export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime, onSeek, onRetry }: {
   lines: SubtitleLine[]; loading: boolean; failed: boolean; activeIndex: number; currentTime: number;
-  focus: boolean; onFocusChange: (focus: boolean) => void; onSeek: (seconds: number) => void; onRetry: () => void;
+  onSeek: (seconds: number) => void; onRetry: () => void;
 }) {
   const preferences = useSettingsStore((state) => state.settings.listen);
   const reducedMotion = useReducedMotion();
@@ -65,7 +65,7 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
     observer.observe(container);
     if (container.firstElementChild) observer.observe(container.firstElementChild);
     return () => { cancelAnimationFrame(animationFrame.current); observer.disconnect(); };
-  }, [activeIndex, following, focus, lines, reducedMotion, preferences.subtitleAutoFollow, preferences.subtitleFontSize, preferences.subtitleShowTime]);
+  }, [activeIndex, following, lines, reducedMotion, preferences.subtitleAutoFollow, preferences.subtitleFontSize, preferences.subtitleShowTime]);
 
   const pauseFollowing = () => {
     if (!preferences.subtitleAutoFollow) return;
@@ -92,11 +92,6 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
               <RotateCcw className="h-3.5 w-3.5" />跟随
             </button>
           )}
-          <button type="button" onClick={() => onFocusChange(!focus)} disabled={!focus && !lines.length}
-            className="workspace-button text-xs" aria-label={focus ? "退出专注字幕" : "专注字幕"}>
-            {focus ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            {focus ? "退出专注" : "专注字幕"}
-          </button>
         </div>
       </header>
       {loading ? (
