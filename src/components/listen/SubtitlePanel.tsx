@@ -93,9 +93,9 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
             </button>
           )}
           <button type="button" onClick={() => onFocusChange(!focus)} disabled={!focus && !lines.length}
-            className="workspace-button text-xs" aria-label={focus ? "返回封面视图" : "专注字幕"}>
+            className="workspace-button text-xs" aria-label={focus ? "退出专注字幕" : "专注字幕"}>
             {focus ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            {focus ? "返回封面" : "专注字幕"}
+            {focus ? "退出专注" : "专注字幕"}
           </button>
         </div>
       </header>

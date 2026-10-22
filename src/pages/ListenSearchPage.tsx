@@ -5,6 +5,7 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import type { SearchVideoItem } from "@/types/bilibili";
 
@@ -14,6 +15,7 @@ const PAGE_SIZE = 20;
 export function ListenSearchPage() {
   const navigate = useNavigate();
   const playQueue = useVideoAudioStore((s) => s.playQueue);
+  const showCovers = useSettingsStore((state) => state.settings.listen.showCovers);
   const [keyword, setKeyword] = useState("");
   const [items, setItems] = useState<SearchVideoItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -159,11 +161,11 @@ export function ListenSearchPage() {
                     disabled={playingBvid != null}
                     className="group flex items-center gap-3 rounded-lg bg-app-card p-2.5 text-left shadow-sm transition hover:bg-ink/[0.05] disabled:cursor-not-allowed dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
                   >
-                    {item.cover ? (
+                    {showCovers && (item.cover ? (
                       <ProxiedImage src={item.cover} alt="" className="h-11 w-[72px] shrink-0 rounded object-cover" />
                     ) : (
                       <div className="h-11 w-[72px] shrink-0 rounded bg-brand/10" />
-                    )}
+                    ))}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
                       <p className="truncate text-xs text-slate-500 dark:text-slate-400">{item.author}</p>

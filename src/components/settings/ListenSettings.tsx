@@ -1,4 +1,4 @@
-import { SettingsChoice, SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
+import { SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 
 export function ListenSettings({ settings, patchSettings }: SettingsPanelProps) {
   const update = (patch: Partial<typeof settings.listen>) => patchSettings({ listen: { ...settings.listen, ...patch } });
@@ -18,10 +18,9 @@ export function ListenSettings({ settings, patchSettings }: SettingsPanelProps) 
         <SettingsToggle title="显示时间标记" description="在字幕旁显示开始时间，方便浏览和定位。"
           checked={settings.listen.subtitleShowTime} onChange={(subtitleShowTime) => update({ subtitleShowTime })} />
       </SettingsGroup>
-      <SettingsGroup title="播放器外观">
-        <SettingsChoice title="默认播放器视图" description="进入播放器时使用此视图，播放中仍可随时切换。"
-          value={settings.listen.defaultView} onChange={(value) => update({ defaultView: value === "subtitles" ? "subtitles" : "cover" })}
-          options={[{ value: "cover", label: "封面与字幕" }, { value: "subtitles", label: "专注字幕" }]} />
+      <SettingsGroup title="视频封面">
+        <SettingsToggle title="显示视频封面" description="在视频列表、播放页标题旁和底部播放栏展示封面；关闭后都只显示文字。"
+          checked={settings.listen.showCovers} onChange={(showCovers) => update({ showCovers })} />
       </SettingsGroup>
     </>
   );

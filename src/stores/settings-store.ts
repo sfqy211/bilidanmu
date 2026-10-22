@@ -71,7 +71,7 @@ export const defaultSettings: Settings = {
     autoPlay: false
   },
   listen: {
-    defaultView: "cover",
+    showCovers: true,
     defaultVolume: 80,
     autoNext: true,
     subtitleFontSize: 16,

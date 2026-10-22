@@ -9,7 +9,7 @@ import { useProxyImage } from "@/hooks/useProxyImage";
 import { useVideoAudioStore } from "@/stores/video-audio-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
-/** 保留原始封面比例，字幕拥有独立阅读区；播放控制在两种视图中保持挂载。 */
+/** 字幕优先的播放页：封面缩成标题旁的小缩略图，阅读区独占整行。 */
 export function VideoPlayerPage() {
   const navigate = useNavigate();
   const { bvid } = useParams();
@@ -19,7 +19,8 @@ export function VideoPlayerPage() {
   const track = queue?.tracks[index];
   const coverSource = useProxyImage(isCurrentVideo ? video?.cover : undefined);
   const [focusOverride, setFocus] = useState<boolean | null>(null);
-  const focus = focusOverride ?? (preferences.defaultView === "subtitles");
+  const focus = focusOverride ?? false;
+  const showCovers = preferences.showCovers;
   const [reloadKey, setReloadKey] = useState(0);
   const [subtitle, setSubtitle] = useState<{ loading: boolean; failed: boolean; lines: SubtitleLine[] }>({ loading: false, failed: false, lines: [] });
 
@@ -66,15 +67,19 @@ export function VideoPlayerPage() {
     <section className="listen-player app-rise" data-subtitle-focus={focus || undefined}
       onContextMenu={(event) => { if (!import.meta.env.DEV) event.preventDefault(); }}>
       <header className="listen-player-heading">
-        <h2 className="listen-player-title" title={track.title}>{track.title}</h2>
-        <p className="listen-player-meta"><span>{track.ownerName}</span><span aria-hidden="true">·</span><span title={queue.title}>{queue.title}</span></p>
+        <div className="listen-player-heading-row">
+          {showCovers && !focus && (
+            <figure className="listen-player-cover-thumb">
+              {video.cover ? <img src={coverSource} alt="" /> : <ImageIcon className="h-4 w-4" />}
+            </figure>
+          )}
+          <div className="min-w-0">
+            <h2 className="listen-player-title" title={track.title}>{track.title}</h2>
+            <p className="listen-player-meta"><span>{track.ownerName}</span><span aria-hidden="true">·</span><span title={queue.title}>{queue.title}</span></p>
+          </div>
+        </div>
       </header>
       <div className="listen-player-body">
-        {!focus && (
-          <figure className="listen-player-cover">
-            {video.cover ? <img src={coverSource} alt={video.title} /> : <div className="listen-player-cover-empty"><ImageIcon className="h-8 w-8" /><span>暂无封面</span></div>}
-          </figure>
-        )}
         <SubtitlePanel lines={subtitle.lines} loading={subtitle.loading} failed={subtitle.failed} activeIndex={activeIndex}
           currentTime={currentTime} focus={focus} onFocusChange={setFocus} onSeek={seek} onRetry={() => setReloadKey((key) => key + 1)} />
       </div>

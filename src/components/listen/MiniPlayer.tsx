@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { ListMusic, Loader2, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useVideoAudioStore } from "@/stores/video-audio-store";
 
 /** 常驻 mini 播放条：听视频后台播放时固定在主窗口底部，可控制播放/切曲/关闭 */
@@ -8,6 +9,7 @@ export function MiniPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
   const { queue, index, playing, loading, togglePlay, next, prev, stop } = useVideoAudioStore();
+  const showCovers = useSettingsStore((state) => state.settings.listen.showCovers);
   const playerPageActive = location.pathname.startsWith("/listen/video/");
 
   if (!queue || playerPageActive) return null;
@@ -17,13 +19,13 @@ export function MiniPlayer() {
 
   return (
     <div className="workspace-mini-player flex shrink-0 items-center gap-3 border-t border-subtle px-4 py-2">
-      {track.cover ? (
+      {showCovers && (track.cover ? (
         <ProxiedImage src={track.cover} alt="" className="h-9 w-14 shrink-0 rounded object-cover" />
       ) : (
         <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded bg-brand/10 text-brand">
           <ListMusic className="h-4 w-4" />
         </div>
-      )}
+      ))}
       <button
         onClick={() => navigate(`/listen/video/${track.bvid}`)}
         className="min-w-0 flex-1 text-left"

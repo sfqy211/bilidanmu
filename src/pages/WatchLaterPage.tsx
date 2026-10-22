@@ -5,12 +5,14 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import type { WatchLaterItem } from "@/types/bilibili";
 
 /** 稍后再看页：列表整表作为一张专辑联播 */
 export function WatchLaterPage() {
   const navigate = useNavigate();
   const playQueue = useVideoAudioStore((s) => s.playQueue);
+  const showCovers = useSettingsStore((state) => state.settings.listen.showCovers);
   const [items, setItems] = useState<WatchLaterItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingBvid, setPlayingBvid] = useState<string | null>(null);
@@ -107,13 +109,13 @@ export function WatchLaterPage() {
                   disabled={playingBvid != null}
                   className="group flex items-center gap-3 rounded-lg bg-app-card p-2.5 text-left shadow-sm transition hover:bg-ink/[0.05] disabled:cursor-not-allowed dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
                 >
-                  {item.cover ? (
+                  {showCovers && (item.cover ? (
                     <ProxiedImage src={item.cover} alt="" className="h-11 w-[72px] shrink-0 rounded object-cover" />
                   ) : (
                     <div className="flex h-11 w-[72px] shrink-0 items-center justify-center rounded bg-brand/10 text-brand">
                       <Clock className="h-4 w-4" />
                     </div>
-                  )}
+                  ))}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">{item.ownerName}</p>

@@ -174,28 +174,10 @@ impl Default for AudioSetting {
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ListenView {
-    #[default]
-    Cover,
-    Subtitles,
-}
-
-impl<'de> serde::Deserialize<'de> for ListenView {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
-        Ok(match value.as_str() {
-            "subtitles" => Self::Subtitles,
-            _ => Self::Cover,
-        })
-    }
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ListenSetting {
-    pub default_view: ListenView,
+    pub show_covers: bool,
     pub default_volume: u32,
     pub auto_next: bool,
     pub subtitle_font_size: u32,
@@ -206,7 +188,7 @@ pub struct ListenSetting {
 impl Default for ListenSetting {
     fn default() -> Self {
         Self {
-            default_view: ListenView::Cover,
+            show_covers: true,
             default_volume: 80,
             auto_next: true,
             subtitle_font_size: 16,
