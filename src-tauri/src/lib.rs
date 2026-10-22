@@ -136,6 +136,24 @@ pub fn run() {
                 }
             }
 
+            // 静默启动：开启时只驻留托盘，不弹出主页面（设置读取失败按普通启动处理）。
+            // 主窗口在 tauri.conf.json 里以 visible=false 创建，避免先闪一下再隐藏。
+            {
+                let state = app.state::<AppState>();
+                let silent_start = settings_store::load_settings(state.inner())
+                    .map(|settings| settings.silent_start)
+                    .unwrap_or(false);
+                if let Some(main) = app.get_webview_window("main") {
+                    if silent_start {
+                        let _ = main.hide();
+                        log::info!("静默启动：主窗口仅驻留系统托盘");
+                    } else {
+                        let _ = main.show();
+                        let _ = main.set_focus();
+                    }
+                }
+            }
+
             // 预加载荣耀等级图标到缓存
             {
                 let state = app.state::<AppState>();

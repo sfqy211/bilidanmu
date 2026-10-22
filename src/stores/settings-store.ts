@@ -14,9 +14,8 @@ const DEEP_KEYS = [
 function mergeSettings(base: Settings, incoming: Partial<Settings>): Settings {
   const merged = { ...base, ...incoming };
   for (const key of DEEP_KEYS) {
-    const k = key as keyof Settings;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 跨 key 联合类型无法静态推断
-    (merged as Settings)[k] = { ...(base[k] as object), ...((incoming[k] ?? {}) as object) } as any;
+    (merged as any)[key] = { ...(base[key] as object), ...((incoming[key] ?? {}) as object) };
   }
   merged.visual = normalizeVisual(base.visual, incoming.visual);
   return merged;
@@ -88,7 +87,8 @@ export const defaultSettings: Settings = {
     blockedUsers: [],
     blockedKeywords: []
   },
-  closeBehavior: "ask"
+  closeBehavior: "ask",
+  silentStart: false
 };
 
 interface SettingsState {

@@ -348,6 +348,9 @@ pub struct Settings {
     /// 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序）
     #[serde(default = "default_close_behavior")]
     pub close_behavior: String,
+    /// 静默启动：启动时不显示主页面，只在系统托盘常驻
+    #[serde(default)]
+    pub silent_start: bool,
 }
 
 fn default_close_behavior() -> String {
@@ -407,6 +410,7 @@ impl Default for Settings {
             stt: SttSetting::default(),
             filter: FilterSetting::default(),
             close_behavior: default_close_behavior(),
+            silent_start: false,
         }
     }
 }

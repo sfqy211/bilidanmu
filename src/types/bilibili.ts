@@ -280,6 +280,8 @@ export interface Settings {
   };
   /** 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序） */
   closeBehavior: "ask" | "hide" | "exit";
+  /** 静默启动：启动时不显示主页面，只在系统托盘常驻 */
+  silentStart: boolean;
 }
 
 export type VisualFont = "system" | "yahei" | "dengxian" | "serif";
