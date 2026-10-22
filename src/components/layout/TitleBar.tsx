@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Maximize, Minus, X } from "lucide-react";
 import { CloseDialog } from "@/components/ui/CloseDialog";
-import { ModeToggle } from "@/components/layout/ModeToggle";
+import logoUrl from "@/assets/logo.svg";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -69,7 +69,10 @@ export function TitleBar() {
       className="workspace-titlebar relative z-20 flex h-10 shrink-0 select-none items-center"
     >
       <div className="flex flex-1 items-center gap-2 px-3">
-        <ModeToggle />
+        <div className="workspace-brand" aria-label="BiliDanmu">
+          <img src={logoUrl} alt="" className="workspace-brand-logo" draggable={false} />
+          <span className="workspace-brand-name">BiliDanmu</span>
+        </div>
       </div>
       <div className="flex h-full">
         <button
