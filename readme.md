@@ -133,5 +133,7 @@ tests/                        测试（测试手册 + 场景脚本，见 tests/R
 | [fansMedalHelper](https://github.com/XiaoMiku01/fansMedalHelper)                           | GPLv3        |
 | [danmuai](https://github.com/PEPETII/danmuai)                                              | GPLv3        |
 | [chatterbox](https://github.com/laplace-live/chatterbox)                                   | AGPLv3       |
+| [live-moyu](https://github.com/amount-chen/live-moyu)                                      | MIT          |
+| [JLiverTool](https://github.com/Xinrea/JLiverTool)                                         | MIT          |
 
 `bilibili-API-collect` 采用 CC BY-NC 4.0 许可（禁止商业使用），本项目的 B 站 API 文档参考自该项目，同样禁止将本项目用于商业用途。
