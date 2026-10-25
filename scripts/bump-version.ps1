@@ -15,7 +15,8 @@ Set-Content "$ProjectRoot\package.json" -Value $PackageJson -NoNewline
 Write-Host "OK: package.json -> $Version"
 
 # 2. Cargo.toml — 只替换 [package] 块下的 version，避免误改依赖版本
-$CargoLines = Get-Content "$ProjectRoot\src-tauri\Cargo.toml"
+$CargoLines = @(Get-Content "$ProjectRoot\src-tauri\Cargo.toml")
+if ($CargoLines.Count -lt 5) { throw "Cargo.toml 读取异常（仅 $($CargoLines.Count) 行），已中止且未写入任何文件" }
 $InPackage = $false
 $PackageVersionReplaced = $false
 $CargoLines = $CargoLines | ForEach-Object {
@@ -28,7 +29,9 @@ $CargoLines = $CargoLines | ForEach-Object {
         $_
     }
 }
-$CargoLines | Set-Content "$ProjectRoot\src-tauri\Cargo.toml"
+$TmpCargo = "$ProjectRoot\src-tauri\Cargo.toml.tmp"
+$CargoLines | Set-Content $TmpCargo
+Move-Item $TmpCargo "$ProjectRoot\src-tauri\Cargo.toml" -Force
 Write-Host "OK: Cargo.toml -> $Version"
 
 # 3. tauri.conf.json
