@@ -87,6 +87,9 @@ export const tauriCommands = {
       invoke<StreamInfo>("get_audio_stream_url", { roomId }),
     clearAudioStream: () =>
       invoke<void>("clear_audio_stream"),
+    getInputOnly: () => invoke<boolean>("get_danmaku_input_only"),
+    setInputOnly: (enabled: boolean) =>
+      invoke<boolean>("set_danmaku_input_only", { enabled }),
     getRoomsLiveStatus: () =>
       invoke<Record<string, boolean>>("get_rooms_live_status"),
     getLiveTime: (roomId: number) =>

@@ -606,6 +606,11 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
             match current {
                 // 正常态：贴边 + 光标离开窗口（= 已松手）→ 进入吸附
                 None => {
+                    // 仅输入框模式不参与吸附（进入该模式时会先解除既有吸附）
+                    if state.danmaku_input_only.load(Ordering::Relaxed) {
+                        outside_since = None;
+                        continue;
+                    }
                     let in_cooldown = lock_cooldowns(state.inner()).contains(&label);
                     if in_cooldown {
                         // 冷却中：拖离三条边缘后解除冷却

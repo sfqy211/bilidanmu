@@ -28,6 +28,13 @@ pub const DANMAKU_MIN_H: f64 = 160.0;
 pub const DANMAKU_MAX_W: f64 = 1200.0;
 pub const DANMAKU_MAX_H: f64 = 900.0;
 
+/// 「仅输入框」紧凑模式约束（逻辑像素）：高度锁定为输入栏一行，宽度可调
+pub const INPUT_ONLY_H: f64 = 48.0;
+pub const INPUT_ONLY_MIN_W: f64 = 240.0;
+pub const INPUT_ONLY_MAX_W: f64 = 520.0;
+/// 无保存值时紧凑模式默认宽
+pub const INPUT_ONLY_DEFAULT_W: f64 = 360.0;
+
 /// 几何在 app_metadata 表中的键
 const GEOMETRY_KEY: &str = "danmaku_window_geometry";
 /// Resized/Moved 事件防抖：拖拽/DPI 切换/吸附动画期间事件密集，只认停稳后的最后一次
@@ -38,8 +45,17 @@ struct SavedGeometry {
     /// 物理像素全局坐标
     #[serde(default)]
     position: Option<(i32, i32)>,
-    width: f64,
-    height: f64,
+    /// 完整模式的宽高（逻辑像素）；旧数据必填，新数据按模式只写对应一侧
+    #[serde(default)]
+    width: Option<f64>,
+    #[serde(default)]
+    height: Option<f64>,
+    /// 当前是否「仅输入框」紧凑模式
+    #[serde(default)]
+    input_only: bool,
+    /// 紧凑模式的宽度（逻辑像素），高度恒为 INPUT_ONLY_H
+    #[serde(default)]
+    input_only_width: Option<f64>,
 }
 
 /// 已保存几何的恢复视图。位置为 None 表示无保存值或坐标已不在任何显示器内，
@@ -47,6 +63,10 @@ struct SavedGeometry {
 pub struct RestoredGeometry {
     pub size: Option<(f64, f64)>,
     pub position: Option<(i32, i32)>,
+    /// 是否「仅输入框」紧凑模式
+    pub input_only: bool,
+    /// 紧凑模式尺寸（宽已过约束校验，高恒为 INPUT_ONLY_H）；非紧凑模式为 None
+    pub input_only_size: Option<(f64, f64)>,
 }
 
 /// 防抖序号：每次几何事件递增，落盘任务醒来时序号已被超越则说明有更新事件接棒
@@ -82,16 +102,29 @@ pub fn load_geometry(app: &AppHandle) -> RestoredGeometry {
     let mut restored = RestoredGeometry {
         size: None,
         position: None,
+        input_only: false,
+        input_only_size: None,
     };
     if let Some(saved) = saved {
-        if size_in_constraints(saved.width, saved.height) {
-            restored.size = Some((saved.width, saved.height));
-        } else {
-            log::warn!(
-                "弹幕窗口保存尺寸越界，已弃用: {}x{}",
-                saved.width,
-                saved.height
-            );
+        // 尺寸整对校验：任一维越界即整组弃用（回退默认尺寸），杜绝单维度回退拼出细长条
+        if let (Some(width), Some(height)) = (saved.width, saved.height) {
+            if size_in_constraints(width, height) {
+                restored.size = Some((width, height));
+            } else {
+                log::warn!(
+                    "弹幕窗口保存尺寸越界，已弃用: {}x{}",
+                    width,
+                    height
+                );
+            }
+        }
+        restored.input_only = saved.input_only;
+        if let Some(width) = saved.input_only_width {
+            if (INPUT_ONLY_MIN_W..=INPUT_ONLY_MAX_W).contains(&width) {
+                restored.input_only_size = Some((width, INPUT_ONLY_H));
+            } else {
+                log::warn!("弹幕窗口紧凑宽度越界，已弃用: {width}");
+            }
         }
         restored.position = saved.position;
     }
@@ -115,11 +148,17 @@ fn size_in_constraints(width: f64, height: f64) -> bool {
         && (DANMAKU_MIN_H..=DANMAKU_MAX_H).contains(&height)
 }
 
-/// 保存弹幕窗口的「正常几何」。
+/// 保存弹幕窗口几何：按 AppState 的当前模式分流——完整模式存位置+宽高，
+/// 仅输入框存位置+紧凑宽（读-改-写保留另一模式的尺寸字段）。
+/// 吸附态的几何不是用户摆放结果，仍由 window_dock::normal_geometry 提供吸附前值。
 fn save_normal_geometry(app: &AppHandle) {
     let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
         return;
     };
+    let input_only = app
+        .state::<AppState>()
+        .danmaku_input_only
+        .load(Ordering::Relaxed);
     let Some((pos, physical)) = window_dock::normal_geometry(&window, app) else {
         return;
     };
@@ -127,20 +166,43 @@ fn save_normal_geometry(app: &AppHandle) {
     let width = (physical.width as f64 / scale).round();
     let height = (physical.height as f64 / scale).round();
 
-    // 约束外的尺寸视为异常几何，不落盘污染下次恢复
-    if !size_in_constraints(width, height) {
-        return;
+    let state = app.state::<AppState>();
+    // 读旧记录，保留另一模式的尺寸字段
+    let mut saved = selections_store::load_values(state.inner(), &[GEOMETRY_KEY.to_string()])
+        .ok()
+        .and_then(|values| values.get(GEOMETRY_KEY).cloned())
+        .and_then(|value| serde_json::from_value::<SavedGeometry>(value).ok())
+        .unwrap_or(SavedGeometry {
+            position: None,
+            width: None,
+            height: None,
+            input_only: false,
+            input_only_width: None,
+        });
+
+    if input_only {
+        // 紧凑模式：只更新位置与紧凑宽（高度锁定无需存）
+        if !(INPUT_ONLY_MIN_W..=INPUT_ONLY_MAX_W).contains(&width) {
+            return;
+        }
+        saved.position = Some((pos.x, pos.y));
+        saved.input_only_width = Some(width);
+        saved.input_only = true;
+    } else {
+        // 约束外的尺寸视为异常几何，不落盘污染下次恢复
+        if !size_in_constraints(width, height) {
+            return;
+        }
+        saved.position = Some((pos.x, pos.y));
+        saved.width = Some(width);
+        saved.height = Some(height);
+        saved.input_only = false;
     }
 
-    let state = app.state::<AppState>();
     let mut entries = serde_json::Map::new();
     entries.insert(
         GEOMETRY_KEY.to_string(),
-        serde_json::json!({
-            "position": [pos.x, pos.y],
-            "width": width,
-            "height": height
-        }),
+        serde_json::to_value(saved).unwrap_or_default(),
     );
     if let Err(e) = selections_store::save_values(state.inner(), &entries) {
         log::warn!("保存弹幕窗口几何失败: {e}");

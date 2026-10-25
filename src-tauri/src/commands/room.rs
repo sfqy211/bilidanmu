@@ -272,18 +272,45 @@ async fn create_danmaku_window(
         .map_err(|error| format!("解析弹幕窗口路由失败: {error}"))?;
 
     // 恢复上次几何：尺寸为逻辑像素；位置为物理像素（坐标失效时回退系统默认定位）
+    // 仅输入框模式按紧凑尺寸与约束创建（高度锁定），其余按常态
     let saved = window_state::load_geometry(app);
-    let (w, h) = saved
-        .size
-        .unwrap_or((window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H));
+    state
+        .danmaku_input_only
+        .store(saved.input_only, std::sync::atomic::Ordering::Relaxed);
+    let (w, h, min_w, min_h, max_w, max_h) = if saved.input_only {
+        let width = saved
+            .input_only_size
+            .map(|(width, _)| width)
+            .unwrap_or(window_state::INPUT_ONLY_DEFAULT_W);
+        (
+            width,
+            window_state::INPUT_ONLY_H,
+            window_state::INPUT_ONLY_MIN_W,
+            window_state::INPUT_ONLY_H,
+            window_state::INPUT_ONLY_MAX_W,
+            window_state::INPUT_ONLY_H,
+        )
+    } else {
+        let (nw, nh) = saved
+            .size
+            .unwrap_or((window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H));
+        (
+            nw,
+            nh,
+            window_state::DANMAKU_MIN_W,
+            window_state::DANMAKU_MIN_H,
+            window_state::DANMAKU_MAX_W,
+            window_state::DANMAKU_MAX_H,
+        )
+    };
 
     let title = danmaku_window_title(state, room_id);
 
     let builder = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
         .title(title)
         .inner_size(w, h)
-        .min_inner_size(window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H)
-        .max_inner_size(window_state::DANMAKU_MAX_W, window_state::DANMAKU_MAX_H)
+        .min_inner_size(min_w, min_h)
+        .max_inner_size(max_w, max_h)
         .resizable(true)
         .maximizable(false)
         .decorations(false)
@@ -322,6 +349,91 @@ async fn create_danmaku_window(
     }
     let _ = window.show();
     Ok(())
+}
+
+/// 查询弹幕窗口是否处于「仅输入框」紧凑模式
+#[tauri::command]
+pub fn get_danmaku_input_only(state: State<'_, AppState>) -> bool {
+    state
+        .danmaku_input_only
+        .load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// 切换弹幕窗口「仅输入框」紧凑模式：
+/// 进入时先解除吸附（互斥；未吸附时为安全空操作），随后切换尺寸约束与窗口大小，
+/// 广播事件通知前端切换渲染，并立即落盘模式与几何。
+#[tauri::command]
+pub fn set_danmaku_input_only(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<bool, String> {
+    let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
+        return Err("弹幕窗口不存在".into());
+    };
+
+    if enabled {
+        crate::window_dock::dock_exit(DANMAKU_WINDOW_LABEL.to_string(), app.clone())?;
+    }
+
+    let logical = |v: f64| tauri::PixelUnit::Logical(tauri::LogicalUnit::new(v));
+    // 切换前后均以底边为锚：紧凑栏落在完整窗口输入栏（底边）所在的视觉高度，
+    // 恢复时完整窗口从紧凑栏位置向上生长。位置为物理像素，目标高度按 DPI 换算后同单位运算。
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let outer = window.outer_size().map_err(|e| e.to_string())?;
+    let (size, constraints) = if enabled {
+        // 宽度沿用完整窗口当前宽并夹紧到紧凑范围；高度锁定为输入栏一行
+        let current_w = outer.width as f64 / scale;
+        let width = current_w
+            .clamp(window_state::INPUT_ONLY_MIN_W, window_state::INPUT_ONLY_MAX_W);
+        (
+            tauri::LogicalSize::new(width, window_state::INPUT_ONLY_H),
+            tauri::WindowSizeConstraints {
+                min_width: Some(logical(window_state::INPUT_ONLY_MIN_W)),
+                min_height: Some(logical(window_state::INPUT_ONLY_H)),
+                max_width: Some(logical(window_state::INPUT_ONLY_MAX_W)),
+                max_height: Some(logical(window_state::INPUT_ONLY_H)),
+            },
+        )
+    } else {
+        // 恢复完整模式：回到上次保存的常规几何（无保存值用默认）
+        let saved = window_state::load_geometry(&app);
+        let (w, h) = saved
+            .size
+            .unwrap_or((window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H));
+        (
+            tauri::LogicalSize::new(w, h),
+            tauri::WindowSizeConstraints {
+                min_width: Some(logical(window_state::DANMAKU_MIN_W)),
+                min_height: Some(logical(window_state::DANMAKU_MIN_H)),
+                max_width: Some(logical(window_state::DANMAKU_MAX_W)),
+                max_height: Some(logical(window_state::DANMAKU_MAX_H)),
+            },
+        )
+    };
+
+    state
+        .danmaku_input_only
+        .store(enabled, std::sync::atomic::Ordering::Relaxed);
+    // 先约束后调尺寸：避免旧 max_height 限制把目标尺寸再夹回去
+    window
+        .set_size_constraints(constraints)
+        .map_err(|e| e.to_string())?;
+    window.set_size(size).map_err(|e| e.to_string())?;
+    // 底边锚定：目标顶边 = 原顶边 + 原高 - 目标高（物理像素）
+    let anchor_y = pos.y + outer.height as i32 - (size.height * scale).round() as i32;
+    window
+        .set_position(tauri::PhysicalPosition::new(pos.x, anchor_y))
+        .map_err(|e| e.to_string())?;
+
+    {
+        use tauri::Emitter;
+        let _ = app.emit("danmaku-input-only", enabled);
+    }
+    // 模式与几何立即落盘，不等防抖
+    window_state::save_now(&app);
+    Ok(enabled)
 }
 
 #[tauri::command]

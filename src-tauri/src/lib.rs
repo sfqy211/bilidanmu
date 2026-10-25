@@ -58,6 +58,8 @@ pub struct AppState {
     /// 退出吸附后的拖动冷却集合：冷却中的窗口即使贴边也不重新吸附，
     /// 直到被拖离边缘才移出冷却（对齐 QQ：展开后拖离边缘即保持正常窗口）
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
+    /// 弹幕窗口是否处于「仅输入框」紧凑模式（true = 高度锁定输入栏、不参与吸附）
+    pub danmaku_input_only: std::sync::atomic::AtomicBool,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
     pub live_status: std::sync::Mutex<Option<HashMap<u64, bool>>>,
 }
@@ -114,6 +116,7 @@ pub fn run() {
             stt_manager: Arc::new(TokioMutex::new(None)),
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
+            danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
             live_status: std::sync::Mutex::new(None),
         }
         })
@@ -301,6 +304,8 @@ pub fn run() {
             commands::room::update_favorite_order,
             commands::room::open_danmaku_window,
             commands::room::switch_room,
+            commands::room::get_danmaku_input_only,
+            commands::room::set_danmaku_input_only,
             commands::room::reorder_rooms,
             commands::room::get_follow_lives,
             commands::video::get_video_info,

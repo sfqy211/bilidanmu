@@ -10,7 +10,7 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ChevronDown, ClipboardList, Clock, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ChevronDown, ClipboardList, Clock, Expand, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
@@ -154,6 +154,17 @@ export function DanmakuPage() {
   const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
   const [locked, setLocked] = useState(false);
+  // 仅输入框紧凑模式：Rust 侧管窗口尺寸/约束/吸附互斥，前端只切渲染形态
+  const [inputOnly, setInputOnly] = useState(false);
+  useEffect(() => {
+    void tauriCommands.room.getInputOnly().then(setInputOnly).catch(() => {});
+  }, []);
+  useTauriEvent<boolean>("danmaku-input-only", setInputOnly);
+  const toggleInputOnly = useCallback(() => {
+    // 进入紧凑模式时收起已打开的浮层面板
+    setActivePanel(null);
+    void tauriCommands.room.setInputOnly(!inputOnly).catch(() => {});
+  }, [inputOnly]);
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
   const passthroughIgnoredRef = useRef(false);
   const { disconnect } = useDanmakuStream(roomId);
@@ -968,9 +979,64 @@ export function DanmakuPage() {
 
   return (
     <>
-    {/* audio 元素通过 portal 挂载到 body，跨 dockPhase 切换时不会被 React 卸载，避免 mpegts 断流 */}
+    {/* audio 元素通过 portal 挂载到 body，跨 dockPhase / 仅输入框模式切换时不会被 React 卸载，避免 mpegts 断流 */}
     {createPortal(<audio ref={audioRef} className="hidden" />, document.body)}
-    {dockPhase === "collapsed" ? (
+    {inputOnly ? (
+      <div
+        data-interactive=""
+        className="danmaku-bg-bar window-rounded flex h-full w-full items-center gap-1 px-2 select-none"
+      >
+        <input
+          value={message}
+          disabled={isAnonymous}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={(event) => {
+            composingRef.current = false;
+            setMessage(event.currentTarget.value.slice(0, 40));
+          }}
+          onChange={(event) => {
+            if (isAnonymous) return;
+            // 拼音输入中允许超出，结束后截断
+            setMessage(composingRef.current ? event.target.value : event.target.value.slice(0, 40));
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void handleSend();
+            }
+          }}
+          className="danmaku-bg-main min-w-0 flex-1 rounded px-2 py-1.5 text-sm outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => void handleSend()}
+          disabled={!message.trim() || isAnonymous}
+          className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] disabled:opacity-40 dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          title="发送"
+        >
+          <Send className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={toggleInputOnly}
+          className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          title="恢复完整窗口"
+        >
+          <Expand className="h-3.5 w-3.5" />
+        </button>
+        {/* 拖动把手：可操作元素统一靠右，仅竖条区域可拖动窗口 */}
+        <span
+          className="flex h-5 w-4 shrink-0 cursor-grab items-center justify-center active:cursor-grabbing"
+          onMouseDown={(e) => {
+            if (locked || e.button !== 0) return;
+            void appWindow.startDragging();
+          }}
+          title="拖动"
+        >
+          <span className="h-4 w-[3px] rounded-full bg-slate-300 dark:bg-slate-600" />
+        </span>
+      </div>
+    ) : dockPhase === "collapsed" ? (
       <DockCollapsedBar side={dockSide} onExpand={dockExpand} />
     ) : (
     <main
@@ -1006,6 +1072,14 @@ export function DanmakuPage() {
           title={locked ? "解锁位置" : "锁定位置"}
         >
           {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={toggleInputOnly}
+          className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          title="仅输入框模式"
+        >
+          <TextCursorInput className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
