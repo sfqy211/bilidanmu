@@ -333,6 +333,9 @@ pub struct Settings {
     /// 静默启动：启动时不显示主页面，只在系统托盘常驻
     #[serde(default)]
     pub silent_start: bool,
+    /// 在直播间列表、添加主播、账号与视频评论中展示头像
+    #[serde(default)]
+    pub show_avatars: bool,
 }
 
 fn default_close_behavior() -> String {
@@ -393,6 +396,7 @@ impl Default for Settings {
             filter: FilterSetting::default(),
             close_behavior: default_close_behavior(),
             silent_start: false,
+            show_avatars: true,
         }
     }
 }

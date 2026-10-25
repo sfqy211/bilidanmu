@@ -282,6 +282,8 @@ export interface Settings {
   closeBehavior: "ask" | "hide" | "exit";
   /** 静默启动：启动时不显示主页面，只在系统托盘常驻 */
   silentStart: boolean;
+  /** 在直播间列表、添加主播、账号与视频评论中展示头像 */
+  showAvatars: boolean;
 }
 
 export type VisualFont = "system" | "yahei" | "dengxian" | "serif";

@@ -5,6 +5,7 @@ import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import type { Room } from "@/types/bilibili";
 
 export function RoomPage() {
@@ -26,6 +27,7 @@ export function RoomPage() {
     baseIds: string[];
   } | null>(null);
   const dragOrderIdsRef = useRef<string[] | null>(null);
+  const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
 
   const [liveStatusMap, setLiveStatusMap] = useState<Record<string, boolean>>({});
   const [mockEnabled, setMockEnabled] = useState(false);
@@ -402,7 +404,7 @@ export function RoomPage() {
                     </div>
                     <div className="room-cover-bottom absolute inset-x-0 bottom-0 flex min-w-0 items-center gap-2 px-3 pb-3 pt-8">
                         <div className="flex min-w-0 flex-1 items-center gap-2">
-                          {room.avatar ? (
+                          {showAvatars && (room.avatar ? (
                             <ProxiedImage
                               src={room.avatar}
                               alt={room.uname}
@@ -413,7 +415,7 @@ export function RoomPage() {
                             <div className="room-cover-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs">
                               {room.uname.charAt(0)}
                             </div>
-                          )}
+                          ))}
                           <div className="min-w-0">
                             <p className="truncate text-[13px] font-medium" title={`${room.uname} · 房间号 ${room.roomId}`}>{room.uname}</p>
                           </div>

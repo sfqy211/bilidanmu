@@ -88,7 +88,8 @@ export const defaultSettings: Settings = {
     blockedKeywords: []
   },
   closeBehavior: "ask",
-  silentStart: false
+  silentStart: false,
+  showAvatars: true
 };
 
 interface SettingsState {

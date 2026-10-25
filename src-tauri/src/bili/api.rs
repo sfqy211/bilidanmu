@@ -286,6 +286,17 @@ impl BiliApiClient {
             let Some(room_id) = item.get("roomid").and_then(Value::as_u64) else {
                 continue;
             };
+            // following 接口一般不带 face：临时按 uid 补取，只走内存缓存，不入图片缓存库。
+            let mut avatar = item
+                .get("face")
+                .or_else(|| item.get("avatar"))
+                .and_then(Value::as_str)
+                .map(String::from);
+            if avatar.is_none() {
+                if let Some(uid) = item.get("uid").and_then(Value::as_u64) {
+                    avatar = self.fetch_user_info(uid).await.1;
+                }
+            }
             result.push(SearchRoomResult {
                 room_id,
                 uid: item.get("uid").and_then(Value::as_u64),
@@ -300,7 +311,7 @@ impl BiliApiClient {
                     .unwrap_or_default()
                     .to_string(),
                 cover: item.get("room_cover").and_then(Value::as_str).map(String::from),
-                avatar: None,
+                avatar,
                 is_live: true,
             });
         }

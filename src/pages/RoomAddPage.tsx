@@ -4,6 +4,7 @@ import { AddSearchPage, type AddSearchMode } from "@/components/add/AddSearchPag
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import type { SearchRoomMode, SearchRoomResult } from "@/types/bilibili";
 
 const searchModes: AddSearchMode[] = [
@@ -16,6 +17,7 @@ const searchModes: AddSearchMode[] = [
 /** 添加主播子页：与添加视频共用 AddSearchPage 的搜索框与结果区。 */
 export function RoomAddPage() {
   const { rooms, addRoom } = useRoomStore();
+  const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
   const [followLives, setFollowLives] = useState<SearchRoomResult[]>([]);
   const [followLoading, setFollowLoading] = useState(true);
   const [addingRoomIds, setAddingRoomIds] = useState<Set<number>>(new Set());
@@ -59,13 +61,13 @@ export function RoomAddPage() {
     const added = rooms.some((item) => item.roomId === room.roomId);
     return (
       <div className="flex items-center gap-3 border-b border-subtle py-3">
-        {room.avatar ? (
+        {showAvatars && (room.avatar ? (
           <ProxiedImage src={room.avatar} alt={room.uname} className="h-9 w-9 shrink-0 rounded-full object-cover" />
         ) : (
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-medium text-brand">
             {room.uname.charAt(0)}
           </div>
-        )}
+        ))}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{room.uname}</p>

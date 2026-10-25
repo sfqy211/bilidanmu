@@ -13,11 +13,26 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { cn } from "@/lib/utils";
 import type { VideoComment } from "@/types/bilibili";
 
 const PAGE_SIZE = 20;
+
+/** 评论与子回复的头像都受全局「显示头像」开关控制。 */
+function CommentAvatar({ src, name, size }: { src?: string; name: string; size: "sm" | "md" }) {
+  const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
+  if (!showAvatars) return null;
+  const dimension = size === "sm" ? "h-6 w-6" : "h-9 w-9";
+  return src ? (
+    <ProxiedImage src={src} alt={name} className={`${dimension} shrink-0 rounded-full object-cover`} />
+  ) : (
+    <div className={`flex ${dimension} shrink-0 items-center justify-center rounded-full bg-brand/10 ${size === "sm" ? "text-[10px]" : "text-sm"} text-brand`}>
+      {name.charAt(0)}
+    </div>
+  );
+}
 
 interface ReplyTarget {
   /** 楼主评论 rpid（楼中楼 root） */
@@ -358,17 +373,7 @@ export function VideoCommentsPage() {
                   const subState = expanded[comment.rpid];
                   return (
                     <div key={comment.rpid} className="flex gap-3">
-                      {comment.memberAvatar ? (
-                        <ProxiedImage
-                          src={comment.memberAvatar}
-                          alt={comment.memberName}
-                          className="h-9 w-9 shrink-0 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm text-brand">
-                          {comment.memberName.charAt(0)}
-                        </div>
-                      )}
+                      <CommentAvatar src={comment.memberAvatar} name={comment.memberName} size="md" />
                       <div className="min-w-0 flex-1">
                         <div
                           onClick={makeCommentClick(comment.rpid, comment.rpid, comment.memberName)}
@@ -423,17 +428,7 @@ export function VideoCommentsPage() {
                           <div className="mt-2 flex flex-col gap-2.5 rounded-lg bg-black/[0.03] p-2.5 dark:bg-white/[0.03]">
                             {subState.list.map((sub) => (
                               <div key={sub.rpid} className="flex gap-2.5">
-                                {sub.memberAvatar ? (
-                                  <ProxiedImage
-                                    src={sub.memberAvatar}
-                                    alt={sub.memberName}
-                                    className="h-6 w-6 shrink-0 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[10px] text-brand">
-                                    {sub.memberName.charAt(0)}
-                                  </div>
-                                )}
+                                <CommentAvatar src={sub.memberAvatar} name={sub.memberName} size="sm" />
                                 <div
                                   onClick={makeCommentClick(comment.rpid, sub.rpid, sub.memberName)}
                                   onContextMenu={makeCommentContextMenu(sub.content)}

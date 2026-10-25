@@ -7,9 +7,11 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettingsStore } from "@/stores/settings-store";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export function AccountPage() {
+  const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
   const {
     accounts,
     activeAccountId,
@@ -367,7 +369,7 @@ export function AccountPage() {
                 data-current={isActive}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  {account.avatar ? (
+                  {showAvatars && (account.avatar ? (
                     <ProxiedImage
                       src={account.avatar}
                       alt={account.username}
@@ -378,7 +380,7 @@ export function AccountPage() {
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
                       <UserRound className="h-5 w-5" />
                     </div>
-                  )}
+                  ))}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-[13px] font-medium text-ink" title={account.username}>{account.username}</p>
