@@ -62,10 +62,25 @@ pub struct AppState {
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
     /// 弹幕窗口是否处于「仅输入框」紧凑模式（true = 高度锁定输入栏、不参与吸附）
     pub danmaku_input_only: std::sync::atomic::AtomicBool,
+    /// 「仅输入框」表情面板展开中（true = 窗口是临时面板几何，持久化跳过）
+    pub danmaku_emote_panel: std::sync::atomic::AtomicBool,
+    /// 展开面板前保存的紧凑栏几何（收起时恢复）
+    pub danmaku_emote_saved: std::sync::Mutex<Option<EmotePanelSaved>>,
     /// 最近一次全局快捷键注册的失败清单（设置页展示；空 = 全部成功）
     pub shortcut_errors: std::sync::Mutex<Vec<String>>,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
     pub live_status: std::sync::Mutex<Option<HashMap<u64, bool>>>,
+}
+
+/// 「仅输入框」模式展开表情面板前保存的紧凑栏几何
+#[derive(Debug, Clone, Copy)]
+pub struct EmotePanelSaved {
+    /// 紧凑栏位置（物理像素）
+    pub pos: (i32, i32),
+    /// 紧凑栏尺寸（逻辑像素，宽度恢复用；高度恒为 INPUT_ONLY_H）
+    pub size: (f64, f64),
+    /// 面板展开瞬间的窗口位置（物理像素），收起时回算拖动位移
+    pub open_pos: (i32, i32),
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -134,6 +149,8 @@ pub fn run() {
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
+            danmaku_emote_panel: std::sync::atomic::AtomicBool::new(false),
+            danmaku_emote_saved: std::sync::Mutex::new(None),
             shortcut_errors: std::sync::Mutex::new(Vec::new()),
             live_status: std::sync::Mutex::new(None),
         }
@@ -289,6 +306,17 @@ pub fn run() {
                 // 避免同 label 重建窗口时被上一世的吸附态劫持
                 WindowEvent::Destroyed => {
                     window_dock::cleanup(window.label(), window.app_handle());
+                    // 弹幕窗口销毁时清理表情面板残留状态，避免同 label 重建后被上一世劫持
+                    if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
+                        let state = window.app_handle().state::<AppState>();
+                        state
+                            .danmaku_emote_panel
+                            .store(false, std::sync::atomic::Ordering::Relaxed);
+                        *state
+                            .danmaku_emote_saved
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner()) = None;
+                    }
                 }
                 _ => {}
             }
@@ -327,6 +355,7 @@ pub fn run() {
             commands::room::switch_room,
             commands::room::get_danmaku_input_only,
             commands::room::set_danmaku_input_only,
+            commands::room::set_danmaku_input_only_emotes,
             shortcuts::get_shortcut_errors,
             commands::room::reorder_rooms,
             commands::room::get_follow_lives,

@@ -277,6 +277,14 @@ async fn create_danmaku_window(
     state
         .danmaku_input_only
         .store(saved.input_only, std::sync::atomic::Ordering::Relaxed);
+    // 面板展开是临时形态，不随模式持久化：重建窗口一律回到紧凑栏/完整模式
+    state
+        .danmaku_emote_panel
+        .store(false, std::sync::atomic::Ordering::Relaxed);
+    *state
+        .danmaku_emote_saved
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
     let (w, h, min_w, min_h, max_w, max_h) = if saved.input_only {
         let width = saved
             .input_only_size
@@ -408,6 +416,10 @@ pub fn apply_input_only(
     let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
         return Err("弹幕窗口不存在".into());
     };
+    if !enabled {
+        // 面板展开时退出仅输入框：先收起面板（恢复高度约束），再走完整模式切换
+        let _ = apply_input_only_emotes(app, state, false);
+    }
 
     if enabled {
         crate::window_dock::dock_exit(DANMAKU_WINDOW_LABEL.to_string(), app.clone())?;
@@ -474,6 +486,118 @@ pub fn apply_input_only(
     // 模式与几何立即落盘，不等防抖
     window_state::save_now(&app);
     Ok(enabled)
+}
+
+/// 仅输入框模式临时展开/收起表情面板（借鉴 live-moyu 的"开面板=窗口变形"方案）：
+/// 展开——记住紧凑栏几何、跳过持久化，窗口放宽高度约束后变形为面板尺寸（底边锚定+工作区钳制）；
+/// 收起——回算面板期间的拖动位移，恢复紧凑栏原位并重新锁定高度。
+pub fn apply_input_only_emotes(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    open: bool,
+) -> Result<bool, String> {
+    let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
+        return Err("弹幕窗口不存在".into());
+    };
+    let logical = |v: f64| tauri::PixelUnit::Logical(tauri::LogicalUnit::new(v));
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let ordering = std::sync::atomic::Ordering::Relaxed;
+
+    if open {
+        if !state.danmaku_input_only.load(ordering) {
+            return Err("仅输入框模式下才能展开表情面板".into());
+        }
+        if state.danmaku_emote_panel.load(ordering) {
+            return Ok(true);
+        }
+        let pos = window.outer_position().map_err(|e| e.to_string())?;
+        let outer = window.outer_size().map_err(|e| e.to_string())?;
+        *state
+            .danmaku_emote_saved
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(crate::EmotePanelSaved {
+            pos: (pos.x, pos.y),
+            size: (outer.width as f64 / scale, outer.height as f64 / scale),
+            open_pos: (pos.x, pos.y),
+        });
+        state.danmaku_emote_panel.store(true, ordering);
+
+        // 放开高度锁定到面板约束，变形为面板尺寸
+        window
+            .set_size_constraints(tauri::WindowSizeConstraints {
+                min_width: Some(logical(window_state::INPUT_ONLY_MIN_W)),
+                min_height: Some(logical(window_state::INPUT_ONLY_H)),
+                max_width: Some(logical(window_state::INPUT_ONLY_MAX_W)),
+                max_height: Some(logical(window_state::INPUT_ONLY_EMOTE_H)),
+            })
+            .map_err(|e| e.to_string())?;
+        window
+            .set_size(tauri::LogicalSize::new(
+                window_state::INPUT_ONLY_EMOTE_W,
+                window_state::INPUT_ONLY_EMOTE_H,
+            ))
+            .map_err(|e| e.to_string())?;
+        // 面板从输入栏位置向上展开：底边锚定 + 工作区钳制
+        let anchor_y = pos.y + outer.height as i32
+            - (window_state::INPUT_ONLY_EMOTE_H * scale).round() as i32;
+        let w_px = (window_state::INPUT_ONLY_EMOTE_W * scale).round() as i32;
+        let h_px = (window_state::INPUT_ONLY_EMOTE_H * scale).round() as i32;
+        let (tx, ty) = clamp_into_work_area(&window, pos.x, anchor_y, w_px, h_px);
+        window
+            .set_position(tauri::PhysicalPosition::new(tx, ty))
+            .map_err(|e| e.to_string())?;
+    } else {
+        if !state.danmaku_emote_panel.load(ordering) {
+            return Ok(false);
+        }
+        let saved = state
+            .danmaku_emote_saved
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        state.danmaku_emote_panel.store(false, ordering);
+
+        // 恢复紧凑栏的高度锁定约束
+        window
+            .set_size_constraints(tauri::WindowSizeConstraints {
+                min_width: Some(logical(window_state::INPUT_ONLY_MIN_W)),
+                min_height: Some(logical(window_state::INPUT_ONLY_H)),
+                max_width: Some(logical(window_state::INPUT_ONLY_MAX_W)),
+                max_height: Some(logical(window_state::INPUT_ONLY_H)),
+            })
+            .map_err(|e| e.to_string())?;
+        if let Some(saved) = saved {
+            // 回算面板期间的拖动位移，恢复到紧凑栏原位 + 位移
+            let cur = window.outer_position().map_err(|e| e.to_string())?;
+            let dx = cur.x - saved.open_pos.0;
+            let dy = cur.y - saved.open_pos.1;
+            window
+                .set_size(tauri::LogicalSize::new(saved.size.0, window_state::INPUT_ONLY_H))
+                .map_err(|e| e.to_string())?;
+            let w_px = (saved.size.0 * scale).round() as i32;
+            let h_px = (window_state::INPUT_ONLY_H * scale).round() as i32;
+            let (tx, ty) = clamp_into_work_area(&window, saved.pos.0 + dx, saved.pos.1 + dy, w_px, h_px);
+            window
+                .set_position(tauri::PhysicalPosition::new(tx, ty))
+                .map_err(|e| e.to_string())?;
+        }
+        window_state::save_now(app);
+    }
+
+    {
+        use tauri::Emitter;
+        let _ = app.emit("danmaku-input-only-emotes", open);
+    }
+    Ok(open)
+}
+
+#[tauri::command]
+pub fn set_danmaku_input_only_emotes(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    open: bool,
+) -> Result<bool, String> {
+    apply_input_only_emotes(&app, state.inner(), open)
 }
 
 #[tauri::command]

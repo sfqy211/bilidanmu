@@ -34,6 +34,9 @@ pub const INPUT_ONLY_MIN_W: f64 = 240.0;
 pub const INPUT_ONLY_MAX_W: f64 = 520.0;
 /// 无保存值时紧凑模式默认宽
 pub const INPUT_ONLY_DEFAULT_W: f64 = 360.0;
+/// 「仅输入框」表情面板临时尺寸（逻辑像素）：展开时窗口从输入栏位置向上变形
+pub const INPUT_ONLY_EMOTE_W: f64 = 360.0;
+pub const INPUT_ONLY_EMOTE_H: f64 = 400.0;
 
 /// 几何在 app_metadata 表中的键
 const GEOMETRY_KEY: &str = "danmaku_window_geometry";
@@ -155,8 +158,15 @@ fn save_normal_geometry(app: &AppHandle) {
     let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
         return;
     };
-    let input_only = app
-        .state::<AppState>()
+    let state = app.state::<AppState>();
+    // 表情面板展开中的几何是临时形态，不落盘
+    if state
+        .danmaku_emote_panel
+        .load(Ordering::Relaxed)
+    {
+        return;
+    }
+    let input_only = state
         .danmaku_input_only
         .load(Ordering::Relaxed);
     let Some((pos, physical)) = window_dock::normal_geometry(&window, app) else {

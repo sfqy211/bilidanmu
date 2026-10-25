@@ -12,6 +12,7 @@ const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
 import { ChevronDown, ClipboardList, Clock, Expand, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
+import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -167,6 +168,16 @@ export function DanmakuPage() {
     setActivePanel(null);
     void tauriCommands.room.setInputOnly(!inputOnly).catch(() => {});
   }, [inputOnly]);
+  // 仅输入框模式的表情面板：窗口临时变形由 Rust 侧完成，这里只切渲染形态
+  const [inputOnlyEmotes, setInputOnlyEmotes] = useState(false);
+  useTauriEvent<boolean>("danmaku-input-only-emotes", setInputOnlyEmotes);
+  useEffect(() => {
+    // 切房重挂载/异常残留时收起面板，窗口恢复紧凑栏几何（已收起时为空操作）
+    void tauriCommands.room.setInputOnlyEmotes(false).catch(() => {});
+  }, []);
+  const toggleInputOnlyEmotes = useCallback((open: boolean) => {
+    void tauriCommands.room.setInputOnlyEmotes(open).catch(() => {});
+  }, []);
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
   const passthroughIgnoredRef = useRef(false);
   const { disconnect } = useDanmakuStream(roomId);
@@ -751,12 +762,12 @@ export function DanmakuPage() {
 
   // 当发送账号变化时，如果当前账号没有缓存的表情包，自动加载
   useEffect(() => {
-    if (!roomId || !emoticonPickerOpen) return;
+    if (!roomId || !(emoticonPickerOpen || inputOnlyEmotes)) return;
     const key = effectiveSendingId ?? "";
     if (!emoticonPkgMap.has(key) && !loadingEmoticons) {
       void loadEmoticons();
     }
-  }, [effectiveSendingId, roomId, emoticonPickerOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveSendingId, roomId, emoticonPickerOpen, inputOnlyEmotes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleEmoticonPicker = useCallback(async () => {
     const nextOpen = !emoticonPickerOpen;
@@ -993,6 +1004,73 @@ export function DanmakuPage() {
     {/* audio 元素通过 portal 挂载到 body，跨 dockPhase / 仅输入框模式切换时不会被 React 卸载，避免 mpegts 断流 */}
     {createPortal(<audio ref={audioRef} className="hidden" />, document.body)}
     {inputOnly ? (
+      inputOnlyEmotes ? (
+        <div
+          data-interactive=""
+          className="danmaku-bg-main window-rounded flex h-full w-full flex-col overflow-hidden select-none"
+        >
+          <div
+            className="danmaku-bg-bar flex shrink-0 items-center pl-3"
+            onMouseDown={(e) => {
+              if (locked) return;
+              if ((e.target as HTMLElement).closest("button")) return;
+              if (e.button === 0) void appWindow.startDragging();
+            }}
+          >
+            <span className="flex-1 truncate text-xs text-slate-500 dark:text-slate-400">表情</span>
+            <button
+              type="button"
+              onClick={() => toggleInputOnlyEmotes(false)}
+              className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
+              title="收起"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {loadingEmoticons ? (
+              <p className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">正在加载表情…</p>
+            ) : emoticonError ? (
+              <div className="py-6 text-center">
+                <p className="text-xs text-rose-500">{emoticonError}</p>
+                <button
+                  type="button"
+                  className="mt-2 rounded px-2 py-1 text-xs text-slate-500 transition hover:bg-[#ebebeb] dark:text-slate-400 dark:hover:bg-white/[0.06]"
+                  onClick={() => void loadEmoticons()}
+                >
+                  重试
+                </button>
+              </div>
+            ) : emoticonPackages.length === 0 ? (
+              <p className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">当前直播间没有可用表情</p>
+            ) : (
+              emoticonPackages.map((pkg) => (
+                <section key={pkg.pkgId} className="mb-3">
+                  <p className="mb-1 px-1 text-[11px] text-slate-400 dark:text-slate-500">{pkg.pkgName}</p>
+                  <div className="grid grid-cols-4 gap-1">
+                    {pkg.emoticons.map((emoticon) => (
+                      <button
+                        key={emoticon.emoticonUnique ?? emoticon.url}
+                        type="button"
+                        disabled={(emoticon.perm ?? 1) === 0}
+                        title={emoticon.descript ?? emoticon.emoji ?? ""}
+                        onClick={() => {
+                          void handleSendEmoticon(emoticon);
+                          // 发送即收起面板，回到紧凑栏（对齐 live-moyu 的发完收起）
+                          toggleInputOnlyEmotes(false);
+                        }}
+                        className="flex aspect-square items-center justify-center rounded p-1 transition hover:bg-[#ebebeb] disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-white/[0.06]"
+                      >
+                        <ProxiedImage src={emoticon.url} alt={emoticon.emoji ?? ""} className="max-h-10 max-w-10 object-contain" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
       <div
         data-interactive=""
         className="danmaku-bg-bar window-rounded flex h-full w-full items-center gap-1 px-2 select-none"
@@ -1032,6 +1110,15 @@ export function DanmakuPage() {
         </button>
         <button
           type="button"
+          onClick={() => toggleInputOnlyEmotes(true)}
+          disabled={isAnonymous}
+          className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] disabled:opacity-40 dark:text-slate-500 dark:hover:bg-white/[0.06]"
+          title="表情"
+        >
+          <Smile className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
           onClick={toggleInputOnly}
           className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
           title="恢复完整窗口"
@@ -1050,6 +1137,7 @@ export function DanmakuPage() {
           <span className="h-4 w-[3px] rounded-full bg-slate-300 dark:bg-slate-600" />
         </span>
       </div>
+      )
     ) : dockPhase === "collapsed" ? (
       <DockCollapsedBar side={dockSide} onExpand={dockExpand} />
     ) : (
