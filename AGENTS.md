@@ -8,12 +8,12 @@
 - Rust verification: `cargo check` from `src-tauri/`.
 - Build release: `npm run build`.
 - Version bump: `.\scripts\bump-version.ps1 <version>`.
-- No lite build variant — STT and AI are always compiled in, toggled at runtime via settings.
+- No lite build variant — STT is always compiled in, toggled at runtime via settings. The AI backend was removed entirely; `src/pages/AIPage.tsx` is an intentional "开发中" placeholder — do not clean it up as dead code or propose restoring an integration.
 - There is no configured JS test/lint task in `package.json`; do not claim tests/lint passed unless you actually ran the available checks above.
 
 ## Required verification after code changes
 - Default expectation: run `npm run typecheck` and `cargo check`.
-- If you touched STT or AI code, verify both feature areas still compile.
+- If you touched STT code, verify it still compiles.
 
 ## Testing
 - `tests/README.md` is the testing handbook — read it before driving any manual or scripted test; put new test scripts in `tests/`.
@@ -30,6 +30,7 @@
 - `src/` is the Vite/React frontend. Vite root is `src`, output is `dist`, dev server is fixed to `http://localhost:3000` (`strictPort: true`).
 - `src-tauri/` is the Tauri/Rust app. `tauri.conf.json` starts the renderer with `beforeDevCommand: npm run dev:renderer` and builds it with `beforeBuildCommand: npm run build:renderer`.
 - Path alias `@/*` points to `src/*`.
+- 本地参考项目在 `D:\AHEU\code\reference`（bilibili-API-collect 协议文档、live-moyu 悬浮输入框/紧凑窗、JLiverTool 协议解析/SEND_GIFT_V2 等）；遇到协议或接口问题先查本地参考项目，再联网搜索。
 - `docs/` is the VitePress documentation site. Run `npm run dev` in `docs/` to start the docs dev server.
 
 ## Architecture facts that affect edits
@@ -43,7 +44,7 @@
 - Danmaku window close hides to tray (not disconnect). Separate exit button for actual disconnect.
 - Tray single-click toggles the current window's visibility only (never swaps windows): the current window is the danmaku window while a room is connected (the `danmaku` window exists, even if hidden), otherwise the main window. Danmaku and main windows are mutually exclusive — entering a room hides the main window, and `exit_room` (a real disconnect, via the danmaku window's exit button) immediately restores it; hiding the danmaku window to tray is display-only, not a disconnect. The tray left-click handler fires only on `button_state == Up` (a physical click emits both Down and Up `Click` events). There is no tray menu item for switching/summoning windows.
 - Dual credential: `state.credential` (main, for WS/audio) + `state.sending_credential` (for sending danmaku/emoticons). `get_sending_credential()` helper in `commands/mod.rs` falls back to main.
-- STT and AI are always compiled in (no feature gates). Runtime toggles via settings control whether they're active.
+- STT is always compiled in (no feature gates). Runtime toggles via settings control whether it's active. There is no AI module in Rust; `src/pages/AIPage.tsx` is a deliberate "开发中" placeholder.
 
 ## Data/contracts to keep in sync
 - TS types in `src/types/` mirror Rust structs in `src-tauri/src/models/`; Rust models use `serde(rename_all = "camelCase")`. Keep field names aligned across both sides.
