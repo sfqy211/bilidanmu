@@ -109,6 +109,8 @@ pub(crate) fn toggle_current_window(app: &AppHandle) {
 /// 单实例二次启动时唤起当前窗口（不切换房间，只显示不聚焦切换语义）
 pub(crate) fn reveal_current_window(app: &AppHandle) {
     if let Some(window) = current_window(app) {
+        // 唤起前记录当前前台窗口，隐藏时归还焦点（focus.rs）
+        crate::focus::capture();
         show_window(&window);
     }
 }
@@ -116,8 +118,13 @@ pub(crate) fn reveal_current_window(app: &AppHandle) {
 /// 切换窗口显示/隐藏；重新显示时取消最小化并聚焦
 fn toggle_window(window: &tauri::WebviewWindow) {
     if window.is_visible().unwrap_or(false) {
+        // 隐藏前若前台仍是本窗口，把焦点还给唤起时的工作窗口
+        if let Ok(hwnd) = window.hwnd() {
+            crate::focus::restore(hwnd.0 as isize);
+        }
         let _ = window.hide();
     } else {
+        crate::focus::capture();
         show_window(window);
     }
 }

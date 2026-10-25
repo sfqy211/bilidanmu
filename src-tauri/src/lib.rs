@@ -15,6 +15,7 @@ mod tray;
 mod window_dock;
 mod window_state;
 mod shortcuts;
+mod focus;
 
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
