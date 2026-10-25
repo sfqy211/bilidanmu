@@ -106,6 +106,13 @@ pub(crate) fn toggle_current_window(app: &AppHandle) {
     }
 }
 
+/// 单实例二次启动时唤起当前窗口（不切换房间，只显示不聚焦切换语义）
+pub(crate) fn reveal_current_window(app: &AppHandle) {
+    if let Some(window) = current_window(app) {
+        show_window(&window);
+    }
+}
+
 /// 切换窗口显示/隐藏；重新显示时取消最小化并聚焦
 fn toggle_window(window: &tauri::WebviewWindow) {
     if window.is_visible().unwrap_or(false) {

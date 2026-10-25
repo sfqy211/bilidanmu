@@ -79,6 +79,10 @@ pub fn run() {
         .expect("failed to build proxy HTTP client");
 
     tauri::Builder::default()
+        // 单实例锁须最先注册：二次启动直接唤起已有实例的当前窗口后退出
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tray::reveal_current_window(app);
+        }))
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
