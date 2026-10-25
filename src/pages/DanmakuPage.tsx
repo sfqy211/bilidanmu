@@ -135,6 +135,8 @@ export function DanmakuPage() {
   const [message, setMessage] = useState("");
   const inputBarRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
+  /** 输入法组合结束时刻：部分输入法选词回车先于 compositionend 到达，结束后 80ms 内不触发发送 */
+  const composingEndedAtRef = useRef(0);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const togglePanel = useCallback((name: string) => {
     setActivePanel((prev) => (prev === name ? null : name));
@@ -1001,6 +1003,7 @@ export function DanmakuPage() {
           onCompositionStart={() => { composingRef.current = true; }}
           onCompositionEnd={(event) => {
             composingRef.current = false;
+            composingEndedAtRef.current = Date.now();
             setMessage(event.currentTarget.value.slice(0, 40));
           }}
           onChange={(event) => {
@@ -1009,10 +1012,12 @@ export function DanmakuPage() {
             setMessage(composingRef.current ? event.target.value : event.target.value.slice(0, 40));
           }}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              void handleSend();
-            }
+            if (event.key !== "Enter" || event.shiftKey || event.repeat) return;
+            // 输入法组合中的回车是选词/上屏，不是发送（isComposing 与 keyCode 229 双保险）
+            if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+            if (Date.now() - composingEndedAtRef.current < 80) return;
+            event.preventDefault();
+            void handleSend();
           }}
           className="danmaku-bg-main min-w-0 flex-1 rounded px-2 py-1.5 text-sm outline-none"
         />
@@ -1929,6 +1934,7 @@ export function DanmakuPage() {
               onCompositionStart={() => { composingRef.current = true; }}
               onCompositionEnd={(event) => {
                 composingRef.current = false;
+                composingEndedAtRef.current = Date.now();
                 const text = event.currentTarget.value.slice(0, 40);
                 setMessage(text);
                 event.currentTarget.style.height = "auto";
@@ -1947,10 +1953,12 @@ export function DanmakuPage() {
                 event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`;
               }}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void handleSend();
-                }
+                if (event.key !== "Enter" || event.shiftKey || event.repeat) return;
+                // 输入法组合中的回车是选词/上屏，不是发送（isComposing 与 keyCode 229 双保险）
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+                if (Date.now() - composingEndedAtRef.current < 80) return;
+                event.preventDefault();
+                void handleSend();
               }}
               placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "请输入文字"}
               rows={1}
