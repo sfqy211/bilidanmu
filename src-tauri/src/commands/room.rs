@@ -279,7 +279,7 @@ async fn create_danmaku_window(
 
     let title = danmaku_window_title(state, room_id);
 
-    let window = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
+    let builder = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
         .title(title)
         .inner_size(w, h)
         .min_inner_size(window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H)
@@ -292,10 +292,22 @@ async fn create_danmaku_window(
         .shadow(false)
         // 弹幕窗口全程不进任务栏（对齐 QQ：看直播/吸附时任务栏不留图标）。
         // 系统托盘图标保留，仍可通过托盘或弹幕窗的退出按钮切回主页面。
-        .skip_taskbar(true)
-        // 先隐藏创建：位置在 build 后按保存值以物理坐标设置，再显示。
-        // 若不显式定位，Windows 按级联规则摆放新窗口——每次重建都向右下
-        // 偏移一点、累积触底后跳回初始位置（即「窗口位移」bug 的来源）。
+        .skip_taskbar(true);
+    // 隐藏到托盘/吸附折叠时 WebView2 会节流后台定时器（Chromium 对隐藏页面
+    // 5 分钟后可低至 1 次/分钟），mpegts.js 拉流循环依赖 JS 定时器，直播音频会
+    // 静默断流。additional_browser_args 是整体替换而非追加，必须保留 Tauri
+    // 默认禁用的 msWebOOUI 等特性。
+    #[cfg(target_os = "windows")]
+    let builder = builder.additional_browser_args(concat!(
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IntensiveWakeUpThrottling",
+        " --disable-background-timer-throttling",
+        " --disable-backgrounding-occluded-windows",
+        " --disable-renderer-backgrounding",
+    ));
+    // 先隐藏创建：位置在 build 后按保存值以物理坐标设置，再显示。
+    // 若不显式定位，Windows 按级联规则摆放新窗口——每次重建都向右下
+    // 偏移一点、累积触底后跳回初始位置（即「窗口位移」bug 的来源）。
+    let window = builder
         .visible(false)
         .build()
         .map_err(|error| error.to_string())?;

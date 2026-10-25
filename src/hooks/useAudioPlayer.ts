@@ -9,16 +9,24 @@ interface AudioPlayerState {
   error: string | null;
 }
 
+/** 重连初始退避 */
 const RECONNECT_DELAY_MS = 4000;
-const MAX_RECONNECT_ATTEMPTS = 3;
+/** 重连退避上限：房间在线期间无限重试，最快 30 秒一次 */
+const RECONNECT_MAX_DELAY_MS = 30_000;
+/** 停滞看门狗巡检周期 */
+const WATCHDOG_INTERVAL_MS = 5000;
+/** 播放中 currentTime 连续无推进超过该时长视为静默断流（缓冲耗尽/上游断开不触发 ERROR） */
+const WATCHDOG_STALL_MS = 15_000;
 
 export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<Mpegts.Player | null>(null);
   const volumeRef = useRef(defaultVolume);
-  const reconnectAttemptRef = useRef(0);
+  const reconnectDelayRef = useRef(RECONNECT_DELAY_MS);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const destroyedRef = useRef(false);
+  const stallRef = useRef<{ time: number; at: number }>({ time: 0, at: Date.now() });
+  const playRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const [state, setState] = useState<AudioPlayerState>({
     isPlaying: false,
@@ -76,12 +84,28 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
   // 房间切换时：先清 Rust 端 CDN 连接，再销毁前端
   useEffect(() => {
     destroyedRef.current = false;
-    reconnectAttemptRef.current = 0;
+    reconnectDelayRef.current = RECONNECT_DELAY_MS;
 
     return () => {
       void destroyPlayerAndClearStream();
     };
   }, [roomId, destroyPlayerAndClearStream]);
+
+  // 统一的重连调度：房间在线期间无限指数退避，切房/退出（destroyed）后停止
+  const scheduleReconnect = useCallback(
+    (reason: string) => {
+      if (destroyedRef.current) return;
+      const delay = reconnectDelayRef.current;
+      reconnectDelayRef.current = Math.min(delay * 2, RECONNECT_MAX_DELAY_MS);
+      console.warn(`[audio] ${reason}，${delay / 1000}s 后重连`);
+      destroyPlayer();
+      setState((prev) => ({ ...prev, isPlaying: false, isConnecting: true, error: reason }));
+      reconnectTimerRef.current = setTimeout(() => {
+        if (!destroyedRef.current) void playRef.current();
+      }, delay);
+    },
+    [destroyPlayer]
+  );
 
   const play = useCallback(async () => {
     if (!roomId) return;
@@ -95,7 +119,6 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
     }
 
     destroyedRef.current = false;
-    reconnectAttemptRef.current = 0;
     setState((prev) => ({ ...prev, isConnecting: true, error: null }));
 
     try {
@@ -129,35 +152,17 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
         console.error("[audio] mpegts error:", errorType, errorDetail, errorInfo);
         const msg =
           (errorInfo as { msg?: string } | undefined)?.msg || "音频流错误";
-
-        // 自动重连（最多 MAX_RECONNECT_ATTEMPTS 次）
-        if (!destroyedRef.current && reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttemptRef.current += 1;
-          setState((prev) => ({
-            ...prev,
-            isPlaying: false,
-            isConnecting: true,
-            error: null,
-          }));
-
-          reconnectTimerRef.current = setTimeout(() => {
-            if (!destroyedRef.current) {
-              void play();
-            }
-          }, RECONNECT_DELAY_MS);
-        } else {
-          setState((prev) => ({
-            ...prev,
-            isPlaying: false,
-            isConnecting: false,
-            error: msg,
-          }));
-        }
+        scheduleReconnect(`音频流错误：${msg}`);
+      });
+      // 上游（CDN/代理）断开时直播流会"正常"结束，不触发 ERROR，必须单独接住
+      player.on(Mpegts.Events.LOADING_COMPLETE, () => {
+        scheduleReconnect("直播流被上游关闭");
       });
 
       player.attachMediaElement(audio);
       player.load();
       playerRef.current = player;
+      stallRef.current = { time: 0, at: Date.now() };
 
       // 播放前设置音量
       audio.volume = volumeRef.current;
@@ -172,17 +177,35 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
           throw playError;
         }
       }
-      reconnectAttemptRef.current = 0;
+      reconnectDelayRef.current = RECONNECT_DELAY_MS;
       setState((prev) => ({ ...prev, isPlaying: true, isConnecting: false }));
     } catch (error) {
       console.error("[audio] play failed:", error);
-      setState((prev) => ({
-        ...prev,
-        isConnecting: false,
-        error: error instanceof Error ? error.message : "获取音频流失败",
-      }));
+      const reason = error instanceof Error ? error.message : "获取音频流失败";
+      scheduleReconnect(`获取音频流失败：${reason}`);
     }
-  }, [roomId, destroyPlayer]);
+  }, [roomId, destroyPlayer, scheduleReconnect]);
+
+  playRef.current = play;
+
+  // 停滞看门狗：兜住不报错的死流（隐藏窗口节流、缓冲耗尽、CDN 静默断开）
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const audio = audioRef.current;
+      if (!audio || destroyedRef.current || !playerRef.current || audio.paused) return;
+      const now = Date.now();
+      if (audio.currentTime !== stallRef.current.time) {
+        stallRef.current = { time: audio.currentTime, at: now };
+        return;
+      }
+      if (now - stallRef.current.at >= WATCHDOG_STALL_MS) {
+        // 重连前先刷新水位，避免 destroyPlayer 尚未生效时重复触发
+        stallRef.current = { time: audio.currentTime, at: now };
+        scheduleReconnect("缓冲停滞（播放进度长时间无推进）");
+      }
+    }, WATCHDOG_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [scheduleReconnect]);
 
   const stop = useCallback(async () => {
     destroyPlayer();
