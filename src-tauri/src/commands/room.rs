@@ -359,13 +359,12 @@ pub fn get_danmaku_input_only(state: State<'_, AppState>) -> bool {
         .load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// 切换弹幕窗口「仅输入框」紧凑模式：
+/// 切换弹幕窗口「仅输入框」紧凑模式核心（设置命令与全局快捷键共用）：
 /// 进入时先解除吸附（互斥；未吸附时为安全空操作），随后切换尺寸约束与窗口大小，
 /// 广播事件通知前端切换渲染，并立即落盘模式与几何。
-#[tauri::command]
-pub fn set_danmaku_input_only(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
+pub fn apply_input_only(
+    app: &tauri::AppHandle,
+    state: &AppState,
     enabled: bool,
 ) -> Result<bool, String> {
     let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
@@ -434,6 +433,15 @@ pub fn set_danmaku_input_only(
     // 模式与几何立即落盘，不等防抖
     window_state::save_now(&app);
     Ok(enabled)
+}
+
+#[tauri::command]
+pub fn set_danmaku_input_only(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<bool, String> {
+    apply_input_only(&app, state.inner(), enabled)
 }
 
 #[tauri::command]

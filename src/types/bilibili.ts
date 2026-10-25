@@ -219,6 +219,24 @@ export interface UpdateInfo {
   assets: Array<{ name: string; downloadUrl: string; size: number }>;
 }
 
+/** 快捷键绑定（null = 未绑定/停用），格式如 "Ctrl+Alt+B" */
+export interface ShortcutsSetting {
+  /** 显示/隐藏应用窗口（全局，与托盘左键同语义） */
+  toggleWindow: string | null;
+  /** 弹幕窗进入/退出仅输入框模式（全局） */
+  toggleInputOnly: string | null;
+  /** 直播音频播放/暂停（全局） */
+  toggleAudio: string | null;
+  /** 直播音频静音（全局） */
+  toggleMute: string | null;
+  /** 界面放大（应用内） */
+  uiZoomIn: string | null;
+  /** 界面缩小（应用内） */
+  uiZoomOut: string | null;
+  /** 重置界面缩放（应用内） */
+  uiZoomReset: string | null;
+}
+
 export interface Settings {
   visual: VisualSetting;
   sendInterval: { min: number; max: number };
@@ -279,6 +297,7 @@ export interface Settings {
     blockedKeywords: string[];
   };
   /** 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序） */
+  shortcuts: ShortcutsSetting;
   closeBehavior: "ask" | "hide" | "exit";
   /** 静默启动：启动时不显示主页面，只在系统托盘常驻 */
   silentStart: boolean;

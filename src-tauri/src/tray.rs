@@ -98,8 +98,9 @@ fn current_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
         .or_else(|| app.get_webview_window("main"))
 }
 
-/// 托盘左键单击：对当前窗口做显示/隐藏切换（不在弹幕与主页面之间互换）
-fn toggle_current_window(app: &AppHandle) {
+/// 托盘左键单击：对当前窗口做显示/隐藏切换（不在弹幕与主页面之间互换）。
+/// 全局快捷键「显示/隐藏应用窗口」复用同一逻辑（shortcuts.rs）。
+pub(crate) fn toggle_current_window(app: &AppHandle) {
     if let Some(window) = current_window(app) {
         toggle_window(&window);
     }

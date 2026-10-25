@@ -196,6 +196,69 @@ impl Default for ListenSetting {
     }
 }
 
+fn default_sc_toggle_window() -> Option<String> {
+    Some("Ctrl+Alt+D".into())
+}
+
+fn default_sc_toggle_input_only() -> Option<String> {
+    // 对齐参考项目 live-moyu 的悬浮输入框唤起键
+    Some("Ctrl+Alt+B".into())
+}
+
+fn default_sc_zoom_in() -> Option<String> {
+    Some("Ctrl+=".into())
+}
+
+fn default_sc_zoom_out() -> Option<String> {
+    Some("Ctrl+-".into())
+}
+
+fn default_sc_zoom_reset() -> Option<String> {
+    Some("Ctrl+0".into())
+}
+
+/// 快捷键绑定：全局动作经 global-shortcut 插件注册（None = 未绑定），
+/// 界面缩放三键在应用内解析（Rust 侧仅存储，不注册）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutsSetting {
+    /// 显示/隐藏应用窗口（与托盘左键同语义）
+    #[serde(default = "default_sc_toggle_window")]
+    pub toggle_window: Option<String>,
+    /// 弹幕窗进入/退出仅输入框模式
+    #[serde(default = "default_sc_toggle_input_only")]
+    pub toggle_input_only: Option<String>,
+    /// 直播音频播放/暂停
+    #[serde(default)]
+    pub toggle_audio: Option<String>,
+    /// 直播音频静音切换
+    #[serde(default)]
+    pub toggle_mute: Option<String>,
+    /// 界面放大（应用内）
+    #[serde(default = "default_sc_zoom_in")]
+    pub ui_zoom_in: Option<String>,
+    /// 界面缩小（应用内）
+    #[serde(default = "default_sc_zoom_out")]
+    pub ui_zoom_out: Option<String>,
+    /// 界面缩放重置（应用内）
+    #[serde(default = "default_sc_zoom_reset")]
+    pub ui_zoom_reset: Option<String>,
+}
+
+impl Default for ShortcutsSetting {
+    fn default() -> Self {
+        Self {
+            toggle_window: default_sc_toggle_window(),
+            toggle_input_only: default_sc_toggle_input_only(),
+            toggle_audio: None,
+            toggle_mute: None,
+            ui_zoom_in: default_sc_zoom_in(),
+            ui_zoom_out: default_sc_zoom_out(),
+            ui_zoom_reset: default_sc_zoom_reset(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SttSetting {
@@ -325,6 +388,9 @@ pub struct Settings {
     pub stt: SttSetting,
     #[serde(default)]
     pub filter: FilterSetting,
+    /// 全局与应用内快捷键绑定
+    #[serde(default)]
+    pub shortcuts: ShortcutsSetting,
     /// 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序）
     #[serde(default = "default_close_behavior")]
     pub close_behavior: String,
@@ -392,6 +458,7 @@ impl Default for Settings {
             listen: ListenSetting::default(),
             stt: SttSetting::default(),
             filter: FilterSetting::default(),
+            shortcuts: ShortcutsSetting::default(),
             close_behavior: default_close_behavior(),
             silent_start: false,
             show_avatars: true,

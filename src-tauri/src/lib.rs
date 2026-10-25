@@ -14,6 +14,7 @@ mod stt;
 mod tray;
 mod window_dock;
 mod window_state;
+mod shortcuts;
 
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
@@ -82,6 +83,15 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        shortcuts::handle_shortcut(app, &shortcut);
+                    }
+                })
+                .build(),
+        )
+        .plugin(
             tauri_plugin_log::Builder::default()
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
@@ -138,6 +148,9 @@ pub fn run() {
                     *db = Some(connection);
                 }
             }
+
+            // 数据库就绪后按设置注册全局快捷键（未绑定的动作跳过）
+            shortcuts::apply_shortcuts(app.handle());
 
             // 静默启动：开启时只驻留托盘，不弹出主页面（设置读取失败按普通启动处理）。
             // 主窗口在 tauri.conf.json 里以 visible=false 创建，避免先闪一下再隐藏。

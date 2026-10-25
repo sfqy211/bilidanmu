@@ -30,6 +30,9 @@ pub async fn update_settings(
 
     settings_store::save_settings(&state, &settings)?;
 
+    // 快捷键绑定可能随设置变更：全量重注册（幂等）
+    crate::shortcuts::apply_shortcuts(&app);
+
     // If STT model changed, restart the pipeline
     if model_changed {
         let stt_manager = state.stt_manager.clone();

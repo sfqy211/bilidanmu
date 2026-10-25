@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { HardDrive, Headphones, Info, MessageSquare, Palette, SlidersHorizontal, Volume2 } from "lucide-react";
+import { HardDrive, Headphones, Info, Keyboard, MessageSquare, Palette, SlidersHorizontal, Volume2 } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
@@ -9,11 +9,13 @@ import { DanmakuSettings } from "@/components/settings/DanmakuSettings";
 import { AudioSettings } from "@/components/settings/AudioSettings";
 import { ListenSettings } from "@/components/settings/ListenSettings";
 import { StorageSettings } from "@/components/settings/StorageSettings";
+import { ShortcutsSettings } from "@/components/settings/ShortcutsSettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 const SETTINGS_CATEGORIES = [
-  { value: "general", label: "通用", description: "窗口行为与快捷键", icon: SlidersHorizontal, component: GeneralSettings },
+  { value: "general", label: "通用", description: "窗口行为与托盘", icon: SlidersHorizontal, component: GeneralSettings },
+  { value: "shortcuts", label: "快捷键", description: "全局与应用内快捷键的自定义", icon: Keyboard, component: ShortcutsSettings },
   { value: "appearance", label: "外观", description: "", icon: Palette, component: AppearanceSettings },
   { value: "danmaku", label: "弹幕窗口", description: "文字、消息、活动栏与屏蔽", icon: MessageSquare, component: DanmakuSettings },
   { value: "audio", label: "直播音频", description: "直播音频与实时语音字幕", icon: Volume2, component: AudioSettings },

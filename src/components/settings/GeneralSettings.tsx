@@ -1,4 +1,4 @@
-import { SettingsChoice, SettingsGroup, SettingsRow, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
+import { SettingsChoice, SettingsGroup, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 import type { Settings } from "@/types/bilibili";
 
 export function GeneralSettings({ settings, patchSettings }: SettingsPanelProps) {
@@ -14,11 +14,6 @@ export function GeneralSettings({ settings, patchSettings }: SettingsPanelProps)
       <SettingsGroup title="界面显示">
         <SettingsToggle title="显示头像" description="在直播间列表、添加主播、账号和视频评论中展示头像。"
           checked={settings.showAvatars} onChange={(showAvatars) => patchSettings({ showAvatars })} />
-      </SettingsGroup>
-      <SettingsGroup title="快捷键">
-        <SettingsRow title="界面缩放"><span className="text-xs text-ink-muted">Ctrl + − / +</span></SettingsRow>
-        <SettingsRow title="重置界面缩放"><span className="text-xs text-ink-muted">Ctrl + 0</span></SettingsRow>
-        <SettingsRow title="调整弹幕字号"><span className="text-xs text-ink-muted">Ctrl + 滚轮</span></SettingsRow>
       </SettingsGroup>
     </>
   );

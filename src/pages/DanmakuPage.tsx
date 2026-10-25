@@ -353,6 +353,15 @@ export function DanmakuPage() {
     setVolume: audioSetVolume,
     toggleMute: audioToggleMute,
   } = useAudioPlayer(roomId, audioSettings.defaultVolume / 100);
+  // 全局快捷键的音频动作：播放器状态在 webview 内，由 Rust 经事件转发到这里执行
+  useTauriEvent<string>("global-shortcut-action", (action) => {
+    if (action === "toggleAudio") {
+      if (audioPlaying) void audioStop();
+      else void audioPlay();
+    } else if (action === "toggleMute") {
+      audioToggleMute();
+    }
+  });
   const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttAvailable ? sttSettings.syncDelayMs : 0);
 
   // 自动播放音频

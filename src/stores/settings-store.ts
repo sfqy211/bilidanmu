@@ -7,7 +7,7 @@ import { DEFAULT_VISUAL, normalizeVisual } from "@/lib/visual-defaults";
 /** 需要深合并的子对象键 */
 const DEEP_KEYS = [
   "sendInterval", "rateLimit", "riskControl", "receive",
-  "appearance", "notification", "cache", "audio", "listen", "stt", "filter",
+  "appearance", "notification", "cache", "audio", "listen", "stt", "filter", "shortcuts",
 ] as const;
 
 /** 将部分设置与默认值深合并，确保所有子对象字段完整 */
@@ -88,7 +88,16 @@ export const defaultSettings: Settings = {
   },
   closeBehavior: "ask",
   silentStart: false,
-  showAvatars: true
+  showAvatars: true,
+  shortcuts: {
+    toggleWindow: "Ctrl+Alt+D",
+    toggleInputOnly: "Ctrl+Alt+B",
+    toggleAudio: null,
+    toggleMute: null,
+    uiZoomIn: "Ctrl+=",
+    uiZoomOut: "Ctrl+-",
+    uiZoomReset: "Ctrl+0",
+  }
 };
 
 interface SettingsState {
