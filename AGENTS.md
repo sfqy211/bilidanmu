@@ -7,6 +7,7 @@
 - Frontend verification: `npm run typecheck`.
 - Rust verification: `cargo check` from `src-tauri/`.
 - Build release: `npm run build`.
+- After changing `src-tauri/icons/`: `touch src-tauri/build.rs` before rebuilding (cargo fingerprints don't watch icon files, so the embedded icon stays stale), then `ie4uinit.exe -show` to flush the Windows taskbar icon cache.
 - Version bump: `.\scripts\bump-version.ps1 <version>`.
 - No lite build variant — STT is always compiled in, toggled at runtime via settings. The AI backend was removed entirely; `src/pages/AIPage.tsx` is an intentional "开发中" placeholder — do not clean it up as dead code or propose restoring an integration.
 - There is no configured JS test/lint task in `package.json`; do not claim tests/lint passed unless you actually ran the available checks above.

@@ -234,6 +234,7 @@ body {
 .workspace-mini-player { background: var(--app-card); }
 .workspace-brand { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .workspace-brand-logo { box-sizing: border-box; width: 24px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 7px; background: #f7f8fa; object-fit: contain; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08); }
+.dark .workspace-brand-logo { background: #2a2a2f; box-shadow: 0 0 0 1px var(--border-subtle); }
 .workspace-brand-name { overflow: hidden; color: var(--ink); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-select { border: 1px solid var(--border-subtle); border-radius: var(--workspace-control-radius); background: var(--app-card); color: var(--ink); }
 .workspace-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-bottom: 24px; }

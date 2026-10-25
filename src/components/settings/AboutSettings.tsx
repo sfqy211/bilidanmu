@@ -34,7 +34,11 @@ export function AboutSettings() {
   return (
     <>
       <div className="mb-6 flex items-center gap-3">
-        <img src={aboutIcon} alt="" className="h-10 w-10 rounded-lg" />
+        <img
+          src={aboutIcon}
+          alt=""
+          className="box-border h-10 w-10 rounded-lg bg-[#f7f8fa] p-1.5 object-contain shadow-[0_0_0_1px_rgb(15_23_42/0.08)] dark:bg-[#2a2a2f] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+        />
         <div>
           <h3 className="text-base font-semibold text-ink">BiliDanmu {version && <span className="numeric ml-1 text-xs font-normal text-ink-muted">v{version}</span>}</h3>
           <p className="mt-0.5 text-xs text-ink-muted">Bilibili 直播弹幕客户端 · AGPLv3</p>
