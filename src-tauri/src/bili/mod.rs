@@ -3,6 +3,7 @@ pub mod buvid;
 pub mod credential;
 pub mod heartbeat;
 pub mod mock;
+pub mod pb;
 pub mod protocol;
 pub mod wbi;
 pub mod ws_client;

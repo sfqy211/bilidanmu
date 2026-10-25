@@ -379,6 +379,107 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     })
 }
 
+/// 解析一条命令 → 事件列表。绝大多数命令产出 0 或 1 条事件；
+/// SEND_GIFT_V2 一条消息可携带多件礼物，逐件产出。
+pub fn parse_danmaku_events(command: &Value, room_id: u64) -> Vec<DanmakuEvent> {
+    if command.get("cmd").and_then(Value::as_str) == Some("SEND_GIFT_V2") {
+        return parse_gift_message_v2(command, room_id);
+    }
+    parse_danmaku_command(command, room_id).into_iter().collect()
+}
+
+/// SEND_GIFT_V2：B 站迁移后的礼物消息，payload 为 data.pb 的 base64 protobuf
+/// （不再是明文 JSON 字段）。字段定义来自社区逆向，参考 JLiverTool 与
+/// sjh8130/bili_danmaku 的 SEND_GIFT_V2.proto：
+/// root{1:uid, 2:uname, 3:face, 8:medal_info, 10:repeated gift_item}，
+/// gift_item{1:gift_id, 2:gift_name, 3:num, 5:price, 10:timestamp, 18:action}。
+fn parse_gift_message_v2(command: &Value, room_id: u64) -> Vec<DanmakuEvent> {
+    use base64::Engine as _;
+
+    let Some(pb_b64) = command
+        .get("data")
+        .and_then(|data| data.get("pb"))
+        .and_then(Value::as_str)
+    else {
+        log::warn!("SEND_GIFT_V2 缺少 data.pb，已忽略");
+        return Vec::new();
+    };
+    let pb_bytes = match base64::engine::general_purpose::STANDARD.decode(pb_b64) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            log::warn!("SEND_GIFT_V2 base64 解码失败: {e}");
+            return Vec::new();
+        }
+    };
+    let root = match crate::bili::pb::decode_message(&pb_bytes) {
+        Ok(root) => root,
+        Err(e) => {
+            log::warn!("SEND_GIFT_V2 protobuf 解码失败: {e}");
+            return Vec::new();
+        }
+    };
+
+    let uid = root.get_u64(1).unwrap_or(0);
+    let Some(username) = root.get_str(2) else {
+        log::warn!("SEND_GIFT_V2 缺少 uname (field 2)，已忽略");
+        return Vec::new();
+    };
+    let username = username.to_string();
+    let avatar = root.get_str(3).map(str::to_string);
+    let medal_message = root.get_message(8);
+    let medal = medal_message.as_ref().and_then(|medal| {
+        let name = medal.get_str(6).unwrap_or_default().to_string();
+        (!name.trim().is_empty()).then_some(Medal {
+            name,
+            level: medal.get_u64(5).unwrap_or_default(),
+            // V2 payload 无 is_lighted 字段，佩戴中的勋章按点亮处理
+            is_light: 1,
+        })
+    });
+    let guard_level = medal_message
+        .as_ref()
+        .and_then(|medal| medal.get_u64(12))
+        .unwrap_or(0) as u8;
+
+    root.get_messages(10)
+        .into_iter()
+        .map(|item| {
+            let gift_name = item.get_str(2).unwrap_or("未知礼物").to_string();
+            let count = item.get_u64(3).unwrap_or(1) as u32;
+            let action = item.get_str(18).unwrap_or("投喂");
+            DanmakuEvent {
+                id: uuid::Uuid::new_v4().to_string(),
+                room_id,
+                event_type: "gift".to_string(),
+                username: username.clone(),
+                content: format!("{action}了 {gift_name} ×{count}"),
+                timestamp: item.get_i64(10).unwrap_or_default().max(0) as u64,
+                avatar: avatar.clone(),
+                medal: medal.clone(),
+                wealth_level: None,
+                uid,
+                color: 16_777_215,
+                guard_level,
+                is_admin: false,
+                dm_type: 0,
+                price: item.get_u64(5).map(|value| value as u32),
+                gift_name: Some(gift_name),
+                count: Some(count),
+                background_color: None,
+                background_bottom_color: None,
+                background_price_color: None,
+                message_font_color: None,
+                background_image: None,
+                emots: None,
+                emoticon_options: None,
+                reply_uid: None,
+                reply_username: None,
+                contribution_rank: None,
+            }
+        })
+        .collect()
+}
+
 fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let data = command.get("data")?;
     let uinfo = data.get("uinfo");
@@ -900,4 +1001,42 @@ fn value_as_u64(value: &Value) -> Option<u64> {
     value
         .as_u64()
         .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// 真实捕获的 SEND_GIFT_V2 样本（取自 JLiverTool 测试，MIT License）
+    const SAMPLE_PB: &str = "CMqAHRIGWGlucmVhGkpodHRwczovL2kxLmhkc2xiLmNvbS9iZnMvZmFjZS80NDMxMmNmNWExODQwNWE5NzUyNzQyZjRlODdmYThlNmFiODE1YzAyLmpwZyIHIzAwRDFGMSgDQicIy5WyHSgqMgbovbToiq84i8L9B0CLwv0HSISh/wdQ/9GfA1gBYANSjAUIxIkCEgnkurrmsJTnpagYASABKGQwZDhkQgRnb2xkShM0Nzk3MDQ2ODc4OTcxNjYzMzYwULuu/tIGWAFiOWJhdGNoOmdpZnQ6Y29tYm9faWQ6NDc1MjEwOjYxNjM5MzcxOjMzOTg4OjE3ODQ2NDk1MzEuODExOWgKcGR4BYUBAACAP4gBAZIBBuaKleWWgsABhoSoDuoBGAoR6L205LyKSm9pX0NoYW5uZWwQy5WyHYoC6QEIy5WyHRLhAQoR6L205LyKSm9pX0NoYW5uZWwSSmh0dHBzOi8vaTAuaGRzbGIuY29tL2Jmcy9mYWNlLzZjOGIzMTMwYWE5YmVkMGU0NjI1YWEwOWEzY2U1M2Q4NWVhMTJmM2UuanBnMl8KEei9tOS8ikpvaV9DaGFubmVsEkpodHRwczovL2kwLmhkc2xiLmNvbS9iZnMvZmFjZS82YzhiMzEzMGFhOWJlZDBlNDYyNWFhMDlhM2NlNTNkODVlYTEyZjNlLmpwZzofCAcSG2JpbGliaWxpIOebtOaSremrmOiDveS4u+aSrZICAJoC5QEKSmh0dHBzOi8vczEuaGRzbGIuY29tL2Jmcy9saXZlLzcxNjRjOTU1ZWMwZWQ3NTM3NDkxZDE4OWI4MjFjYzY4ZjFiZWEyMGQucG5nEktodHRwczovL2kwLmhkc2xiLmNvbS9iZnMvbGl2ZS81YTIwMTIwOTRiYjg3NWEwNGVhN2QwMzZlZGRlM2U5YzAwMTI3ZWMyLndlYnAqSmh0dHBzOi8vaTAuaGRzbGIuY29tL2Jmcy9saXZlL2E5ZjVkMWY5MDM1ODJjZmYxOGY5NDAxNGY1MWFmYWYwMTJmMGUyZjkuZ2lmqgIAWAFqAggpeu8CCMqAHRK3AQoGWGlucmVhEkpodHRwczovL2kxLmhkc2xiLmNvbS9iZnMvZmFjZS80NDMxMmNmNWExODQwNWE5NzUyNzQyZjRlODdmYThlNmFiODE1YzAyLmpwZzJUCgZYaW5yZWESSmh0dHBzOi8vaTEuaGRzbGIuY29tL2Jmcy9mYWNlLzQ0MzEyY2Y1YTE4NDA1YTk3NTI3NDJmNGU4N2ZhOGU2YWI4MTVjMDIuanBnOgsg////////////ARquAQoG6L206IqvECoYi8L9ByCEof8HKP/RnwMwi8L9B0gBUMuVsh1YA2Dm+yNqSmh0dHBzOi8vaTAuaGRzbGIuY29tL2Jmcy9saXZlLzQ4MzYwYzhmM2I3ZGU4MDMxZTg2ZmYxZWY0YTJkZmMwZWMyYTYxYzIucG5negkjQTc3M0YxOTmCAQkjQTc3M0YxOTmKAQcjRDQ3QUZGkgEHI0ZGRkZGRpoBCSNBNzczRjFFNg==";
+
+    #[test]
+    fn parse_send_gift_v2_sample() {
+        let body = json!({
+            "cmd": "SEND_GIFT_V2",
+            "data": { "dmscore": 1190, "pb": SAMPLE_PB }
+        });
+        let events = parse_danmaku_events(&body, 12345);
+        assert_eq!(events.len(), 1);
+        let event = &events[0];
+        assert_eq!(event.event_type, "gift");
+        assert_eq!(event.room_id, 12345);
+        assert_eq!(event.uid, 475210);
+        assert_eq!(event.username, "Xinrea");
+        assert_eq!(event.gift_name.as_deref(), Some("人气票"));
+        assert_eq!(event.count, Some(1));
+        assert_eq!(event.price, Some(100));
+        assert_eq!(event.timestamp, 1784649531);
+        assert!(event.content.contains("投喂"));
+        let medal = event.medal.as_ref().expect("medal expected");
+        assert_eq!(medal.name, "轴芯");
+        assert_eq!(medal.level, 42);
+    }
+
+    #[test]
+    fn parse_send_gift_v2_rejected_when_pb_missing() {
+        let body = json!({ "cmd": "SEND_GIFT_V2", "data": { "dmscore": 1 } });
+        assert!(parse_danmaku_events(&body, 1).is_empty());
+    }
 }

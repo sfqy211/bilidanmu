@@ -1,5 +1,5 @@
 use crate::bili::api::BiliApiClient;
-use crate::bili::protocol::{auth_packet, decode_packets, heartbeat_packet, parse_danmaku_command, ParsedPacket};
+use crate::bili::protocol::{auth_packet, decode_packets, heartbeat_packet, parse_danmaku_events, ParsedPacket};
 use crate::bili::credential::BiliCredential;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
@@ -306,12 +306,15 @@ async fn run_connection(
                                             }),
                                         );
                                     }
-                                } else if let Some(mut event) = parse_danmaku_command(&command, room_id) {
-                                    // 查询高能榜排名（所有消息类型均适用）
-                                    if let Some(&rank) = online_rank_cache.get(&event.uid) {
-                                        event.contribution_rank = Some(rank);
+                                } else {
+                                    // SEND_GIFT_V2 一条命令可产出多条事件，其余命令 0/1 条
+                                    for mut event in parse_danmaku_events(&command, room_id) {
+                                        // 查询高能榜排名（所有消息类型均适用）
+                                        if let Some(&rank) = online_rank_cache.get(&event.uid) {
+                                            event.contribution_rank = Some(rank);
+                                        }
+                                        let _ = app.emit("danmaku-received", &event);
                                     }
-                                    let _ = app.emit("danmaku-received", &event);
                                 }
                             }
                             ParsedPacket::HeartbeatReply(popularity) => {
