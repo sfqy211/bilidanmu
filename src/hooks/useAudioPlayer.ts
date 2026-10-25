@@ -43,6 +43,8 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const destroyedRef = useRef(false);
   const mutedRef = useRef(false);
+  /** 本会话是否成功播放过：区分"初始连接失败"（停止并报错）与"会话中断流"（无限退避重连） */
+  const hasPlayedRef = useRef(false);
   const stallRef = useRef<{ time: number; at: number }>({ time: 0, at: Date.now() });
   const playRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
@@ -114,6 +116,7 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
   useEffect(() => {
     destroyedRef.current = false;
     reconnectDelayRef.current = RECONNECT_DELAY_MS;
+    hasPlayedRef.current = false;
 
     return () => {
       void destroyPlayerAndClearStream();
@@ -208,10 +211,18 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
         }
       }
       reconnectDelayRef.current = RECONNECT_DELAY_MS;
+      hasPlayedRef.current = true;
       setState((prev) => ({ ...prev, isPlaying: true, isConnecting: false }));
     } catch (error) {
       console.error("[audio] play failed:", error);
       const reason = error instanceof Error ? error.message : "获取音频流失败";
+      // 未开播/无流是确定态，重试无意义；初始连接失败也直接停在错误态
+      // （避免未开播房间无限重试导致播放按钮永远转圈）。
+      // 会话中已成功播放过的网络类失败仍走无限退避重连。
+      if (!hasPlayedRef.current || /未开播|缺少流信息/.test(reason)) {
+        setState((prev) => ({ ...prev, isPlaying: false, isConnecting: false, error: reason }));
+        return;
+      }
       scheduleReconnect(`获取音频流失败：${reason}`);
     }
   }, [roomId, destroyPlayer, scheduleReconnect]);

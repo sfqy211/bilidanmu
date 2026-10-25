@@ -384,6 +384,18 @@ export function DanmakuPage() {
     }
   }, [roomId, audioSettings.autoPlay, audioPlay]);
 
+  // 未开播时自动播放失败会停在错误态；收到"开播了"系统行且开着自动播放则自动续播
+  const lastLiveMarkerRef = useRef(0);
+  useEffect(() => {
+    const liveMarker = [...storeDanmakuMessages].reverse().find((m) => m.type === "live");
+    if (!liveMarker || liveMarker.timestamp <= lastLiveMarkerRef.current) return;
+    lastLiveMarkerRef.current = liveMarker.timestamp;
+    if (roomId && audioSettings.autoPlay && !audioPlaying && !audioConnecting) {
+      void audioPlay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeDanmakuMessages]);
+
   // 音频播放后自动启动 STT
   useEffect(() => {
     if (audioPlaying && sttAvailable && sttSettings.enabled) {
@@ -1244,7 +1256,7 @@ export function DanmakuPage() {
               ? "text-pink-500 hover:text-pink-400"
               : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
           } disabled:cursor-not-allowed disabled:opacity-50`}
-          title={audioPlaying ? "停止音频" : "播放音频"}
+          title={audioError ?? (audioPlaying ? "停止音频" : "播放音频")}
         >
           {audioConnecting ? (
             <span className="block h-3 w-3 animate-spin rounded-full border-2 border-pink-500 border-t-transparent" />
