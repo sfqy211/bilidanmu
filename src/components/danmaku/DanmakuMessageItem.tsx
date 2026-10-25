@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AtSign, Copy, ExternalLink, ShieldBan, User } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { InlineEmotText } from "@/components/danmaku/InlineEmotText";
+import { InlineEmotText, isEmoticonOnlyContent } from "@/components/danmaku/InlineEmotText";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { formatTimestamp } from "@/lib/utils";
@@ -253,8 +253,14 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
-  // 表情弹幕在"不显示"模式下整条隐藏
-  if (emoticonStyle === "hidden" && item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions) {
+  // 表情弹幕在"不显示"模式下整条隐藏：大表情整条消息，
+  // 以及去掉表情 token 后没有正文的纯小表情弹幕（否则会渲染成空行）
+  if (
+    emoticonStyle === "hidden" &&
+    item.type === "danmaku" &&
+    ((item.dmType === 1 && item.emoticonOptions) ||
+      isEmoticonOnlyContent(item.content, item.emots))
+  ) {
     return null;
   }
 
