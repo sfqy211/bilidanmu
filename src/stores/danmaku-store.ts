@@ -3,8 +3,6 @@ import type { DanmakuMessage } from "@/types/danmaku";
 import type { BlockedUser } from "@/types/bilibili";
 
 const DEFAULT_MESSAGE_LIMIT = 200;
-/** 0=无限制时的内置安全上限：防止无界增长把主线程拖垮（每条消息都要复制数组） */
-const HARD_MAX_MESSAGES = 3000;
 /** 裁剪余量：超过上限后再攒满这个量才一次性裁掉，避免逐条头部删除 */
 const TRIM_MARGIN = 200;
 /** 入列批处理窗口：洪峰时合并提交，把每秒上百次重渲染压到 ~10 次 */
@@ -14,12 +12,14 @@ let pendingMessages: DanmakuMessage[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 function applyMessages(state: DanmakuState, batch: DanmakuMessage[]): Partial<DanmakuState> {
-  let danmakuMessages = state.danmakuMessages;
-  let giftMessages = state.giftMessages;
-  let activityMessages = state.activityMessages;
+  // 批内先攒新消息、每栏最后只 concat 一次：存量到十万条量级时，
+  // 逐条 [...arr, msg] 整组复制会产生海量临时数组，主线程与 GC 都扛不住
+  const newDanmaku: DanmakuMessage[] = [];
+  const newGift: DanmakuMessage[] = [];
+  const newActivity: DanmakuMessage[] = [];
   let { danmakuCount, superChatCount, guardCount } = state;
   let { droppedDanmaku, droppedGift, droppedActivity } = state;
-  const cap = state.messageLimit > 0 ? state.messageLimit : HARD_MAX_MESSAGES;
+  const cap = state.messageLimit > 0 ? state.messageLimit : Number.POSITIVE_INFINITY;
 
   for (const message of batch) {
     // 开播/下播是系统标记，非用户消息，不做屏蔽过滤
@@ -35,23 +35,27 @@ function applyMessages(state: DanmakuState, batch: DanmakuMessage[]): Partial<Da
     }
     // 进场/点赞进活动栏
     if (message.type === "entry" || message.type === "like") {
-      activityMessages = [...activityMessages, message];
+      newActivity.push(message);
       continue;
     }
     const isGift = message.type === "gift" || message.type === "superChat" || message.type === "guard";
     if (isGift) {
-      giftMessages = [...giftMessages, message];
+      newGift.push(message);
       if (message.type === "superChat") superChatCount += 1;
       if (message.type === "guard") guardCount += 1;
       // 简化 SC 双重显示：礼物栏完整卡片之外，弹幕栏追加简化行
       if (message.type === "superChat" && state.scInDanmaku) {
-        danmakuMessages = [...danmakuMessages, message];
+        newDanmaku.push(message);
       }
     } else {
-      danmakuMessages = [...danmakuMessages, message];
+      newDanmaku.push(message);
       if (message.type === "danmaku") danmakuCount += 1;
     }
   }
+
+  let danmakuMessages = newDanmaku.length > 0 ? state.danmakuMessages.concat(newDanmaku) : state.danmakuMessages;
+  let giftMessages = newGift.length > 0 ? state.giftMessages.concat(newGift) : state.giftMessages;
+  let activityMessages = newActivity.length > 0 ? state.activityMessages.concat(newActivity) : state.activityMessages;
 
   // 成批裁剪：虚拟器按 key 缓存行高，逐条头部删除会让索引整体移位、缓存与内容
   // 错位（行重叠）。攒满余量一次裁掉，由 UI 层在裁剪后重置测量。
@@ -91,7 +95,7 @@ interface DanmakuState {
   giftMessages: DanmakuMessage[];
   /** 进场、点赞等动态消息 */
   activityMessages: DanmakuMessage[];
-  /** 三栏共用的消息缓存上限（0 = 无限制，内置安全上限 3000） */
+  /** 三栏共用的消息缓存上限（0 = 无限制：整场直播的消息全部保留在内存） */
   messageLimit: number;
   wsConnected: boolean;
   wsStatus: "idle" | "connecting" | "connected" | "reconnecting" | "disconnected" | "error";

@@ -268,7 +268,7 @@ export interface Settings {
     scAlert: boolean;
   };
   cache: {
-    /** 三栏（弹幕/礼物/动态消息）共用的消息缓存上限，0 表示无限制（内置安全上限 3000） */
+    /** 三栏（弹幕/礼物/动态消息）共用的消息缓存上限，0 表示无限制（整场保留在内存） */
     messageLimit: number;
   };
   audio: AudioSetting;

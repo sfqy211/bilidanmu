@@ -23,7 +23,7 @@ export function StorageSettings({ settings, patchSettings }: SettingsPanelProps)
   return (
     <>
       <SettingsGroup title="消息保留" description="弹幕、礼物、活动三栏分别按此数量保留，超出后批量移除最早的消息。">
-        <SettingsRow title="每栏保留条数" description="填 0 使用 3000 条安全上限；此项控制内存中的消息，不是磁盘缓存。">
+        <SettingsRow title="每栏保留条数" description="填 0 表示不限制，整场直播的消息都保留在内存中；此项控制内存中的消息，不是磁盘缓存。">
           <input type="number" aria-label="每栏保留条数" min={0} step={50} value={settings.cache.messageLimit}
             onChange={(event) => {
               const value = event.target.valueAsNumber;
