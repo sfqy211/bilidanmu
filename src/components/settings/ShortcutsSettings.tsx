@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SettingsGroup, SettingsRow, type SettingsPanelProps } from "./SettingsControls";
 import type { Settings } from "@/types/bilibili";
@@ -114,6 +115,19 @@ function ShortcutRecorder({
 
 export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProps) {
   const [conflict, setConflict] = useState<string | null>(null);
+  // 全局快捷键注册失败清单（Rust 侧注册结果，如被其它程序占用）
+  const [regErrors, setRegErrors] = useState<string[]>([]);
+
+  const refreshErrors = useCallback(() => {
+    void tauriCommands.settings
+      .getShortcutErrors()
+      .then((errors) => setRegErrors(errors ?? []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshErrors();
+  }, [refreshErrors]);
 
   const commit = useCallback(
     (key: ShortcutKey, value: string | null) => {
@@ -127,9 +141,10 @@ export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProp
       }
       setConflict(null);
       patchSettings({ shortcuts: { ...settings.shortcuts, [key]: value } });
-      void useSettingsStore.getState().saveSettings();
+      // 保存命令在 Rust 侧同步完成快捷键重注册，完成后刷新注册结果
+      void useSettingsStore.getState().saveSettings().then(refreshErrors);
     },
-    [settings.shortcuts, patchSettings]
+    [settings.shortcuts, patchSettings, refreshErrors]
   );
 
   const renderRow = (action: ActionDef) => {
@@ -168,6 +183,13 @@ export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProp
         <p className="settings-row-block text-xs text-rose-600 dark:text-rose-300" role="alert">
           {conflict}
         </p>
+      )}
+      {regErrors.length > 0 && (
+        <div className="settings-row-block text-xs text-amber-600 dark:text-amber-300" role="alert">
+          {regErrors.map((error) => (
+            <p key={error}>{error}</p>
+          ))}
+        </div>
       )}
     </>
   );

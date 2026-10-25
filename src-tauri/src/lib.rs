@@ -61,6 +61,8 @@ pub struct AppState {
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
     /// 弹幕窗口是否处于「仅输入框」紧凑模式（true = 高度锁定输入栏、不参与吸附）
     pub danmaku_input_only: std::sync::atomic::AtomicBool,
+    /// 最近一次全局快捷键注册的失败清单（设置页展示；空 = 全部成功）
+    pub shortcut_errors: std::sync::Mutex<Vec<String>>,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
     pub live_status: std::sync::Mutex<Option<HashMap<u64, bool>>>,
 }
@@ -131,6 +133,7 @@ pub fn run() {
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
+            shortcut_errors: std::sync::Mutex::new(Vec::new()),
             live_status: std::sync::Mutex::new(None),
         }
         })
@@ -323,6 +326,7 @@ pub fn run() {
             commands::room::switch_room,
             commands::room::get_danmaku_input_only,
             commands::room::set_danmaku_input_only,
+            shortcuts::get_shortcut_errors,
             commands::room::reorder_rooms,
             commands::room::get_follow_lives,
             commands::video::get_video_info,

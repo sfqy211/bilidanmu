@@ -5,8 +5,18 @@
 //! webview 内，经事件转发给前端执行。
 
 use crate::{commands, settings_store, tray, AppState};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+/// 查询最近一次全局快捷键注册的失败清单（设置页展示）
+#[tauri::command]
+pub fn get_shortcut_errors(state: State<'_, AppState>) -> Vec<String> {
+    state
+        .shortcut_errors
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
 
 /// 按当前设置重注册全部全局快捷键（启动与设置保存后调用）
 pub fn apply_shortcuts(app: &AppHandle) {
@@ -16,6 +26,7 @@ pub fn apply_shortcuts(app: &AppHandle) {
     };
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
+    let mut errors: Vec<String> = Vec::new();
     let shortcuts = &settings.shortcuts;
     let bindings = [
         ("显示/隐藏应用窗口", shortcuts.toggle_window.as_deref()),
@@ -29,11 +40,19 @@ pub fn apply_shortcuts(app: &AppHandle) {
             Ok(shortcut) => {
                 if let Err(e) = gs.register(shortcut) {
                     log::warn!("注册全局快捷键失败 [{name}] {binding}: {e}");
+                    errors.push(format!("「{name}」{binding} 注册失败（可能被其它程序占用）"));
                 }
             }
-            Err(_) => log::warn!("全局快捷键格式无法解析，已忽略 [{name}] {binding}"),
+            Err(_) => {
+                log::warn!("全局快捷键格式无法解析，已忽略 [{name}] {binding}");
+                errors.push(format!("「{name}」{binding} 格式无法解析"));
+            }
         }
     }
+    *state
+        .shortcut_errors
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = errors;
 }
 
 /// 触发的快捷键 → 动作分发（global-shortcut 插件 handler 调用，仅响应按下）
