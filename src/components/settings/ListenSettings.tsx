@@ -5,8 +5,6 @@ export function ListenSettings({ settings, patchSettings }: SettingsPanelProps) 
   return (
     <>
       <SettingsGroup title="播放">
-        <SettingsRange title="默认音量" description="用于启动时的听视频音量，与直播音量独立。播放器内的临时调节不会改动此默认值。"
-          value={settings.listen.defaultVolume} min={0} max={100} unit="%" onChange={(defaultVolume) => update({ defaultVolume })} />
         <SettingsToggle title="自动连播" description="当前曲目结束后继续播放列表中的下一首；关闭后每首结束时停止。"
           checked={settings.listen.autoNext} onChange={(autoNext) => update({ autoNext })} />
       </SettingsGroup>

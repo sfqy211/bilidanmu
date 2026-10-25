@@ -8,8 +8,12 @@ export function AudioSettings({ settings, patchSettings }: SettingsPanelProps) {
   return (
     <>
       <SettingsGroup title="直播音频">
-        <SettingsRange title="默认音量" description="用于直播间音频；听视频音量在“听视频”分类中单独设置。" value={settings.audio.defaultVolume} min={0} max={100} unit="%"
-          onChange={(defaultVolume) => patchSettings({ audio: { ...settings.audio, defaultVolume } })} />
+        <SettingsRange title="全局音量" description="弹幕与听视频共用的音量，任一处（弹幕窗/播放器/此设置）调节都会即时联动。"
+          value={settings.audio.defaultVolume} min={0} max={100} unit="%"
+          onChange={(defaultVolume) => {
+            patchSettings({ audio: { ...settings.audio, defaultVolume } });
+            void useSettingsStore.getState().saveSettings();
+          }} />
         <SettingsToggle title="进入直播间时自动播放音频" checked={settings.audio.autoPlay}
           onChange={(autoPlay) => patchSettings({ audio: { ...settings.audio, autoPlay } })} />
       </SettingsGroup>

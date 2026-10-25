@@ -334,11 +334,13 @@ export function DanmakuPage() {
     audioRef,
     isPlaying: audioPlaying,
     isConnecting: audioConnecting,
+    isMuted: audioMuted,
     volume: audioVolume,
     error: audioError,
     play: audioPlay,
     stop: audioStop,
     setVolume: audioSetVolume,
+    toggleMute: audioToggleMute,
   } = useAudioPlayer(roomId, audioSettings.defaultVolume / 100);
   const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttAvailable ? sttSettings.syncDelayMs : 0);
 
@@ -1084,10 +1086,19 @@ export function DanmakuPage() {
         >
           <button
             type="button"
-            onClick={() => audioSetVolume(audioVolume === 0 ? 0.8 : 0)}
+            onClick={() => {
+              if (audioMuted) {
+                audioToggleMute();
+              } else if (audioVolume === 0) {
+                // 音量为 0 时点图标视为恢复全局音量，而非进入静音
+                audioSetVolume(audioSettings.defaultVolume / 100);
+              } else {
+                audioToggleMute();
+              }
+            }}
             className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
           >
-            {audioVolume === 0 ? (
+            {audioMuted || audioVolume === 0 ? (
               <VolumeX className="h-3.5 w-3.5" />
             ) : (
               <Volume2 className="h-3.5 w-3.5" />
@@ -1099,8 +1110,12 @@ export function DanmakuPage() {
                 type="range"
                 min={0}
                 max={100}
-                value={Math.round(audioVolume * 100)}
-                onChange={(e) => audioSetVolume(Number(e.target.value) / 100)}
+                value={Math.round((audioMuted ? 0 : audioVolume) * 100)}
+                onChange={(e) => {
+                  // 静音中拖动音量条视为解除静音，避免"调了没反应"的困惑
+                  if (audioMuted) audioToggleMute();
+                  audioSetVolume(Number(e.target.value) / 100);
+                }}
                 className="h-20 w-1 cursor-pointer accent-pink-500"
                 style={{ writingMode: "vertical-lr", direction: "rtl" }}
               />

@@ -72,7 +72,6 @@ export const defaultSettings: Settings = {
   },
   listen: {
     showCovers: true,
-    defaultVolume: 80,
     autoNext: true,
     subtitleFontSize: 16,
     subtitleAutoFollow: true,

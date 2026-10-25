@@ -4,6 +4,23 @@ import { useSettingsStore } from "./settings-store";
 import type { SeasonInfo, VideoInfo } from "@/types/bilibili";
 
 /**
+ * 全局音量联动：听视频与直播间共用 settings.audio.defaultVolume，
+ * 调节后防抖写回设置（跨窗口广播 + 持久化）。写回前同值短路，
+ * 使联动回声（广播回来再次触发 setVolume）不会成环。
+ */
+let volumeSyncTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleGlobalVolumeSync(volume100: number) {
+  if (volumeSyncTimer) clearTimeout(volumeSyncTimer);
+  volumeSyncTimer = setTimeout(() => {
+    volumeSyncTimer = null;
+    const { settings, patchSettings, saveSettings } = useSettingsStore.getState();
+    if (settings.audio.defaultVolume === volume100) return;
+    patchSettings({ audio: { ...settings.audio, defaultVolume: volume100 } });
+    void saveSettings();
+  }, 400);
+}
+
+/**
  * 听视频模式的全局播放器：模块级 HTMLAudioElement 单例 + zustand 状态。
  *
  * 双层联播模型：
@@ -176,7 +193,7 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
     loading: false,
     currentTime: 0,
     duration: 0,
-    volume: useSettingsStore.getState().settings.listen.defaultVolume,
+    volume: useSettingsStore.getState().settings.audio.defaultVolume,
     error: null,
 
     playQueue: (queue, index) => playTrackAt(queue, index),
@@ -238,8 +255,11 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
     setVolume: (volume) => {
       // 无播放时不创建 Audio 元素；创建音源时会从 store 带入该音量
       const clamped = Math.min(Math.max(Math.round(volume), 0), 100);
+      // 同值短路：联动广播回声/重复 tick 不再触发写回
+      if (get().volume === clamped) return;
       set({ volume: clamped });
       if (audioEl) audioEl.volume = clamped / 100;
+      scheduleGlobalVolumeSync(clamped);
     },
 
     stop: () => {
@@ -263,9 +283,10 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
   };
 });
 
-// 加载持久化设置或调整默认音量时同步；普通设置刷新不覆盖播放器的临时音量。
+// 加载持久化设置或全局音量被其他窗口调节时同步到本播放器；
+// 普通设置刷新不覆盖播放器的临时音量（同值短路在 setVolume 内）。
 useSettingsStore.subscribe((state, previous) => {
-  if (state.settings.listen.defaultVolume !== previous.settings.listen.defaultVolume) {
-    useVideoAudioStore.getState().setVolume(state.settings.listen.defaultVolume);
+  if (state.settings.audio.defaultVolume !== previous.settings.audio.defaultVolume) {
+    useVideoAudioStore.getState().setVolume(state.settings.audio.defaultVolume);
   }
 });

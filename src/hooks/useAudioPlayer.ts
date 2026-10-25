@@ -1,6 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Mpegts from "mpegts.js";
 import { tauriCommands } from "@/lib/tauri";
+import { useSettingsStore } from "@/stores/settings-store";
+
+/**
+ * 全局音量联动：与听视频共用 settings.audio.defaultVolume，调节后防抖写回
+ * 设置（跨窗口广播 + 持久化）。写回前同值短路，联动回声不会成环。
+ */
+let volumeCommitTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleGlobalVolumeCommit(volume100: number) {
+  if (volumeCommitTimer) clearTimeout(volumeCommitTimer);
+  volumeCommitTimer = setTimeout(() => {
+    volumeCommitTimer = null;
+    const { settings, patchSettings, saveSettings } = useSettingsStore.getState();
+    if (settings.audio.defaultVolume === volume100) return;
+    patchSettings({ audio: { ...settings.audio, defaultVolume: volume100 } });
+    void saveSettings();
+  }, 400);
+}
 
 interface AudioPlayerState {
   isPlaying: boolean;
@@ -25,6 +42,7 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
   const reconnectDelayRef = useRef(RECONNECT_DELAY_MS);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const destroyedRef = useRef(false);
+  const mutedRef = useRef(false);
   const stallRef = useRef<{ time: number; at: number }>({ time: 0, at: Date.now() });
   const playRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
@@ -34,6 +52,17 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
     volume: defaultVolume,
     error: null,
   });
+  const [isMuted, setMuted] = useState(false);
+
+  // 静音走 audio.muted 瞬态开关：不改音量数值、不写回全局音量设置，解除即回原值
+  const toggleMute = useCallback(() => {
+    const next = !mutedRef.current;
+    mutedRef.current = next;
+    if (audioRef.current) {
+      audioRef.current.muted = next;
+    }
+    setMuted(next);
+  }, []);
 
   // 设置变化时同步音量
   useEffect(() => {
@@ -164,8 +193,9 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       playerRef.current = player;
       stallRef.current = { time: 0, at: Date.now() };
 
-      // 播放前设置音量
+      // 播放前设置音量与静音态
       audio.volume = volumeRef.current;
+      audio.muted = mutedRef.current;
 
       try {
         await player.play();
@@ -218,21 +248,26 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
 
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
+    // 同值短路：拖动重复 tick 与联动回声不再触发写回
+    if (volumeRef.current === clamped) return;
     volumeRef.current = clamped;
     if (audioRef.current) {
       audioRef.current.volume = clamped;
     }
     setState((prev) => ({ ...prev, volume: clamped }));
+    scheduleGlobalVolumeCommit(Math.round(clamped * 100));
   }, []);
 
   return {
     audioRef,
     isPlaying: state.isPlaying,
     isConnecting: state.isConnecting,
+    isMuted,
     volume: state.volume,
     error: state.error,
     play,
     stop,
     setVolume,
+    toggleMute,
   };
 }

@@ -310,7 +310,6 @@ export interface AudioSetting {
 export interface ListenSetting {
   /** 在视频列表和播放页标题旁展示封面 */
   showCovers: boolean;
-  defaultVolume: number;
   autoNext: boolean;
   subtitleFontSize: number;
   subtitleAutoFollow: boolean;
