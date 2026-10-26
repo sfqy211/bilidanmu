@@ -22,6 +22,7 @@ export function useDanmakuStream(roomId: number | null) {
   const setPopularity = useDanmakuStore((state) => state.setPopularity);
   const setTotalLikeCount = useDanmakuStore((state) => state.setTotalLikeCount);
   const setOnlineCount = useDanmakuStore((state) => state.setOnlineCount);
+  const setWatchedCount = useDanmakuStore((state) => state.setWatchedCount);
 
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
@@ -104,6 +105,13 @@ export function useDanmakuStream(roomId: number | null) {
     const currentRoomId = useDanmakuStore.getState().roomId;
     if (currentRoomId !== null && payload.roomId === currentRoomId) {
       setOnlineCount(payload.onlineCount);
+    }
+  });
+
+  useTauriEvent<{ roomId: number; watchedCount: number }>("watched-count-update", (payload) => {
+    const currentRoomId = useDanmakuStore.getState().roomId;
+    if (currentRoomId !== null && payload.roomId === currentRoomId) {
+      setWatchedCount(payload.watchedCount);
     }
   });
 

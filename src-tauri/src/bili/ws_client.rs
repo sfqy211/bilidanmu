@@ -119,12 +119,12 @@ async fn run_connection(
             .get("token")
             .and_then(Value::as_str)
             .ok_or_else(|| "弹幕信息缺少 token".to_string())?;
-        let host = data
+        let hosts = data
             .get("host_list")
             .and_then(Value::as_array)
-            .and_then(|list| list.first())
-            .and_then(Value::as_object)
             .ok_or_else(|| "弹幕信息缺少 host_list".to_string())?;
+        let host = select_best_danmu_host(hosts).await
+            .ok_or_else(|| "host_list 中没有可用主机".to_string())?;
         let ws_host = host
             .get("host")
             .and_then(Value::as_str)
@@ -306,6 +306,65 @@ async fn run_connection(
                                             }),
                                         );
                                     }
+                                } else if cmd.starts_with("STOP_LIVE_ROOM_LIST") {
+                                    // 全站下播房间广播：仅当本房间出现在列表内才判定下播。
+                                    // 该命令会推给所有直播间（列出的是其他房间），按前缀裸匹配会误报下播。
+                                    let in_list = command
+                                        .get("data")
+                                        .and_then(|d| d.get("room_id_list"))
+                                        .and_then(Value::as_array)
+                                        .map(|rooms| {
+                                            rooms.iter().filter_map(value_as_u64).any(|rid| {
+                                                rid == real_room_id || rid == room_id
+                                            })
+                                        })
+                                        .unwrap_or(false);
+                                    if in_list {
+                                        if let Some(mut event) =
+                                            crate::bili::protocol::parse_live_status(
+                                                &command, room_id, "preparing", "下播了",
+                                            )
+                                        {
+                                            if let Some(&rank) = online_rank_cache.get(&event.uid) {
+                                                event.contribution_rank = Some(rank);
+                                            }
+                                            let _ = app.emit("danmaku-received", &event);
+                                        }
+                                    }
+                                } else if cmd.starts_with("ROOM_CHANGE") {
+                                    // 主播直播中修改标题/分区：更新标题栏（不产生消息行）
+                                    if let Some(data) = command.get("data") {
+                                        let title = data
+                                            .get("title")
+                                            .and_then(Value::as_str)
+                                            .unwrap_or("")
+                                            .trim()
+                                            .to_string();
+                                        if !title.is_empty() {
+                                            let _ = app.emit(
+                                                "room-title-changed",
+                                                serde_json::json!({
+                                                    "roomId": room_id,
+                                                    "title": title,
+                                                }),
+                                            );
+                                        }
+                                    }
+                                } else if cmd.starts_with("WATCHED_CHANGE") {
+                                    // 累计看过人数（区别于实时在线人数）
+                                    if let Some(data) = command.get("data") {
+                                        let watched = data
+                                            .get("num")
+                                            .and_then(value_as_u64)
+                                            .unwrap_or(0);
+                                        let _ = app.emit(
+                                            "watched-count-update",
+                                            serde_json::json!({
+                                                "roomId": room_id,
+                                                "watchedCount": watched,
+                                            }),
+                                        );
+                                    }
                                 } else {
                                     // SEND_GIFT_V2 一条命令可产出多条事件，其余命令 0/1 条
                                     for mut event in parse_danmaku_events(&command, room_id) {
@@ -445,3 +504,67 @@ async fn fetch_online_rank(
     }
     map
 }
+
+/// 探测单个弹幕主机的 TCP 连接延迟；失败或超时返回 None。
+async fn probe_host_latency(host: &str, port: u64) -> Option<Duration> {
+    let addr = format!("{host}:{port}");
+    let start = std::time::Instant::now();
+    match tokio::time::timeout(
+        Duration::from_millis(DANMU_HOST_PROBE_TIMEOUT_MS),
+        tokio::net::TcpStream::connect(&addr),
+    )
+    .await
+    {
+        Ok(Ok(_stream)) => Some(start.elapsed()),
+        Ok(Err(error)) => {
+            log::debug!("[ws] 主机探测失败 {addr}: {error}");
+            None
+        }
+        Err(_) => {
+            log::debug!("[ws] 主机探测超时 {addr}");
+            None
+        }
+    }
+}
+
+/// 从 host_list 中并发探测并选出延迟最低的主机；全部失败时回退首个（保持旧行为）。
+/// 多主机选择可避开个别 CDN 节点不通/高延迟导致的连接慢或反复重连。
+async fn select_best_danmu_host(hosts: &[Value]) -> Option<&Value> {
+    if hosts.len() <= 1 {
+        return hosts.first();
+    }
+    let probes = hosts.iter().map(|host| async move {
+        let name = host.get("host").and_then(Value::as_str).unwrap_or_default();
+        let port = host.get("wss_port").and_then(Value::as_u64).unwrap_or(443);
+        let latency = probe_host_latency(name, port).await;
+        (host, latency)
+    });
+    let results = futures_util::future::join_all(probes).await;
+
+    let mut best: Option<(&Value, Duration)> = None;
+    for (host, latency) in results {
+        let Some(latency) = latency else { continue };
+        let name = host.get("host").and_then(Value::as_str).unwrap_or_default();
+        log::debug!("[ws] 主机探测 {name} {}ms", latency.as_millis());
+        if best.is_none_or(|(_, best_latency)| latency < best_latency) {
+            best = Some((host, latency));
+        }
+    }
+    match best {
+        Some((host, latency)) => {
+            log::info!(
+                "[ws] 选用弹幕主机 {} ({}ms)",
+                host.get("host").and_then(Value::as_str).unwrap_or_default(),
+                latency.as_millis()
+            );
+            Some(host)
+        }
+        None => {
+            log::warn!("[ws] 所有弹幕主机探测失败，回退首个");
+            hosts.first()
+        }
+    }
+}
+
+/// 弹幕主机探测超时：与参考项目 JLiverTool 对齐
+const DANMU_HOST_PROBE_TIMEOUT_MS: u64 = 1500;

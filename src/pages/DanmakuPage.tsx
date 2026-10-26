@@ -10,7 +10,7 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ChevronDown, ClipboardList, Clock, Expand, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ChevronDown, ClipboardList, Clock, Expand, Eye, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
@@ -204,6 +204,7 @@ export function DanmakuPage() {
   const [batteryInput, setBatteryInput] = useState("");
   const [showBatteryFilter, setShowBatteryFilter] = useState(false);
   const onlineCount = useDanmakuStore((state) => state.onlineCount);
+  const watchedCount = useDanmakuStore((state) => state.watchedCount);
   const danmakuCount = useDanmakuStore((state) => state.danmakuCount);
   const superChatCount = useDanmakuStore((state) => state.superChatCount);
   const rooms = useRoomStore((state) => state.rooms);
@@ -227,10 +228,21 @@ export function DanmakuPage() {
     return () => { cancelled = true; };
   }, [roomId, currentRoom]);
 
-  // 优先使用 room store 中的数据，否则使用从 API 获取的数据
-  const displayRoomInfo = currentRoom
+  // 优先使用 room store 中的数据，否则使用从 API 获取的数据。
+  // 直播中主播改标题（ROOM_CHANGE）时用本地覆盖，不改持久化的房间记录。
+  const [liveTitle, setLiveTitle] = useState<string | null>(null);
+  useEffect(() => {
+    setLiveTitle(null);
+  }, [roomId]);
+  useTauriEvent<{ roomId: number; title: string }>("room-title-changed", (payload) => {
+    if (payload.roomId === roomId && payload.title) setLiveTitle(payload.title);
+  });
+  const baseRoomInfo = currentRoom
     ? { uname: currentRoom.uname, title: currentRoom.title }
     : fetchedRoomInfo;
+  const displayRoomInfo = baseRoomInfo && liveTitle
+    ? { ...baseRoomInfo, title: liveTitle }
+    : baseRoomInfo;
 
   // 当前有效的发送账号 ID（AccountSwitcher 切换时会更新 activeAccountId）
   const effectiveSendingId = activeAccountId;
@@ -1344,6 +1356,16 @@ export function DanmakuPage() {
                 : onlineCount >= 1000
                   ? `${(onlineCount / 1000).toFixed(1)}k`
                   : String(onlineCount)}
+            </span>
+          )}
+          {watchedCount > 0 && (
+            <span className="flex items-center gap-1" title="本场累计看过人数">
+              <Eye className="h-3 w-3" />
+              {watchedCount >= 10000
+                ? `${(watchedCount / 10000).toFixed(1)}万`
+                : watchedCount >= 1000
+                  ? `${(watchedCount / 1000).toFixed(1)}k`
+                  : String(watchedCount)}
             </span>
           )}
           {totalLikeCount > 0 && (

@@ -117,6 +117,8 @@ interface DanmakuState {
   popularity: number;
   totalLikeCount: number;
   onlineCount: number;
+  /** 本场累计看过人数（WATCHED_CHANGE），0 = 尚未收到 */
+  watchedCount: number;
   blockedUsers: BlockedUser[];
   blockedKeywords: string[];
   /** 是否在弹幕栏额外显示简化版醒目留言 */
@@ -134,6 +136,7 @@ interface DanmakuState {
   setPopularity: (popularity: number) => void;
   setTotalLikeCount: (count: number) => void;
   setOnlineCount: (count: number) => void;
+  setWatchedCount: (count: number) => void;
 }
 
 export const useDanmakuStore = create<DanmakuState>((set) => ({
@@ -158,6 +161,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   popularity: 0,
   totalLikeCount: 0,
   onlineCount: 0,
+  watchedCount: 0,
   blockedUsers: [],
   blockedKeywords: [],
   scInDanmaku: false,
@@ -188,6 +192,7 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
       activityMessages: [],
       totalLikeCount: 0,
       onlineCount: 0,
+      watchedCount: 0,
       danmakuCount: 0,
       superChatCount: 0,
       guardCount: 0,
@@ -203,5 +208,6 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   setRoomId: (roomId) => set({ roomId }),
   setPopularity: (popularity) => set({ popularity }),
   setTotalLikeCount: (count) => set({ totalLikeCount: count }),
-  setOnlineCount: (count) => set({ onlineCount: count })
+  setOnlineCount: (count) => set({ onlineCount: count }),
+  setWatchedCount: (count) => set({ watchedCount: count })
 }));

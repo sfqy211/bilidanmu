@@ -143,6 +143,38 @@ fn preparing_command() -> Value {
     json!({ "cmd": "PREPARING", "roomid": MOCK_ROOM_ID, "send_time": unix_millis() })
 }
 
+/// 全站下播房间广播：content 为房间号数字字符串（缺省用 mock 房间自身，
+/// 以模拟"本房下播"；传其他房间号可测"不应误报下播"）
+fn stop_live_command(num: Option<&str>) -> Value {
+    let room = num
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(MOCK_ROOM_ID);
+    json!({
+        "cmd": "STOP_LIVE_ROOM_LIST",
+        "data": { "room_id_list": [room] },
+    })
+}
+
+/// 直播中改标题：content 为新的直播间标题
+fn room_change_command(title: Option<&str>) -> Value {
+    json!({
+        "cmd": "ROOM_CHANGE",
+        "data": {
+            "title": title.unwrap_or("换了个新标题"),
+            "area_name": "虚拟主播",
+        },
+    })
+}
+
+/// 累计看过人数：content 可传数字字符串指定人数
+fn watched_change_command(num: Option<&str>) -> Value {
+    let watched = num.and_then(|value| value.parse::<u64>().ok()).unwrap_or(1234);
+    json!({
+        "cmd": "WATCHED_CHANGE",
+        "data": { "num": watched, "text_small": "1", "text_large": "1234" },
+    })
+}
+
 fn online_count_command() -> Value {
     let seq = SEQ.load(Ordering::Relaxed);
     json!({
@@ -297,6 +329,9 @@ fn manual_command(kind: &str, username: Option<&str>, content: Option<&str>) -> 
         "like" => Some(like_command(username)),
         "live" => Some(live_command()),
         "preparing" => Some(preparing_command()),
+        "stopLive" => Some(stop_live_command(content)),
+        "roomChange" => Some(room_change_command(content)),
+        "watched" => Some(watched_change_command(content)),
         _ => None,
     }
 }

@@ -155,6 +155,10 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
         return parse_live_status(command, room_id, "preparing", "下播了");
     }
 
+    // 注意：没有 STOP_LIVE 这个"当前房间下播"命令。
+    // STOP_LIVE_ROOM_LIST 是全站下播房间广播（data.room_id_list 列出其他房间），
+    // 由 ws_client 单独处理并校验本房间是否在列表内，切勿在此按前缀匹配。
+
     if cmd.starts_with("LIKE_INFO_V3_CLICK") {
         return parse_like_info_v3_click(command, room_id);
     }
@@ -164,7 +168,8 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
 
 /// 开播/下播标记：LIVE 根级携带 live_time（unix 秒）；PREPARING 无 live_time，
 /// 用 send_time（服务器发送时间，unix 毫秒）兜底
-fn parse_live_status(command: &Value, room_id: u64, event_type: &str, content: &str) -> Option<DanmakuEvent> {
+/// 开播/下播系统行构造（ws_client 处理 STOP_LIVE_ROOM_LIST 时复用）
+pub(crate) fn parse_live_status(command: &Value, room_id: u64, event_type: &str, content: &str) -> Option<DanmakuEvent> {
     let timestamp = match event_type {
         // 文档规定 live_time 在根级（unix 秒）
         "live" => command.get("live_time").and_then(value_as_u64).unwrap_or_else(system_unix_now),
@@ -1038,5 +1043,28 @@ mod tests {
     fn parse_send_gift_v2_rejected_when_pb_missing() {
         let body = json!({ "cmd": "SEND_GIFT_V2", "data": { "dmscore": 1 } });
         assert!(parse_danmaku_events(&body, 1).is_empty());
+    }
+
+    #[test]
+    fn stop_live_room_list_never_marks_current_room_offline() {
+        // 回归：STOP_LIVE_ROOM_LIST 是全站下播广播（列出的是其他房间），
+        // 曾用 starts_with("STOP_LIVE") 裸匹配导致直播间正常时误报"下播了"。
+        let body = json!({
+            "cmd": "STOP_LIVE_ROOM_LIST",
+            "data": { "room_id_list": [111, 222, 333] }
+        });
+        assert!(
+            parse_danmaku_events(&body, 999).is_empty(),
+            "全站下播广播不应产出当前房间的下播事件"
+        );
+    }
+
+    #[test]
+    fn preparing_still_marks_room_offline() {
+        // 真正的下播命令 PREPARING 仍应产出 preparing 系统行
+        let body = json!({ "cmd": "PREPARING", "roomid": 999, "send_time": 1_700_000_000_000u64 });
+        let events = parse_danmaku_events(&body, 999);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, "preparing");
     }
 }
