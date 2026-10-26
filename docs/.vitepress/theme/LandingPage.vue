@@ -51,9 +51,6 @@ const listenOverride = ref<number | null>(null)
 const listenView = computed(() => listenOverride.value ?? (reduced.value ? 0 : Math.min(2, Math.floor(progress.listen * 3))))
 const demoDark = ref(false)
 const demoAccent = ref('#e95780')
-const draft = ref('')
-const lastMessage = ref('把喜欢的声音，放在身边。')
-const sendNotice = ref('')
 const activeSubtitle = ref(1)
 const subtitleLines = [
   { time: '00:38', text: '把喜欢的声音，放在身边。' },
@@ -62,15 +59,9 @@ const subtitleLines = [
 ]
 const listenerScreens = ['listen-fav.webp', 'player-start.webp', 'listen-mini.webp']
 const listenerSteps = ['从收藏开始', '把视频当作音乐听', '逛别的页面，也继续听']
-const interactionSteps = ['消息，各就各位', '常用的话，随手就发', '身份与节奏，自己安排']
+const interactionScreens = ['danmaku-content.webp', 'danmaku-settings-panel.webp']
+const interactionSteps = ['消息，各就各位', '显示，随手可调']
 
-function submitDemo() {
-  const value = draft.value.trim()
-  if (!value) return
-  lastMessage.value = value
-  draft.value = ''
-  sendNotice.value = '已加入演示消息'
-}
 function openFilm() {
   filmDialog.value?.showModal()
   film.value?.play().catch(() => {})
@@ -187,20 +178,11 @@ onBeforeUnmount(() => {
       <section id="live" class="lp-chapter lp-interaction-chapter" data-story="together" :data-progress="progress.together.toFixed(3)">
         <div class="lp-chapter-inner lp-container">
           <div class="lp-chapter-copy"><p class="lp-section-number">03 / 直播间，也有条理</p><h2>每份热闹，<br/>都有<span>自己的位置。</span></h2><div class="lp-step-buttons" role="group" aria-label="选择直播互动演示"><button v-for="(title, i) in interactionSteps" :key="title" type="button" :aria-pressed="interactionView === i" @click="interactionOverride = i"><span>0{{ i + 1 }}</span>{{ title }}<span aria-hidden="true">↗</span></button></div><button v-if="interactionOverride !== null" class="lp-reset-demo" @click="interactionOverride = null">继续滚动演示 ↓</button></div>
-          <div class="lp-interaction-board" :data-state="interactionView">
-            <div class="lp-board-top"><div><span class="lp-live-dot"/><strong>星河电台</strong><span>正在直播</span></div><span>2.7k 在线</span></div>
-            <div class="lp-interaction-tabs"><span :class="{active:interactionView===0}">消息与筛选</span><span :class="{active:interactionView===1}">表情与模板</span><span :class="{active:interactionView===2}">账号与互动</span></div>
-            <div class="lp-message-stage">
-              <div class="lp-superchat"><div><b>拾光</b><span>¥30</span></div><p>愿每个夜晚，都有好音乐相伴。</p></div>
-              <div class="lp-message-line"><span class="lp-fan-badge">星河 12</span><b>晚风</b><span>晚上好，今天也来听歌啦</span></div>
-              <div class="lp-message-line"><b class="lp-blue-name">拾光</b><span>戴上耳机，世界安静了</span></div>
-              <div class="lp-message-line"><b>一颗橘子</b><span>前奏一响，心情就好了</span></div>
-              <div class="lp-message-line lp-own-message"><b>我</b><span>{{ lastMessage }}</span></div>
-              <div v-if="interactionView===0" class="lp-inline-panel lp-filter-panel"><span class="lp-panel-label">只留下想看的消息</span><div><span class="lp-filter-chip">全部</span><span>进场</span><span>点赞</span><span class="lp-muted-chip">关键词屏蔽</span></div><p>三栏独立滚动 · 向上翻阅时暂停跟随</p></div>
-              <div v-else-if="interactionView===1" class="lp-inline-panel"><span class="lp-panel-label">常用表情与快捷消息</span><div class="lp-emoticon-demo"><button type="button" @click="draft='[比心]'" aria-label="选择比心表情">♡</button><button type="button" @click="draft='[点赞]'" aria-label="选择点赞表情">👍</button><button type="button" @click="draft='[鼓掌]'" aria-label="选择鼓掌表情">👏</button><button type="button" @click="draft='晚上好，主播辛苦啦！'">晚上好，主播辛苦啦！ <span>↗</span></button></div><p>收藏表情 · 隐藏不常用表情包 · 复用消息模板</p></div>
-              <div v-else class="lp-inline-panel"><span class="lp-panel-label">发送身份，独立选择</span><div class="lp-account-demo"><span class="lp-avatar">我</span><b>我的账号</b><span class="lp-state-pill">当前发送身份</span></div><div class="lp-automation-demo"><span>循环发送 <small>文字 / 表情</small></span><span>按设定间隔</span></div><p>自动发送与点赞，进度可见，随时停止。</p></div>
+          <div class="lp-interaction-visual" :data-state="interactionView">
+            <div class="lp-interaction-screen">
+              <img v-for="(file,i) in interactionScreens" :key="file" :src="asset(file)" width="1040" height="1520" loading="lazy" :alt="interactionSteps[i]" :class="{active:interactionView===i}" :aria-hidden="interactionView!==i"/>
             </div>
-            <form class="lp-demo-composer" @submit.prevent="submitDemo"><label class="lp-sr-only" for="demo-message">输入演示弹幕</label><input id="demo-message" v-model="draft" maxlength="40" placeholder="试着发一句演示弹幕…" @input="sendNotice=''"/><button type="submit" :disabled="!draft.trim()" aria-label="发送演示弹幕">发送 <span aria-hidden="true">↗</span></button></form><div class="lp-demo-foot"><span>交互演示 · 不连接真实直播间</span><span role="status" aria-live="polite">{{ sendNotice }}</span></div>
+            <div class="lp-interaction-status"><span>{{ interactionSteps[interactionView] }}</span><span>真实界面演示</span></div>
           </div>
         </div>
       </section>

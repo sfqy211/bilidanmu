@@ -41,13 +41,10 @@ const automaticOpacity = computed(() => {
 const opacity = computed(() => Math.round(manualOpacity.value ?? automaticOpacity.value))
 const automaticOpen = computed(() => {
   if (props.reduced) return 1
+  // 滚动单调驱动：向下滚 = 侧边栏从右往左滑出，向上滚 = 收回。区间过后保持，回滚反向。
   const p = progress.value
-  if (p < 0.18) return 1
-  if (p < 0.3) return 1 - smooth((p - 0.18) / 0.12)
-  if (p < 0.46) return 0
-  if (p < 0.58) return smooth((p - 0.46) / 0.12)
-  if (p < 0.75) return 1
-  return 1 - smooth((p - 0.75) / 0.12)
+  if (p < 0.08) return 0
+  return smooth((p - 0.08) / 0.3)
 })
 const openAmount = computed(() => props.mode === 'opacity' ? 1 : manualDock.value === null ? automaticOpen.value : Number(manualDock.value))
 const state = computed(() => props.mode === 'opacity' ? 'visible' : openAmount.value >= 0.98 ? 'expanded' : openAmount.value <= 0.02 ? 'collapsed' : 'sliding')
@@ -66,7 +63,7 @@ const cursor = computed(() => {
 const dockHint = computed(() => {
   if (props.reduced) return '点击右侧边条展开，也可用下方按钮收起。'
   if (isManual.value) return state.value === 'collapsed' ? '已收起。靠近右侧边条即可重新展开。' : '移开鼠标，窗口自动收起；按 Esc 也可收起。'
-  return '继续向下滚动，或将鼠标移到右侧边条试试。'
+  return '向下滚动，侧边栏从右滑出；向上滚动收回。'
 })
 
 function updateOpacity(event: Event) {
