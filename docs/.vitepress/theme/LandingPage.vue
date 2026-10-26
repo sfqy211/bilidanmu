@@ -16,12 +16,10 @@ const base = (path: string) => {
   const url = withBase(path)
   if (site.value.cleanUrls) return url
   const hashIndex = url.indexOf('#')
-  if (hashIndex === -1) {
-    return url.endsWith('/') ? url : `${url}.html`
-  }
-  const pathPart = url.slice(0, hashIndex)
-  const hash = url.slice(hashIndex)
-  return pathPart.endsWith('/') ? url : `${pathPart}.html${hash}`
+  const pathPart = hashIndex === -1 ? url : url.slice(0, hashIndex)
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex)
+  const suffixed = pathPart.endsWith('/') || pathPart.endsWith('.html') ? pathPart : `${pathPart}.html`
+  return `${suffixed}${hash}`
 }
 // 静态资源（图片/视频）走 withBase 即可：base() 的 .html 后缀只适用于页面路由，
 // 资源加后缀会 404（logo.svg.html 之类）。
@@ -123,7 +121,7 @@ onBeforeUnmount(() => {
         <a class="lp-brand" :href="base('/')" aria-label="BiliDanmu 首页"><img :src="asset('logo.svg')" width="42" height="42" alt="" /><span>BiliDanmu</span></a>
         <nav class="lp-nav" aria-label="主要导航" :class="{ 'is-open': mobileMenu }">
           <a href="#experience" @click="mobileMenu = false">功能演示</a>
-          <a :href="base('/guide/features.html')" @click="mobileMenu = false">全部功能 <span aria-hidden="true">↗</span></a>
+          <a :href="base('/guide/features')" @click="mobileMenu = false">全部功能 <span aria-hidden="true">↗</span></a>
           <a :href="base('/guide/quick-start')">使用指南 <span aria-hidden="true">↗</span></a>
           <a :href="repository" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
@@ -206,7 +204,7 @@ onBeforeUnmount(() => {
       </section>
 
       <section id="highlights" class="lp-highlights lp-container lp-reveal">
-        <div class="lp-section-heading"><div><p class="lp-section-number">不止这些</p><h2>顺手的小事，<br class="lp-mobile-only"/>也都照顾到了。</h2></div><a class="lp-text-link" :href="base('/guide/features.html')">查看全部功能 <span aria-hidden="true">↗</span></a></div>
+        <div class="lp-section-heading"><div><p class="lp-section-number">不止这些</p><h2>顺手的小事，<br class="lp-mobile-only"/>也都照顾到了。</h2></div><a class="lp-text-link" :href="base('/guide/features')">查看全部功能 <span aria-hidden="true">↗</span></a></div>
         <ul class="lp-highlight-grid">
           <li v-for="item in highlights" :key="item.label">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="item.d"/></svg>
