@@ -17,6 +17,14 @@ const config = defineConfig({
   lastUpdated: true,
   base: BASE,
   cleanUrls: !isPagesBuild,
+  vite: {
+    css: {
+      // 文档站不用 Tailwind（根目录 postcss.config.js 是前端应用的）。
+      // 显式置空，阻断 Vite 从 docs/ 向上搜索到根配置——CI 只安装 docs 依赖，
+      // 那里解析不到 tailwindcss，会让构建直接失败。
+      postcss: { plugins: [] },
+    },
+  },
   head: [
     ['link', { rel: 'icon', href: `${BASE}/favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#fcfdff' }],
