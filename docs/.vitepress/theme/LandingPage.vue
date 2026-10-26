@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useData, withBase } from 'vitepress'
-import LandingCatalog from './components/LandingCatalog.vue'
 import DesktopDemo from './components/DesktopDemo.vue'
-import { featureGroups } from './landing-features'
 import './landing.css'
 
 const { site } = useData()
@@ -30,6 +28,15 @@ const base = (path: string) => {
 const asset = (file: string) => withBase(`/marketing/${file}`)
 const download = 'https://github.com/sfqy211/bilidanmu/releases/latest'
 const repository = 'https://github.com/sfqy211/bilidanmu'
+/** 精选亮点：只有名称，说明留给文档站 features 页 */
+const highlights = [
+  { label: '透明弹幕窗', d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
+  { label: '贴边收起', d: 'M3 3h18v18H3z M15 3v18' },
+  { label: '仅输入框', d: 'M4 5h16v14H4z M9 9v6' },
+  { label: '听视频连播', d: 'M3 14v-2a9 9 0 0 1 18 0v2 M21 14h-4v6h3a1 1 0 0 0 1-1v-5z M3 14h4v6H4a1 1 0 0 1-1-1z' },
+  { label: '全局快捷键', d: 'M2 6h20v12H2z M6 10h.01 M10 10h.01 M14 10h.01 M18 10h.01 M7 14h10' },
+  { label: '主题自定义', d: 'M12 2a10 10 0 1 0 0 20c1.5 0 2-1 2-2 0-1.5-1-1.5-1-3 0-1 .8-2 2-2h3a4 4 0 0 0 4-4c0-5-4.5-9-10-9z' },
+]
 const page = ref<HTMLElement>()
 const filmDialog = ref<HTMLDialogElement>()
 const film = ref<HTMLVideoElement>()
@@ -56,7 +63,6 @@ const subtitleLines = [
 const listenerScreens = ['listen-fav.webp', 'player-start.webp', 'listen-mini.webp']
 const listenerSteps = ['从收藏开始', '把视频当作音乐听', '逛别的页面，也继续听']
 const interactionSteps = ['消息，各就各位', '常用的话，随手就发', '身份与节奏，自己安排']
-const count = featureGroups.reduce((sum, group) => sum + group.items.length, 0)
 
 function submitDemo() {
   const value = draft.value.trim()
@@ -126,7 +132,7 @@ onBeforeUnmount(() => {
         <a class="lp-brand" :href="base('/')" aria-label="BiliDanmu 首页"><img :src="asset('logo.svg')" width="42" height="42" alt="" /><span>BiliDanmu</span></a>
         <nav class="lp-nav" aria-label="主要导航" :class="{ 'is-open': mobileMenu }">
           <a href="#experience" @click="mobileMenu = false">功能演示</a>
-          <a href="#all-features" @click="mobileMenu = false">全部功能</a>
+          <a :href="base('/guide/features.html')" @click="mobileMenu = false">全部功能 <span aria-hidden="true">↗</span></a>
           <a :href="base('/guide/quick-start')">使用指南 <span aria-hidden="true">↗</span></a>
           <a :href="repository" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
@@ -163,7 +169,7 @@ onBeforeUnmount(() => {
           <div class="lp-chapter-copy">
             <p class="lp-section-number">01 / 桌面，留点空间</p>
             <h2>一点热闹，<br/>一点<span>存在感。</span></h2>
-            <p>让直播弹幕浮在工作旁边。把背景调淡，文档依然看得清；需要专心时，桌面仍然属于你。</p>
+            
             <ul class="lp-tick-list"><li>背景不透明度 10–100% 自由调整</li><li>窗口置顶、锁定与点击穿透</li><li>大小、位置，下次打开还记得</li></ul>
             <a class="lp-text-link" :href="base('/guide/quick-start#_4-把窗口放到顺手的位置')">了解桌面操作 <span aria-hidden="true">↗</span></a>
           </div>
@@ -173,14 +179,14 @@ onBeforeUnmount(() => {
 
       <section id="dock" class="lp-chapter lp-chapter-tint" data-story="dock" :data-progress="progress.dock.toFixed(3)">
         <div class="lp-chapter-inner lp-container">
-          <div class="lp-chapter-copy"><p class="lp-section-number">02 / 需要时，再见面</p><h2>靠近就出。<br/>移开<span>就收。</span></h2><p>把弹幕窗拖到屏幕边缘，它就收成一条小小的侧边栏。鼠标靠近，热闹回来；移开，工作继续。</p><ul class="lp-tick-list"><li>左侧、右侧与顶部，都能贴边</li><li>展开后拖离边缘，恢复自由窗口</li><li>收起速度可调，托盘也能随时唤回</li></ul><span class="lp-scroll-instruction">继续滚动，看看这一进一出 <span aria-hidden="true">↓</span></span></div>
+          <div class="lp-chapter-copy"><p class="lp-section-number">02 / 需要时，再见面</p><h2>靠近就出。<br/>移开<span>就收。</span></h2><ul class="lp-tick-list"><li>左侧、右侧与顶部，都能贴边</li><li>展开后拖离边缘，恢复自由窗口</li><li>收起速度可调，托盘也能随时唤回</li></ul><span class="lp-scroll-instruction">继续滚动，看看这一进一出 <span aria-hidden="true">↓</span></span></div>
           <div class="lp-demo-wrap"><DesktopDemo mode="dock" :progress="progress.dock" :reduced="reduced"/><p class="lp-demo-caption"><span>侧边自动收起演示</span><span>试试将鼠标移向右侧边条</span></p></div>
         </div>
       </section>
 
       <section id="live" class="lp-chapter lp-interaction-chapter" data-story="together" :data-progress="progress.together.toFixed(3)">
         <div class="lp-chapter-inner lp-container">
-          <div class="lp-chapter-copy"><p class="lp-section-number">03 / 直播间，也有条理</p><h2>每份热闹，<br/>都有<span>自己的位置。</span></h2><p>弹幕、礼物、进场分栏查看。屏蔽不想看的内容，留住喜欢的表情，再用顺手的身份聊上一句。</p><div class="lp-step-buttons" role="group" aria-label="选择直播互动演示"><button v-for="(title, i) in interactionSteps" :key="title" type="button" :aria-pressed="interactionView === i" @click="interactionOverride = i"><span>0{{ i + 1 }}</span>{{ title }}<span aria-hidden="true">↗</span></button></div><button v-if="interactionOverride !== null" class="lp-reset-demo" @click="interactionOverride = null">继续滚动演示 ↓</button></div>
+          <div class="lp-chapter-copy"><p class="lp-section-number">03 / 直播间，也有条理</p><h2>每份热闹，<br/>都有<span>自己的位置。</span></h2><div class="lp-step-buttons" role="group" aria-label="选择直播互动演示"><button v-for="(title, i) in interactionSteps" :key="title" type="button" :aria-pressed="interactionView === i" @click="interactionOverride = i"><span>0{{ i + 1 }}</span>{{ title }}<span aria-hidden="true">↗</span></button></div><button v-if="interactionOverride !== null" class="lp-reset-demo" @click="interactionOverride = null">继续滚动演示 ↓</button></div>
           <div class="lp-interaction-board" :data-state="interactionView">
             <div class="lp-board-top"><div><span class="lp-live-dot"/><strong>星河电台</strong><span>正在直播</span></div><span>2.7k 在线</span></div>
             <div class="lp-interaction-tabs"><span :class="{active:interactionView===0}">消息与筛选</span><span :class="{active:interactionView===1}">表情与模板</span><span :class="{active:interactionView===2}">账号与互动</span></div>
@@ -201,29 +207,34 @@ onBeforeUnmount(() => {
 
       <section id="listen" class="lp-chapter lp-listen-chapter" data-story="listen" :data-progress="progress.listen.toFixed(3)">
         <div class="lp-chapter-inner lp-container">
-          <div class="lp-chapter-copy"><p class="lp-section-number">04 / 眼睛上班，耳朵放假</p><h2>喜欢的视频，<br/>换个方式<span>陪你。</span></h2><p>粘贴 BV 号或视频链接，搜索想听的内容。收藏夹、稍后再看、分 P 和合集，把下一段喜欢的声音接上。</p><div class="lp-step-buttons" role="group" aria-label="选择听视频演示"><button v-for="(title,i) in listenerSteps" :key="title" type="button" :aria-pressed="listenView===i" @click="listenOverride=i"><span>0{{i+1}}</span>{{title}}<span aria-hidden="true">↗</span></button></div><button v-if="listenOverride!==null" class="lp-reset-demo" @click="listenOverride=null">继续滚动演示 ↓</button><a class="lp-text-link lp-listen-guide" :href="base('/guide/listen')">听视频使用指南 <span aria-hidden="true">↗</span></a></div>
+          <div class="lp-chapter-copy"><p class="lp-section-number">04 / 眼睛上班，耳朵放假</p><h2>喜欢的视频，<br/>换个方式<span>陪你。</span></h2><div class="lp-step-buttons" role="group" aria-label="选择听视频演示"><button v-for="(title,i) in listenerSteps" :key="title" type="button" :aria-pressed="listenView===i" @click="listenOverride=i"><span>0{{i+1}}</span>{{title}}<span aria-hidden="true">↗</span></button></div><button v-if="listenOverride!==null" class="lp-reset-demo" @click="listenOverride=null">继续滚动演示 ↓</button><a class="lp-text-link lp-listen-guide" :href="base('/guide/listen')">听视频使用指南 <span aria-hidden="true">↗</span></a></div>
           <div class="lp-listen-visual" :data-state="listenView"><div class="lp-listen-screen"><img v-for="(file,i) in listenerScreens" :key="file" :src="asset(file)" width="2400" height="1520" loading="lazy" :alt="listenerSteps[i]" :class="{active:listenView===i}" :aria-hidden="listenView!==i"/></div><div class="lp-listen-status"><span class="lp-equalizer" :class="{'is-playing':listenView>0}" aria-hidden="true"><i/><i/><i/><i/></span><span>{{ listenerSteps[listenView] }}</span><span>原生界面演示</span></div></div>
         </div>
       </section>
 
       <section class="lp-reading lp-container lp-reveal">
-        <div><p class="lp-section-number">声音之外，还有文字</p><h2>想重听的那句，<br/>一点就到。</h2><p>视频原有字幕会跟随播放，点击文字就能跳转。也能展开评论、点赞、回复，把听到的感受留下来。</p><a class="lp-text-link" :href="base('/guide/listen#跟随视频原有字幕')">了解字幕与评论 <span aria-hidden="true">↗</span></a></div>
+        <div><p class="lp-section-number">声音之外，还有文字</p><h2>想重听的那句，<br/>一点就到。</h2><a class="lp-text-link" :href="base('/guide/listen#跟随视频原有字幕')">了解字幕与评论 <span aria-hidden="true">↗</span></a></div>
         <div class="lp-subtitle-demo"><div class="lp-subtitle-top"><span>专注字幕</span><span aria-live="polite">当前定位 {{subtitleLines[activeSubtitle].time}}</span></div><button v-for="(line,i) in subtitleLines" :key="line.time" type="button" :class="{active:activeSubtitle===i}" :aria-pressed="activeSubtitle===i" @click="activeSubtitle=i"><time>{{line.time}}</time><span>{{line.text}}</span><span aria-hidden="true">↗</span></button><p>点一句试试 · 视频提供字幕时可用</p></div>
       </section>
 
       <section class="lp-appearance lp-reveal" id="appearance">
-        <div class="lp-container lp-appearance-grid"><div><p class="lp-section-number">05 / 把习惯，留给自己</p><h2>你的桌面。<br/>你的<span>舒服样子。</span></h2><p>浅色、深色、跟随系统。颜色、字体、对比度、侧栏和动态效果，都能慢慢调成自己的习惯。</p><div class="lp-appearance-controls"><div class="lp-theme-toggle" role="group" aria-label="选择主题演示"><button type="button" :aria-pressed="!demoDark" @click="demoDark=false">☀ 浅色</button><button type="button" :aria-pressed="demoDark" @click="demoDark=true">☾ 深色</button></div><div class="lp-color-options" role="group" aria-label="选择强调色演示"><button v-for="color in ['#e95780','#467fba','#469480']" :key="color" type="button" :style="{background:color}" :aria-pressed="demoAccent===color" :aria-label="color==='#e95780'?'玫瑰色':color==='#467fba'?'蓝色':'绿色'" @click="demoAccent=color"><span v-if="demoAccent===color">✓</span></button></div></div><p class="lp-small-copy">主题即时预览 · 复制或导出主题 · 按系统减少动态效果</p></div>
+        <div class="lp-container lp-appearance-grid"><div><p class="lp-section-number">05 / 把习惯，留给自己</p><h2>你的桌面。<br/>你的<span>舒服样子。</span></h2><div class="lp-appearance-controls"><div class="lp-theme-toggle" role="group" aria-label="选择主题演示"><button type="button" :aria-pressed="!demoDark" @click="demoDark=false">☀ 浅色</button><button type="button" :aria-pressed="demoDark" @click="demoDark=true">☾ 深色</button></div><div class="lp-color-options" role="group" aria-label="选择强调色演示"><button v-for="color in ['#e95780','#467fba','#469480']" :key="color" type="button" :style="{background:color}" :aria-pressed="demoAccent===color" :aria-label="color==='#e95780'?'玫瑰色':color==='#467fba'?'蓝色':'绿色'" @click="demoAccent=color"><span v-if="demoAccent===color">✓</span></button></div></div></div>
           <div class="lp-theme-preview" :class="{'is-dark':demoDark}" :style="{'--preview-accent':demoAccent}"><div class="lp-theme-bar"><img :src="asset('logo.svg')" width="28" height="28" alt=""/><span>BiliDanmu</span><span>—　□　×</span></div><div class="lp-theme-body"><aside><b>直播间</b><span>账号</span><span>设置</span></aside><div><div class="lp-theme-heading"><h3>常看的直播</h3><span>3 个直播中</span></div><div v-for="(room,i) in ['星河电台','木木的工作室','晴天音乐盒']" :key="room" class="lp-theme-room"><img :src="asset(`cover-${i}.svg`)" width="64" height="44" alt=""/><span><b>{{room}}</b><small>{{['今晚，让音乐陪你久一点','把灵感慢慢变成作品','刚刚好的旋律'][i]}}</small></span><span class="lp-preview-live">直播中</span></div></div></div><div class="lp-theme-footer">字体与配色，自在一点。</div></div>
         </div>
       </section>
 
-      <section id="all-features" class="lp-catalog-section lp-container">
-        <div class="lp-section-heading lp-reveal"><div><p class="lp-section-number">不止这些</p><h2>顺手的小事，<br class="lp-mobile-only"/>也都照顾到了。</h2></div><p>{{featureGroups.length}} 个功能分类，{{count}} 项使用细节。<br/>从一次发送，到每一天的桌面习惯。</p></div>
-        <LandingCatalog :groups="featureGroups" />
+      <section id="highlights" class="lp-highlights lp-container lp-reveal">
+        <div class="lp-section-heading"><div><p class="lp-section-number">不止这些</p><h2>顺手的小事，<br class="lp-mobile-only"/>也都照顾到了。</h2></div><a class="lp-text-link" :href="base('/guide/features.html')">查看全部功能 <span aria-hidden="true">↗</span></a></div>
+        <ul class="lp-highlight-grid">
+          <li v-for="item in highlights" :key="item.label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="item.d"/></svg>
+            <span>{{ item.label }}</span>
+          </li>
+        </ul>
       </section>
 
       <section id="get-started" class="lp-start-section">
-        <div class="lp-container"><div class="lp-section-heading"><div><p class="lp-section-number">准备好，给桌面一点快乐</p><h2>三步，开始你的陪伴。</h2></div><a class="lp-text-link" :href="base('/guide/quick-start')">完整使用说明 <span aria-hidden="true">↗</span></a></div><ol class="lp-start-steps"><li><span>01</span><h3>下载并安装</h3><p>前往发布页选择 Windows x64 的 .exe 或 .msi 安装包。</p><a :href="download" target="_blank" rel="noopener noreferrer">获取 Windows 版 ↗</a></li><li><span>02</span><h3>选一种开始方式</h3><p>扫码登录，管理账号与收藏；也能匿名浏览直播弹幕、收听直播。</p><a :href="base('/guide/quick-start')">看看如何开始 ↗</a></li><li><span>03</span><h3>把它放在顺手的位置</h3><p>添加常看的房间，调好透明度，贴在屏幕边缘。或者，直接听一个视频。</p><a href="#experience">再体验一遍 ↑</a></li></ol></div>
+        <div class="lp-container"><div class="lp-section-heading"><div><p class="lp-section-number">准备好，给桌面一点快乐</p><h2>三步，开始你的陪伴。</h2></div><a class="lp-text-link" :href="base('/guide/quick-start')">完整使用说明 <span aria-hidden="true">↗</span></a></div><ol class="lp-start-steps"><li><span>01</span><h3>下载并安装</h3><p>选择 Windows x64 安装包。</p><a :href="download" target="_blank" rel="noopener noreferrer">获取 Windows 版 ↗</a></li><li><span>02</span><h3>选一种开始方式</h3><p>扫码登录，或匿名先逛逛。</p><a :href="base('/guide/quick-start')">看看如何开始 ↗</a></li><li><span>03</span><h3>把它放在顺手的位置</h3><p>添加房间，调好透明度，开听。</p><a href="#experience">再体验一遍 ↑</a></li></ol></div>
       </section>
 
       <section class="lp-faq lp-container"><div><p class="lp-section-number">再了解一点</p><h2>你可能想知道</h2></div><div class="lp-faq-list"><details><summary>不登录可以使用吗？<span>＋</span></summary><p>可以匿名接收直播弹幕和收听直播音频。发送弹幕、表情和自动互动，以及访问自己的收藏夹、稍后再看或发表评论，需要登录对应账号。</p></details><details><summary>关闭弹幕窗后，直播会断开吗？<span>＋</span></summary><p>关闭弹幕窗会隐藏到系统托盘，连接继续保留。需要真正离开直播间时，使用弹幕窗的退出按钮；之后会回到主窗口。</p></details><details><summary>支持哪些系统？<span>＋</span></summary><p>目前提供 Windows 10 / 11 的 x64 安装包，需要 WebView2 运行时。下载及安装说明中有更完整的步骤。</p></details><details><summary>每个视频都能显示字幕吗？<span>＋</span></summary><p>字幕取自视频已经提供的字幕轨。未提供字幕的视频仍可以收听与查看评论；有字幕时可以逐句跟随、点击跳转和切换专注视图。</p></details><details><summary>如何更新或反馈问题？<span>＋</span></summary><p>应用会定期检查更新，也可以在关于页手动检查、阅读更新说明并下载安装包。遇到问题时，可前往 <a :href="repository+'/issues'" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</p></details></div></section>
