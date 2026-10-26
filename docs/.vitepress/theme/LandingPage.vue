@@ -25,7 +25,9 @@ const base = (path: string) => {
   const hash = url.slice(hashIndex)
   return pathPart.endsWith('/') ? url : `${pathPart}.html${hash}`
 }
-const asset = (file: string) => base(`/marketing/${file}`)
+// 静态资源（图片/视频）走 withBase 即可：base() 的 .html 后缀只适用于页面路由，
+// 资源加后缀会 404（logo.svg.html 之类）。
+const asset = (file: string) => withBase(`/marketing/${file}`)
 const download = 'https://github.com/sfqy211/bilidanmu/releases/latest'
 const repository = 'https://github.com/sfqy211/bilidanmu'
 const page = ref<HTMLElement>()
