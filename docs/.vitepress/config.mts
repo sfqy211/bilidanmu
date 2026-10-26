@@ -3,14 +3,22 @@ import { withMermaid } from 'vitepress-mermaid'
 
 const REPO_URL = 'https://github.com/sfqy211/bilidanmu'
 
+// GitHub Pages 构建模式（CI 设 DOCS_PAGES=1）：
+// - 站点挂在仓库子路径 /bilidanmu/ 下，必须设置 base；
+// - Pages 不支持 cleanUrls 的无扩展名路由（/guide/foo 会 404），
+//   故 Pages 构建回退为 .html 链接；本地开发保持原样。
+const isPagesBuild = process.env.DOCS_PAGES === '1'
+const BASE = isPagesBuild ? '/bilidanmu' : ''
+
 const config = defineConfig({
   title: 'BiliDanmu',
   description: '把热闹，轻轻放在身边。BiliDanmu 为 Windows 桌面带来透明弹幕窗、贴边收起、直播互动与听视频。',
   lang: 'zh-CN',
   lastUpdated: true,
-  cleanUrls: true,
+  base: BASE,
+  cleanUrls: !isPagesBuild,
   head: [
-    ['link', { rel: 'icon', href: '/favicon.svg' }],
+    ['link', { rel: 'icon', href: `${BASE}/favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#fcfdff' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'BiliDanmu' }],

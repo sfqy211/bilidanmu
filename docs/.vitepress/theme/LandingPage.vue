@@ -1,12 +1,30 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { withBase } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import LandingCatalog from './components/LandingCatalog.vue'
 import DesktopDemo from './components/DesktopDemo.vue'
 import { featureGroups } from './landing-features'
 import './landing.css'
 
-const base = withBase
+const { site } = useData()
+
+/**
+ * 内链规范化：withBase 之上再处理 cleanUrls。
+ * GitHub Pages 不支持无扩展名路由（/guide/foo 会 404），Pages 构建
+ * （cleanUrls=false）时内部页链接需补 .html；锚点插在后缀之前，
+ * 目录路径（以 / 结尾）由 Pages 自动解析 index.html，保持原样。
+ */
+const base = (path: string) => {
+  const url = withBase(path)
+  if (site.value.cleanUrls) return url
+  const hashIndex = url.indexOf('#')
+  if (hashIndex === -1) {
+    return url.endsWith('/') ? url : `${url}.html`
+  }
+  const pathPart = url.slice(0, hashIndex)
+  const hash = url.slice(hashIndex)
+  return pathPart.endsWith('/') ? url : `${pathPart}.html${hash}`
+}
 const asset = (file: string) => base(`/marketing/${file}`)
 const download = 'https://github.com/sfqy211/bilidanmu/releases/latest'
 const repository = 'https://github.com/sfqy211/bilidanmu'
