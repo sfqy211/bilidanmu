@@ -353,6 +353,9 @@ export function DanmakuPage() {
   const preferredDockAnimMs = useSettingsStore((s) => s.settings.appearance.dockAnimMs);
   const dockAnimMs = useReducedMotion() ? 0 : preferredDockAnimMs;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
+  // 标题栏按钮显隐（旧数据缺字段时按显示处理）
+  const titleBarButtons = useSettingsStore((s) => s.settings.appearance.titleBarButtons);
+  const showBtn = (key: keyof NonNullable<typeof titleBarButtons>) => titleBarButtons?.[key] ?? true;
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
   const settings = useSettingsStore((s) => s.settings);
@@ -1179,7 +1182,8 @@ export function DanmakuPage() {
         <span className="flex-1 truncate text-sm text-slate-500 dark:text-slate-400">
           {displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
         </span>
-        <button
+        {showBtn("pin") && (
+<button
           type="button"
           onClick={() => {
             const next = !pinned;
@@ -1191,7 +1195,9 @@ export function DanmakuPage() {
         >
           {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
         </button>
-        <button
+)}
+        {showBtn("lock") && (
+<button
           type="button"
           onClick={() => setLocked((v) => !v)}
           className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
@@ -1199,7 +1205,9 @@ export function DanmakuPage() {
         >
           {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
         </button>
-        <button
+)}
+        {showBtn("inputOnly") && (
+<button
           type="button"
           onClick={toggleInputOnly}
           className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
@@ -1207,7 +1215,9 @@ export function DanmakuPage() {
         >
           <TextCursorInput className="h-3.5 w-3.5" />
         </button>
-        <button
+)}
+        {showBtn("passthrough") && (
+<button
           type="button"
           onClick={() => setPassthroughEnabled((v) => !v)}
           className={`flex h-6 w-6 items-center justify-center transition ${
@@ -1219,7 +1229,9 @@ export function DanmakuPage() {
         >
           <MousePointerClick className="h-3.5 w-3.5" />
         </button>
-        <button
+)}
+        {showBtn("close") && (
+<button
           type="button"
           onClick={() => appWindow.close()}
           className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
@@ -1227,7 +1239,9 @@ export function DanmakuPage() {
         >
           <X className="h-3.5 w-3.5" />
         </button>
-        <RoomSwitcher roomId={roomId} />
+)}
+        {showBtn("roomSwitcher") && <RoomSwitcher roomId={roomId} />}
+        {/* 退出直播间必须保留：唯一可靠的断开入口，不开放隐藏 */}
         <button
           type="button"
           onClick={async () => {

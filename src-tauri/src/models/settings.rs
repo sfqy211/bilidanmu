@@ -133,6 +133,51 @@ pub struct AppearanceSetting {
     /// 自定义主题色（暗色模式 hex，空 = 默认石墨）
     #[serde(default)]
     pub theme_accent_dark: String,
+    /// 弹幕窗口标题栏各按钮的显隐（默认全部显示）
+    #[serde(default)]
+    pub title_bar_buttons: TitleBarButtons,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// 弹幕窗口标题栏按钮显隐设置：false = 从标题栏移除该按钮。
+/// 字段级 serde 默认保证旧数据（无此对象或缺字段）升级后按钮不消失。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TitleBarButtons {
+    /// 置顶
+    #[serde(default = "default_true")]
+    pub pin: bool,
+    /// 锁定位置
+    #[serde(default = "default_true")]
+    pub lock: bool,
+    /// 仅输入框模式
+    #[serde(default = "default_true")]
+    pub input_only: bool,
+    /// 窗口透传
+    #[serde(default = "default_true")]
+    pub passthrough: bool,
+    /// 隐藏到托盘（关闭按钮）
+    #[serde(default = "default_true")]
+    pub close: bool,
+    /// 房间切换胶囊
+    #[serde(default = "default_true")]
+    pub room_switcher: bool,
+}
+
+impl Default for TitleBarButtons {
+    fn default() -> Self {
+        Self {
+            pin: true,
+            lock: true,
+            input_only: true,
+            passthrough: true,
+            close: true,
+            room_switcher: true,
+        }
+    }
 }
 
 fn default_dock_anim_ms() -> u32 {
@@ -446,6 +491,7 @@ impl Default for Settings {
                 dock_anim_ms: default_dock_anim_ms(),
                 theme_accent_light: String::new(),
                 theme_accent_dark: String::new(),
+                title_bar_buttons: TitleBarButtons::default(),
             },
             notification: NotificationSetting {
                 mute_alert: true,

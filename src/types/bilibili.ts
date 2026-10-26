@@ -237,6 +237,22 @@ export interface ShortcutsSetting {
   uiZoomReset: string | null;
 }
 
+/** 弹幕窗口标题栏按钮显隐（false = 从标题栏移除） */
+export interface TitleBarButtons {
+  /** 置顶 */
+  pin: boolean;
+  /** 锁定位置 */
+  lock: boolean;
+  /** 仅输入框模式 */
+  inputOnly: boolean;
+  /** 窗口透传 */
+  passthrough: boolean;
+  /** 隐藏到托盘（关闭按钮） */
+  close: boolean;
+  /** 房间切换胶囊 */
+  roomSwitcher: boolean;
+}
+
 export interface Settings {
   visual: VisualSetting;
   sendInterval: { min: number; max: number };
@@ -278,6 +294,8 @@ export interface Settings {
     themeAccentLight: string;
     /** 自定义主题色（暗色模式 hex，空 = 默认石墨） */
     themeAccentDark: string;
+    /** 弹幕窗口标题栏各按钮显隐（false = 移除） */
+    titleBarButtons: TitleBarButtons;
   };
   notification: {
     muteAlert: boolean;

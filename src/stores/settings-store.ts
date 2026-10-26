@@ -55,7 +55,15 @@ export const defaultSettings: Settings = {
     scInDanmaku: false,
     dockAnimMs: 220,
     themeAccentLight: "#E11D48",
-    themeAccentDark: "#FB7185"
+    themeAccentDark: "#FB7185",
+    titleBarButtons: {
+      pin: true,
+      lock: true,
+      inputOnly: true,
+      passthrough: true,
+      close: true,
+      roomSwitcher: true,
+    }
   },
   notification: {
     muteAlert: true,

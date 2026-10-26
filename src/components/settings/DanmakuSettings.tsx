@@ -1,8 +1,22 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { ListVideo, Lock, MousePointerClick, Pin, TextCursorInput, Unlock, X } from "lucide-react";
 import { ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS, HIDE_APPEARANCE_OPTIONS } from "./constants";
 import { SettingsChoice, SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 import type { Settings } from "@/types/bilibili";
+
+/**
+ * 标题栏按钮清单（与 TitleBarButtons 字段一一对应）。
+ * 图标与弹幕窗标题栏实际按钮保持一致，便于对号入座。
+ * 退出直播间必须保留，不在清单内、不可关闭。
+ */
+const TITLE_BAR_BUTTONS = [
+  { key: "pin", label: "置顶", Icon: Pin },
+  { key: "lock", label: "锁定", Icon: Lock },
+  { key: "inputOnly", label: "仅输入框", Icon: TextCursorInput },
+  { key: "passthrough", label: "窗口透传", Icon: MousePointerClick },
+  { key: "roomSwitcher", label: "房间切换", Icon: ListVideo },
+  { key: "close", label: "隐藏到托盘", Icon: X },
+] as const;
 
 export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps) {
   const appearance = settings.appearance;
@@ -15,6 +29,32 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
         <SettingsChoice title="侧边吸附动画" value={String(appearance.dockAnimMs)} onChange={(value) => update({ dockAnimMs: Number(value) })}
           options={[{ value: "0", label: "关闭" }, { value: "120", label: "快" }, { value: "220", label: "标准" }, { value: "350", label: "慢" },
             ...([0, 120, 220, 350].includes(appearance.dockAnimMs) ? [] : [{ value: String(appearance.dockAnimMs), label: `自定义 · ${appearance.dockAnimMs} ms` }])]} />
+      </SettingsGroup>
+      <SettingsGroup title="标题栏按钮" description="点击图标切换该按钮在弹幕窗口标题栏的显示；退出直播间按钮固定保留。">
+        <div className="settings-row-block">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {TITLE_BAR_BUTTONS.map(({ key, label, Icon }) => {
+              const visible = appearance.titleBarButtons?.[key] ?? true;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={visible}
+                  title={visible ? `点击隐藏「${label}」` : `点击显示「${label}」`}
+                  onClick={() => update({ titleBarButtons: { ...appearance.titleBarButtons, [key]: !visible } })}
+                  className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-[11px] transition ${
+                    visible
+                      ? "border-pink-500/40 bg-pink-500/10 text-ink"
+                      : "border-black/10 bg-transparent text-ink-muted opacity-50 hover:opacity-80 dark:border-white/10"
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${visible ? "text-pink-500" : ""}`} strokeWidth={1.7} />
+                  <span className="truncate">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </SettingsGroup>
       <SettingsGroup title="消息内容">
         <SettingsChoice title="表情显示" value={appearance.emoticonStyle} onChange={(emoticonStyle) => update({ emoticonStyle: emoticonStyle as Settings["appearance"]["emoticonStyle"] })}
