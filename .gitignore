@@ -30,6 +30,7 @@ src-tauri/models/
 .zcodeignore
 promo/
 design/
+.zcode/
 
 # 本地临时测试，保留测试开发指南
 /tests/*
