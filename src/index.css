@@ -129,10 +129,7 @@ body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
 }
 .danmaku-btn-active {
-  background-color: rgba(209, 250, 229, var(--bg-a));
-}
-.dark .danmaku-btn-active {
-  background-color: rgba(6, 78, 59, var(--bg-a));
+  background-color: rgb(var(--brand-rgb) / calc(var(--bg-a) * 0.14));
 }
 
 /* ── 主页面氛围设计系统（与弹幕窗同一套玻璃语言） ──

@@ -18,6 +18,25 @@ function mergeSettings(base: Settings, incoming: Partial<Settings>): Settings {
     (merged as any)[key] = { ...(base[key] as object), ...((incoming[key] ?? {}) as object) };
   }
   merged.visual = normalizeVisual(base.visual, incoming.visual);
+  // appearance 下的嵌套对象需要再合并一层：旧持久化数据没有这些字段时，
+  // 一级合并会用旧对象整体覆盖默认值，导致新增的嵌套配置为 undefined（曾致设置页崩溃）。
+  const baseAppearance = base.appearance as Record<string, unknown>;
+  const incomingAppearance = (incoming.appearance ?? {}) as Record<string, unknown>;
+  const nestedAppearance: Record<string, unknown> = {};
+  for (const [key, defaultValue] of Object.entries(baseAppearance)) {
+    if (defaultValue && typeof defaultValue === "object" && !Array.isArray(defaultValue)) {
+      const incomingValue = incomingAppearance[key];
+      nestedAppearance[key] = {
+        ...(defaultValue as object),
+        ...((incomingValue && typeof incomingValue === "object" ? incomingValue : {}) as object),
+      };
+    }
+  }
+  (merged as unknown as Record<string, unknown>).appearance = {
+    ...baseAppearance,
+    ...incomingAppearance,
+    ...nestedAppearance,
+  };
   return merged;
 }
 
@@ -63,6 +82,12 @@ export const defaultSettings: Settings = {
       passthrough: true,
       close: true,
       roomSwitcher: true,
+    },
+    danmakuWindow: {
+      accentMode: "follow",
+      accentColor: "#E11D48",
+      functionBar: "pinned",
+      dockBar: { style: "glass", size: "normal", indicator: true },
     }
   },
   notification: {

@@ -18,8 +18,18 @@ const TITLE_BAR_BUTTONS = [
   { key: "close", label: "隐藏到托盘", Icon: X },
 ] as const;
 
+/** 独立强调色预设（与设置页主题色板同源的常用色） */
+const ACCENT_PRESETS = ["#E11D48", "#e95780", "#467fba", "#469480", "#7C3AED", "#D97706"];
+
 export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps) {
   const appearance = settings.appearance;
+  // 兜底：旧持久化数据可能没有 danmakuWindow / dockBar（深合并修好前写入的数据）
+  const dw = appearance.danmakuWindow ?? {
+    accentMode: "follow" as const,
+    accentColor: "#E11D48",
+    functionBar: "pinned" as const,
+    dockBar: { style: "glass" as const, size: "normal" as const, indicator: true },
+  };
   const update = (patch: Partial<Settings["appearance"]>) => patchSettings({ appearance: { ...appearance, ...patch } });
   return (
     <>
@@ -29,6 +39,37 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
         <SettingsChoice title="侧边吸附动画" value={String(appearance.dockAnimMs)} onChange={(value) => update({ dockAnimMs: Number(value) })}
           options={[{ value: "0", label: "关闭" }, { value: "120", label: "快" }, { value: "220", label: "标准" }, { value: "350", label: "慢" },
             ...([0, 120, 220, 350].includes(appearance.dockAnimMs) ? [] : [{ value: String(appearance.dockAnimMs), label: `自定义 · ${appearance.dockAnimMs} ms` }])]} />
+      </SettingsGroup>
+      <SettingsGroup title="弹幕窗外观" description="强调色与功能栏形态改动即时生效并保存。">
+        <SettingsChoice title="强调色" value={dw.accentMode}
+          onChange={(accentMode) => update({ danmakuWindow: { ...dw, accentMode: accentMode as typeof dw.accentMode } })}
+          options={[{ value: "follow", label: "跟随主题色" }, { value: "custom", label: "独立强调色" }]} />
+        {dw.accentMode === "custom" && (
+          <div className="settings-row-block">
+            <div className="flex flex-wrap items-center gap-2">
+              {ACCENT_PRESETS.map((color) => (
+                <button key={color} type="button" aria-label={color} aria-pressed={dw.accentColor === color}
+                  onClick={() => update({ danmakuWindow: { ...dw, accentColor: color } })}
+                  className={`h-7 w-7 rounded-full border-2 transition ${dw.accentColor === color ? "border-ink" : "border-transparent hover:border-ink/30"}`}
+                  style={{ background: color }} />
+              ))}
+              <input type="color" aria-label="自定义强调色" value={/^#[\da-fA-F]{6}$/.test(dw.accentColor) ? dw.accentColor : "#E11D48"}
+                onChange={(event) => update({ danmakuWindow: { ...dw, accentColor: event.target.value } })}
+                className="h-7 w-9 cursor-pointer rounded border border-subtle bg-transparent" />
+            </div>
+          </div>
+        )}
+        <SettingsChoice title="功能栏" value={dw.functionBar}
+          onChange={(functionBar) => update({ danmakuWindow: { ...dw, functionBar: functionBar as typeof dw.functionBar } })}
+          options={[{ value: "pinned", label: "常驻按钮行" }, { value: "compact", label: "收纳进输入框" }]} />
+        <SettingsChoice title="收起条样式" value={dw.dockBar.style}
+          onChange={(style) => update({ danmakuWindow: { ...dw, dockBar: { ...dw.dockBar, style: style as typeof dw.dockBar.style } } })}
+          options={[{ value: "glass", label: "深色玻璃" }, { value: "brand", label: "品牌淡底" }, { value: "line", label: "极简细线" }]} />
+        <SettingsChoice title="收起条大小" value={dw.dockBar.size}
+          onChange={(size) => update({ danmakuWindow: { ...dw, dockBar: { ...dw.dockBar, size: size as typeof dw.dockBar.size } } })}
+          options={[{ value: "slim", label: "窄" }, { value: "normal", label: "标准" }, { value: "wide", label: "宽" }]} />
+        <SettingsToggle title="收起条提示线" description="收起条中央的短指示线，提示此处可悬停展开。"
+          checked={dw.dockBar.indicator} onChange={(indicator) => update({ danmakuWindow: { ...dw, dockBar: { ...dw.dockBar, indicator } } })} />
       </SettingsGroup>
       <SettingsGroup title="标题栏按钮" description="点击图标切换该按钮在弹幕窗口标题栏的显示；退出直播间按钮固定保留。">
         <div className="settings-row-block">

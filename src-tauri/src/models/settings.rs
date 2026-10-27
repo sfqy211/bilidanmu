@@ -136,6 +136,62 @@ pub struct AppearanceSetting {
     /// 弹幕窗口标题栏各按钮的显隐（默认全部显示）
     #[serde(default)]
     pub title_bar_buttons: TitleBarButtons,
+    /// 弹幕窗口外观（强调色 / 功能栏形态 / 收起条）
+    #[serde(default)]
+    pub danmaku_window: DanmakuWindowStyle,
+}
+
+/// 弹幕窗口外观设置
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DanmakuWindowStyle {
+    /// 强调色模式：follow 跟随全局主题 / custom 独立色
+    #[serde(default = "default_accent_mode")]
+    pub accent_mode: String,
+    /// 独立强调色 hex（accent_mode = custom 时生效）
+    #[serde(default = "default_accent_color")]
+    pub accent_color: String,
+    /// 功能栏形态：pinned 常驻按钮行 / compact 收纳进输入框
+    #[serde(default = "default_function_bar")]
+    pub function_bar: String,
+    /// 收起条样式：glass 深色玻璃 / brand 品牌淡底 / line 极简细线
+    #[serde(default = "default_dock_style")]
+    pub dock_style: String,
+    /// 收起条大小：slim / normal / wide
+    #[serde(default = "default_dock_size")]
+    pub dock_size: String,
+    /// 收起条中央提示线
+    #[serde(default = "default_true")]
+    pub dock_indicator: bool,
+}
+
+fn default_accent_mode() -> String {
+    "follow".into()
+}
+fn default_accent_color() -> String {
+    "#E11D48".into()
+}
+fn default_function_bar() -> String {
+    "pinned".into()
+}
+fn default_dock_style() -> String {
+    "glass".into()
+}
+fn default_dock_size() -> String {
+    "normal".into()
+}
+
+impl Default for DanmakuWindowStyle {
+    fn default() -> Self {
+        Self {
+            accent_mode: default_accent_mode(),
+            accent_color: default_accent_color(),
+            function_bar: default_function_bar(),
+            dock_style: default_dock_style(),
+            dock_size: default_dock_size(),
+            dock_indicator: true,
+        }
+    }
 }
 
 fn default_true() -> bool {
@@ -492,6 +548,7 @@ impl Default for Settings {
                 theme_accent_light: String::new(),
                 theme_accent_dark: String::new(),
                 title_bar_buttons: TitleBarButtons::default(),
+                danmaku_window: DanmakuWindowStyle::default(),
             },
             notification: NotificationSetting {
                 mute_alert: true,

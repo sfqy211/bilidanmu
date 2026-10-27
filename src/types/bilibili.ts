@@ -237,6 +237,22 @@ export interface ShortcutsSetting {
   uiZoomReset: string | null;
 }
 
+/** 弹幕窗口外观设置 */
+export interface DanmakuWindowStyle {
+  /** 强调色模式：follow 跟随全局主题 / custom 独立色 */
+  accentMode: "follow" | "custom";
+  /** 独立强调色 hex（accentMode = custom 时生效） */
+  accentColor: string;
+  /** 功能栏形态：pinned 常驻 / compact 收纳 */
+  functionBar: "pinned" | "compact";
+  /** 收起条样式 */
+  dockBar: {
+    style: "glass" | "brand" | "line";
+    size: "slim" | "normal" | "wide";
+    indicator: boolean;
+  };
+}
+
 /** 弹幕窗口标题栏按钮显隐（false = 从标题栏移除） */
 export interface TitleBarButtons {
   /** 置顶 */
@@ -296,6 +312,8 @@ export interface Settings {
     themeAccentDark: string;
     /** 弹幕窗口标题栏各按钮显隐（false = 移除） */
     titleBarButtons: TitleBarButtons;
+    /** 弹幕窗口外观 */
+    danmakuWindow: DanmakuWindowStyle;
   };
   notification: {
     muteAlert: boolean;
