@@ -24,8 +24,27 @@ const base = (path: string) => {
 // 静态资源（图片/视频）走 withBase 即可：base() 的 .html 后缀只适用于页面路由，
 // 资源加后缀会 404（logo.svg.html 之类）。
 const asset = (file: string) => withBase(`/marketing/${file}`)
-const download = 'https://github.com/sfqy211/bilidanmu/releases/latest'
+// 下载直链：releases/latest/download/<资产名> 永久指向最新版对应文件。
+// 发版 CI 会把产物统一为不带版本号的固定名（版本由 tag 标明），直链因此恒定。
+// SSG 构建期拿不到 navigator，兜底指向发布页，挂载后再按访问者系统换成直链。
+const RELEASES = 'https://github.com/sfqy211/bilidanmu/releases/latest'
 const repository = 'https://github.com/sfqy211/bilidanmu'
+const downloadLinks = {
+  windows: `${RELEASES}/download/BiliDanmu-x64-setup.exe`,
+  macos: `${RELEASES}/download/BiliDanmu-universal.dmg`,
+  linux: `${RELEASES}/download/BiliDanmu-amd64.AppImage`,
+} as const
+const downloadLabels = { windows: 'Windows 版', macos: 'macOS 版', linux: 'Linux 版' } as const
+const download = ref<string>(RELEASES)
+const platformLabel = ref<string>('Windows 版')
+onMounted(() => {
+  const ua = navigator.userAgent
+  const platform = /Macintosh|Mac OS X/.test(ua)
+    ? 'macos'
+    : /Linux/.test(ua) && !/Android/.test(ua) ? 'linux' : 'windows'
+  download.value = downloadLinks[platform]
+  platformLabel.value = downloadLabels[platform]
+})
 /** 精选亮点：只有名称，说明留给文档站 features 页 */
 const highlights = [
   { label: '透明弹幕窗', d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
@@ -125,7 +144,7 @@ onBeforeUnmount(() => {
           <a :href="base('/guide/quick-start')">使用指南 <span aria-hidden="true">↗</span></a>
           <a :href="repository" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
-        <a class="lp-button lp-button-small" :href="download" target="_blank" rel="noopener noreferrer">下载 <span class="lp-desktop-label">Windows 版</span><span aria-hidden="true">↓</span></a>
+        <a class="lp-button lp-button-small" :href="download">下载 <span class="lp-desktop-label">{{ platformLabel }}</span><span aria-hidden="true">↓</span></a>
         <button class="lp-menu-button" type="button" :aria-expanded="mobileMenu" aria-label="切换导航菜单" @click="mobileMenu = !mobileMenu">{{ mobileMenu ? '关闭' : '菜单' }}</button>
       </div>
       <div class="lp-read-progress" :style="{ transform: `scaleX(${pageProgress})` }" />
@@ -137,16 +156,14 @@ onBeforeUnmount(() => {
           <p class="lp-eyebrow"><span class="lp-live-dot" /> 一个懂你桌面的 B 站小工具</p>
           <h1>把热闹，<br/>轻轻放在<span>身边。</span></h1>
           <p class="lp-hero-description">透明弹幕窗、贴边收起、听视频。<br class="lp-wide-only"/>手上的事情继续，喜欢的声音也继续。</p>
-          <div class="lp-hero-actions"><a class="lp-button" :href="download" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l8-1v8H3zm10-1l8-1v9h-8zM3 14h8v7l-8-1zm10 0h8v9l-8-1z" fill="currentColor"/></svg>下载 Windows 版<span aria-hidden="true">↓</span></a><a class="lp-text-link" :href="base('/guide/quick-start')">从这里开始 <span aria-hidden="true">↗</span></a></div>
-          <p class="lp-system-note">Windows 10 / 11 · x64 · 开源桌面应用</p>
+          <div class="lp-hero-actions"><a class="lp-button" :href="download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l8-1v8H3zm10-1l8-1v9h-8zM3 14h8v7l-8-1zm10 0h8v9l-8-1z" fill="currentColor"/></svg>下载 {{ platformLabel }}<span aria-hidden="true">↓</span></a><a class="lp-text-link" :href="base('/guide/quick-start')">从这里开始 <span aria-hidden="true">↗</span></a></div>
+          <p class="lp-system-note">Windows · macOS · Linux · 开源桌面应用 · <a :href="RELEASES" target="_blank" rel="noopener noreferrer">全部安装格式 ↗</a></p>
           <button ref="filmTrigger" class="lp-film-link" type="button" @click="openFilm"><span class="lp-play-symbol" aria-hidden="true">▶</span> 看看它如何融入一天 <small>45 秒</small></button>
         </div>
         <div class="lp-hero-stage" aria-label="听视频与透明弹幕窗界面预览">
           <div class="lp-hero-glow"/>
           <div class="lp-hero-player"><img :src="asset('player-start.webp')" width="2400" height="1520" alt="BiliDanmu 听视频：唱片封面、同步字幕与播放控制" fetchpriority="high" /></div>
           <div class="lp-hero-danmaku"><img :src="asset('danmaku-content.webp')" width="1040" height="1520" alt="独立弹幕窗，显示实时消息、礼物和互动" /></div>
-          <div class="lp-hero-note"><span class="lp-live-dot"/> 工作照常，快乐在线。</div>
-          <span class="lp-scene-label">真实界面 · 演示内容</span>
         </div>
         <a href="#experience" class="lp-scroll-cue"><span aria-hidden="true">↓</span> 向下滚动，跟着体验一次。</a>
       </section>
@@ -204,7 +221,7 @@ onBeforeUnmount(() => {
       </section>
 
       <section id="highlights" class="lp-highlights lp-container lp-reveal">
-        <div class="lp-section-heading"><div><p class="lp-section-number">不止这些</p><h2>顺手的小事，<br class="lp-mobile-only"/>也都照顾到了。</h2></div><a class="lp-text-link" :href="base('/guide/features')">查看全部功能 <span aria-hidden="true">↗</span></a></div>
+        <div class="lp-section-heading"><div><h2>顺手的小事，<br class="lp-mobile-only"/>也都照顾到了。</h2></div><a class="lp-text-link" :href="base('/guide/features')">查看全部功能 <span aria-hidden="true">↗</span></a></div>
         <ul class="lp-highlight-grid">
           <li v-for="item in highlights" :key="item.label">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="item.d"/></svg>
@@ -214,12 +231,12 @@ onBeforeUnmount(() => {
       </section>
 
       <section id="get-started" class="lp-start-section">
-        <div class="lp-container"><div class="lp-section-heading"><div><p class="lp-section-number">准备好，给桌面一点快乐</p><h2>三步，开始你的陪伴。</h2></div><a class="lp-text-link" :href="base('/guide/quick-start')">完整使用说明 <span aria-hidden="true">↗</span></a></div><ol class="lp-start-steps"><li><span>01</span><h3>下载并安装</h3><p>选择 Windows x64 安装包。</p><a :href="download" target="_blank" rel="noopener noreferrer">获取 Windows 版 ↗</a></li><li><span>02</span><h3>选一种开始方式</h3><p>扫码登录，或匿名先逛逛。</p><a :href="base('/guide/quick-start')">看看如何开始 ↗</a></li><li><span>03</span><h3>把它放在顺手的位置</h3><p>添加房间，调好透明度，开听。</p><a href="#experience">再体验一遍 ↑</a></li></ol></div>
+        <div class="lp-container"><div class="lp-section-heading"><div><p class="lp-section-number">准备好，给桌面一点快乐</p><h2>三步，开始你的陪伴。</h2></div><a class="lp-text-link" :href="base('/guide/quick-start')">完整使用说明 <span aria-hidden="true">↗</span></a></div><ol class="lp-start-steps"><li><span>01</span><h3>下载并安装</h3><p>选择你系统对应的安装包。</p><a :href="download">获取 {{ platformLabel }} ↗</a><a :href="RELEASES" target="_blank" rel="noopener noreferrer">其他格式 ↗</a></li><li><span>02</span><h3>选一种开始方式</h3><p>扫码登录，或匿名先逛逛。</p><a :href="base('/guide/quick-start')">看看如何开始 ↗</a></li><li><span>03</span><h3>把它放在顺手的位置</h3><p>添加房间，调好透明度，开听。</p><a href="#experience">再体验一遍 ↑</a></li></ol></div>
       </section>
 
-      <section class="lp-faq lp-container"><div><p class="lp-section-number">再了解一点</p><h2>你可能想知道</h2></div><div class="lp-faq-list"><details><summary>不登录可以使用吗？<span>＋</span></summary><p>可以匿名接收直播弹幕和收听直播音频。发送弹幕、表情和自动互动，以及访问自己的收藏夹、稍后再看或发表评论，需要登录对应账号。</p></details><details><summary>关闭弹幕窗后，直播会断开吗？<span>＋</span></summary><p>关闭弹幕窗会隐藏到系统托盘，连接继续保留。需要真正离开直播间时，使用弹幕窗的退出按钮；之后会回到主窗口。</p></details><details><summary>支持哪些系统？<span>＋</span></summary><p>目前提供 Windows 10 / 11 的 x64 安装包，需要 WebView2 运行时。下载及安装说明中有更完整的步骤。</p></details><details><summary>每个视频都能显示字幕吗？<span>＋</span></summary><p>字幕取自视频已经提供的字幕轨。未提供字幕的视频仍可以收听与查看评论；有字幕时可以逐句跟随、点击跳转和切换专注视图。</p></details><details><summary>如何更新或反馈问题？<span>＋</span></summary><p>应用会定期检查更新，也可以在关于页手动检查、阅读更新说明并下载安装包。遇到问题时，可前往 <a :href="repository+'/issues'" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</p></details></div></section>
+      <section class="lp-faq lp-container"><div><p class="lp-section-number">再了解一点</p><h2>你可能想知道</h2></div><div class="lp-faq-list"><details><summary>不登录可以使用吗？<span>＋</span></summary><p>可以匿名接收直播弹幕和收听直播音频。发送弹幕、表情和自动互动，以及访问自己的收藏夹、稍后再看或发表评论，需要登录对应账号。</p></details><details><summary>关闭弹幕窗后，直播会断开吗？<span>＋</span></summary><p>关闭弹幕窗会隐藏到系统托盘，连接继续保留。需要真正离开直播间时，使用弹幕窗的退出按钮；之后会回到主窗口。</p></details><details><summary>支持哪些系统？<span>＋</span></summary><p>提供 Windows 10 / 11（x64，需 WebView2 运行时）、macOS（Universal，覆盖 Apple Silicon 与 Intel）和 Linux（x64，另有 deb / rpm / AppImage 三种格式）。macOS 版暂未签名公证，首次打开需右键应用选择「打开」。所有安装包见 <a :href="RELEASES" target="_blank" rel="noopener noreferrer">发布页</a>。</p></details><details><summary>每个视频都能显示字幕吗？<span>＋</span></summary><p>字幕取自视频已经提供的字幕轨。未提供字幕的视频仍可以收听与查看评论；有字幕时可以逐句跟随、点击跳转和切换专注视图。</p></details><details><summary>如何更新或反馈问题？<span>＋</span></summary><p>应用会定期检查更新，也可以在关于页手动检查、阅读更新说明并下载安装包。遇到问题时，可前往 <a :href="repository+'/issues'" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</p></details></div></section>
 
-      <section class="lp-final-cta lp-container"><img :src="asset('logo.svg')" width="76" height="76" alt="声窗 Logo"/><h2>手头的事继续。<br/>喜欢的声音，也继续。</h2><a class="lp-button" :href="download" target="_blank" rel="noopener noreferrer">下载 BiliDanmu <span aria-hidden="true">↓</span></a><p>Windows 10 / 11 · 免费获取 · 开源</p></section>
+      <section class="lp-final-cta lp-container"><img :src="asset('logo.svg')" width="76" height="76" alt="声窗 Logo"/><h2>手头的事继续。<br/>喜欢的声音，也继续。</h2><a class="lp-button" :href="download">下载 BiliDanmu <span aria-hidden="true">↓</span></a><p>Windows · macOS · Linux · 免费获取 · 开源</p></section>
     </main>
 
     <footer class="lp-footer lp-container"><a class="lp-brand" :href="base('/')"><img :src="asset('logo.svg')" width="32" height="32" alt=""/><span>BiliDanmu</span></a><p>为喜欢的直播和声音，留一个位置。</p><div><a :href="base('/guide/quick-start')">使用指南</a><a :href="repository" target="_blank" rel="noopener noreferrer">源码</a><a :href="repository+'/issues'" target="_blank" rel="noopener noreferrer">反馈</a><a :href="repository+'/blob/main/LICENSE'" target="_blank" rel="noopener noreferrer">AGPL-3.0</a></div><small>独立开源项目，与哔哩哔哩无官方关联。</small></footer>
