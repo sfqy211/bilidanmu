@@ -140,6 +140,8 @@ fn show_window(window: &tauri::WebviewWindow) {
     let _ = window.show();
     // 若窗口处于侧边吸附态，show 后恢复收缩几何以保持吸附
     crate::window_dock::restore_if_docked(window, window.app_handle());
+    // 隐身态下手动唤起必须显形，否则用户看不出窗口已被唤出
+    crate::window_stealth::force_reveal(window.app_handle(), window.label());
     let _ = window.set_focus();
 }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ListVideo, Lock, MousePointerClick, Pin, TextCursorInput, Unlock, X } from "lucide-react";
+import { Ghost, ListVideo, Lock, MousePointerClick, Pin, TextCursorInput, Unlock, X } from "lucide-react";
 import { ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS, HIDE_APPEARANCE_OPTIONS } from "./constants";
 import { SettingsChoice, SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 import type { Settings } from "@/types/bilibili";
@@ -14,6 +14,7 @@ const TITLE_BAR_BUTTONS = [
   { key: "lock", label: "锁定", Icon: Lock },
   { key: "inputOnly", label: "仅输入框", Icon: TextCursorInput },
   { key: "passthrough", label: "窗口透传", Icon: MousePointerClick },
+  { key: "stealth", label: "隐身", Icon: Ghost },
   { key: "roomSwitcher", label: "房间切换", Icon: ListVideo },
   { key: "close", label: "隐藏到托盘", Icon: X },
 ] as const;

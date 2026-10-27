@@ -400,6 +400,35 @@ fn collapse_dock(app: &AppHandle, window: &WebviewWindow) {
     emit_dock_changed(app, &label, "collapsed", Some(side));
 }
 
+/// 隐身模式与吸附互斥：隐身态下窗口点击穿透，吸附条既无法悬停展开，
+/// 收缩态也只剩一条不可交互的细条。开启隐身前调用本函数把窗口恢复为
+/// 完整几何并退出吸附（可能处于 Collapsed / Expanded / Collapsing）。
+pub fn exit_dock_for_full_window(app: &AppHandle, window: &WebviewWindow) {
+    let state = app.state::<AppState>();
+    let label = window.label().to_string();
+
+    let geo = {
+        let mut docks = lock_docks(state.inner());
+        docks.remove(&label).map(|d| {
+            (d.side, d.normal_pos, d.normal_size, d.phase)
+        })
+    };
+    let Some((_side, normal_pos, normal_size, phase)) = geo else {
+        return;
+    };
+
+    // 收起态/收回动画中：几何还停在细条上，先还原成吸附前的完整窗口
+    if phase != DockPhase::Expanded {
+        let _ = window.set_size(PhysicalSize::new(normal_size.width, normal_size.height));
+        let _ = window.set_position(normal_pos);
+    }
+
+    // 进入拖动冷却：与 exit_dock 一致，避免贴边时被轮询立刻重新吸附
+    lock_cooldowns(state.inner()).insert(label.clone());
+    let _ = window.set_size_constraints(normal_constraints());
+    emit_dock_changed(app, &label, "normal", None);
+}
+
 /// 退出吸附：恢复正常尺寸约束并清除状态，进入拖动冷却（防止拖动中被立刻重新吸附）
 fn exit_dock(app: &AppHandle, window: &WebviewWindow) {
     let state = app.state::<AppState>();
@@ -608,6 +637,12 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
                 None => {
                     // 仅输入框模式不参与吸附（进入该模式时会先解除既有吸附）
                     if state.danmaku_input_only.load(Ordering::Relaxed) {
+                        outside_since = None;
+                        continue;
+                    }
+                    // 隐身模式不参与吸附：开启时会主动退出吸附，这里兜底防止
+                    // 隐身期间窗口点击穿透、吸附交互全部失效
+                    if crate::window_stealth::is_active(state.inner()) {
                         outside_since = None;
                         continue;
                     }

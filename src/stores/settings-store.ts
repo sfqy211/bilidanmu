@@ -80,6 +80,7 @@ export const defaultSettings: Settings = {
       lock: true,
       inputOnly: true,
       passthrough: true,
+      stealth: true,
       close: true,
       roomSwitcher: true,
     },

@@ -483,6 +483,9 @@ pub fn apply_input_only(
         use tauri::Emitter;
         let _ = app.emit("danmaku-input-only", enabled);
     }
+    // 隐身态下切换模式必须显形：紧凑栏几何变了，若仍处于隐身，
+    // 用户看不到窗口已经变形（全局快捷键可在光标不在窗口上时触发）
+    crate::window_stealth::force_reveal(app, DANMAKU_WINDOW_LABEL);
     // 模式与几何立即落盘，不等防抖
     window_state::save_now(&app);
     Ok(enabled)
@@ -626,6 +629,8 @@ pub async fn open_danmaku_window(
         let _ = window.set_maximizable(false);
         let _ = window.unminimize();
         let _ = window.show();
+        // 隐身态下进入直播间必须显形，否则窗口不可见也不可点
+        crate::window_stealth::force_reveal(&app, DANMAKU_WINDOW_LABEL);
         let _ = window.set_focus();
         hide_main_window(&app);
         return Ok(());
@@ -652,6 +657,9 @@ pub async fn switch_room(
         if changed {
             let _ = window.set_title(&danmaku_window_title(state.inner(), room_id));
         }
+        // 从托盘/切换器选房时光标停在别处，隐身态下窗口可能不可见：
+        // 显式唤出（窗口本身被隐藏时不处理，保持"隐藏保持隐藏"的语义）
+        crate::window_stealth::force_reveal(&app, DANMAKU_WINDOW_LABEL);
         // 可见性与焦点保持不变
         return Ok(());
     }

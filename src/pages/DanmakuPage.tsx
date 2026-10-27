@@ -10,7 +10,7 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ChevronDown, ClipboardList, Clock, Expand, Eye, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ChevronDown, ClipboardList, Clock, Expand, Eye, Ghost, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { contrastFor, hexToRgbTriplet } from "@/lib/brand-theme";
@@ -181,6 +181,52 @@ export function DanmakuPage() {
   }, []);
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
   const passthroughIgnoredRef = useRef(false);
+  // 隐身模式：后端按光标位置自动显隐并切点击穿透，前端只负责渲染淡入淡出。
+  // 开启后内容隐去即整窗透明，鼠标可点到下层；显形时恢复交互。
+  const [stealthEnabled, setStealthEnabled] = useState(false);
+  const [stealthVisible, setStealthVisible] = useState(true);
+  useEffect(() => {
+    void tauriCommands.stealth.get().then((snapshot) => {
+      setStealthEnabled(snapshot.enabled);
+      setStealthVisible(snapshot.visible);
+    }).catch(() => {});
+  }, []);
+  useTauriEvent<{ label: string; visible: boolean; enabled: boolean }>("danmaku-stealth", (payload) => {
+    if (payload.label !== appWindow.label) return;
+    setStealthEnabled(payload.enabled);
+    setStealthVisible(payload.visible);
+  });
+  // 隐身后窗口不可点击，焦点若还留在输入框里会继续吞键盘输入，先主动释放
+  useEffect(() => {
+    if (stealthVisible) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+  }, [stealthVisible]);
+  const toggleStealth = useCallback(() => {
+    // 隐身与窗口透传互斥：两者都切点击穿透，同时开会互相覆盖穿透状态。
+    // 用命令返回值矫正本地状态，事件丢失时也不会错位。
+    setPassthroughEnabled(false);
+    setActivePanel(null);
+    void tauriCommands.stealth
+      .set(!stealthEnabled)
+      .then((enabled) => setStealthEnabled(enabled))
+      .catch(() => {});
+  }, [stealthEnabled]);
+  // 反向互斥：先等隐身彻底关闭（后端已恢复交互），再让透传轮询接管穿透状态，
+  // 否则两条 setIgnoreCursorEvents 通道会互相覆盖
+  const togglePassthrough = useCallback(() => {
+    const next = !passthroughEnabled;
+    if (!next) {
+      setPassthroughEnabled(false);
+      return;
+    }
+    const enable = () => setPassthroughEnabled(true);
+    if (stealthEnabled) {
+      void tauriCommands.stealth.set(false).then(enable).catch(enable);
+    } else {
+      enable();
+    }
+  }, [passthroughEnabled, stealthEnabled]);
   const { disconnect } = useDanmakuStream(roomId);
 
   const navigate = useNavigate();
@@ -353,6 +399,9 @@ export function DanmakuPage() {
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
   const preferredDockAnimMs = useSettingsStore((s) => s.settings.appearance.dockAnimMs);
   const dockAnimMs = useReducedMotion() ? 0 : preferredDockAnimMs;
+  // 隐身淡出：窗口本身是真透明，内容整体淡出即为"隐身"。
+  // 显示比隐藏快一点：悬停要跟手，离开后渐隐不突兀
+  const stealthFadeMs = useReducedMotion() ? 0 : stealthVisible ? 120 : 200;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   // 标题栏按钮显隐（旧数据缺字段时按显示处理）
   const titleBarButtons = useSettingsStore((s) => s.settings.appearance.titleBarButtons);
@@ -701,7 +750,9 @@ export function DanmakuPage() {
   }, []);
 
   // ── 窗口透传：单窗口动态命中测试 ──
+  // 隐身模式自带点击穿透与光标轮询，两者互斥运行（见 toggleStealth）
   useEffect(() => {
+    if (stealthEnabled) return;
     let checking = false;
 
     const setIgnored = (ignored: boolean) => {
@@ -766,7 +817,7 @@ export function DanmakuPage() {
       window.clearInterval(poll);
       setIgnored(false);
     };
-  }, [passthroughEnabled]);
+  }, [passthroughEnabled, stealthEnabled]);
 
   const loadEmoticons = useCallback(async (forceAccountId?: string) => {
     if (!roomId) return;
@@ -1047,6 +1098,15 @@ export function DanmakuPage() {
     <>
     {/* audio 元素通过 portal 挂载到 body，跨 dockPhase / 仅输入框模式切换时不会被 React 卸载，避免 mpegts 断流 */}
     {createPortal(<audio ref={audioRef} className="hidden" />, document.body)}
+    {/* 隐身淡出层：窗口本身透明，内容整体 opacity=0 即完全隐身且不拦截视觉 */}
+    <div
+      className="h-full w-full transition-opacity"
+      style={{
+        opacity: stealthVisible ? 1 : 0,
+        transitionDuration: `${stealthFadeMs}ms`,
+        pointerEvents: stealthVisible ? undefined : "none",
+      }}
+    >
     {inputOnly ? (
       inputOnlyEmotes ? (
         <div
@@ -1236,7 +1296,7 @@ export function DanmakuPage() {
         {showBtn("passthrough") && (
 <button
           type="button"
-          onClick={() => setPassthroughEnabled((v) => !v)}
+          onClick={togglePassthrough}
           className={`flex h-6 w-6 items-center justify-center transition ${
             passthroughEnabled
               ? "text-brand hover:bg-brand/10"
@@ -1245,6 +1305,20 @@ export function DanmakuPage() {
           title={passthroughEnabled ? "关闭窗口透传" : "开启窗口透传"}
         >
           <MousePointerClick className="h-3.5 w-3.5" />
+        </button>
+)}
+        {showBtn("stealth") && (
+<button
+          type="button"
+          onClick={toggleStealth}
+          className={`flex h-6 w-6 items-center justify-center transition ${
+            stealthEnabled
+              ? "text-brand hover:bg-brand/10"
+              : "text-ink-muted hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
+          }`}
+          title={stealthEnabled ? "关闭隐身（当前鼠标离开即隐藏）" : "开启隐身（鼠标离开自动隐藏）"}
+        >
+          <Ghost className="h-3.5 w-3.5" />
         </button>
 )}
         {showBtn("close") && (
@@ -2183,6 +2257,7 @@ export function DanmakuPage() {
         </div>
     </main>
     )}
+    </div>
     </>
   );
 }

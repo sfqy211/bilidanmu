@@ -14,6 +14,7 @@ mod stt;
 mod tray;
 mod window_dock;
 mod window_state;
+mod window_stealth;
 mod shortcuts;
 mod focus;
 
@@ -66,6 +67,9 @@ pub struct AppState {
     pub danmaku_emote_panel: std::sync::atomic::AtomicBool,
     /// 展开面板前保存的紧凑栏几何（收起时恢复）
     pub danmaku_emote_saved: std::sync::Mutex<Option<EmotePanelSaved>>,
+    /// 弹幕窗口隐身模式运行时状态（None = 未开启）。开启后窗口内容按光标位置
+    /// 自动隐显，隐态下点击穿透（见 window_stealth）。
+    pub danmaku_stealth: std::sync::Mutex<Option<window_stealth::StealthRuntime>>,
     /// 最近一次全局快捷键注册的失败清单（设置页展示；空 = 全部成功）
     pub shortcut_errors: std::sync::Mutex<Vec<String>>,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
@@ -151,6 +155,7 @@ pub fn run() {
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_panel: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_saved: std::sync::Mutex::new(None),
+            danmaku_stealth: std::sync::Mutex::new(None),
             shortcut_errors: std::sync::Mutex::new(Vec::new()),
             live_status: std::sync::Mutex::new(None),
         }
@@ -306,6 +311,7 @@ pub fn run() {
                 // 避免同 label 重建窗口时被上一世的吸附态劫持
                 WindowEvent::Destroyed => {
                     window_dock::cleanup(window.label(), window.app_handle());
+                    window_stealth::cleanup(window.label(), window.app_handle());
                     // 弹幕窗口销毁时清理表情面板残留状态，避免同 label 重建后被上一世劫持
                     if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
                         let state = window.app_handle().state::<AppState>();
@@ -377,6 +383,8 @@ pub fn run() {
             window_dock::dock_collapse,
             window_dock::dock_exit,
             window_dock::get_dock_state,
+            window_stealth::set_danmaku_stealth,
+            window_stealth::get_danmaku_stealth,
             commands::room::get_audio_stream_url,
             commands::room::clear_audio_stream,
             commands::room::get_rooms_live_status,

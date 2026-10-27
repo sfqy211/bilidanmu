@@ -215,6 +215,9 @@ pub struct TitleBarButtons {
     /// 窗口透传
     #[serde(default = "default_true")]
     pub passthrough: bool,
+    /// 隐身（鼠标离开自动隐藏）
+    #[serde(default = "default_true")]
+    pub stealth: bool,
     /// 隐藏到托盘（关闭按钮）
     #[serde(default = "default_true")]
     pub close: bool,
@@ -230,6 +233,7 @@ impl Default for TitleBarButtons {
             lock: true,
             input_only: true,
             passthrough: true,
+            stealth: true,
             close: true,
             room_switcher: true,
         }

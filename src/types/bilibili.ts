@@ -263,6 +263,8 @@ export interface TitleBarButtons {
   inputOnly: boolean;
   /** 窗口透传 */
   passthrough: boolean;
+  /** 隐身（鼠标离开自动隐藏） */
+  stealth: boolean;
   /** 隐藏到托盘（关闭按钮） */
   close: boolean;
   /** 房间切换胶囊 */

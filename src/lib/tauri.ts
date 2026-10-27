@@ -160,6 +160,10 @@ export const tauriCommands = {
     getState: (label: string) =>
       invoke<{ phase: "normal" | "collapsed" | "expanded" | "collapsing"; side?: "left" | "right" | "top" }>("get_dock_state", { label })
   },
+  stealth: {
+    set: (enabled: boolean) => invoke<boolean>("set_danmaku_stealth", { enabled }),
+    get: () => invoke<{ enabled: boolean; visible: boolean }>("get_danmaku_stealth")
+  },
   proxy: {
     image: (url: string, persistent?: boolean) =>
       invoke<string>("proxy_image", { url, persistent: persistent ?? false }),
