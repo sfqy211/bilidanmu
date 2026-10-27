@@ -139,3 +139,55 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  # 官网下载按钮走 releases/latest/download/<资产名> 直链，资产名必须恒定。
+  # Tauri 打包器的产物名固定带版本号且不可配置，本任务统一改名：上传不带版本号
+  # 的资产后删除带版本号的原件——版本信息由 tag 和 release 标题承载，页面更干净。
+  stable-asset-names:
+    needs: publish
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Rename release assets without version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          VERSION=$(grep -oP '"version":\s*"\K[^"]+' src-tauri/tauri.conf.json)
+          TAG="app-v$VERSION"
+          mkdir assets && cd assets
+          gh release download "$TAG" \
+            --pattern 'BiliDanmu_*_x64-setup.exe' \
+            --pattern 'BiliDanmu_*_universal.dmg' \
+            --pattern 'BiliDanmu_*_amd64.AppImage' \
+            --pattern 'BiliDanmu_*_x64_en-US.msi' \
+            --pattern 'BiliDanmu_*_universal.app.tar.gz' \
+            --pattern 'BiliDanmu_*_amd64.deb' \
+            --pattern 'BiliDanmu-*.x86_64.rpm'
+          mv BiliDanmu_*_x64-setup.exe       BiliDanmu-x64-setup.exe
+          mv BiliDanmu_*_universal.dmg       BiliDanmu-universal.dmg
+          mv BiliDanmu_*_amd64.AppImage      BiliDanmu-amd64.AppImage
+          mv BiliDanmu_*_x64_en-US.msi       BiliDanmu-x64_en-US.msi
+          mv BiliDanmu_*_universal.app.tar.gz BiliDanmu-universal.app.tar.gz
+          mv BiliDanmu_*_amd64.deb           BiliDanmu_amd64.deb
+          mv BiliDanmu-*.x86_64.rpm          BiliDanmu.x86_64.rpm
+          gh release upload "$TAG" --clobber \
+            BiliDanmu-x64-setup.exe BiliDanmu-universal.dmg BiliDanmu-amd64.AppImage \
+            BiliDanmu-x64_en-US.msi BiliDanmu-universal.app.tar.gz \
+            BiliDanmu_amd64.deb BiliDanmu.x86_64.rpm
+          # 固定名副本已就位，删除带版本号的原件
+          for name in \
+            "BiliDanmu_${VERSION}_x64-setup.exe" \
+            "BiliDanmu_${VERSION}_universal.dmg" \
+            "BiliDanmu_${VERSION}_amd64.AppImage" \
+            "BiliDanmu_${VERSION}_x64_en-US.msi" \
+            "BiliDanmu_${VERSION}_universal.app.tar.gz" \
+            "BiliDanmu_${VERSION}_amd64.deb" \
+            "BiliDanmu-${VERSION}-1.x86_64.rpm"
+          do
+            ID=$(gh api "repos/$GH_REPO/releases/tags/$TAG" --jq ".assets[] | select(.name==\"$name\") | .id")
+            if [ -n "$ID" ]; then gh api -X DELETE "repos/$GH_REPO/releases/assets/$ID"; fi
+          done
