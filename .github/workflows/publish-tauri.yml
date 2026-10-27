@@ -73,7 +73,21 @@ jobs:
     if: needs.check.outputs.should_build == 'true'
     permissions:
       contents: write
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # universal = 一个 dmg 同时覆盖 Apple Silicon 和 Intel
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          # 22.04 而非 24.04：AppImage 工具链兼容 + 产物 glibc 向下兼容更老的发行版
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: --target x86_64-pc-windows-msvc
+            rust-targets: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout repository
@@ -85,16 +99,22 @@ jobs:
           node-version: lts/*
           cache: npm
 
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.rust-targets }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
-          key: x86_64-pc-windows-msvc
+          key: ${{ matrix.platform }}
 
       - name: Install frontend dependencies
         run: npm ci
@@ -116,4 +136,4 @@ jobs:
           releaseBody: ${{ needs.changelog.outputs.body }}
           releaseDraft: false
           prerelease: false
-          args: --target x86_64-pc-windows-msvc
+          args: ${{ matrix.args }}
