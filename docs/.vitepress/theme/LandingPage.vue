@@ -162,7 +162,7 @@ onBeforeUnmount(() => {
             <ul class="lp-tick-list"><li>背景不透明度 10–100% 自由调整</li><li>窗口置顶、锁定与点击穿透</li><li>大小、位置，下次打开还记得</li></ul>
             <a class="lp-text-link" :href="base('/guide/quick-start#_4-把窗口放到顺手的位置')">了解桌面操作 <span aria-hidden="true">↗</span></a>
           </div>
-          <div class="lp-demo-wrap"><DesktopDemo mode="opacity" :progress="progress.transparent" :reduced="reduced"/><p class="lp-demo-caption"><span>滚动试看透明变化</span><span>也可以亲手拖动滑块</span></p></div>
+          <div class="lp-demo-wrap"><DesktopDemo mode="opacity" :progress="progress.transparent" :reduced="reduced"/><p class="lp-demo-caption"><span>随滚动实时变化</span><span>10–100% 全程可感知</span></p></div>
         </div>
       </section>
 

@@ -10,7 +10,6 @@ const props = withDefaults(defineProps<{
 
 const viewport = ref<HTMLDivElement | null>(null)
 const scale = ref(1)
-const manualOpacity = ref<number | null>(null)
 const manualDock = ref<boolean | null>(null)
 let resizeObserver: ResizeObserver | undefined
 
@@ -34,11 +33,11 @@ const progress = computed(() => clamp(props.progress))
 const automaticOpacity = computed(() => {
   if (props.reduced) return 64
   const p = progress.value
-  if (p <= 0.14) return 92
-  if (p < 0.56) return blend(92, 28, (p - 0.14) / 0.42)
-  return blend(28, 64, (p - 0.56) / 0.32)
+  // 向下滚动从 100% 一路变到 10%：透出的桌面越来越清楚，变化全程可感知
+  if (p < 0.12) return 100
+  return Math.round(blend(100, 10, smooth((p - 0.12) / 0.55)))
 })
-const opacity = computed(() => Math.round(manualOpacity.value ?? automaticOpacity.value))
+const opacity = computed(() => automaticOpacity.value)
 const automaticOpen = computed(() => {
   if (props.reduced) return 1
   // 滚动单调驱动：向下滚 = 侧边栏从右往左滑出，向上滚 = 收回。区间过后保持，回滚反向。
@@ -48,7 +47,7 @@ const automaticOpen = computed(() => {
 })
 const openAmount = computed(() => props.mode === 'opacity' ? 1 : manualDock.value === null ? automaticOpen.value : Number(manualDock.value))
 const state = computed(() => props.mode === 'opacity' ? 'visible' : openAmount.value >= 0.98 ? 'expanded' : openAmount.value <= 0.02 ? 'collapsed' : 'sliding')
-const isManual = computed(() => props.mode === 'opacity' ? manualOpacity.value !== null : manualDock.value !== null)
+const isManual = computed(() => props.mode === 'dock' && manualDock.value !== null)
 const backgroundOpacity = computed(() => props.mode === 'opacity' ? opacity.value / 100 : 0.83)
 const paneTransform = computed(() => `translate3d(${(1 - openAmount.value) * 370}px,0,0)`)
 const cursor = computed(() => {
@@ -66,11 +65,7 @@ const dockHint = computed(() => {
   return '向下滚动，侧边栏从右滑出；向上滚动收回。'
 })
 
-function updateOpacity(event: Event) {
-  const value = Number((event.target as HTMLInputElement).value)
-  manualOpacity.value = Math.max(10, Math.min(100, value))
-}
-function reset() { manualOpacity.value = null; manualDock.value = null }
+function reset() { manualDock.value = null }
 function expand() { if (props.mode === 'dock') manualDock.value = true }
 function collapse() {
   if (props.mode !== 'dock') return
@@ -134,7 +129,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
         <div
           class="danmaku-pane"
           :class="{ 'manual-motion': isManual && !reduced }"
-          :style="{ transform: paneTransform }"
+          :style="{ transform: paneTransform, boxShadow: `0 10px 32px rgba(32,60,82,${0.12 * (backgroundOpacity + 0.15)})` }"
           :data-state="state"
           role="group"
           aria-label="直播弹幕窗口演示"
@@ -162,15 +157,14 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 
     <div class="demo-controls">
       <template v-if="mode === 'opacity'">
-        <label class="opacity-control"><span>窗口背景</span><input type="range" min="10" max="100" step="1" :value="opacity" aria-label="弹幕窗口背景不透明度" :aria-valuetext="`${opacity}%`" @input="updateOpacity"><output>{{ opacity }}%</output></label>
-        <span v-if="!isManual" class="control-note">{{ reduced ? '拖动滑块，自由调整' : '随滚动变化 · 也可拖动试试' }}</span>
+        <span class="opacity-readout">窗口背景 <output>{{ opacity }}%</output></span>
+        <span class="control-note">随滚动实时变化</span>
       </template>
       <template v-else>
         <p class="dock-hint">{{ dockHint }}</p>
         <button type="button" class="text-control" @click="state === 'collapsed' ? expand() : collapse()">{{ state === 'collapsed' ? '展开窗口' : '收起窗口' }}</button>
+        <button v-if="isManual && !reduced" type="button" class="reset-control" @click="reset">继续滚动演示 <span aria-hidden="true">↗</span></button>
       </template>
-      <button v-if="isManual && !reduced" type="button" class="reset-control" @click="reset">继续滚动演示 <span aria-hidden="true">↗</span></button>
-      <button v-else-if="isManual && reduced && mode === 'opacity'" type="button" class="reset-control" @click="reset">恢复默认</button>
     </div>
   </div>
 </template>
@@ -248,10 +242,8 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 .demo-cursor { position: absolute; left: 0; top: 0; width: 23px; height: 30px; pointer-events: none; overflow: visible; filter: drop-shadow(0 2px 2px #24405f30); }
 .demo-cursor path { fill: #fdfefe; stroke: #465667; stroke-width: 1.2; stroke-linejoin: round; }
 .demo-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 20px; padding: 16px 2px 0; min-height: 46px; font-size: 12px; }
-.opacity-control { display: flex; flex: 1 1 260px; max-width: 410px; align-items: center; gap: 14px; }
-.opacity-control > span { flex-shrink: 0; color: var(--demo-muted); }
-.opacity-control input { display: block; min-width: 50px; flex: 1; height: 28px; margin: 0; accent-color: var(--demo-accent); cursor: pointer; }
-.opacity-control output { width: 35px; text-align: right; font-variant-numeric: tabular-nums; color: var(--demo-ink); }
+.opacity-readout { display: flex; align-items: center; gap: 10px; color: var(--demo-muted); }
+.opacity-readout output { min-width: 44px; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; color: var(--demo-ink); }
 .control-note, .dock-hint { color: var(--demo-muted); line-height: 1.7; }
 .dock-hint { flex: 1 1 220px; margin: 0; font-size: 12px; }
 .demo-controls button { min-height: 38px; padding: 4px 0; border: 0; background: transparent; font: inherit; color: var(--demo-accent); cursor: pointer; white-space: nowrap; }
@@ -263,7 +255,6 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 @media (max-width: 600px) {
   .desktop-viewport { border-radius: 8px; }
   .demo-controls { gap: 4px 16px; padding-top: 10px; }
-  .opacity-control { flex-basis: 100%; max-width: none; }
   .control-note { font-size: 10px; }
   .dock-hint { flex-basis: 100%; font-size: 11px; }
 }
