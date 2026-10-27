@@ -102,6 +102,8 @@ jobs:
       - name: Install Linux build dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
+          # Azure 官方镜像源偶发长时间卡死，换 kernel.org 镜像并启用快速超时重试
+          sudo sed -i 's|azure.archive.ubuntu.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install -y -o Acquire::Retries=10 -o Acquire::http::Timeout=30 libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
