@@ -119,6 +119,8 @@ pub(crate) fn reveal_current_window(app: &AppHandle) {
 fn toggle_window(window: &tauri::WebviewWindow) {
     if window.is_visible().unwrap_or(false) {
         // 隐藏前若前台仍是本窗口，把焦点还给唤起时的工作窗口
+        // （hwnd 是 Windows 专属 API；其余平台 focus::restore 本就是空实现）
+        #[cfg(target_os = "windows")]
         if let Ok(hwnd) = window.hwnd() {
             crate::focus::restore(hwnd.0 as isize);
         }
