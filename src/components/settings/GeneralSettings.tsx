@@ -8,8 +8,11 @@ export function GeneralSettings({ settings, patchSettings }: SettingsPanelProps)
         <SettingsChoice title="关闭主窗口时" description="弹幕窗口关闭时始终隐藏到托盘；断开直播间请使用退出按钮。"
           value={settings.closeBehavior} onChange={(closeBehavior) => patchSettings({ closeBehavior: closeBehavior as Settings["closeBehavior"] })}
           options={[{ value: "ask", label: "每次询问" }, { value: "hide", label: "隐藏到托盘" }, { value: "exit", label: "退出程序" }]} />
-        <SettingsToggle title="静默启动" description="启动后不显示主页面，只在系统托盘常驻；可从托盘菜单选择直播间进入。下次启动生效。"
+        <SettingsToggle title="静默启动" description="启动后不显示主页面，只在系统托盘常驻；可从托盘菜单选择直播间进入。下次启动生效。优先级高于启动重心。"
           checked={settings.silentStart} onChange={(silentStart) => patchSettings({ silentStart })} />
+        <SettingsChoice title="启动重心" description="弹幕窗口为重心：启动直接连接上次房间并显示弹幕窗，主窗口可从弹幕窗标题栏按钮唤出。下次启动生效。"
+          value={settings.startupFocus} onChange={(startupFocus) => patchSettings({ startupFocus: startupFocus as Settings["startupFocus"] })}
+          options={[{ value: "main", label: "主页面为重心" }, { value: "danmaku", label: "弹幕窗口为重心" }]} />
       </SettingsGroup>
       <SettingsGroup title="界面显示">
         <SettingsToggle title="显示头像" description="在直播间列表、添加主播、账号和视频评论中展示头像。"

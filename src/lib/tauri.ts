@@ -87,6 +87,7 @@ export const tauriCommands = {
       invoke<StreamInfo>("get_audio_stream_url", { roomId }),
     clearAudioStream: () =>
       invoke<void>("clear_audio_stream"),
+    openMainWindow: (page?: string) => invoke<void>("open_main_window", { page }),
     getInputOnly: () => invoke<boolean>("get_danmaku_input_only"),
     setInputOnly: (enabled: boolean) =>
       invoke<boolean>("set_danmaku_input_only", { enabled }),

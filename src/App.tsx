@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
 import type { Credential, Settings } from "@/types/bilibili";
@@ -7,14 +7,17 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
+import { useVideoAudioStore } from "@/stores/video-audio-store";
 import { useTheme } from "@/hooks/useTheme";
 import { useUiScale } from "@/hooks/useUiScale";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useErrorCapture } from "@/hooks/useErrorCapture";
+import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 
 export default function App() {
+  const navigate = useNavigate();
   useTheme();
   useUiScale();
   useErrorCapture();
@@ -99,6 +102,25 @@ export default function App() {
       cancelled = true;
     };
   }, [setAccounts, setActiveAccount, setCurrentRoomId, setRooms, setSettings, setSttAvailable]);
+
+  // 主窗口导航：弹幕窗「打开主窗口」按钮指定落地页
+  useTauriEvent("main-navigate", (page: string) => {
+    if (page) navigate(page);
+  });
+
+  // 音频互斥：开始播放听视频时自动退出直播间，保证同一时间只有一个音频源
+  const videoActive = useVideoAudioStore((state) => state.playing && state.video !== null);
+  const liveRoomId = useDanmakuStore((state) => state.roomId);
+  useEffect(() => {
+    if (!videoActive || liveRoomId === null) return;
+    const roomId = liveRoomId;
+    const timeout = new Promise((resolve) => setTimeout(resolve, 1000));
+    void Promise.race([tauriCommands.ws.disconnect().catch(() => {}), timeout]).then(() => {
+      if (useDanmakuStore.getState().roomId === null) return;
+      tauriCommands.stt.stop().catch(() => {});
+      void tauriCommands.room.exitRoom(roomId).catch(() => {});
+    });
+  }, [videoActive, liveRoomId]);
 
   // 监听托盘事件：房间切换
   useEffect(() => {

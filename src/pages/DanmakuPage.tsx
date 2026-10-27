@@ -10,10 +10,10 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ChevronDown, ClipboardList, Clock, Expand, Eye, Ghost, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { AppWindow, ChevronDown, ClipboardList, Clock, Expand, Eye, Ghost, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { contrastFor, hexToRgbTriplet } from "@/lib/brand-theme";
+import { hexToRgbTriplet } from "@/lib/brand-theme";
 import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -411,15 +411,17 @@ export function DanmakuPage() {
   const compactBar = (danmakuWindow?.functionBar ?? "pinned") === "compact";
   const [barMenuOpen, setBarMenuOpen] = useState(false);
   useEffect(() => { setBarMenuOpen(false); }, [roomId]);
-  // 强调色注入：follow 用全局主题色，custom 用独立色覆写 --brand-rgb（仅弹幕窗 DOM）
+  // 强调色注入：follow 跟随全局主题，custom 用独立色。
+  // 必须写在 document.body 上（而非 documentElement）：applyVisualTheme 会在每次设置变化时
+  // 用主题色重写 html 级的 --brand-rgb-light/dark（effect 顺序在子组件之后，会冲掉覆写）；
+  // body 级的 --brand-rgb 离组件更近，天然屏蔽全局重写，且收起条同在 body 子树内一并生效。
   useEffect(() => {
-    const root = document.documentElement;
+    const body = document.body;
     const custom = danmakuWindow?.accentMode === "custom" ? danmakuWindow.accentColor : null;
     if (custom && /^#[\da-fA-F]{6}$/.test(custom)) {
-      root.style.setProperty("--brand-rgb-light", hexToRgbTriplet(custom));
-      root.style.setProperty("--brand-rgb-dark", hexToRgbTriplet(custom));
-      root.style.setProperty("--brand-contrast-light", contrastFor(custom));
-      root.style.setProperty("--brand-contrast-dark", contrastFor(custom));
+      body.style.setProperty("--brand-rgb", hexToRgbTriplet(custom));
+    } else {
+      body.style.removeProperty("--brand-rgb");
     }
   }, [danmakuWindow?.accentMode, danmakuWindow?.accentColor]);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
@@ -1259,6 +1261,14 @@ export function DanmakuPage() {
         <span className="flex-1 truncate text-sm text-ink-muted dark:text-ink-muted">
           {displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
         </span>
+        <button
+          type="button"
+          onClick={() => void tauriCommands.room.openMainWindow("/settings")}
+          className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
+          title="打开主窗口"
+        >
+          <AppWindow className="h-3.5 w-3.5" />
+        </button>
         {showBtn("pin") && (
 <button
           type="button"

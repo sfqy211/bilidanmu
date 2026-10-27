@@ -502,6 +502,9 @@ pub struct Settings {
     /// 静默启动：启动时不显示主页面，只在系统托盘常驻
     #[serde(default)]
     pub silent_start: bool,
+    /// 启动重心：main 主页面为重心（现状）/ danmaku 弹幕窗口为重心（启动直达弹幕窗）
+    #[serde(default = "default_startup_focus")]
+    pub startup_focus: String,
     /// 在直播间列表、添加主播、账号与视频评论中展示头像
     #[serde(default)]
     pub show_avatars: bool,
@@ -509,6 +512,10 @@ pub struct Settings {
 
 fn default_close_behavior() -> String {
     "ask".into()
+}
+
+fn default_startup_focus() -> String {
+    "main".into()
 }
 
 impl Default for Settings {
@@ -568,6 +575,7 @@ impl Default for Settings {
             shortcuts: ShortcutsSetting::default(),
             close_behavior: default_close_behavior(),
             silent_start: false,
+            startup_focus: default_startup_focus(),
             show_avatars: true,
         }
     }

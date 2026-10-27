@@ -337,6 +337,8 @@ export interface Settings {
   /** 关闭主窗口行为：ask（每次询问）/ hide（隐藏到托盘）/ exit（退出程序） */
   shortcuts: ShortcutsSetting;
   closeBehavior: "ask" | "hide" | "exit";
+  /** 启动重心：main 主页面为重心 / danmaku 弹幕窗口为重心（启动直达弹幕窗） */
+  startupFocus: "main" | "danmaku";
   /** 静默启动：启动时不显示主页面，只在系统托盘常驻 */
   silentStart: boolean;
   /** 在直播间列表、添加主播、账号与视频评论中展示头像 */
