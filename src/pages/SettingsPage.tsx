@@ -62,17 +62,19 @@ export function SettingsPage() {
     } catch (reason) { setSaveError(`保存失败：${String(reason)}`); }
     finally { setSaving(false); }
   };
+  // 自动保存：改动停稳 600ms 后落盘，无需手动点击
+  useEffect(() => {
+    if (!dirty || loading || loadError) return;
+    const timer = setTimeout(() => { void save(); }, 600);
+    return () => clearTimeout(timer);
+  });
 
   return (
     <section className="settings-workspace flex h-full min-h-0 flex-col select-none">
       <PageHeader title="设置" actions={
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-ink-muted" role="status">{loading ? "加载中…" : dirty ? "有未保存的更改" : saved !== null ? "设置已保存" : ""}</span>
-          <button type="button" onClick={() => void save()} disabled={loading || saving || !!loadError || !dirty}
-            className="inline-flex h-8 items-center rounded-md bg-brand px-3 text-[13px] font-medium text-brand-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-            {saving ? "保存中…" : "保存设置"}
-          </button>
-        </div>
+        <span className="text-xs text-ink-muted" role="status">
+          {loading ? "加载中…" : saveError ? "自动保存失败，修改任意设置将重试" : saving ? "正在保存…" : dirty ? "即将自动保存…" : saved !== null ? "已自动保存" : ""}
+        </span>
       } />
       {saveError && <p className="mb-3 text-xs text-rose-600 dark:text-rose-300" role="alert">{saveError}</p>}
       <Tabs.Root value={activeCategory} onValueChange={setActiveCategory} orientation="vertical" className="settings-layout min-h-0 flex-1">
@@ -98,7 +100,7 @@ export function SettingsPage() {
                   <button type="button" className="settings-action" onClick={() => setReloadKey((key) => key + 1)}>重新加载</button>
                 </div>
               ) : (
-                <fieldset disabled={saving} className="min-w-0 space-y-6">
+                <fieldset className="min-w-0 space-y-6">
                   <Panel settings={settings} patchSettings={patchSettings} />
                 </fieldset>
               )}
@@ -106,7 +108,6 @@ export function SettingsPage() {
           ))}
         </div>
       </Tabs.Root>
-      {dirty && <p className="mt-3 text-xs text-ink-muted">外观修改可即时预览，点击“保存设置”后下次启动仍会保留。</p>}
     </section>
   );
 }
