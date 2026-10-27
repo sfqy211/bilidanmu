@@ -689,10 +689,14 @@ pub async fn switch_room(
     Ok(())
 }
 
-/// 进入直播间时隐藏主页面（弹幕与主页面互斥，无条件）
+/// 进入直播间时处理主页面：主窗口已隐藏则维持互斥（保持隐藏）；
+/// 主窗口可见（用户已通过弹幕窗「打开主窗口」按钮同屏唤出）则保持可见，
+/// 不打断「主窗口 + 弹幕窗口」并存的调试/使用状态。
 fn hide_main_window(app: &tauri::AppHandle) {
     if let Some(main) = app.get_webview_window("main") {
-        let _ = main.hide();
+        if !main.is_visible().unwrap_or(false) {
+            let _ = main.hide();
+        }
     }
 }
 

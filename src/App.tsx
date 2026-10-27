@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
 import type { Credential, Settings } from "@/types/bilibili";
@@ -18,6 +19,9 @@ import { UpdateDialog } from "@/components/ui/UpdateDialog";
 
 export default function App() {
   const navigate = useNavigate();
+  // 两个 webview 共用本组件：主窗口专属逻辑（导航/音频互斥）必须按窗口身份过滤，
+  // 否则弹幕窗会收到 main-navigate 把自己的路由切到主页面（曾致弹幕窗显示设置页）。
+  const isMainWindow = getCurrentWindow().label === "main";
   useTheme();
   useUiScale();
   useErrorCapture();
@@ -103,16 +107,17 @@ export default function App() {
     };
   }, [setAccounts, setActiveAccount, setCurrentRoomId, setRooms, setSettings, setSttAvailable]);
 
-  // 主窗口导航：弹幕窗「打开主窗口」按钮指定落地页
+  // 主窗口导航：弹幕窗「打开主窗口」按钮指定落地页（仅主窗口响应）
   useTauriEvent("main-navigate", (page: string) => {
-    if (page) navigate(page);
+    if (!isMainWindow || !page) return;
+    navigate(page);
   });
 
   // 音频互斥：开始播放听视频时自动退出直播间，保证同一时间只有一个音频源
   const videoActive = useVideoAudioStore((state) => state.playing && state.video !== null);
   const liveRoomId = useDanmakuStore((state) => state.roomId);
   useEffect(() => {
-    if (!videoActive || liveRoomId === null) return;
+    if (!isMainWindow || !videoActive || liveRoomId === null) return;
     const roomId = liveRoomId;
     const timeout = new Promise((resolve) => setTimeout(resolve, 1000));
     void Promise.race([tauriCommands.ws.disconnect().catch(() => {}), timeout]).then(() => {
