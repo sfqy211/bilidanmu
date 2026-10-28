@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutGrid, List, MonitorPlay, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { LayoutGrid, List, ListChecks, MonitorPlay, Plus, RefreshCw, Search, Star, Trash2, X } from "lucide-react";
+import { FavoriteManageDialog } from "@/components/rooms/FavoriteManageDialog";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { tauriCommands } from "@/lib/tauri";
@@ -10,8 +11,11 @@ import type { Room } from "@/types/bilibili";
 
 export function RoomPage() {
   const navigate = useNavigate();
-  const { rooms, currentRoomId, viewMode, removeRoom, setCurrentRoomId, setViewMode } =
+  const { rooms, currentRoomId, viewMode, favoriteIds, setFavoriteIds, toggleFavorite, removeRoom, setCurrentRoomId, setViewMode } =
     useRoomStore();
+  // 只看收藏：过滤开关（与搜索框可叠加）
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [filterText, setFilterText] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   // 拖拽排序用指针事件实现（mousedown/mousemove/mouseup）：WebView2 的原生文件
@@ -68,15 +72,16 @@ export function RoomPage() {
   const filterQuery = filterText.trim().toLowerCase();
   const filterActive = filterQuery.length > 0;
   const visibleRooms = useMemo(() => {
-    if (!filterActive) return displayRooms;
-    return displayRooms.filter(
+    const base = favoriteOnly ? displayRooms.filter((room) => favoriteIds.includes(room.roomId)) : displayRooms;
+    if (!filterActive) return base;
+    return base.filter(
       (room) =>
         room.uname.toLowerCase().includes(filterQuery) ||
         room.title.toLowerCase().includes(filterQuery) ||
         String(room.roomId).includes(filterQuery) ||
         (room.uid != null && String(room.uid).includes(filterQuery))
     );
-  }, [displayRooms, filterActive, filterQuery]);
+  }, [displayRooms, favoriteOnly, favoriteIds, filterActive, filterQuery]);
 
   // 拖拽预览：拖拽中按预览顺序渲染，否则按筛选后的显示顺序
   const previewRooms = useMemo(() => {
@@ -89,7 +94,7 @@ export function RoomPage() {
 
   const handleDragMouseDown = (room: Room, event: React.MouseEvent) => {
     // 筛选态下顺序语义不完整，禁用拖拽；按在按钮上不启动拖拽，避免误触发点击
-    if (filterActive || event.button !== 0) return;
+    if (filterActive || favoriteOnly || event.button !== 0) return;
     if ((event.target as HTMLElement).closest("button")) return;
 
     const setPreviewOrder = (ids: string[] | null) => {
@@ -155,6 +160,16 @@ export function RoomPage() {
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+  };
+
+  // 收藏切换：更新本地状态并持久化到 selections（本地数据，与账号无关）
+  const handleToggleFavorite = (room: Room) => {
+    const nowFavorite = toggleFavorite(room.roomId);
+    void tauriCommands.selections.save({ favoriteRoomIds: useRoomStore.getState().favoriteIds });
+    if (!nowFavorite && favoriteOnly) {
+      // 只看收藏模式下取消收藏，该房间立即从列表消失
+      setFavoriteIds(useRoomStore.getState().favoriteIds);
+    }
   };
 
   const toggleViewMode = () => {
@@ -230,6 +245,26 @@ export function RoomPage() {
               )}
             </div>
             <button
+              onClick={() => setManageOpen(true)}
+              disabled={favoriteIds.length === 0}
+              className="room-tool-button inline-flex h-8 w-8 shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="管理收藏"
+              title="管理收藏"
+            >
+              <ListChecks className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setFavoriteOnly((v) => !v)}
+              className={`room-tool-button inline-flex h-8 w-8 shrink-0 items-center justify-center ${
+                favoriteOnly ? "text-brand" : ""
+              }`}
+              aria-pressed={favoriteOnly}
+              aria-label={favoriteOnly ? "显示全部直播间" : "只看收藏的直播间"}
+              title={favoriteOnly ? "显示全部直播间" : "只看收藏"}
+            >
+              <Star className={`h-4 w-4 ${favoriteOnly ? "fill-brand" : ""}`} />
+            </button>
+            <button
               onClick={() => void handleRefreshLiveStatus()}
               disabled={refreshing}
               className="room-tool-button ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
@@ -287,7 +322,7 @@ export function RoomPage() {
           </div>
         ) : previewRooms.length === 0 ? (
           <div className="workspace-empty">
-            没有匹配的直播间
+            {favoriteOnly && !filterActive ? "还没有收藏的直播间，点击房间卡片上的星标进行收藏" : "没有匹配的直播间"}
           </div>
         ) : viewMode === "list" ? (
           <div className="app-rise room-list">
@@ -329,6 +364,18 @@ export function RoomPage() {
                   </span>
                   <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     <button
+                      onClick={() => handleToggleFavorite(room)}
+                      className={`flex h-7 w-7 items-center justify-center rounded transition ${
+                        favoriteIds.includes(room.roomId)
+                          ? "text-brand"
+                          : "text-slate-500 hover:bg-brand/10 hover:text-brand dark:text-slate-400 dark:hover:bg-brand/15 dark:hover:text-brand"
+                      }`}
+                      aria-pressed={favoriteIds.includes(room.roomId)}
+                      title={favoriteIds.includes(room.roomId) ? "取消收藏" : "收藏"}
+                    >
+                      <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
+                    </button>
+                    <button
                       onClick={() => {
                         setCurrentRoomId(room.id);
                         void tauriCommands.selections.save({ currentRoomId: room.roomId });
@@ -344,6 +391,7 @@ export function RoomPage() {
                         const wasCurrent = currentRoomId === room.id;
                         await tauriCommands.room.remove(room.roomId);
                         removeRoom(room.roomId);
+                        void tauriCommands.selections.save({ favoriteRoomIds: useRoomStore.getState().favoriteIds });
                         if (wasCurrent) {
                           void tauriCommands.selections.save({ currentRoomId: null });
                         }
@@ -423,6 +471,17 @@ export function RoomPage() {
 
                       <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
+                            onClick={() => handleToggleFavorite(room)}
+                            className={`room-cover-button flex h-7 w-7 items-center justify-center ${
+                              favoriteIds.includes(room.roomId) ? "text-brand" : ""
+                            }`}
+                            aria-label={favoriteIds.includes(room.roomId) ? `取消收藏 ${room.uname}` : `收藏 ${room.uname}`}
+                            aria-pressed={favoriteIds.includes(room.roomId)}
+                            title={favoriteIds.includes(room.roomId) ? "取消收藏" : "收藏"}
+                          >
+                            <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
+                          </button>
+                          <button
                             onClick={() => {
                               setCurrentRoomId(room.id);
                               void tauriCommands.selections.save({ currentRoomId: room.roomId });
@@ -439,6 +498,7 @@ export function RoomPage() {
                               const wasCurrent = currentRoomId === room.id;
                               await tauriCommands.room.remove(room.roomId);
                               removeRoom(room.roomId);
+                              void tauriCommands.selections.save({ favoriteRoomIds: useRoomStore.getState().favoriteIds });
                               if (wasCurrent) {
                                 void tauriCommands.selections.save({ currentRoomId: null });
                               }
@@ -458,6 +518,16 @@ export function RoomPage() {
           </div>
         )}
       </div>
+      <FavoriteManageDialog
+        open={manageOpen}
+        rooms={rooms.filter((room) => favoriteIds.includes(room.roomId))}
+        onRemove={(roomId) => {
+          const next = favoriteIds.filter((id) => id !== roomId);
+          setFavoriteIds(next);
+          void tauriCommands.selections.save({ favoriteRoomIds: next });
+        }}
+        onClose={() => setManageOpen(false)}
+      />
     </section>
   );
 }

@@ -88,6 +88,12 @@ export default function App() {
         if (savedRoomIdString && roomExists) {
           setCurrentRoomId(String(savedRoomId));
         }
+
+        // 收藏列表（本地数据，与账号无关）
+        const favoriteRoomIds = selections.favoriteRoomIds as number[] | undefined;
+        if (Array.isArray(favoriteRoomIds)) {
+          useRoomStore.getState().setFavoriteIds(favoriteRoomIds);
+        }
       } catch {
         // 恢复失败时静默处理
       }
