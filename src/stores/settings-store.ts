@@ -122,7 +122,6 @@ export const defaultSettings: Settings = {
   },
   closeBehavior: "ask",
   silentStart: false,
-  startupFocus: "main",
   showAvatars: true,
   shortcuts: {
     toggleWindow: "Ctrl+Alt+D",

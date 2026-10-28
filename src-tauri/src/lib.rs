@@ -186,42 +186,16 @@ pub fn run() {
             // 主窗口在 tauri.conf.json 里以 visible=false 创建，避免先闪一下再隐藏。
             {
                 let state = app.state::<AppState>();
-                let loaded = settings_store::load_settings(state.inner()).ok();
-                let silent_start = loaded.as_ref().map(|s| s.silent_start).unwrap_or(false);
-                let focus_danmaku = loaded
-                    .as_ref()
-                    .map(|s| s.startup_focus == "danmaku")
+                let silent_start = settings_store::load_settings(state.inner())
+                    .map(|settings| settings.silent_start)
                     .unwrap_or(false);
                 if let Some(main) = app.get_webview_window("main") {
                     if silent_start {
                         let _ = main.hide();
                         log::info!("静默启动：主窗口仅驻留系统托盘");
-                    } else if focus_danmaku {
-                        // 启动重心=弹幕窗口：主窗口保持隐藏，由下方直达弹幕窗取代
-                        let _ = main.hide();
                     } else {
                         let _ = main.show();
                         let _ = main.set_focus();
-                    }
-                }
-
-                // 弹幕窗口为重心：存在上次房间时直接创建并显示弹幕窗（静默启动优先级更高）
-                if focus_danmaku && !silent_start {
-                    if let Ok(values) = crate::selections_store::load_values(state.inner(), &["currentRoomId".to_string()]) {
-                        if let Some(room_id) = values.get("currentRoomId").and_then(|v| v.as_u64()) {
-                            let app_handle = app.handle().clone();
-                            tauri::async_runtime::spawn(async move {
-                                let result = {
-                                    let state = app_handle.state::<AppState>();
-                                    commands::room::open_danmaku_window(app_handle.clone(), room_id, state).await
-                                };
-                                if let Err(e) = result {
-                                    log::warn!("启动直达弹幕窗失败: {e}");
-                                } else {
-                                    log::info!("启动重心=弹幕窗口：已直达房间 {room_id}");
-                                }
-                            });
-                        }
                     }
                 }
             }
@@ -385,7 +359,6 @@ pub fn run() {
             commands::room::update_favorite_order,
             commands::room::open_danmaku_window,
             commands::room::switch_room,
-            commands::room::open_main_window,
             commands::room::get_danmaku_input_only,
             commands::room::set_danmaku_input_only,
             commands::room::set_danmaku_input_only_emotes,

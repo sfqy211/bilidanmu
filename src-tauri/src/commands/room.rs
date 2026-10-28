@@ -360,25 +360,6 @@ async fn create_danmaku_window(
 }
 
 /// 查询弹幕窗口是否处于「仅输入框」紧凑模式
-/// 唤出主窗口并可导航到指定页面：弹幕窗「主窗口」按钮使用。
-/// 主窗口与弹幕窗同屏（弹幕窗置顶，不遮挡主窗操作）。
-#[tauri::command]
-pub fn open_main_window(app: tauri::AppHandle, page: Option<String>) -> Result<(), String> {
-    let Some(window) = app.get_webview_window("main") else {
-        return Err("主窗口不存在".into());
-    };
-    let _ = window.unminimize();
-    let _ = window.show();
-    let _ = window.set_focus();
-    if let Some(page) = page {
-        if !page.is_empty() {
-            use tauri::Emitter;
-            let _ = app.emit_to("main", "main-navigate", page);
-        }
-    }
-    Ok(())
-}
-
 #[tauri::command]
 pub fn get_danmaku_input_only(state: State<'_, AppState>) -> bool {
     state
