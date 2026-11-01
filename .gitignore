@@ -11,8 +11,8 @@ node_modules/
 dist/
 .vite/
 docs/node_modules/
-docs/.vitepress/dist/
-docs/.vitepress/cache/
+docs/build/
+docs/.docusaurus/
 
 # 日志 / 缓存
 *.log
@@ -29,7 +29,7 @@ src-tauri/models/
 .agents/
 .zcodeignore
 promo/
-design/
+/design/
 .zcode/
 
 # 本地临时测试，保留测试开发指南

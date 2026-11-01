@@ -32,7 +32,7 @@
 - `src-tauri/` is the Tauri/Rust app. `tauri.conf.json` starts the renderer with `beforeDevCommand: npm run dev:renderer` and builds it with `beforeBuildCommand: npm run build:renderer`.
 - Path alias `@/*` points to `src/*`.
 - 本地参考项目在 `D:\AHEU\code\reference`（bilibili-API-collect 协议文档、live-moyu 悬浮输入框/紧凑窗、JLiverTool 协议解析/SEND_GIFT_V2 等）；遇到协议或接口问题先查本地参考项目，再联网搜索。
-- `docs/` is the VitePress documentation site. Run `npm run dev` in `docs/` to start the docs dev server.
+- `docs/` is the Docusaurus documentation site. Run `npm run dev` in `docs/` to start the docs dev server.
 
 ## Architecture facts that affect edits
 - Frontend boots from `src/main.tsx` with React Router + Zustand; `src/App.tsx` restores login, settings, rooms, and the saved room on startup. Also listens for tray events (`room-switched`, `account-switched`) to sync state.
@@ -58,7 +58,7 @@
 - `.danmaku-btn-active` for emerald background on active state buttons.
 
 ## Existing repo instructions worth preserving
-- `docs/` directory contains the VitePress documentation site (user guides, architecture, API reference).
+- `docs/` directory contains the Docusaurus documentation site (user guides, architecture, API reference).
 
 ## Commit policy (hard rule, user-mandated)
 - **NEVER run `git commit` unless the user explicitly asks for a commit in their current message.** Implementing, finishing, or verifying a task is NOT commit consent. Leave changes in the working tree; the user commits (or asks) themselves.

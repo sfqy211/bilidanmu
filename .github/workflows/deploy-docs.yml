@@ -1,6 +1,6 @@
 name: Deploy Docs
 
-# 文档站（VitePress）自动部署到 GitHub Pages：
+# 文档站（Docusaurus）自动部署到 GitHub Pages：
 # 推送到 main 且涉及 docs/ 或本工作流时触发，改动其他文件不重建。
 
 on:
@@ -42,16 +42,13 @@ jobs:
 
       - name: Build
         working-directory: docs
-        env:
-          # Pages 构建：base=/bilidanmu/，cleanUrls 关闭（Pages 不支持无扩展名路由）
-          DOCS_PAGES: "1"
         run: npm run build
 
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/.vitepress/dist
+          path: docs/build
 
   deploy:
     runs-on: ubuntu-latest

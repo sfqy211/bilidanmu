@@ -1,0 +1,12 @@
+{
+  "extends": "@docusaurus/tsconfig",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../src/*"]
+    },
+    "jsx": "react-jsx",
+    "strict": true
+  },
+  "exclude": ["node_modules", "build", ".docusaurus"]
+}

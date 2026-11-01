@@ -102,15 +102,15 @@ tests/                        测试（测试手册 + 场景脚本，见 tests/R
 
 ## 文档
 
-`docs/` 目录包含 VitePress 文档站：
+`docs/` 目录包含 Docusaurus 文档站：
 
 | 目录 | 说明 |
 | --- | --- |
-| [docs/guide/](docs/guide/) | 用户指南（快速开始、功能介绍、使用教程） |
-| [docs/architecture/](docs/architecture/) | 技术架构（架构总览、项目结构、数据流） |
-| [docs/api/](docs/api/) | API 参考（B 站 API、IPC 命令、事件列表） |
-| [docs/design/](docs/design/) | 设计规范（设计风格、页面布局） |
-| [docs/research/](docs/research/) | 技术调研（协议调研、方案选型） |
+| [docs/docs/guide/](docs/docs/guide/) | 用户指南（快速开始、功能介绍、使用教程） |
+| [docs/docs/architecture/](docs/docs/architecture/) | 技术架构（架构总览、项目结构、数据流） |
+| [docs/docs/api/](docs/docs/api/) | API 参考（B 站 API、IPC 命令、事件列表） |
+| [docs/docs/design/](docs/docs/design/) | 设计规范（设计风格、页面布局） |
+| [docs/docs/research/](docs/docs/research/) | 技术调研（协议调研、方案选型） |
 
 本地预览：`cd docs && npm install && npm run dev`
 
