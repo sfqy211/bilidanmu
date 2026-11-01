@@ -1,0 +1,4 @@
+/* 只引入工具类；preflight 在 docs/tailwind.config.js 里关闭，
+   避免重置 VitePress 的全局样式。important 选择器把工具类限定在首页内。 */
+@tailwind components;
+@tailwind utilities;
