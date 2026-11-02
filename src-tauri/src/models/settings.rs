@@ -121,8 +121,8 @@ pub struct AppearanceSetting {
     /// 活动栏过滤：all / entry / like
     #[serde(default)]
     pub activity_filter: ActivityFilter,
-    /// 是否在弹幕栏额外显示简化版醒目留言
-    #[serde(default)]
+    /// 是否在弹幕栏额外显示简化版醒目留言（默认开启：SC 同时出现在礼物栏与弹幕栏）
+    #[serde(default = "default_true")]
     pub sc_in_danmaku: bool,
     /// 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画
     #[serde(default = "default_dock_anim_ms")]

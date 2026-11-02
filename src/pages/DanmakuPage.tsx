@@ -544,9 +544,11 @@ export function DanmakuPage() {
       (m.type === "guard" && showGuard);
     if (!isGiftType) return false;
     if (batteryFilter > 0) {
-      // 电池筛选: 10电池=1元, price单位是金瓜子(1元=1000金瓜子)
-      const msgBatteries = ((m.price ?? 0) / 1000) * 10;
-      return msgBatteries >= batteryFilter;
+      // 电池筛选：10 电池 = 1 元。礼物 price 单位是金瓜子（1元=1000金瓜子），
+      // SC 的 price 是人民币直传，两者口径不同需分开折算
+      const yuan =
+        m.type === "superChat" ? (m.price ?? 0) : ((m.price ?? 0) / 1000);
+      return yuan * 10 >= batteryFilter;
     }
     return true;
   }), [storeGiftMessages, showGift, showSuperChat, showGuard, batteryFilter]);

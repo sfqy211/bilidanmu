@@ -71,7 +71,7 @@ export const defaultSettings: Settings = {
     emoticonStyle: "image",
     activityBarMode: "latest",
     activityFilter: "all",
-    scInDanmaku: false,
+    scInDanmaku: true,
     dockAnimMs: 220,
     themeAccentLight: "#E11D48",
     themeAccentDark: "#FB7185",

@@ -138,7 +138,8 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
         return parse_interact_word_v2(command, room_id);
     }
 
-    if cmd == "SUPER_CHAT_MESSAGE" {
+    // JPN 是日语/双语 SC 变体，payload 结构与 SUPER_CHAT_MESSAGE 一致（仅多 message_jpn）
+    if cmd == "SUPER_CHAT_MESSAGE" || cmd == "SUPER_CHAT_MESSAGE_JPN" {
         return parse_super_chat(command, room_id);
     }
 
@@ -802,12 +803,28 @@ fn parse_pb_fans_medal(data: &[u8]) -> (Option<Medal>, u8) {
 }
 
 fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
-    let data = command.get("data")?;
-    let user_info = data.get("user_info")?;
+    // 硬性字段缺失整条丢弃时必须留痕：协议若迁移字段名（如 user_info → uinfo，
+    // 已有 INTERACT_WORD_V2 / SEND_GIFT_V2 先例），无日志将表现为"SC 全部不显示"且无从排查
+    let Some(data) = command.get("data") else {
+        log::warn!("SC(room={room_id}) 缺少 data 字段，整条丢弃");
+        return None;
+    };
+    let Some(user_info) = data.get("user_info") else {
+        log::warn!("SC(room={room_id}) 缺少 data.user_info 字段，整条丢弃");
+        return None;
+    };
     let gift = data.get("gift");
-    let username = user_info.get("uname")?.as_str()?.to_string();
+    let Some(username) = user_info.get("uname").and_then(Value::as_str) else {
+        log::warn!("SC(room={room_id}) 缺少 user_info.uname 字段，整条丢弃");
+        return None;
+    };
+    let username = username.to_string();
     let uid = data.get("uid").and_then(value_as_u64).unwrap_or(0);
-    let content = data.get("message")?.as_str()?.to_string();
+    let Some(content) = data.get("message").and_then(Value::as_str) else {
+        log::warn!("SC(room={room_id}) 缺少 data.message 字段，整条丢弃");
+        return None;
+    };
+    let content = content.to_string();
     let timestamp = data.get("start_time").and_then(value_as_u64).unwrap_or(0);
     let id = data
         .get("id")
@@ -1066,5 +1083,50 @@ mod tests {
         let events = parse_danmaku_events(&body, 999);
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_type, "preparing");
+    }
+
+    #[test]
+    fn parse_super_chat_jpn_variant() {
+        // 回归：JPN 是 SC 的日语/双语变体，此前精确匹配漏掉导致该类房间 SC 不显示。
+        // 样本取自 bilibili-API-collect message_stream.md 的 SUPER_CHAT_MESSAGE_JPN 示例
+        let body = json!({
+            "cmd": "SUPER_CHAT_MESSAGE_JPN",
+            "data": {
+                "id": "3790747",
+                "uid": "394060741",
+                "price": 30,
+                "message": "棉花！！转盘中了武器后，上号30抽3武器，救命！！！",
+                "background_color": "#EDF5FF",
+                "background_price_color": "#7497CD",
+                "background_bottom_color": "#2A60B2",
+                "start_time": 1_650_363_318u64,
+                "medal_info": {
+                    "target_id": 1_871_001,
+                    "anchor_roomid": 103,
+                    "medal_level": 24,
+                    "medal_name": "棉花花",
+                    "medal_color": "#1a544b"
+                },
+                "user_info": {
+                    "uname": "改了名真的能中吗",
+                    "face": "http://i1.hdslb.com/bfs/face/e2391f132cd981fb70468a8ce9418513e959eb10.jpg",
+                    "guard_level": 3
+                },
+                "gift": { "num": 1, "gift_id": 12000, "gift_name": "醒目留言" }
+            },
+            "roomid": "34348"
+        });
+        let events = parse_danmaku_events(&body, 34348);
+        assert_eq!(events.len(), 1);
+        let event = &events[0];
+        assert_eq!(event.event_type, "superChat");
+        assert_eq!(event.room_id, 34348);
+        assert_eq!(event.username, "改了名真的能中吗");
+        assert_eq!(event.price, Some(30));
+        assert_eq!(event.timestamp, 1_650_363_318);
+        assert!(event.content.contains("棉花"));
+        let medal = event.medal.as_ref().expect("medal expected");
+        assert_eq!(medal.name, "棉花花");
+        assert_eq!(medal.level, 24);
     }
 }
