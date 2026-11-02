@@ -12,7 +12,10 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
   const rooms = useRoomStore((state) => state.rooms);
   const [open, setOpen] = useState(false);
   // null = 未拉取/拉取失败；{} = 已拉取但无人开播
-  const [liveStatus, setLiveStatus] = useState<Record<string, boolean> | null>(null);
+  const [liveStatus, setLiveStatus] = useState<Record<
+    string,
+    { isLive: boolean; title: string }
+  > | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +56,7 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
   const liveRooms = useMemo(
     () =>
       liveStatus
-        ? rooms.filter((room) => room.uid != null && liveStatus[String(room.uid)] === true)
+        ? rooms.filter((room) => room.uid != null && liveStatus[String(room.uid)]?.isLive === true)
         : [],
     [rooms, liveStatus],
   );
@@ -100,25 +103,34 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
             ) : (
               liveRooms.map((room) => {
                 const isCurrent = room.roomId === roomId;
+                const liveTitle = liveStatus[String(room.uid)]?.title?.trim() ?? "";
+                const displayTitle = liveTitle || room.title;
                 return (
                   <button
                     key={room.roomId}
                     type="button"
                     onClick={() => void handleSelect(room.roomId)}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition ${
+                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs transition ${
                       isCurrent
                         ? "bg-pink-50 dark:bg-pink-500/10"
                         : "hover:bg-slate-100 dark:hover:bg-white/[0.04]"
                     }`}
                   >
-                    <span
-                      className={`min-w-0 flex-1 truncate ${
-                        isCurrent
-                          ? "font-medium text-pink-600 dark:text-pink-400"
-                          : "text-slate-700 dark:text-slate-200"
-                      }`}
-                    >
-                      {room.uname}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block truncate ${
+                          isCurrent
+                            ? "font-medium text-pink-600 dark:text-pink-400"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        {room.uname}
+                      </span>
+                      {displayTitle && (
+                        <span className="block truncate text-[11px] text-slate-400 dark:text-slate-500">
+                          {displayTitle}
+                        </span>
+                      )}
                     </span>
                     {isCurrent && <Check className="h-3.5 w-3.5 shrink-0 text-pink-500" />}
                   </button>

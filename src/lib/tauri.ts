@@ -93,7 +93,9 @@ export const tauriCommands = {
     setInputOnlyEmotes: (open: boolean) =>
       invoke<boolean>("set_danmaku_input_only_emotes", { open }),
     getRoomsLiveStatus: () =>
-      invoke<Record<string, boolean>>("get_rooms_live_status"),
+      invoke<Record<string, { isLive: boolean; title: string }>>(
+        "get_rooms_live_status"
+      ),
     getLiveTime: (roomId: number) =>
       invoke<number | null>("get_live_time", { roomId }),
     isMockEnabled: () => invoke<boolean>("is_mock_enabled")

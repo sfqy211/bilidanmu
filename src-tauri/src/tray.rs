@@ -199,6 +199,17 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     }
 }
 
+/// 按字符数截断文本（中文按 1 计），超出补省略号；避免超长标题撑爆托盘菜单
+fn truncate_chars(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        text.to_string()
+    } else {
+        let mut out: String = text.chars().take(max_chars).collect();
+        out.push('…');
+        out
+    }
+}
+
 fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let menu = Menu::new(app)?;
 
@@ -258,7 +269,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             .iter()
             .filter(|room| {
                 room.uid
-                    .map(|uid| map.get(&uid).copied().unwrap_or(false))
+                    .map(|uid| map.get(&uid).map(|info| info.is_live).unwrap_or(false))
                     .unwrap_or(false)
             })
             .collect(),
@@ -284,10 +295,22 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         let room_submenu = Submenu::with_id(app, "rooms", "直播间", true)?;
         for room in visible_rooms.into_iter().take(10) {
             let is_current = current_room_id == Some(room.room_id);
+            // 菜单项带上直播间标题：优先轮询缓存的实时标题，退回本地保存的标题
+            let title = room
+                .uid
+                .and_then(|uid| live_status.as_ref().and_then(|map| map.get(&uid)))
+                .map(|info| info.title.clone())
+                .filter(|t| !t.is_empty())
+                .unwrap_or_else(|| room.title.clone());
+            let label = if title.is_empty() {
+                room.uname.clone()
+            } else {
+                format!("{} · {}", room.uname, truncate_chars(&title, 20))
+            };
             let item = CheckMenuItem::with_id(
                 app,
                 format!("room:{}", room.room_id),
-                &room.uname,
+                &label,
                 true,
                 is_current,
                 None::<&str>,

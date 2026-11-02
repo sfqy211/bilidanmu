@@ -754,7 +754,9 @@ pub async fn clear_audio_stream(state: State<'_, AppState>) -> Result<(), String
 }
 
 #[tauri::command]
-pub async fn get_rooms_live_status(state: State<'_, AppState>) -> Result<std::collections::HashMap<u64, bool>, String> {
+pub async fn get_rooms_live_status(
+    state: State<'_, AppState>,
+) -> Result<std::collections::HashMap<u64, crate::models::room::LiveStatusInfo>, String> {
     let rooms = room_store::load_rooms(state.inner())?;
     let uids: Vec<u64> = rooms.iter().filter_map(|r| r.uid).collect();
 
@@ -764,6 +766,7 @@ pub async fn get_rooms_live_status(state: State<'_, AppState>) -> Result<std::co
 
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state);
+    // 带上实时直播间标题：托盘菜单与快速切换 Popover 共用此结果
     api.get_rooms_live_status(&uids).await
 }
 

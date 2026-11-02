@@ -2,7 +2,7 @@ use crate::bili::credential::BiliCredential;
 use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeyCache, WbiKeys};
 use crate::models::account::LoginStatus;
 use crate::models::response::BiliResponse;
-use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomResult};
+use crate::models::room::{Emoticon, EmoticonPackage, LiveStatusInfo, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::{StreamInfo, UrlInfo};
 use regex::Regex;
 use serde_json::Value;
@@ -214,11 +214,11 @@ impl BiliApiClient {
 
     /// 批量查询多个 UID 的直播状态
     ///
-    /// 返回 `HashMap<uid, is_live>`，未查到的 UID 不包含在结果中。
+    /// 返回 `HashMap<uid, LiveStatusInfo>`，未查到的 UID 不包含在结果中。
     pub async fn get_rooms_live_status(
         &self,
         uids: &[u64],
-    ) -> Result<std::collections::HashMap<u64, bool>, String> {
+    ) -> Result<std::collections::HashMap<u64, LiveStatusInfo>, String> {
         if uids.is_empty() {
             return Ok(std::collections::HashMap::new());
         }
@@ -249,7 +249,12 @@ impl BiliApiClient {
                     .and_then(Value::as_u64)
                     .unwrap_or(0)
                     == 1;
-                result.insert(uid, is_live);
+                let title = entry
+                    .get("title")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                result.insert(uid, LiveStatusInfo { is_live, title });
             }
         }
 

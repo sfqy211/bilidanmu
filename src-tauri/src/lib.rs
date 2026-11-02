@@ -73,7 +73,7 @@ pub struct AppState {
     /// 最近一次全局快捷键注册的失败清单（设置页展示；空 = 全部成功）
     pub shortcut_errors: std::sync::Mutex<Vec<String>>,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
-    pub live_status: std::sync::Mutex<Option<HashMap<u64, bool>>>,
+    pub live_status: std::sync::Mutex<Option<HashMap<u64, crate::models::room::LiveStatusInfo>>>,
 }
 
 /// 「仅输入框」模式展开表情面板前保存的紧凑栏几何

@@ -12,6 +12,15 @@ pub struct Room {
     pub sort_order: i64,
 }
 
+/// get_status_info_by_uids 批量查询的单条结果：开播状态 + 直播间标题
+/// （托盘菜单展示用；实时标题随 60s 轮询缓存刷新）
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveStatusInfo {
+    pub is_live: bool,
+    pub title: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoomInfo {

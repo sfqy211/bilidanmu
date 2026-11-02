@@ -48,7 +48,12 @@ export function RoomPage() {
   const refreshLiveStatus = async () => {
     try {
       const status = await tauriCommands.room.getRoomsLiveStatus();
-      setLiveStatusMap(status);
+      // 房间页只关心开播与否（标题用本地保存的），在边界处降到布尔映射
+      const isLiveMap: Record<string, boolean> = {};
+      for (const [uid, info] of Object.entries(status)) {
+        isLiveMap[uid] = info.isLive;
+      }
+      setLiveStatusMap(isLiveMap);
     } catch {
       // 忽略刷新失败
     }
