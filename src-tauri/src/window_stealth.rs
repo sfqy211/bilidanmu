@@ -128,7 +128,12 @@ fn apply_visible(app: &AppHandle, window: &WebviewWindow, visible: bool) {
         }
         runtime.visible = visible;
     }
-    let _ = window.set_ignore_cursor_events(!visible);
+    // 只保证「隐身 ⇒ 整窗穿透」这一安全方向：显态的可交互性交给前端统一裁决
+    // （透传开启时还要看光标是否悬停在交互元素上）。若这里也写 false，
+    // 会与前端透传轮询竞写同一标志，表现为「只有后开启的那个功能生效」。
+    if !visible {
+        let _ = window.set_ignore_cursor_events(true);
+    }
     emit_state(app, &label, visible, true);
 }
 
@@ -153,7 +158,8 @@ pub fn enable(app: &AppHandle, window: &WebviewWindow) -> Result<bool, String> {
         });
     }
 
-    let _ = window.set_ignore_cursor_events(false);
+    // 不写穿透标志：显态下是否穿透由前端统一裁决（透传开关 + 光标命中测试），
+    // 这里写 false 会与前端轮询竞写，导致其中一个功能失效
     emit_state(app, &label, true, true);
     start_polling(app, &label);
     Ok(true)
@@ -170,7 +176,8 @@ pub fn disable(app: &AppHandle, window: &WebviewWindow) -> Result<bool, String> 
         }
     }
     stop_polling(&label);
-    let _ = window.set_ignore_cursor_events(false);
+    // 同上：不在此恢复交互，交给前端按透传开关的当前状态重新裁决，
+    // 否则关闭隐身会把透传想要的穿透状态一并清掉
     emit_state(app, &label, true, false);
     Ok(false)
 }
@@ -211,7 +218,8 @@ pub fn force_reveal(app: &AppHandle, label: &str) {
             None => return,
         }
     };
-    let _ = window.set_ignore_cursor_events(false);
+    // 不在此写穿透标志：显形后可交互性由前端裁决（透传开启时按命中测试），
+    // 写 false 会盖掉前端刚设好的穿透状态
     if was_hidden {
         emit_state(app, label, true, true);
     }

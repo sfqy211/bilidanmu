@@ -203,30 +203,17 @@ export function DanmakuPage() {
     if (active instanceof HTMLElement) active.blur();
   }, [stealthVisible]);
   const toggleStealth = useCallback(() => {
-    // 隐身与窗口透传互斥：两者都切点击穿透，同时开会互相覆盖穿透状态。
+    // 隐身隐态由 Rust 独占整窗穿透，显形后交还透传轮询，两者可同时开启。
     // 用命令返回值矫正本地状态，事件丢失时也不会错位。
-    setPassthroughEnabled(false);
     setActivePanel(null);
     void tauriCommands.stealth
       .set(!stealthEnabled)
       .then((enabled) => setStealthEnabled(enabled))
       .catch(() => {});
   }, [stealthEnabled]);
-  // 反向互斥：先等隐身彻底关闭（后端已恢复交互），再让透传轮询接管穿透状态，
-  // 否则两条 setIgnoreCursorEvents 通道会互相覆盖
   const togglePassthrough = useCallback(() => {
-    const next = !passthroughEnabled;
-    if (!next) {
-      setPassthroughEnabled(false);
-      return;
-    }
-    const enable = () => setPassthroughEnabled(true);
-    if (stealthEnabled) {
-      void tauriCommands.stealth.set(false).then(enable).catch(enable);
-    } else {
-      enable();
-    }
-  }, [passthroughEnabled, stealthEnabled]);
+    setPassthroughEnabled((v) => !v);
+  }, []);
   const { disconnect } = useDanmakuStream(roomId);
 
   const navigate = useNavigate();
@@ -750,9 +737,9 @@ export function DanmakuPage() {
   }, []);
 
   // ── 窗口透传：单窗口动态命中测试 ──
-  // 隐身模式自带点击穿透与光标轮询，两者互斥运行（见 toggleStealth）
+  // 与隐身模式共用同一个点击穿透标志：隐身隐态由 Rust 整窗穿透、本轮询暂停；
+  // 显形后透传按 DOM 命中测试接管，因此两者可同时开启。
   useEffect(() => {
-    if (stealthEnabled) return;
     let checking = false;
 
     const setIgnored = (ignored: boolean) => {
@@ -766,10 +753,17 @@ export function DanmakuPage() {
       });
     };
 
+    // 穿透标志的唯一裁决者。优先级：隐身隐态（整窗穿透）> 透传开关 > 正常交互。
+    // 顺序不能颠倒：隐态必须先于「透传关闭」判断，否则只开隐身不开透传时
+    // 会被下面的 setIgnored(false) 覆盖掉，隐身状态下手照样能点到窗口。
+    if (stealthEnabled && !stealthVisible) {
+      setIgnored(true);
+      return;
+    }
     if (!passthroughEnabled) {
       setIgnored(false);
       return;
-    };
+    }
 
     const shouldPassThrough = (x: number, y: number) => {
       // elementFromPoint is a DOM hit-test and should remain valid while the OS
@@ -813,11 +807,12 @@ export function DanmakuPage() {
     const poll = window.setInterval(checkCursorPosition, 50);
     checkCursorPosition();
 
+    // 不在这里恢复交互：隐身隐态转交时 Rust 已接管穿透标志，
+    // 其余停止路径（关透传/关隐身）由下一次 effect 运行的分支负责对齐
     return () => {
       window.clearInterval(poll);
-      setIgnored(false);
     };
-  }, [passthroughEnabled, stealthEnabled]);
+  }, [passthroughEnabled, stealthEnabled, stealthVisible]);
 
   const loadEmoticons = useCallback(async (forceAccountId?: string) => {
     if (!roomId) return;
