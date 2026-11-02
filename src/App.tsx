@@ -76,7 +76,7 @@ export default function App() {
         // 恢复上次选中的房间
         let selections: Record<string, unknown> = {};
         try {
-          selections = await tauriCommands.selections.load(["currentRoomId"]);
+          selections = await tauriCommands.selections.load(["currentRoomId", "favoriteRoomIds"]);
         } catch {
           selections = {};
         }
