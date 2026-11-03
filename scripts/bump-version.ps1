@@ -40,7 +40,21 @@ $TauriConf = $TauriConf -replace '"version":\s*"[^"]*"', "`"version`": `"$Versio
 Set-Content "$ProjectRoot\src-tauri\tauri.conf.json" -Value $TauriConf -NoNewline
 Write-Host "OK: tauri.conf.json -> $Version"
 
-# 4. Update lock files
+# 4. 官网发布页的下载直链指向具体版本的 release 资产，
+#    版本号与这里必须同步，否则首页下载按钮会 404。
+#    注意：必须显式用 UTF-8 读写——LandingApp.tsx 含中文注释，
+#    用默认编码（GBK）读写会把注释变成乱码，且会把换行吃掉。
+$LandingFile = "$ProjectRoot\docs\src\components\landing\LandingApp.tsx"
+if (Test-Path $LandingFile) {
+    $Landing = [System.IO.File]::ReadAllText($LandingFile, [System.Text.UTF8Encoding]::new($false))
+    $Landing = $Landing -replace 'const RELEASE_VERSION = "[^"]*";', "const RELEASE_VERSION = `"$Version`";"
+    [System.IO.File]::WriteAllText($LandingFile, $Landing, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "OK: LandingApp.tsx RELEASE_VERSION -> $Version"
+} else {
+    Write-Warning "未找到 $LandingFile，请手动检查官网下载链接"
+}
+
+# 5. Update lock files
 Write-Host "Updating lock files..."
 Set-Location $ProjectRoot
 npm install --package-lock-only 2>$null | Out-Null
