@@ -8,7 +8,7 @@ import { useVideoAudioStore } from "@/stores/video-audio-store";
 export function MiniPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { queue, index, playing, loading, togglePlay, next, prev, stop } = useVideoAudioStore();
+  const { queue, index, playing, loading, togglePlay, next, prev, stop, canNext, canPrev } = useVideoAudioStore();
   const showCovers = useSettingsStore((state) => state.settings.listen.showCovers);
   const playerPageActive = location.pathname.startsWith("/listen/video/");
 
@@ -37,7 +37,7 @@ export function MiniPlayer() {
       <div className="flex shrink-0 items-center gap-1">
         <button
           onClick={() => void prev()}
-          disabled={index <= 0}
+          disabled={!canPrev()}
           className="rounded p-1.5 text-slate-500 transition hover:bg-black/5 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
           title="上一首"
         >
@@ -58,7 +58,7 @@ export function MiniPlayer() {
         </button>
         <button
           onClick={() => void next()}
-          disabled={index >= queue.tracks.length - 1}
+          disabled={!canNext()}
           className="rounded p-1.5 text-slate-500 transition hover:bg-black/5 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
           title="下一首"
         >

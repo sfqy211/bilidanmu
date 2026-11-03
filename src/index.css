@@ -786,6 +786,48 @@ body {
 .listen-player-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .listen-player-meta > span:first-child { flex-shrink: 0; max-width: 45%; }
 .listen-player-body { display: grid; min-height: 0; flex: 1; grid-template-rows: minmax(0, 1fr); }
+/* 播放页主体：字幕区 + 右侧播放列表树抽屉 */
+.listen-player-body-with-tree { display: flex; min-height: 0; flex: 1; gap: 12px; }
+.listen-player-body-with-tree > .listen-subtitles { min-width: 0; flex: 1; }
+.listen-playlist-tree {
+  display: flex; width: 260px; min-height: 0; flex-shrink: 0; flex-direction: column;
+  overflow: hidden; border: 1px solid var(--border-subtle); border-radius: calc(var(--radius) - 4px);
+  background: var(--app-card);
+}
+.listen-playlist-tree-header {
+  display: flex; flex-shrink: 0; align-items: center; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid var(--border-subtle);
+}
+.listen-playlist-tree-body { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px; }
+.listen-playlist-tree-row {
+  display: flex; width: 100%; align-items: center; gap: 8px;
+  padding: 6px 6px; border-radius: calc(var(--radius) - 8px); text-align: left; color: var(--ink);
+  transition: background-color 120ms ease;
+}
+.listen-playlist-tree-row:hover { background: rgb(var(--brand-rgb) / 0.06); }
+.listen-playlist-tree-row-active { background: rgb(var(--brand-rgb) / 0.1); color: rgb(var(--brand-rgb)); }
+.listen-playlist-tree-index {
+  display: flex; width: 18px; flex-shrink: 0; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--ink-muted);
+}
+.listen-playlist-tree-row-active .listen-playlist-tree-index { color: rgb(var(--brand-rgb)); }
+.listen-playlist-tree-children {
+  margin-left: 12px; padding-left: 8px; border-left: 1px solid var(--border-subtle);
+}
+.listen-playlist-tree-page {
+  display: flex; width: 100%; align-items: center; gap: 6px;
+  padding: 4px 6px; border-radius: calc(var(--radius) - 10px); text-align: left; color: var(--ink-muted);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.listen-playlist-tree-page:hover { background: rgb(var(--brand-rgb) / 0.06); color: var(--ink); }
+.listen-playlist-tree-page-active { background: rgb(var(--brand-rgb) / 0.1); color: rgb(var(--brand-rgb)); }
+.listen-playlist-tree-season { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
+/* 播放器上的「播放列表」开关：展开时保持高亮 */
+.listen-player-tree-open { background: rgb(var(--brand-rgb) / 0.12); color: rgb(var(--brand-rgb)); }
+@container (max-width: 640px) {
+  /* 窄容器下抽屉收窄，保证字幕区仍有可读宽度 */
+  .listen-playlist-tree { width: 200px; }
+}
 .listen-subtitles { display: flex; min-height: 0; min-width: 0; flex-direction: column; }
 .listen-subtitle-header { display: flex; min-height: 36px; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle); }
 .listen-subtitle-header .workspace-button { min-height: 28px; padding: 4px 8px; }
@@ -811,19 +853,17 @@ body {
 .listen-player-play:hover { opacity: 0.9; }
 .listen-player-play:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 3px; }
 .listen-player-extras { grid-area: extras; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+/* 控制按钮只留图标：不加 nowrap 时窄容器会把按钮内文字挤成竖排（"单曲循/环"） */
+.listen-player-extras > button,
+.listen-player-extras > div > button { flex-shrink: 0; white-space: nowrap; }
 .listen-player-volume { display: flex; width: 112px; min-width: 0; align-items: center; gap: 8px; }
 .listen-player-volume input { width: 100%; height: 12px; cursor: pointer; }
 .listen-player-volume > span { width: 20px; flex-shrink: 0; text-align: right; }
-.listen-player-queue-label { display: none; }
-.listen-player-queue-menu { position: absolute; bottom: 100%; right: 0; z-index: 30; width: 240px; max-width: 75cqi; margin-bottom: 8px; overflow: hidden; border-radius: calc(var(--radius) - 4px); background: var(--app-card); box-shadow: 0 4px 20px rgb(0 0 0 / 0.12); border: 1px solid var(--border-subtle); }
 @container (min-width: 500px) {
   .listen-player-controls { grid-template-columns: 1fr auto 1fr; grid-template-areas: "comments transport extras"; }
 }
 @container (max-width: 420px) {
   .listen-player-cover-thumb { width: 64px; }
-}
-@container (min-width: 760px) {
-  .listen-player-queue-label { display: inline; }
 }
 @media (max-height: 560px) {
   .listen-player-heading { margin-bottom: 12px; }
