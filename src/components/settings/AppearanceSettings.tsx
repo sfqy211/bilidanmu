@@ -88,6 +88,8 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
               <input type="radio" name="appearance-mode" aria-label={option.label} checked={settings.appearance.theme === option.value}
                 onChange={() => { setEditedMode(null); patchSettings({ appearance: { ...settings.appearance, theme: option.value } }); }} />
               <ModePreview mode={option.value} />
+              {/* 缩略图本身不含文字，三选一并排时无法分辨哪个是「跟随系统」，故补可见标签 */}
+              <span className="appearance-mode-label">{option.label}</span>
             </label>
           ))}
         </div>
