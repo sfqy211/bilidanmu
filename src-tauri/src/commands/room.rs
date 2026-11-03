@@ -367,6 +367,89 @@ pub fn get_danmaku_input_only(state: State<'_, AppState>) -> bool {
         .load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// 采样弹幕窗口「背后」的屏幕亮度，返回 0.0~1.0 的平均亮度。
+///
+/// 采样窗口四周紧邻的几条带（上下左右各一条，避开窗口自身覆盖区），
+/// 这样采到的就是真正的桌面/其它程序，而不是弹幕窗自己。
+/// 未开启该功能、窗口不可见或采样失败返回 None（前端保持当前主题）。
+#[tauri::command]
+pub async fn sample_background_luminance(app: tauri::AppHandle) -> Option<f32> {
+    // GDI 截屏是同步阻塞调用（约 7ms）：放到阻塞线程池，避免占住 IPC/异步运行时，
+    // 否则高频采样会拖慢其它命令响应，整体手感反而更迟钝
+    tauri::async_runtime::spawn_blocking(move || sample_background_luminance_sync(&app))
+        .await
+        .ok()
+        .flatten()
+}
+
+fn sample_background_luminance_sync(app: &tauri::AppHandle) -> Option<f32> {
+    use tauri::Manager;
+
+    // 关闭时直接返回。用内存镜像而非读库：该方法约 120ms 调一次，
+    // 每次 SQLite 查询的开销远大于截屏本身，是此前"响应慢"的主因
+    let state = app.state::<AppState>();
+    if !state
+        .auto_theme_from_background
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
+        return None;
+    }
+
+    let window = app.get_webview_window(DANMAKU_WINDOW_LABEL)?;
+    if !window.is_visible().unwrap_or(false) {
+        return None;
+    }
+    let pos = window.outer_position().ok()?;
+    let size = window.outer_size().ok()?;
+    let monitor = window.current_monitor().ok().flatten()?;
+    let work = monitor.position();
+    let work_size = monitor.size();
+
+    // 采样窗口四周各一条带（宽度为窗口较短边的 10%，最少 24px），避开窗口本身
+    let band = ((size.width.min(size.height) / 10) as i32).max(24);
+    let (wx, wy) = (pos.x, pos.y);
+    let (ww, wh) = (size.width as i32, size.height as i32);
+
+    // 各条带裁进显示器工作区，避免采到屏幕外（那里是黑的，会误导判定）
+    let clamp_rect = |x: i32, y: i32, w: i32, h: i32| -> Option<(i32, i32, i32, i32)> {
+        let x0 = x.max(work.x);
+        let y0 = y.max(work.y);
+        let x1 = (x + w).min(work.x + work_size.width as i32);
+        let y1 = (y + h).min(work.y + work_size.height as i32);
+        if x1 - x0 < 8 || y1 - y0 < 8 {
+            return None;
+        }
+        Some((x0, y0, x1 - x0, y1 - y0))
+    };
+
+    // 一次性截取窗口外扩 band 的大矩形，再从像素里跳过窗口自身覆盖区。
+    // 之前分四次截四条带：GDI 上下文创建是主要开销（与区域大小几乎无关），
+    // 四次约 4 倍耗时，直接拖慢了响应。
+    let outer = clamp_rect(wx - band, wy - band, ww + band * 2, wh + band * 2)?;
+    let pixels = crate::screen_luminance::grab_region(outer.0, outer.1, outer.2, outer.3)?;
+
+    // 窗口自身在大矩形内的相对位置（用于跳过）
+    let inner_x = wx - outer.0;
+    let inner_y = wy - outer.1;
+
+    let average = crate::screen_luminance::average_luminance_excluding(
+        &pixels,
+        outer.2,
+        outer.3,
+        inner_x,
+        inner_y,
+        ww,
+        wh,
+    )?;
+
+    // 极端值视为采样不可靠（锁屏、显示器休眠、远程桌面未连接等会全黑/全白），
+    // 返回 None 让前端保持当前主题，避免误判成深色/浅色
+    if !(0.02..=0.98).contains(&average) {
+        return None;
+    }
+    Some(average)
+}
+
 /// 把目标窗口矩形（物理像素）钳制进其中心所在显示器的工作区，
 /// 多屏热插拔/极端贴边场景的防御（借鉴 live-moyu）。找不到匹配显示器时原样返回。
 fn clamp_into_work_area(

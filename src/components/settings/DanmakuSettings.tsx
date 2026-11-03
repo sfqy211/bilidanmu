@@ -41,6 +41,12 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
         <SettingsChoice title="侧边吸附动画" value={String(appearance.dockAnimMs)} onChange={(value) => update({ dockAnimMs: Number(value) })}
           options={[{ value: "0", label: "关闭" }, { value: "120", label: "快" }, { value: "220", label: "标准" }, { value: "350", label: "慢" },
             ...([0, 120, 220, 350].includes(appearance.dockAnimMs) ? [] : [{ value: String(appearance.dockAnimMs), label: `自定义 · ${appearance.dockAnimMs} ms` }])]} />
+        <SettingsToggle
+          title="跟随屏幕背景亮暗"
+          description="采样弹幕窗背后的屏幕：背景偏暗时用深色主题、偏亮时用浅色主题，亮度跨越阈值后平滑切换。关闭则使用上面的主题设置。"
+          checked={appearance.autoThemeFromBackground ?? false}
+          onChange={(autoThemeFromBackground) => update({ autoThemeFromBackground })}
+        />
       </SettingsGroup>
       <SettingsGroup title="弹幕窗外观" description="强调色与功能栏形态改动即时生效并保存。">
         <SettingsChoice title="强调色" value={dw.accentMode}

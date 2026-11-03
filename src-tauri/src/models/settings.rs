@@ -95,6 +95,9 @@ impl serde::Serialize for ActivityFilter {
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSetting {
     pub theme: String,
+    /// 弹幕窗跟随屏幕背景亮暗自动切换深浅（采样窗口背后区域亮度）
+    #[serde(default)]
+    pub auto_theme_from_background: bool,
     pub font_size: u32,
     pub show_medal: bool,
     pub show_level: bool,
@@ -524,6 +527,7 @@ impl Default for Settings {
             },
             appearance: AppearanceSetting {
                 theme: "system".into(),
+                auto_theme_from_background: false,
                 font_size: 14,
                 show_medal: true,
                 show_level: true,

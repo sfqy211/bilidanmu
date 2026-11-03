@@ -10,7 +10,7 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ChevronDown, ClipboardList, Clock, Expand, Eye, Ghost, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ChevronDown, ClipboardList, Clock, Expand, Eye, Ghost, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, Wand2, X, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { contrastFor, hexToRgbTriplet } from "@/lib/brand-theme";
@@ -31,6 +31,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
+import { useBackgroundTheme } from "@/hooks/useBackgroundTheme";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
@@ -390,6 +391,10 @@ export function DanmakuPage() {
   // 显示比隐藏快一点：悬停要跟手，离开后渐隐不突兀
   const stealthFadeMs = useReducedMotion() ? 0 : stealthVisible ? 120 : 200;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
+  // 开启后弹幕窗主题由背景亮度采样决定，此处的主题选择器应锁定不可改
+  const autoThemeFromBackground = useSettingsStore(
+    (s) => s.settings.appearance.autoThemeFromBackground ?? false
+  );
   // 标题栏按钮显隐（旧数据缺字段时按显示处理）
   const titleBarButtons = useSettingsStore((s) => s.settings.appearance.titleBarButtons);
   const showBtn = (key: keyof NonNullable<typeof titleBarButtons>) => titleBarButtons?.[key] ?? true;
@@ -444,6 +449,8 @@ export function DanmakuPage() {
     }
   });
   const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttAvailable ? sttSettings.syncDelayMs : 0);
+  // 跟随屏幕背景亮暗自动切主题（仅弹幕窗启用，采样在 Rust 侧）
+  useBackgroundTheme();
 
   // 自动播放音频
   useEffect(() => {
@@ -1835,22 +1842,32 @@ export function DanmakuPage() {
         {settingsOpen && (
           <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
             <div className="space-y-3">
-              {/* 主题 */}
+              {/* 主题：开启「跟随屏幕背景亮暗」后锁定为随背景变化，不允许在此切换 */}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-ink-muted dark:text-ink-muted">主题</span>
-                <select
-                  value={settings.appearance.theme}
-                  onChange={(e) =>
-                    commitSettings({
-                      appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" }
-                    })
-                  }
-                  className="h-7 rounded border border-neutral-200 bg-[#f8f8f8] px-2 text-xs text-ink outline-none focus:ring-2 focus:ring-brand/30 dark:border-neutral-700 dark:bg-[#1a1c24]"
-                >
-                  <option value="light">浅色</option>
-                  <option value="dark">深色</option>
-                  <option value="system">跟随系统</option>
-                </select>
+                {autoThemeFromBackground ? (
+                  <span
+                    className="flex h-7 items-center gap-1.5 rounded border border-brand/30 bg-brand/10 px-2 text-xs text-brand"
+                    title="已开启「跟随屏幕背景亮暗」，主题随弹幕窗背后的画面自动切换。可在 设置 → 弹幕窗口 中关闭。"
+                  >
+                    <Wand2 className="h-3.5 w-3.5" />
+                    跟随背景
+                  </span>
+                ) : (
+                  <select
+                    value={settings.appearance.theme}
+                    onChange={(e) =>
+                      commitSettings({
+                        appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" }
+                      })
+                    }
+                    className="h-7 rounded border border-neutral-200 bg-[#f8f8f8] px-2 text-xs text-ink outline-none focus:ring-2 focus:ring-brand/30 dark:border-neutral-700 dark:bg-[#1a1c24]"
+                  >
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                    <option value="system">跟随系统</option>
+                  </select>
+                )}
               </div>
 
               <OpacitySlider

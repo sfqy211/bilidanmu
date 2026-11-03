@@ -88,6 +88,9 @@ export const tauriCommands = {
     clearAudioStream: () =>
       invoke<void>("clear_audio_stream"),
     getInputOnly: () => invoke<boolean>("get_danmaku_input_only"),
+    /** 采样弹幕窗背后的屏幕平均亮度 0.0~1.0；未开启或失败返回 null */
+    sampleBackgroundLuminance: () =>
+      invoke<number | null>("sample_background_luminance"),
     setInputOnly: (enabled: boolean) =>
       invoke<boolean>("set_danmaku_input_only", { enabled }),
     setInputOnlyEmotes: (open: boolean) =>

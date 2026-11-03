@@ -40,6 +40,12 @@ pub async fn update_settings(
         }
     }
 
+    // 背景跟随开关同样走内存镜像：背景亮度约 120ms 采样一次，读库会成为瓶颈
+    state.auto_theme_from_background.store(
+        settings.appearance.auto_theme_from_background,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+
     // 快捷键绑定可能随设置变更：全量重注册（幂等）
     crate::shortcuts::apply_shortcuts(&app);
 

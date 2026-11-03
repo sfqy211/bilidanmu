@@ -17,6 +17,7 @@ mod window_state;
 mod window_stealth;
 mod shortcuts;
 mod focus;
+mod screen_luminance;
 
 use bili::credential::BiliCredential;
 use bili::wbi::WbiKeyCache;
@@ -66,6 +67,9 @@ pub struct AppState {
     /// 收起条开关的内存镜像（false = 收缩态不可见，命中区铺满原窗口跨度）。
     /// 由 update_settings 同步，供 50ms 光标轮询与几何计算读取——不能每次读库
     pub dock_enabled: std::sync::atomic::AtomicBool,
+    /// 「跟随屏幕背景亮暗」的内存镜像。背景亮度高频采样（~120ms 一次），
+    /// 每次读库会成为主要开销，故与设置同步到内存
+    pub auto_theme_from_background: std::sync::atomic::AtomicBool,
     /// 「仅输入框」表情面板展开中（true = 窗口是临时面板几何，持久化跳过）
     pub danmaku_emote_panel: std::sync::atomic::AtomicBool,
     /// 展开面板前保存的紧凑栏几何（收起时恢复）
@@ -157,6 +161,7 @@ pub fn run() {
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
             dock_enabled: std::sync::atomic::AtomicBool::new(true),
+            auto_theme_from_background: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_panel: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_saved: std::sync::Mutex::new(None),
             danmaku_stealth: std::sync::Mutex::new(None),
@@ -200,6 +205,13 @@ pub fn run() {
                 state
                     .dock_enabled
                     .store(dock_enabled, std::sync::atomic::Ordering::Relaxed);
+                // 背景跟随开关的内存镜像：亮度采样高频读它
+                let auto_theme = settings_store::load_settings(state.inner())
+                    .map(|settings| settings.appearance.auto_theme_from_background)
+                    .unwrap_or(false);
+                state
+                    .auto_theme_from_background
+                    .store(auto_theme, std::sync::atomic::Ordering::Relaxed);
                 if let Some(main) = app.get_webview_window("main") {
                     if silent_start {
                         let _ = main.hide();
@@ -377,6 +389,7 @@ pub fn run() {
             commands::room::open_danmaku_window,
             commands::room::switch_room,
             commands::room::get_danmaku_input_only,
+            commands::room::sample_background_luminance,
             commands::room::set_danmaku_input_only,
             commands::room::set_danmaku_input_only_emotes,
             shortcuts::get_shortcut_errors,

@@ -58,6 +58,7 @@ export const defaultSettings: Settings = {
   },
   appearance: {
     theme: "system",
+    autoThemeFromBackground: false,
     fontSize: 14,
     showMedal: true,
     showLevel: true,
@@ -142,6 +143,12 @@ interface SettingsState {
   setSttAvailable: (available: boolean) => void;
   patchSettings: (partial: Partial<Settings>) => void;
   saveSettings: () => Promise<void>;
+  /**
+   * 背景采样得出的主题覆盖（仅弹幕窗写入）。
+   * null = 不覆盖，沿用设置里的 theme。主窗口永不设置它。
+   */
+  backgroundThemeOverride: "dark" | "light" | null;
+  setBackgroundThemeOverride: (theme: "dark" | "light" | null) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -162,5 +169,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   saveSettings: async () => {
     const { settings } = useSettingsStore.getState();
     await tauriCommands.settings.update(settings);
-  }
+  },
+  backgroundThemeOverride: null,
+  setBackgroundThemeOverride: (backgroundThemeOverride) => set({ backgroundThemeOverride }),
 }));

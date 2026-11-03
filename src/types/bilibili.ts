@@ -287,6 +287,8 @@ export interface Settings {
   };
   appearance: {
     theme: "light" | "dark" | "system";
+    /** 弹幕窗跟随屏幕背景亮暗自动切换深浅 */
+    autoThemeFromBackground?: boolean;
     fontSize: number;
     showMedal: boolean;
     showLevel: boolean;
