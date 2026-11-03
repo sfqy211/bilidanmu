@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::models::settings::Settings;
 use crate::settings_store;
@@ -29,6 +29,16 @@ pub async fn update_settings(
         .unwrap_or(false);
 
     settings_store::save_settings(&state, &settings)?;
+
+    // 收起条开关同步到内存镜像：吸附几何与轮询读它，不能每次读库。
+    // 关掉时若窗口正处于吸附收缩态，重新计算一次几何让命中区撑开
+    let dock_enabled = settings.appearance.danmaku_window.dock_enabled;
+    let was_enabled = state.dock_enabled.swap(dock_enabled, std::sync::atomic::Ordering::Relaxed);
+    if was_enabled != dock_enabled {
+        if let Some(window) = app.get_webview_window(crate::commands::room::DANMAKU_WINDOW_LABEL) {
+            crate::window_dock::refresh_collapsed_geometry(&app, &window);
+        }
+    }
 
     // 快捷键绑定可能随设置变更：全量重注册（幂等）
     crate::shortcuts::apply_shortcuts(&app);

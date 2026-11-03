@@ -154,13 +154,10 @@ pub struct DanmakuWindowStyle {
     /// 功能栏形态：pinned 常驻按钮行 / compact 收纳进输入框
     #[serde(default = "default_function_bar")]
     pub function_bar: String,
-    /// 收起条样式：glass 深色玻璃 / brand 品牌淡底 / line 极简细线
-    #[serde(default = "default_dock_style")]
-    pub dock_style: String,
-    /// 收起条大小：slim / normal / wide
-    #[serde(default = "default_dock_size")]
-    pub dock_size: String,
-    /// 收起条中央提示线
+    /// 收起条开关：关闭后收缩态不绘制任何可见内容（鼠标命中区仍在）
+    #[serde(default = "default_true")]
+    pub dock_enabled: bool,
+    /// 收起条中央提示线（样式与尺寸固定，仅此项可配）
     #[serde(default = "default_true")]
     pub dock_indicator: bool,
 }
@@ -174,12 +171,6 @@ fn default_accent_color() -> String {
 fn default_function_bar() -> String {
     "pinned".into()
 }
-fn default_dock_style() -> String {
-    "glass".into()
-}
-fn default_dock_size() -> String {
-    "normal".into()
-}
 
 impl Default for DanmakuWindowStyle {
     fn default() -> Self {
@@ -187,8 +178,7 @@ impl Default for DanmakuWindowStyle {
             accent_mode: default_accent_mode(),
             accent_color: default_accent_color(),
             function_bar: default_function_bar(),
-            dock_style: default_dock_style(),
-            dock_size: default_dock_size(),
+            dock_enabled: true,
             dock_indicator: true,
         }
     }

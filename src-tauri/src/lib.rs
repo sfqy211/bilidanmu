@@ -63,6 +63,9 @@ pub struct AppState {
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
     /// 弹幕窗口是否处于「仅输入框」紧凑模式（true = 高度锁定输入栏、不参与吸附）
     pub danmaku_input_only: std::sync::atomic::AtomicBool,
+    /// 收起条开关的内存镜像（false = 收缩态不可见，命中区铺满原窗口跨度）。
+    /// 由 update_settings 同步，供 50ms 光标轮询与几何计算读取——不能每次读库
+    pub dock_enabled: std::sync::atomic::AtomicBool,
     /// 「仅输入框」表情面板展开中（true = 窗口是临时面板几何，持久化跳过）
     pub danmaku_emote_panel: std::sync::atomic::AtomicBool,
     /// 展开面板前保存的紧凑栏几何（收起时恢复）
@@ -153,6 +156,7 @@ pub fn run() {
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
+            dock_enabled: std::sync::atomic::AtomicBool::new(true),
             danmaku_emote_panel: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_saved: std::sync::Mutex::new(None),
             danmaku_stealth: std::sync::Mutex::new(None),
@@ -189,6 +193,13 @@ pub fn run() {
                 let silent_start = settings_store::load_settings(state.inner())
                     .map(|settings| settings.silent_start)
                     .unwrap_or(false);
+                // 收起条开关的内存镜像：吸附几何与轮询要读它
+                let dock_enabled = settings_store::load_settings(state.inner())
+                    .map(|settings| settings.appearance.danmaku_window.dock_enabled)
+                    .unwrap_or(true);
+                state
+                    .dock_enabled
+                    .store(dock_enabled, std::sync::atomic::Ordering::Relaxed);
                 if let Some(main) = app.get_webview_window("main") {
                     if silent_start {
                         let _ = main.hide();

@@ -57,10 +57,11 @@ struct DockChangedPayload {
     side: Option<DockSide>,
 }
 
-/// 收缩条基准宽度（逻辑像素，100% 缩放下的宽度）。要足够宽以容纳指示条并有充裕的悬停判定区。
-const DOCK_WIDTH: u32 = 20;
+/// 收缩条基准宽度（逻辑像素，100% 缩放下的宽度）。
+/// 太窄不好命中，尤其收起条不可见时全靠鼠标碰到；保留 14px 兼顾观感与易碰。
+const DOCK_WIDTH: u32 = 14;
 /// 收缩条固定长度（物理像素）：左右条的高度 / 顶条的宽度，居中于原窗口位置
-const COLLAPSED_LENGTH: u32 = 160;
+const COLLAPSED_LENGTH: u32 = 150;
 
 /// 收缩条实际宽度（物理像素）：按显示器缩放换算，保证高 DPI 下逻辑宽度稳定、可点中。
 /// scale_factor 异常时回退为 1.0。
@@ -127,33 +128,42 @@ fn normal_constraints() -> WindowSizeConstraints {
     }
 }
 
-/// 收缩态的几何：固定细条，贴死所在边缘、居中于原窗口位置
-/// （左右条：固定高度、垂直居中；顶条：固定宽度、水平居中）。
+/// 收缩态的几何：贴死所在边缘、居中于原窗口位置。
 /// normal_pos/normal_size 为吸附前记录的原窗口外框位置与尺寸。
+///
+/// `full_span` 决定收缩后的长度：
+/// - false（收起条可见）：固定短条 COLLAPSED_LENGTH，居中于原窗口
+/// - true（收起条关闭、整条不可见）：铺满原窗口在该边缘方向上的完整跨度
+///   （左右吸附用原窗口高度、顶部吸附用原窗口宽度），命中区随之变大，看不见也好碰
+///
 /// 返回 (position, size)，供 enter_dock / collapse_dock / restore_if_docked 统一使用。
 fn collapsed_geometry(
     monitor: &tauri::Monitor,
     side: DockSide,
     normal_pos: PhysicalPosition<i32>,
     normal_size: PhysicalSize<u32>,
+    full_span: bool,
 ) -> (PhysicalPosition<i32>, PhysicalSize<u32>) {
     let work = monitor.position();
     let work_size = monitor.size();
     let dock_w = dock_width_px(monitor);
 
     if side == DockSide::Top {
-        // 顶条：固定宽度、水平居中于原窗口中心，贴死工作区顶缘
-        let w = (COLLAPSED_LENGTH as usize).min(work_size.width as usize) as u32;
         let eff_w = normal_size.width.min(work_size.width);
         let eff_x = normal_pos
             .x
             .clamp(work.x, work.x + work_size.width as i32 - eff_w as i32);
+        let w = if full_span {
+            eff_w
+        } else {
+            (COLLAPSED_LENGTH as usize).min(work_size.width as usize) as u32
+        };
+        // 居中于原窗口中心（full_span 时原窗口宽度即条长，与 eff_x 对齐）
         let center_x = eff_x + eff_w as i32 / 2;
         let x = (center_x - w as i32 / 2).clamp(work.x, work.x + work_size.width as i32 - w as i32);
         return (PhysicalPosition::new(x, work.y), PhysicalSize::new(w, dock_w));
     }
 
-    let h = (COLLAPSED_LENGTH as usize).min(work_size.height as usize) as u32;
     // 垂直居中于原窗口中心，再夹回工作区内。
     // 必须用与 expand_dock 一致的 clamp 后几何算中心：expand_dock 会把高度钳到工作区、
     // 把 y 钳到工作区内，若这里直接用未 clamp 的 normal_pos/normal_size，当窗口顶部拖出屏
@@ -162,6 +172,11 @@ fn collapsed_geometry(
     let eff_y = normal_pos
         .y
         .clamp(work.y, work.y + work_size.height as i32 - eff_h as i32);
+    let h = if full_span {
+        eff_h
+    } else {
+        (COLLAPSED_LENGTH as usize).min(work_size.height as usize) as u32
+    };
     let center_y = eff_y + eff_h as i32 / 2;
     let y = (center_y - h as i32 / 2).clamp(work.y, work.y + work_size.height as i32 - h as i32);
     let x = match side {
@@ -246,8 +261,9 @@ fn enter_dock(app: &AppHandle, window: &WebviewWindow, side: DockSide) {
     // 放宽尺寸约束才能缩成细条
     let _ = window.set_size_constraints(loose_constraints());
 
-    // 收缩为固定高度细条：贴死边缘、垂直居中于原窗口位置
-    let (cpos, csize) = collapsed_geometry(&monitor, side, pos, size);
+    // 收缩为细条：贴死边缘、居中于原窗口位置（收起条关闭时铺满原窗口跨度）
+    let full_span = !state.dock_enabled.load(Ordering::Relaxed);
+    let (cpos, csize) = collapsed_geometry(&monitor, side, pos, size, full_span);
     let _ = window.set_position(cpos);
     let _ = window.set_size(csize);
 
@@ -388,16 +404,37 @@ fn collapse_dock(app: &AppHandle, window: &WebviewWindow) {
 
     let Some(monitor) = window.current_monitor().ok().flatten() else { return };
 
-    // 收缩为固定高度细条：贴死边缘、垂直居中于原窗口位置。
+    // 收缩为细条：贴死边缘、居中于原窗口位置（收起条关闭时铺满原窗口跨度）。
     // 用吸附前记录的 normal_size 算垂直中心（与 enter_dock/restore_if_docked 口径一致），
     // 否则展开被钳高（窗口比工作区高）时，进入与收回的收缩条位置会不一致而上下跳。
-    let (cpos, csize) = collapsed_geometry(&monitor, side, normal_pos, normal_size);
+    let full_span = !state.dock_enabled.load(Ordering::Relaxed);
+    let (cpos, csize) = collapsed_geometry(&monitor, side, normal_pos, normal_size, full_span);
     // 先 set_size 再 set_position：与 expand_dock 同理，避免右缘收回的中间几何被
     // Moved 处理器误判为"拖离边缘"。收回仅在 Expanded 态触发，此处为防御。
     let _ = window.set_size(csize);
     let _ = window.set_position(cpos);
 
     emit_dock_changed(app, &label, "collapsed", Some(side));
+}
+
+/// 收起条开关切换后重算收缩态几何：关闭时命中区要铺满原窗口跨度，
+/// 开启后收回固定短条。仅当窗口正处于 Collapsed 态才动作。
+pub fn refresh_collapsed_geometry(app: &AppHandle, window: &WebviewWindow) {
+    let label = window.label().to_string();
+    let state = app.state::<AppState>();
+    let geo = {
+        let docks = lock_docks(state.inner());
+        docks
+            .get(&label)
+            .filter(|d| d.phase == DockPhase::Collapsed)
+            .map(|d| (d.side, d.normal_pos, d.normal_size))
+    };
+    let Some((side, normal_pos, normal_size)) = geo else { return };
+    let Some(monitor) = window.current_monitor().ok().flatten() else { return };
+    let full_span = !state.dock_enabled.load(Ordering::Relaxed);
+    let (cpos, csize) = collapsed_geometry(&monitor, side, normal_pos, normal_size, full_span);
+    let _ = window.set_size(csize);
+    let _ = window.set_position(cpos);
 }
 
 /// 隐身模式与吸附互斥：隐身态下窗口点击穿透，吸附条既无法悬停展开，
@@ -729,7 +766,8 @@ pub fn restore_if_docked(window: &WebviewWindow, app: &AppHandle) -> bool {
             if let Some((side, normal_pos, normal_size)) = geo {
                 let _ = window.set_size_constraints(loose_constraints());
                 if let Some(monitor) = window.current_monitor().ok().flatten() {
-                    let (cpos, csize) = collapsed_geometry(&monitor, side, normal_pos, normal_size);
+                    let full_span = !app.state::<AppState>().dock_enabled.load(Ordering::Relaxed);
+                    let (cpos, csize) = collapsed_geometry(&monitor, side, normal_pos, normal_size, full_span);
                     let _ = window.set_position(cpos);
                     let _ = window.set_size(csize);
                 }

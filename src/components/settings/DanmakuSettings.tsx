@@ -24,12 +24,13 @@ const ACCENT_PRESETS = ["#E11D48", "#e95780", "#467fba", "#469480", "#7C3AED", "
 
 export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps) {
   const appearance = settings.appearance;
-  // 兜底：旧持久化数据可能没有 danmakuWindow / dockBar（深合并修好前写入的数据）
+  // 兜底：旧持久化数据可能没有 danmakuWindow（深合并修好前写入的数据）
   const dw = appearance.danmakuWindow ?? {
     accentMode: "follow" as const,
     accentColor: "#E11D48",
     functionBar: "pinned" as const,
-    dockBar: { style: "glass" as const, size: "normal" as const, indicator: true },
+    dockEnabled: true,
+    dockIndicator: true,
   };
   const update = (patch: Partial<Settings["appearance"]>) => patchSettings({ appearance: { ...appearance, ...patch } });
   return (
@@ -63,14 +64,10 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
         <SettingsChoice title="功能栏" value={dw.functionBar}
           onChange={(functionBar) => update({ danmakuWindow: { ...dw, functionBar: functionBar as typeof dw.functionBar } })}
           options={[{ value: "pinned", label: "常驻按钮行" }, { value: "compact", label: "收纳进输入框" }]} />
-        <SettingsChoice title="收起条样式" value={dw.dockBar.style}
-          onChange={(style) => update({ danmakuWindow: { ...dw, dockBar: { ...dw.dockBar, style: style as typeof dw.dockBar.style } } })}
-          options={[{ value: "glass", label: "深色玻璃" }, { value: "brand", label: "品牌淡底" }, { value: "line", label: "极简细线" }]} />
-        <SettingsChoice title="收起条大小" value={dw.dockBar.size}
-          onChange={(size) => update({ danmakuWindow: { ...dw, dockBar: { ...dw.dockBar, size: size as typeof dw.dockBar.size } } })}
-          options={[{ value: "slim", label: "窄" }, { value: "normal", label: "标准" }, { value: "wide", label: "宽" }]} />
+        <SettingsToggle title="显示收起条" description="关闭后窗口贴边收缩时完全不可见（对齐 QQ），鼠标移到该位置仍会展开。"
+          checked={dw.dockEnabled ?? true} onChange={(dockEnabled) => update({ danmakuWindow: { ...dw, dockEnabled } })} />
         <SettingsToggle title="收起条提示线" description="收起条中央的短指示线，提示此处可悬停展开。"
-          checked={dw.dockBar.indicator} onChange={(indicator) => update({ danmakuWindow: { ...dw, dockBar: { ...dw.dockBar, indicator } } })} />
+          checked={dw.dockIndicator ?? true} onChange={(dockIndicator) => update({ danmakuWindow: { ...dw, dockIndicator } })} />
       </SettingsGroup>
       <SettingsGroup title="标题栏按钮" description="点击图标切换该按钮在弹幕窗口标题栏的显示；退出直播间按钮固定保留。">
         <div className="settings-row-block">

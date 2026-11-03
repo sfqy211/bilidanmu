@@ -88,7 +88,8 @@ export const defaultSettings: Settings = {
       accentMode: "follow",
       accentColor: "#E11D48",
       functionBar: "pinned",
-      dockBar: { style: "glass", size: "normal", indicator: true },
+      dockEnabled: true,
+      dockIndicator: true,
     }
   },
   notification: {

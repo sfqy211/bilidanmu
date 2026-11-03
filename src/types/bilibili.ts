@@ -245,12 +245,10 @@ export interface DanmakuWindowStyle {
   accentColor: string;
   /** 功能栏形态：pinned 常驻 / compact 收纳 */
   functionBar: "pinned" | "compact";
-  /** 收起条样式 */
-  dockBar: {
-    style: "glass" | "brand" | "line";
-    size: "slim" | "normal" | "wide";
-    indicator: boolean;
-  };
+  /** 收起条开关：关闭后窗口贴边不再收缩成小条 */
+  dockEnabled?: boolean;
+  /** 收起条中央是否显示提示线（样式与尺寸固定，仅此项可配） */
+  dockIndicator?: boolean;
 }
 
 /** 弹幕窗口标题栏按钮显隐（false = 从标题栏移除） */

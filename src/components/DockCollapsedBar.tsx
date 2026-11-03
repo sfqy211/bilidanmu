@@ -12,43 +12,39 @@ interface DockCollapsedBarProps {
  * 不响应拖动（退出吸附在展开后拖离边缘触发，QQ 模式）。
  * 后端把窗体固定为小尺寸并居中于原窗口位置，卡片铺满整个窗体作为悬停判定区。
  *
- * 外观可在 设置 → 弹幕窗口 → 弹幕窗外观 中配置：
- * - style: glass 深色玻璃 / brand 品牌淡底 / line 极简细线
- * - size: slim / normal / wide（用内边距呈现粗细，不改后端窗口尺寸）
- * - indicator: 是否显示中央提示线
+ * 两个开关（设置 → 弹幕窗口 → 弹幕窗外观）：
+ * - dockEnabled：收起条开关。关闭后不绘制任何可见内容（对齐 QQ：收起后整条完全看不见），
+ *   但窗口本身保持原尺寸与鼠标命中区，鼠标移到该位置仍能触发展开——不可见 ≠ 不可点。
+ *   弹幕窗是 transparent 窗口，不画东西即完全透明。
+ * - dockIndicator：可见时中央是否画提示线。
+ *
+ * 样式固定深色玻璃、尺寸固定。整体粗细由 Rust 侧 DOCK_WIDTH / COLLAPSED_LENGTH 决定。
  */
 export function DockCollapsedBar({ side, onExpand }: DockCollapsedBarProps) {
   const isTop = side === "top";
-  const dockBar = useSettingsStore((s) => s.settings.appearance.danmakuWindow?.dockBar);
-  const style = dockBar?.style ?? "glass";
-  const size = dockBar?.size ?? "normal";
-  const indicator = dockBar?.indicator ?? true;
+  const dockBar = useSettingsStore((s) => s.settings.appearance.danmakuWindow);
+  const enabled = dockBar?.dockEnabled ?? true;
+  const indicator = dockBar?.dockIndicator ?? true;
 
-  const styleClass =
-    style === "brand"
-      ? "border-brand/25 bg-brand/25 backdrop-blur-md hover:bg-brand/35"
-      : style === "line"
-        ? "border-transparent bg-transparent hover:bg-brand/10"
-        : "border-white/10 bg-slate-900/75 shadow-lg backdrop-blur-md hover:bg-slate-800/90";
-
-  const sizePadding = size === "slim" ? "p-0.5" : size === "wide" ? "p-2" : "p-1";
-  const markLength = size === "slim" ? (isTop ? "w-5" : "h-5") : size === "wide" ? (isTop ? "w-12" : "h-12") : isTop ? "w-8" : "h-8";
-  const markClass = style === "glass" ? "bg-white/30" : "bg-brand/70";
+  // 关闭收起条：只留一个铺满的透明悬停区，命中判定照常工作
+  if (!enabled) {
+    return <div onMouseEnter={onExpand} className="h-full w-full" aria-hidden="true" />;
+  }
 
   return (
     <div
       onMouseEnter={onExpand}
       title="悬停展开"
-      className={`flex h-full w-full items-center justify-center border transition-colors duration-200 ${styleClass} ${sizePadding} ${
+      className={`flex h-full w-full items-center justify-center border border-white/10 bg-slate-900/75 p-0.5 shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-slate-800/90 ${
         isTop
-          ? "rounded-b-lg border-x border-b"
+          ? "rounded-b-md border-x border-b"
           : side === "left"
-            ? "rounded-r-lg border-y border-r"
-            : "rounded-l-lg border-y border-l"
+            ? "rounded-r-md border-y border-r"
+            : "rounded-l-md border-y border-l"
       }`}
     >
       {indicator && (
-        <span className={`block rounded-full ${markClass} ${isTop ? `h-0.5 ${markLength}` : `w-0.5 ${markLength}`}`} />
+        <span className={`block rounded-full bg-white/30 ${isTop ? "h-0.5 w-6" : "w-0.5 h-6"}`} />
       )}
     </div>
   );
