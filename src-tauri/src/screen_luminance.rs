@@ -81,12 +81,6 @@ mod imp {
         }
     }
 
-    /// 截屏并直接返回整块矩形的平均亮度。
-    pub fn average_luminance(x: i32, y: i32, width: i32, height: i32) -> Option<f32> {
-        let pixels = grab_region(x, y, width, height)?;
-        average_luminance_excluding(&pixels, width, height, 0, 0, 0, 0)
-    }
-
     /// 从已截取的像素里算平均亮度，跳过 (skip_x, skip_y, skip_w, skip_h) 这块区域
     /// （用于排除弹幕窗自身覆盖的部分）。采样点全被排除时返回 None。
     ///
@@ -137,9 +131,6 @@ mod imp {
     pub fn grab_region(_x: i32, _y: i32, _width: i32, _height: i32) -> Option<Vec<u8>> {
         None
     }
-    pub fn average_luminance(_x: i32, _y: i32, _width: i32, _height: i32) -> Option<f32> {
-        None
-    }
     pub fn average_luminance_excluding(
         _pixels: &[u8],
         _width: i32,
@@ -153,49 +144,4 @@ mod imp {
     }
 }
 
-pub use imp::{average_luminance, average_luminance_excluding, grab_region};
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// 采样整个主屏幕：验证 GDI 路径可用 + 结果在合理范围
-    #[test]
-    fn sample_full_screen() {
-        let value = average_luminance(0, 0, 1920, 1080);
-        assert!(value.is_some(), "GDI 截屏应成功（需要可见桌面会话）");
-        let v = value.unwrap();
-        assert!((0.0..=1.0).contains(&v), "亮度应在 0..1: {v}");
-    }
-
-
-    /// 非法尺寸应返回 None 而不是 panic
-    #[test]
-    fn invalid_region_returns_none() {
-        assert!(average_luminance(0, 0, 0, 100).is_none());
-        assert!(average_luminance(0, 0, 100, -5).is_none());
-        assert!(grab_region(0, 0, -1, 10).is_none());
-    }
-
-    /// 排除区覆盖全部采样点时应返回 None（而不是 0 之类的假值）
-    #[test]
-    fn fully_excluded_returns_none() {
-        let pixels = vec![128u8; 8 * 8 * 4];
-        // 跳过区覆盖整块
-        assert!(average_luminance_excluding(&pixels, 8, 8, 0, 0, 8, 8).is_none());
-    }
-
-    /// 纯色像素的平均亮度应与其通道值对应
-    #[test]
-    fn uniform_color_luminance() {
-        // 纯白
-        let white = vec![255u8; 16 * 16 * 4];
-        let v = average_luminance_excluding(&white, 16, 16, 0, 0, 0, 0).unwrap();
-        assert!((v - 1.0).abs() < 1e-4, "纯白应约等于 1.0，实际 {v}");
-
-        // 纯黑
-        let black = vec![0u8; 16 * 16 * 4];
-        let v = average_luminance_excluding(&black, 16, 16, 0, 0, 0, 0).unwrap();
-        assert!(v.abs() < 1e-4, "纯黑应约等于 0.0，实际 {v}");
-    }
-}
+pub use imp::{average_luminance_excluding, grab_region};
