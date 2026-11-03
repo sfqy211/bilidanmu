@@ -18,7 +18,8 @@ interface DockCollapsedBarProps {
  *   弹幕窗是 transparent 窗口，不画东西即完全透明。
  * - dockIndicator：可见时中央是否画提示线。
  *
- * 样式固定深色玻璃、尺寸固定。整体粗细由 Rust 侧 DOCK_WIDTH / COLLAPSED_LENGTH 决定。
+ * 配色走 .danmaku-dock-bar（index.css），跟随亮/暗主题，不写死深色。
+ * 整体粗细由 Rust 侧 DOCK_WIDTH / COLLAPSED_LENGTH 决定。
  */
 export function DockCollapsedBar({ side, onExpand }: DockCollapsedBarProps) {
   const isTop = side === "top";
@@ -35,16 +36,16 @@ export function DockCollapsedBar({ side, onExpand }: DockCollapsedBarProps) {
     <div
       onMouseEnter={onExpand}
       title="悬停展开"
-      className={`flex h-full w-full items-center justify-center border border-white/10 bg-slate-900/75 p-0.5 shadow-lg backdrop-blur-md transition-colors duration-200 hover:bg-slate-800/90 ${
+      className={`danmaku-dock-bar flex h-full w-full items-center justify-center p-0.5 ${
         isTop
-          ? "rounded-b-md border-x border-b"
+          ? "rounded-b-md"
           : side === "left"
-            ? "rounded-r-md border-y border-r"
-            : "rounded-l-md border-y border-l"
+            ? "rounded-r-md"
+            : "rounded-l-md"
       }`}
     >
       {indicator && (
-        <span className={`block rounded-full bg-white/30 ${isTop ? "h-0.5 w-6" : "w-0.5 h-6"}`} />
+        <span className={`danmaku-dock-bar-mark block rounded-full ${isTop ? "h-0.5 w-6" : "w-0.5 h-6"}`} />
       )}
     </div>
   );

@@ -132,6 +132,25 @@ body {
   background-color: rgb(var(--brand-rgb) / calc(var(--bg-a) * 0.14));
 }
 
+/* ── 侧边吸附收起条 ──
+   跟随亮/暗主题：亮色用浅色玻璃 + 深色描边，暗色用半透明墨色。
+   之前写死 bg-slate-900/75，导致亮色主题下也是一条深色块。 */
+.danmaku-dock-bar {
+  border: 1px solid var(--dock-bar-border);
+  background-color: var(--dock-bar-bg);
+  box-shadow: var(--dock-bar-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 200ms ease;
+}
+.danmaku-dock-bar:hover {
+  background-color: var(--dock-bar-bg-hover);
+}
+/* 中央提示线：用前景色系，深浅主题都能看清 */
+.danmaku-dock-bar-mark {
+  background-color: var(--dock-bar-mark);
+}
+
 /* ── 主页面氛围设计系统（与弹幕窗同一套玻璃语言） ──
    玻璃面板 + 编辑级排版工具类。浅色米白、深色墨蓝，粉色为唯一强调。 */
 

@@ -37,6 +37,12 @@ function mix(first: string, second: string, amount: number) {
   return `#${channels.join("")}`;
 }
 
+/** #RRGGBB → rgba(...)，用于需要保留透明度的毛玻璃底色 */
+function toRgba(hex: string, alpha: number) {
+  const [r, g, b] = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /** 每个窗口共用同一份外观设置；透明弹幕窗的底色仍由自己的透明度设置管理。 */
 export function applyVisualTheme(settings: Settings) {
   const dark = applyTheme(settings.appearance.theme);
@@ -60,6 +66,15 @@ export function applyVisualTheme(settings: Settings) {
     "--ui-font-family": FONTS[profile.fontFamily],
     "--content-font-family": FONTS[contentFontFamily],
     "--ui-font-size": `${visual.uiFontSize}px`, "--content-font-size": `${visual.contentFontSize}px`,
+    // 侧边吸附收起条：由当前主题的卡片色/前景色推导，跟随主题切换与自定义配色。
+    // 用 rgba 保留毛玻璃通透感；暗色比原来的 slate-900/75 浅一档。
+    "--dock-bar-bg": toRgba(card, dark ? 0.55 : 0.62),
+    "--dock-bar-bg-hover": toRgba(mix(card, profile.foreground, 0.06), dark ? 0.75 : 0.82),
+    "--dock-bar-border": toRgba(profile.foreground, dark ? 0.08 : 0.1),
+    "--dock-bar-mark": toRgba(profile.foreground, dark ? 0.3 : 0.28),
+    "--dock-bar-shadow": dark
+      ? "0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 22px -12px rgba(0, 0, 0, 0.40)"
+      : "0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 18px -10px rgba(15, 23, 42, 0.18)",
   };
   for (const [key, value] of Object.entries(values)) root.style.setProperty(key, value);
   // 减少动态效果固定跟随系统无障碍设置，不再作为可调项。
