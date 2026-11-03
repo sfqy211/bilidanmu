@@ -114,6 +114,8 @@ interface VideoAudioActions {
   /** 切换到另一张专辑，从当前曲目同名/同位置处尽量衔接 */
   switchQueue: (queue: PlayQueue) => Promise<void>;
   togglePlay: () => Promise<void>;
+  /** 纯暂停：保留队列与进度（进入直播间时让位给直播音轨用） */
+  pause: () => void;
   next: () => Promise<void>;
   prev: () => Promise<void>;
   /** 手动切下一首/上一首时无歌可切（如单曲循环且队列仅一首）返回 false */
@@ -390,6 +392,13 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
       } else {
         audio.pause();
       }
+    },
+
+    pause: () => {
+      // 纯暂停：只停音频，保留队列/曲目/进度，MiniPlayer 仍在，
+      // 用户可手动恢复。用于「进入直播间时让位给直播音轨」。
+      // 不能用 stop()——那会清空队列让播放条消失；也不能用 togglePlay()——已暂停时会反向开播
+      audioEl?.pause();
     },
 
     next: async () => {

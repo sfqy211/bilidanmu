@@ -623,6 +623,10 @@ pub async fn open_danmaku_window(
 
     apply_room_switch_bookkeeping(&app, room_id, state.inner())?;
 
+    // 通知主窗口让位：视频播放必须暂停，否则会与直播音轨同时出声。
+    // 定向发往 main——两个 webview 共用同一份前端代码，广播会让弹幕窗也收到
+    notify_main_window(&app, "danmaku-entered", room_id);
+
     if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
         // 常驻窗口已存在：更新标题后显示并聚焦（进入直播间的语义）
         let _ = window.set_title(&danmaku_window_title(state.inner(), room_id));
@@ -653,6 +657,10 @@ pub async fn switch_room(
 
     let changed = apply_room_switch_bookkeeping(&app, room_id, state.inner())?;
 
+    // 与 open_danmaku_window 一致：无论窗口是否已存在都让主窗口暂停视频。
+    // 不能依赖 room-switched（同房间重复进入时它不触发）
+    notify_main_window(&app, "danmaku-entered", room_id);
+
     if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
         if changed {
             let _ = window.set_title(&danmaku_window_title(state.inner(), room_id));
@@ -675,6 +683,13 @@ fn hide_main_window(app: &tauri::AppHandle) {
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.hide();
     }
+}
+
+/// 定向通知主窗口（两个 webview 共用同一份前端代码，广播会被弹幕窗也收到，
+/// 导致弹幕窗执行主窗口才该做的事）。事件名与载荷由调用方给定。
+fn notify_main_window(app: &tauri::AppHandle, event: &str, room_id: u64) {
+    use tauri::Emitter;
+    let _ = app.emit_to("main", event, room_id);
 }
 
 /// 退出直播间时恢复主页面（与 hide_main_window 对应，无条件）
@@ -710,6 +725,8 @@ pub async fn exit_room(
 
     // 退出直播间即切换到主页面（弹幕与主页面互斥）
     show_main_window(&app);
+    // 告知主窗口已离开直播间：视频保持暂停，由用户经底部播放条手动恢复
+    notify_main_window(&app, "room-exited", room_id);
     Ok(())
 }
 

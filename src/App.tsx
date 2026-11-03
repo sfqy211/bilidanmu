@@ -1,12 +1,14 @@
 import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { tauriCommands } from "@/lib/tauri";
 import type { Credential, Settings } from "@/types/bilibili";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
+import { useVideoAudioStore } from "@/stores/video-audio-store";
 import { useTheme } from "@/hooks/useTheme";
 import { useUiScale } from "@/hooks/useUiScale";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
@@ -14,10 +16,15 @@ import { useErrorCapture } from "@/hooks/useErrorCapture";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 
+/** 主窗口标记：主窗口与弹幕窗共用这份 App，跨窗口事件需按 label 过滤 */
+const isMainWindow = getCurrentWindow().label === "main";
+
 export default function App() {
   useTheme();
   useUiScale();
   useErrorCapture();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { updateInfo, dismiss } = useUpdateCheck();
   const { setAccounts, setActiveAccount } = useAuthStore();
   const setCurrentRoomId = useRoomStore((state) => state.setCurrentRoomId);
@@ -169,6 +176,35 @@ export default function App() {
       void unlistenChanged.then((fn) => fn());
     };
   }, [setSettings]);
+
+  // 视频播放与直播互斥：进入直播间时让出音轨。
+  // 只暂停不停止——队列与进度都保留，用户退出直播间后可经底部播放条手动继续。
+  useEffect(() => {
+    if (!isMainWindow) return;
+    const unlisten = listen("danmaku-entered", () => {
+      useVideoAudioStore.getState().pause();
+      // 只在视频播放页时才离开：MiniPlayer 在 /listen/video/* 前缀下不渲染，
+      // 若停留在该路由，退出直播间后用户找不到播放条。
+      // 其余页面不动，避免把用户从设置页等位置强行拽走。
+      if (location.pathname.startsWith("/listen/video/")) {
+        navigate("/listen", { replace: true });
+      }
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [navigate, location.pathname]);
+
+  // 离开直播间：视频保持暂停（幂等兜底，用户手动恢复才继续播）
+  useEffect(() => {
+    if (!isMainWindow) return;
+    const unlisten = listen("room-exited", () => {
+      useVideoAudioStore.getState().pause();
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
 
   return (
     <>

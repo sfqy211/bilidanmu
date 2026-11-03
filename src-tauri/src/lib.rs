@@ -322,6 +322,12 @@ pub fn run() {
                             .danmaku_emote_saved
                             .lock()
                             .unwrap_or_else(|e| e.into_inner()) = None;
+                        // 兜底通知：销毁弹幕窗的路径不止 exit_room（前端失败时会直接
+                        // destroy 窗口），确保主窗口知道已离开直播间、视频保持暂停
+                        use tauri::Emitter;
+                        let _ = window
+                            .app_handle()
+                            .emit_to("main", "room-exited", 0u64);
                     }
                 }
                 _ => {}
