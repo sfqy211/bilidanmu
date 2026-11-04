@@ -45,6 +45,12 @@ mod imp {
 #[cfg(not(target_os = "windows"))]
 mod imp {
     pub fn capture() {}
+
+    /// 非 Windows 平台为空实现。
+    /// 唯一的调用点在 tray.rs 的 `#[cfg(target_os = "windows")]` 分支里，
+    /// 所以这里没有调用者；保留是为了让 `pub use` 的 API 在两个平台上对称，
+    /// 避免调用方漏写 cfg 时编译失败。
+    #[allow(dead_code)]
     pub fn restore(_expected_hwnd: isize) {}
 }
 
