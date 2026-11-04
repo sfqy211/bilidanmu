@@ -65,8 +65,11 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
   const mode = editedMode ?? currentMode;
   const updateVisual = (patch: Partial<VisualSetting>) => patchSettings({ visual: { ...settings.visual, ...patch } });
   const updateProfile = (patch: Partial<VisualProfile>) => {
+    // 只写入用户真正改动的字段。之前用 resolveVisualProfile 展开会把未配置项
+    // （空串）固化成默认色，导致另一模式"莫名有了"默认强调色，
+    // 跟随背景切换主题时就会看到颜色被换掉
     const visual = { ...settings.visual };
-    visual[mode] = { ...resolveVisualProfile(settings, mode), ...patch };
+    visual[mode] = { ...visual[mode], ...patch };
     patchSettings({ visual });
   };
   const reset = () => patchSettings({ visual: structuredClone(DEFAULT_VISUAL) });

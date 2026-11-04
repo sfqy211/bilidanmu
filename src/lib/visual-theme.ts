@@ -22,13 +22,44 @@ export const isHexColor = (value: string) => /^#[\da-f]{6}$/i.test(value);
 
 export function resolveVisualProfile(settings: Settings, mode: "light" | "dark"): VisualProfile {
   const profile = settings.visual[mode];
-  const legacyAccent = mode === "light" ? settings.appearance.themeAccentLight : settings.appearance.themeAccentDark;
-  const fallbackAccent = mode === "light" ? DEFAULT_BRAND.light : DEFAULT_BRAND.dark;
   return { ...profile,
     background: isHexColor(profile.background) ? profile.background : FALLBACK_COLORS[mode].background,
     foreground: isHexColor(profile.foreground) ? profile.foreground : FALLBACK_COLORS[mode].foreground,
-    accent: isHexColor(profile.accent) ? profile.accent : isHexColor(legacyAccent) ? legacyAccent : fallbackAccent,
+    accent: resolveAccent(settings, mode),
   };
+}
+
+/**
+ * 强调色取值。亮/暗两套是分别配置的，但用户通常只调过其中一套：
+ * - 本模式配过 → 用它
+ * - 本模式没配过、另一模式配过 → 沿用另一模式（跨模式继承）
+ *   否则「跟随屏幕背景」一旦把主题从暗切到亮，强调色会跳回默认粉，
+ *   用户看到的就是"我的灰色变粉色了"
+ * - 都没配过 → legacy 字段 → 默认品牌色
+ *
+ * 注意：这里必须看**原始存储值**而不是 resolveVisualProfile 的结果，
+ * 因为后者会把空值填充成默认色，从而丢失"用户没配过"这一信息。
+ */
+export function resolveAccent(settings: Settings, mode: "light" | "dark"): string {
+  const own = settings.visual[mode]?.accent;
+  if (isHexColor(own) && !isLegacyDefaultAccent(own, mode)) return own;
+
+  const other = mode === "light" ? settings.visual.dark?.accent : settings.visual.light?.accent;
+  // 另一模式的值同样要排除"被固化的默认值"，否则两边都是默认值时无从继承
+  if (isHexColor(other) && !isLegacyDefaultAccent(other, mode === "light" ? "dark" : "light")) return other;
+
+  const legacyAccent = mode === "light" ? settings.appearance.themeAccentLight : settings.appearance.themeAccentDark;
+  if (isHexColor(legacyAccent)) return legacyAccent;
+
+  return mode === "light" ? DEFAULT_BRAND.light : DEFAULT_BRAND.dark;
+}
+
+/**
+ * 历史数据兼容：旧版 updateProfile 会把未配置的 accent 固化成当时模式的默认品牌色。
+ * 这类值等于"用户从没配过"，不能当作有效配置——否则跟随背景切主题时会看到颜色跳变。
+ */
+function isLegacyDefaultAccent(accent: string, mode: "light" | "dark"): boolean {
+  return accent.toUpperCase() === DEFAULT_BRAND[mode].toUpperCase();
 }
 
 function mix(first: string, second: string, amount: number) {
