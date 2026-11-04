@@ -346,7 +346,10 @@ export interface Settings {
 export type VisualFont = "system" | "yahei" | "dengxian" | "serif";
 export interface VisualProfile {
   accent: string;
+  /** 页面主背景（卡片外围、侧栏后的底色） */
   background: string;
+  /** 卡片/面板底色。留空时由 background 自动推导，用于营造层次 */
+  card: string;
   foreground: string;
   fontFamily: VisualFont;
   contentFontFamily: VisualFont | "inherit";

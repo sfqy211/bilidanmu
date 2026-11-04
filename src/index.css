@@ -35,6 +35,7 @@
   /* ── 设计 token：表面与文字（亮色）── */
   --app-page: #ececee;
   --app-card: #f6f6f7;
+  --app-sidebar: #f1f1f3;
   --border-subtle: rgba(0, 0, 0, 0.08);
   --ink: #1b1b1f;
   --ink-muted: #6f6f7a;
@@ -60,6 +61,7 @@
   /* ── 设计 token：表面与文字（暗色）── */
   --app-page: #232327;
   --app-card: #2a2a2f;
+  --app-sidebar: #232328;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --ink: #e8e8ea;
   --ink-muted: #9a9aa3;
@@ -104,6 +106,9 @@ body {
 /* 全局窗口圆角 — 修改此处即可统一所有窗口圆角 */
 .window-rounded {
   border-radius: 8px;
+  /* 透明窗口下子元素的方角背景会溢出圆角（父级 overflow 在合成层不一定裁到），
+     clip-path 在合成阶段生效，能可靠裁掉标题栏/侧栏的直角 */
+  clip-path: inset(0 round 8px);
 }
 
 .danmaku-bg-main {
@@ -155,11 +160,22 @@ body {
    玻璃面板 + 编辑级排版工具类。浅色米白、深色墨蓝，粉色为唯一强调。 */
 
 /* 应用底色：浅色米白、深色墨蓝 */
+/* 外壳底色 = 侧栏/标题栏的灰色，内容区作为内嵌圆角面板叠在上面
+   （ChatGPT 式结构：灰外壳 + 内嵌深色内容区） */
 .app-atmosphere {
-  background-color: var(--app-page);
+  background-color: var(--app-sidebar);
 }
 .dark .app-atmosphere {
+  background-color: var(--app-sidebar);
+}
+
+/* 内容区：内嵌圆角面板。四边留出灰边（上边由标题栏下方间隙提供），
+   使右侧形成一块独立的圆角区域，而不是与侧栏直角拼接 */
+.workspace-main {
+  margin: 0 8px 8px 0;
+  border-radius: 10px;
   background-color: var(--app-page);
+  overflow: hidden;
 }
 
 /* 玻璃面板：半透明 + 背景模糊 + 极细描边 */
@@ -212,13 +228,21 @@ body {
   --workspace-hover: color-mix(in srgb, var(--ink) 4%, transparent);
 }
 
+/* 顶部标题栏：与外壳同色（灰），只有右侧内容区是内嵌的深色圆角面板。
+   此前该 class 只有 JSX 没有样式，标题栏透出页面底色，与侧栏割裂。
+   顶部两角显式给圆角：父级 overflow 在透明窗口下不总能裁掉子元素背景。 */
+.workspace-titlebar {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
 .workspace-sidebar {
   display: flex;
   flex-direction: column;
   flex: 0 0 var(--workspace-sidebar-width);
   min-width: 0;
   padding: 24px 12px 12px;
-  border-right: 1px solid var(--border-subtle);
+  /* 侧栏直接坐在外壳灰底上，不需要自己的背景与分隔线 */
 }
 
 .workspace-navigation { display: flex; flex-direction: column; gap: 4px; }

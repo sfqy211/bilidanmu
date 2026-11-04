@@ -425,7 +425,10 @@ impl Default for FilterSetting {
 #[serde(default, rename_all = "camelCase")]
 pub struct VisualProfile {
     pub accent: String,
+    /// 页面主背景（卡片外围的底色）
     pub background: String,
+    /// 卡片/面板底色。留空时由 background 自动推导
+    pub card: String,
     pub foreground: String,
     pub font_family: String,
     pub content_font_family: String,
@@ -436,6 +439,7 @@ impl Default for VisualProfile {
         Self {
             accent: String::new(),
             background: String::new(),
+            card: String::new(),
             foreground: String::new(),
             font_family: "system".into(),
             content_font_family: "inherit".into(),

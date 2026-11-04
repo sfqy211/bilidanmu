@@ -1,7 +1,7 @@
 import type { VisualProfile, VisualSetting } from "@/types/bilibili";
 
 const profile: VisualProfile = {
-  accent: "", background: "", foreground: "",
+  accent: "", background: "", card: "", foreground: "",
   fontFamily: "system", contentFontFamily: "inherit",
 };
 
@@ -18,7 +18,7 @@ export function normalizeVisual(base: VisualSetting, incoming: Partial<VisualSet
     const merged = { ...fallback, ...source };
     if (!["system", "yahei", "dengxian", "serif"].includes(merged.fontFamily)) merged.fontFamily = "system";
     if (!["inherit", "system", "yahei", "dengxian", "serif"].includes(merged.contentFontFamily)) merged.contentFontFamily = "inherit";
-    for (const key of ["accent", "background", "foreground"] as const) {
+    for (const key of ["accent", "background", "card", "foreground"] as const) {
       if (!/^#[\da-f]{6}$/i.test(merged[key])) merged[key] = "";
     }
     return merged;

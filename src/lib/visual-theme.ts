@@ -22,11 +22,42 @@ export const isHexColor = (value: string) => /^#[\da-f]{6}$/i.test(value);
 
 export function resolveVisualProfile(settings: Settings, mode: "light" | "dark"): VisualProfile {
   const profile = settings.visual[mode];
+  const background = isHexColor(profile.background) ? profile.background : FALLBACK_COLORS[mode].background;
+  const foreground = isHexColor(profile.foreground) ? profile.foreground : FALLBACK_COLORS[mode].foreground;
   return { ...profile,
-    background: isHexColor(profile.background) ? profile.background : FALLBACK_COLORS[mode].background,
-    foreground: isHexColor(profile.foreground) ? profile.foreground : FALLBACK_COLORS[mode].foreground,
+    background,
+    foreground,
+    // 卡片色留空时按背景推导，见 applyVisualTheme
+    card: isHexColor(profile.card) ? profile.card : "",
     accent: resolveAccent(settings, mode),
   };
+}
+
+/**
+ * 卡片/面板底色。用户显式配置则用之，否则从背景推导：
+ * 暗色稍微提亮一点、浅色稍微压暗一点，让卡片与页面底色拉开层次。
+ * 若背景是纯黑/纯白这类极端值，推导结果几乎同色，层次会消失——
+ * 这种情况下改为反向微调，保证卡片始终可见。
+ */
+export function resolveCardColor(background: string, foreground: string, dark: boolean, card: string): string {
+  if (isHexColor(card)) return card;
+  const derived = dark
+    ? mix(background, foreground, 0.06)
+    : mix(background, "#FFFFFF", 0.55);
+  // 与背景几乎同色时（对比不足）改为朝前景方向多推一点，确保卡片可辨
+  if (contrastGap(derived, background) < 0.03) {
+    return mix(background, foreground, dark ? 0.12 : 0.08);
+  }
+  return derived;
+}
+
+/** 两个 hex 的亮度差绝对值，用于判断是否有足够层次 */
+function contrastGap(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    return (0.299 * r + 0.587 * g + 0.114 * bl) / 255;
+  };
+  return Math.abs(lum(a) - lum(b));
 }
 
 /**
@@ -84,10 +115,13 @@ export function applyVisualTheme(settings: Settings) {
   applyBrandTheme({ ...settings, appearance: { ...settings.appearance, themeAccentLight: light.accent, themeAccentDark: darkProfile.accent } });
   const mutedAmount = (60 + (visual.contrast - 40) * 0.35) / 100;
   const border = mix(profile.background, profile.foreground, (4 + visual.contrast * 0.1) / 100);
-  const card = dark ? mix(profile.background, profile.foreground, 0.04) : mix(profile.background, "#FFFFFF", 0.55);
+  const card = resolveCardColor(profile.background, profile.foreground, dark, profile.card);
   const contentFontFamily = profile.contentFontFamily === "inherit" ? profile.fontFamily : profile.contentFontFamily;
   const values: Record<string, string> = {
     "--app-page": profile.background, "--app-card": card, "--ink": profile.foreground,
+    // 侧栏底色：比内容区略浅/略深一档，形成"操作栏 + 内容区"的层次（ChatGPT 式）。
+    // 亮色让侧栏略灰于白色内容区，暗色让侧栏略亮于纯黑内容区。
+    "--app-sidebar": mix(profile.background, profile.foreground, dark ? 0.055 : 0.035),
     "--ink-muted": mix(profile.background, profile.foreground, mutedAmount), "--border-subtle": border,
     "--background": hexToHslString(profile.background), "--foreground": hexToHslString(profile.foreground),
     "--card": hexToHslString(card), "--card-foreground": hexToHslString(profile.foreground),

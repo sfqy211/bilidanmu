@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { BRAND_PRESETS } from "@/lib/brand-theme";
 import { DEFAULT_VISUAL } from "@/lib/visual-defaults";
-import { FONT_OPTIONS, isHexColor, resolveVisualProfile } from "@/lib/visual-theme";
+import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Settings, VisualFont, VisualProfile, VisualSetting } from "@/types/bilibili";
 import { SettingsRow, type SettingsPanelProps } from "./SettingsControls";
@@ -105,7 +105,17 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
             onChange={value => { const preset = BRAND_PRESETS.find(item => item.name === value); if (preset) updateProfile({ accent: preset[mode] }); }} />
           <ColorField label="强调色" value={profile.accent} onChange={accent => updateProfile({ accent })} />
         </div></SettingsRow>
-        <SettingsRow title="背景"><ColorField label="背景" value={profile.background} onChange={background => updateProfile({ background })} /></SettingsRow>
+        <SettingsRow title="背景" description="页面主背景，卡片外围的底色">
+          <ColorField label="背景" value={profile.background} onChange={background => updateProfile({ background })} />
+        </SettingsRow>
+        <SettingsRow title="卡片" description="卡片与面板底色。留空则按背景自动推导">
+          <div className="appearance-inline-controls">
+            <ColorField label="卡片" value={profile.card || resolveCardColor(profile.background, profile.foreground, mode === "dark", "")} onChange={card => updateProfile({ card })} />
+            {profile.card && (
+              <button type="button" className="workspace-button" onClick={() => updateProfile({ card: "" })}>自动</button>
+            )}
+          </div>
+        </SettingsRow>
         <SettingsRow title="前景"><ColorField label="前景" value={profile.foreground} onChange={foreground => updateProfile({ foreground })} /></SettingsRow>
       </Card>
     </section>
