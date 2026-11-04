@@ -6,17 +6,43 @@ const DEFAULT_BRAND_HSL = { light: "0 0% 27%", dark: "0 0% 85%" };
 /** 默认品牌色：石墨 Mono（无彩色极简） */
 export const DEFAULT_BRAND = { light: "#E11D48", dark: "#FB7185" };
 
-/** 主题色预设（与选色单页一致） */
-export const BRAND_PRESETS = [
-  { name: "石墨 Mono", light: "#3F3F46", dark: "#D4D4D8" },
-  { name: "靛蓝 Indigo", light: "#5661D8", dark: "#7B86F0" },
-  { name: "晴空蓝 Sky", light: "#0284C7", dark: "#38BDF8" },
-  { name: "薄荷绿 Emerald", light: "#059669", dark: "#34D399" },
-  { name: "青碧 Teal", light: "#0D9488", dark: "#2DD4BF" },
-  { name: "幽紫 Violet", light: "#7C3AED", dark: "#A78BFA" },
-  { name: "玫红 Rose", light: "#E11D48", dark: "#FB7185" },
-  { name: "琥珀 Amber", light: "#D97706", dark: "#FBBF24" },
+/** 一套完整配色：强调 + 背景 + 表面 + 前景 */
+export interface ThemePreset {
+  id: string;
+  name: string;
+  accent: string;
+  background: string;
+  surface: string;
+  foreground: string;
+}
+
+/**
+ * 深色主题预设。每套的四个颜色经过搭配：
+ * 背景最暗、表面略亮一档（保证卡片可辨）、前景高对比、强调色与背景有足够区分。
+ */
+export const DARK_THEME_PRESETS: ThemePreset[] = [
+  { id: "midnight", name: "午夜", accent: "#34D399", background: "#111111", surface: "#1F1F1F", foreground: "#FCFCFC" },
+  { id: "graphite", name: "石墨", accent: "#D4D4D8", background: "#18181B", surface: "#27272A", foreground: "#FAFAFA" },
+  { id: "abyss", name: "深海", accent: "#38BDF8", background: "#0B1220", surface: "#152036", foreground: "#E2E8F0" },
+  { id: "violet", name: "暗夜紫", accent: "#A78BFA", background: "#13111C", surface: "#211D2E", foreground: "#EDE9FE" },
+  { id: "warm", name: "暖棕", accent: "#FBBF24", background: "#1A1512", surface: "#292119", foreground: "#F5EDE4" },
+  { id: "forest", name: "深林", accent: "#4ADE80", background: "#0E1612", surface: "#1A2620", foreground: "#E8F5EE" },
 ];
+
+/** 浅色主题预设：背景偏米白/浅灰，表面更浅或纯白，前景深色 */
+export const LIGHT_THEME_PRESETS: ThemePreset[] = [
+  { id: "paper", name: "素纸", accent: "#E11D48", background: "#F2F2F4", surface: "#FFFFFF", foreground: "#1B1B1F" },
+  { id: "mist", name: "雾灰", accent: "#3F3F46", background: "#ECECEE", surface: "#F8F8F9", foreground: "#18181B" },
+  { id: "sky", name: "晴空", accent: "#0284C7", background: "#EEF4FA", surface: "#FFFFFF", foreground: "#15202B" },
+  { id: "mint", name: "薄荷", accent: "#059669", background: "#EDF6F1", surface: "#FFFFFF", foreground: "#14211B" },
+  { id: "sand", name: "暖沙", accent: "#D97706", background: "#F7F3ED", surface: "#FFFDF9", foreground: "#241B12" },
+  { id: "candy", name: "樱粉", accent: "#DB2777", background: "#FBF0F5", surface: "#FFFFFF", foreground: "#2A1520" },
+];
+
+/** 当前模式下可用的主题预设 */
+export function themePresets(mode: "light" | "dark"): ThemePreset[] {
+  return mode === "dark" ? DARK_THEME_PRESETS : LIGHT_THEME_PRESETS;
+}
 
 /** hex → "r g b" 三元组（供 rgb(var(--brand-rgb) / alpha) 使用） */
 export function hexToRgbTriplet(hex: string): string {

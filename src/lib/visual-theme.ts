@@ -72,25 +72,19 @@ function contrastGap(a: string, b: string): number {
  * 因为后者会把空值填充成默认色，从而丢失"用户没配过"这一信息。
  */
 export function resolveAccent(settings: Settings, mode: "light" | "dark"): string {
+  // 本模式配过就直接用。注意不能因为"值恰好等于默认品牌色"就忽略——
+  // 主题预设里就有一套 accent 与默认色相同（浅色「素纸」= #E11D48），
+  // 那样会让用户选了预设却显示为自定义。
   const own = settings.visual[mode]?.accent;
-  if (isHexColor(own) && !isLegacyDefaultAccent(own, mode)) return own;
+  if (isHexColor(own)) return own;
 
   const other = mode === "light" ? settings.visual.dark?.accent : settings.visual.light?.accent;
-  // 另一模式的值同样要排除"被固化的默认值"，否则两边都是默认值时无从继承
-  if (isHexColor(other) && !isLegacyDefaultAccent(other, mode === "light" ? "dark" : "light")) return other;
+  if (isHexColor(other)) return other;
 
   const legacyAccent = mode === "light" ? settings.appearance.themeAccentLight : settings.appearance.themeAccentDark;
   if (isHexColor(legacyAccent)) return legacyAccent;
 
   return mode === "light" ? DEFAULT_BRAND.light : DEFAULT_BRAND.dark;
-}
-
-/**
- * 历史数据兼容：旧版 updateProfile 会把未配置的 accent 固化成当时模式的默认品牌色。
- * 这类值等于"用户从没配过"，不能当作有效配置——否则跟随背景切主题时会看到颜色跳变。
- */
-function isLegacyDefaultAccent(accent: string, mode: "light" | "dark"): boolean {
-  return accent.toUpperCase() === DEFAULT_BRAND[mode].toUpperCase();
 }
 
 function mix(first: string, second: string, amount: number) {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BRAND_PRESETS } from "@/lib/brand-theme";
+import { themePresets } from "@/lib/brand-theme";
 import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -87,7 +87,30 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
     patchSettings({ visual });
   };
   const profile = resolveVisualProfile(settings, mode);
-  const accentPreset = BRAND_PRESETS.find(preset => preset[mode].toUpperCase() === profile.accent.toUpperCase());
+  // 预设随当前模式切换：深色只列深色预设，浅色只列浅色预设
+  const presets = themePresets(mode);
+  // 实际生效的表面色（用户没配时由背景推导），用于与预设比对
+  const effectiveSurface = resolveCardColor(profile.background, profile.foreground, mode === "dark", profile.card);
+  // 四色与某套预设一致才算"选中该预设"，否则视为自定义。
+  // 注意 surface 要拿「生效值」比较：选预设时写入的是具体色值，
+  // 但若用户点过「自动」，card 变空串、生效值由背景推导，仍应与预设匹配。
+  const activePreset = presets.find(preset =>
+    preset.accent.toUpperCase() === profile.accent.toUpperCase()
+    && preset.background.toUpperCase() === profile.background.toUpperCase()
+    && preset.foreground.toUpperCase() === profile.foreground.toUpperCase()
+    && preset.surface.toUpperCase() === effectiveSurface.toUpperCase()
+  );
+  const applyPreset = (id: string) => {
+    const preset = presets.find(item => item.id === id);
+    if (!preset) return;
+    // 一次性覆盖四色：选定主题即得到整套配色
+    updateProfile({
+      accent: preset.accent,
+      background: preset.background,
+      card: preset.surface,
+      foreground: preset.foreground,
+    });
+  };
   return <div className="appearance-panel">
     <section aria-labelledby="appearance-style-title">
       <div className="appearance-section-heading">
@@ -107,23 +130,22 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
         </div>
       </SettingsRow></Card>
       <Card>
-        <SettingsRow title="强调色"><div className="appearance-inline-controls">
-          <PillSelect label="强调色预设" value={accentPreset?.name ?? "custom"}
-            options={[...BRAND_PRESETS.map(preset => ({ value: preset.name, label: preset.name.split(" ")[0] })),
-              ...(accentPreset ? [] : [{ value: "custom", label: "自定义" }])]}
-            onChange={value => { const preset = BRAND_PRESETS.find(item => item.name === value); if (preset) updateProfile({ accent: preset[mode] }); }} />
+        <SettingsRow title="主题" description={`为${mode === "dark" ? "深色" : "浅色"}模式预设整套配色（强调、背景、表面、前景）。选择后会覆盖下面四个颜色。`}>
+          <div className="appearance-inline-controls">
+            <PillSelect label="主题预设" value={activePreset?.id ?? "custom"}
+              options={[...presets.map(preset => ({ value: preset.id, label: preset.name })),
+                ...(activePreset ? [] : [{ value: "custom", label: "自定义" }])]}
+              onChange={applyPreset} />
+          </div>
+        </SettingsRow>
+        <SettingsRow title="强调色">
           <ColorField label="强调色" value={profile.accent} onChange={accent => updateProfile({ accent })} />
-        </div></SettingsRow>
+        </SettingsRow>
         <SettingsRow title="背景" description="页面主背景，卡片外围的底色">
           <ColorField label="背景" value={profile.background} onChange={background => updateProfile({ background })} />
         </SettingsRow>
-        <SettingsRow title="表面" description="卡片、下拉弹层、播放条等浮起元素的底色。留空则按背景自动推导">
-          <div className="appearance-inline-controls">
-            <ColorField label="表面" value={profile.card || resolveCardColor(profile.background, profile.foreground, mode === "dark", "")} onChange={card => updateProfile({ card })} />
-            {profile.card && (
-              <button type="button" className="workspace-button" onClick={() => updateProfile({ card: "" })}>自动</button>
-            )}
-          </div>
+        <SettingsRow title="表面">
+          <ColorField label="表面" value={profile.card || effectiveSurface} onChange={card => updateProfile({ card })} />
         </SettingsRow>
         <SettingsRow title="前景"><ColorField label="前景" value={profile.foreground} onChange={foreground => updateProfile({ foreground })} /></SettingsRow>
       </Card>
