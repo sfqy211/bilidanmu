@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { HardDrive, Headphones, Info, Keyboard, MessageSquare, Palette, SlidersHorizontal, Volume2 } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
-import { useSettingsStore } from "@/stores/settings-store";
+import { defaultSettings, useSettingsStore } from "@/stores/settings-store";
+import type { Settings } from "@/types/bilibili";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { DanmakuSettings } from "@/components/settings/DanmakuSettings";
@@ -14,15 +15,35 @@ import { AboutSettings } from "@/components/settings/AboutSettings";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 const SETTINGS_CATEGORIES = [
-  { value: "general", label: "通用", description: "窗口行为与托盘", icon: SlidersHorizontal, component: GeneralSettings },
-  { value: "shortcuts", label: "快捷键", description: "全局与应用内快捷键的自定义", icon: Keyboard, component: ShortcutsSettings },
-  { value: "appearance", label: "外观", description: "", icon: Palette, component: AppearanceSettings },
-  { value: "danmaku", label: "弹幕窗口", description: "文字、消息、活动栏与屏蔽", icon: MessageSquare, component: DanmakuSettings },
-  { value: "audio", label: "直播音频", description: "直播音频与实时语音字幕", icon: Volume2, component: AudioSettings },
-  { value: "listen", label: "听视频", description: "播放偏好、视频字幕与封面外观", icon: Headphones, component: ListenSettings },
-  { value: "storage", label: "存储", description: "消息保留与图片缓存", icon: HardDrive, component: StorageSettings },
-  { value: "about", label: "关于", description: "版本、更新与帮助", icon: Info, component: AboutSettings },
-];
+  // resetKeys：本页「重置为默认设置」会还原的顶层字段，只影响本页
+  { value: "general", label: "通用", description: "窗口行为与托盘", icon: SlidersHorizontal, component: GeneralSettings,
+    resetKeys: ["closeBehavior", "silentStart", "showAvatars"] },
+  { value: "shortcuts", label: "快捷键", description: "全局与应用内快捷键的自定义", icon: Keyboard, component: ShortcutsSettings,
+    resetKeys: ["shortcuts"] },
+  { value: "appearance", label: "外观", description: "", icon: Palette, component: AppearanceSettings,
+    resetKeys: ["visual", "appearance"] },
+  { value: "danmaku", label: "弹幕窗口", description: "文字、消息、活动栏与屏蔽", icon: MessageSquare, component: DanmakuSettings,
+    resetKeys: ["appearance", "filter"] },  { value: "audio", label: "直播音频", description: "直播音频与实时语音字幕", icon: Volume2, component: AudioSettings,
+    resetKeys: ["audio", "stt"] },
+  { value: "listen", label: "听视频", description: "播放偏好、视频字幕与封面外观", icon: Headphones, component: ListenSettings,
+    resetKeys: ["listen"] },
+  { value: "storage", label: "存储", description: "消息保留与图片缓存", icon: HardDrive, component: StorageSettings,
+    resetKeys: ["cache"] },
+  { value: "about", label: "关于", description: "版本、更新与帮助", icon: Info, component: AboutSettings,
+    resetKeys: [] },
+] satisfies Array<{
+  value: string; label: string; description: string; icon: typeof SlidersHorizontal;
+  component: typeof GeneralSettings; resetKeys: (keyof Settings)[];
+}>;
+
+/** 外观页之外的分类只重置 appearance 的部分字段，避免误伤配色等外观设置 */
+const APPEARANCE_SUBSET: Partial<Record<string, (keyof Settings["appearance"])[]>> = {
+  danmaku: [
+    "fontSize", "showMedal", "showLevel", "hideGloryLevel", "hideFanMedal", "hideAdminBadge",
+    "hideUserIdColor", "hideUsername", "hideContributionRank", "opacity", "emoticonStyle",
+    "activityBarMode", "activityFilter", "scInDanmaku", "dockAnimMs", "danmakuWindow", "titleBarButtons",
+  ],
+};
 
 export function SettingsPage() {
   const settings = useSettingsStore((state) => state.settings);
@@ -52,6 +73,32 @@ export function SettingsPage() {
   }, [setSettings, reloadKey]);
 
   const dirty = saved !== null && JSON.stringify(settings) !== saved;
+
+  /**
+   * 重置某一页的设置为默认值。
+   * 只覆盖该页涉及的顶层字段——例如在「弹幕窗口」页重置不会清掉配色，
+   * 在「通用」页重置不影响快捷键与音频。
+   * 外观字段有子集划分：弹幕窗口页只重置弹幕相关项，不碰主题与配色。
+   */
+  const resetCategory = (keys: (keyof Settings)[]) => {
+    const patch: Partial<Settings> = {};
+    for (const key of keys) {
+      if (key === "appearance" && APPEARANCE_SUBSET[activeCategory]) {
+        // 合并而不是整体替换：只还原本页涉及的子字段
+        const subset = APPEARANCE_SUBSET[activeCategory]!;
+        const next = { ...settings.appearance };
+        for (const field of subset) {
+          (next as Record<string, unknown>)[field] = defaultSettings.appearance[field];
+        }
+        (patch as Record<string, unknown>).appearance = next;
+        continue;
+      }
+      // 深拷贝默认值，避免与 defaultSettings 共享引用
+      (patch as Record<string, unknown>)[key] = structuredClone(defaultSettings[key]);
+    }
+    patchSettings(patch);
+  };
+
   const save = async () => {
     setSaving(true);
     setSaveError(null);
@@ -88,11 +135,19 @@ export function SettingsPage() {
           ))}
         </Tabs.List>
         <div className="settings-content min-h-0 overflow-y-auto">
-          {SETTINGS_CATEGORIES.map(({ value, label, description, component: Panel }) => (
+          {SETTINGS_CATEGORIES.map(({ value, label, description, component: Panel, resetKeys }) => (
             <Tabs.Content key={value} value={value} className="outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
-              <header className="mb-5">
-                <h3 className="text-base font-semibold text-ink">{label}</h3>
-                {description && <p className="mt-1 text-xs text-ink-muted">{description}</p>}
+              <header className="mb-5 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-ink">{label}</h3>
+                  {description && <p className="mt-1 text-xs text-ink-muted">{description}</p>}
+                </div>
+                {/* 只重置本页涉及的字段，不影响其他页面配置 */}
+                {resetKeys.length > 0 && !loading && !loadError && (
+                  <button type="button" className="appearance-reset shrink-0" onClick={() => resetCategory(resetKeys)}>
+                    重置为默认设置
+                  </button>
+                )}
               </header>
               {value === "about" ? <AboutSettings /> : loading ? (
                 <p className="text-[13px] text-ink-muted" role="status">正在加载设置…</p>

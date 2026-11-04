@@ -1,7 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 import { BRAND_PRESETS } from "@/lib/brand-theme";
-import { DEFAULT_VISUAL } from "@/lib/visual-defaults";
 import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -75,10 +73,10 @@ function ModePreview({ mode }: { mode: Settings["appearance"]["theme"] }) {
 
 export function AppearanceSettings({ settings, patchSettings }: SettingsPanelProps) {
   const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
-  const currentMode: Mode = settings.appearance.theme === "dark" || (settings.appearance.theme === "system" && systemDark) ? "dark" : "light";
-  // 浅色与深色始终分别配置，未手动切换时跟随当前生效模式。
-  const [editedMode, setEditedMode] = useState<Mode | null>(null);
-  const mode = editedMode ?? currentMode;
+  // 配色始终作用于"当前实际生效的主题"：想改浅色就切到浅色模式再改。
+  // 此前还有一个"不切主题也能预览另一模式"的切换钮，已移除——
+  // 它会让用户改到自己看不见的模式上，容易困惑。
+  const mode: Mode = settings.appearance.theme === "dark" || (settings.appearance.theme === "system" && systemDark) ? "dark" : "light";
   const updateVisual = (patch: Partial<VisualSetting>) => patchSettings({ visual: { ...settings.visual, ...patch } });
   const updateProfile = (patch: Partial<VisualProfile>) => {
     // 只写入用户真正改动的字段。之前用 resolveVisualProfile 展开会把未配置项
@@ -88,24 +86,19 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
     visual[mode] = { ...visual[mode], ...patch };
     patchSettings({ visual });
   };
-  const reset = () => patchSettings({ visual: structuredClone(DEFAULT_VISUAL) });
   const profile = resolveVisualProfile(settings, mode);
   const accentPreset = BRAND_PRESETS.find(preset => preset[mode].toUpperCase() === profile.accent.toUpperCase());
   return <div className="appearance-panel">
     <section aria-labelledby="appearance-style-title">
       <div className="appearance-section-heading">
         <h4 id="appearance-style-title">视觉风格</h4>
-        <div className="appearance-segmented" role="group" aria-label="编辑明暗外观">
-          {(["light", "dark"] as const).map(value => <button key={value} type="button" aria-pressed={mode === value}
-            onClick={() => setEditedMode(value)}>{value === "light" ? "浅色" : "深色"}</button>)}
-        </div>
       </div>
       <Card><SettingsRow title="模式">
         <div className="appearance-modes" role="radiogroup" aria-label="颜色模式">
           {([{ value: "system", label: "跟随系统" }, { value: "light", label: "浅色模式" }, { value: "dark", label: "深色模式" }] as const).map(option => (
             <label key={option.value} className="appearance-mode-option" title={option.label}>
               <input type="radio" name="appearance-mode" aria-label={option.label} checked={settings.appearance.theme === option.value}
-                onChange={() => { setEditedMode(null); patchSettings({ appearance: { ...settings.appearance, theme: option.value } }); }} />
+                onChange={() => patchSettings({ appearance: { ...settings.appearance, theme: option.value } })} />
               <ModePreview mode={option.value} />
               {/* 缩略图本身不含文字，三选一并排时无法分辨哪个是「跟随系统」，故补可见标签 */}
               <span className="appearance-mode-label">{option.label}</span>
@@ -135,25 +128,22 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
         <SettingsRow title="前景"><ColorField label="前景" value={profile.foreground} onChange={foreground => updateProfile({ foreground })} /></SettingsRow>
       </Card>
     </section>
-    <AppearanceAdvanced settings={settings} mode={mode} onVisual={updateVisual} onProfile={updateProfile} onReset={reset} />
+    <AppearanceAdvanced settings={settings} mode={mode} onVisual={updateVisual} onProfile={updateProfile} />
   </div>;
 }
 
-function AppearanceAdvanced({ settings, mode, onVisual, onProfile, onReset }: {
+/** 字体、字号与对比度：以前折叠在「高级」里，现在直接展示，少一次点击 */
+function AppearanceAdvanced({ settings, mode, onVisual, onProfile }: {
   settings: Settings; mode: Mode; onVisual: (patch: Partial<VisualSetting>) => void;
-  onProfile: (patch: Partial<VisualProfile>) => void; onReset: () => void;
+  onProfile: (patch: Partial<VisualProfile>) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const visual = settings.visual;
   const profile = resolveVisualProfile(settings, mode);
   return <section className="appearance-advanced">
     <div className="appearance-advanced-heading">
-      <button type="button" aria-expanded={expanded} aria-controls="appearance-advanced-options" onClick={() => setExpanded(!expanded)}>
-        高级<ChevronDown className={`h-3.5 w-3.5 ${expanded ? "" : "-rotate-90"}`} />
-      </button>
-      <button type="button" onClick={onReset}>重置为默认设置</button>
+      <h4>字体与对比度</h4>
     </div>
-    {expanded && <div id="appearance-advanced-options" className="appearance-advanced-options">
+    <div className="appearance-advanced-options">
       <Card>
         <SettingsRow title="界面字体" description="调整导航、设置和控件使用的字体与字号。"><div className="appearance-inline-controls">
           <PillSelect label="界面字体" value={profile.fontFamily} options={FONT_OPTIONS}
@@ -175,6 +165,6 @@ function AppearanceAdvanced({ settings, mode, onVisual, onProfile, onReset }: {
           </label>
         </SettingsRow>
       </Card>
-    </div>}
+    </div>
   </section>;
 }

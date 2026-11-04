@@ -471,12 +471,11 @@ body {
 .appearance-number-field input { width: 64px; height: 28px; padding: 3px 8px; border: 1px solid var(--appearance-line); border-radius: 8px; background: color-mix(in srgb, var(--ink) 3%, transparent); color: var(--ink); font-size: inherit; }
 .appearance-advanced { margin-top: 36px; }
 .appearance-advanced-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.appearance-advanced-heading button { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-muted); font-size: calc(var(--ui-font-size, 14px) * 0.928571); font-weight: 600; }
-.appearance-advanced-heading button:hover { color: var(--ink); }
+.appearance-advanced-heading h4 { font-size: var(--ui-font-size, 14px); font-weight: 600; color: var(--ink); }
+/* 「重置为默认设置」放在页面标题行右侧（作用于整页外观） */
+.appearance-reset { color: var(--ink-muted); font-size: calc(var(--ui-font-size, 14px) * 0.928571); }
+.appearance-reset:hover { color: var(--ink); }
 .appearance-advanced-options > .appearance-card + .appearance-card { margin-top: 16px; }
-.appearance-segmented { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
-.appearance-segmented button { min-height: 26px; padding: 3px 9px; border-radius: 999px; color: var(--ink-muted); font-size: calc(var(--ui-font-size, 14px) * 0.857143); font-weight: 600; }
-.appearance-segmented button[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
 .appearance-contrast { display: flex; align-items: center; justify-content: flex-end; width: 192px; gap: 16px; font-size: calc(var(--ui-font-size, 14px) * 0.857143); }
 .appearance-contrast input { width: 146px; min-width: 0; height: 16px; accent-color: rgb(var(--brand-rgb)); }
 .appearance-contrast span { width: 24px; text-align: right; }
