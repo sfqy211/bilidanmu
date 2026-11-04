@@ -43,7 +43,7 @@ export function FavoriteManageDialog({ open, rooms, onRemove, onClose }: Favorit
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         ref={dialogRef}
-        className="flex max-h-[70vh] w-full max-w-md flex-col rounded-lg bg-app-card p-5 shadow-lg dark:ring-1 dark:ring-white/[0.06]"
+        className="flex max-h-[70vh] w-full max-w-md flex-col rounded-lg bg-app-surface p-5 shadow-lg dark:ring-1 dark:ring-white/[0.06]"
       >
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-medium text-slate-900 dark:text-white">收藏管理</h3>

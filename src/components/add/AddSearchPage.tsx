@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
 export interface AddSearchMode {
   value: string;
@@ -95,14 +96,17 @@ export function AddSearchPage<T>({
 
       <div className="mb-6 border-b border-subtle pb-5">
         <div className="room-add-search flex flex-wrap gap-2">
-          <select
-            value={mode}
-            onChange={(event) => setMode(event.target.value)}
-            aria-label="搜索方式"
-            className="workspace-select h-8 shrink-0 px-3 text-[13px]"
-          >
-            {modes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
+          {/* 原生 select 的弹层由系统绘制，无法跟随暗色主题，改用自绘 Select */}
+          <div className="add-search-mode">
+            <Select value={mode} onValueChange={setMode}>
+              <SelectTrigger aria-label="搜索方式" className="add-search-mode-trigger" />
+              <SelectContent>
+                {modes.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}

@@ -21,6 +21,7 @@ import { MessageClipboardPanel } from "@/components/danmaku/MessageClipboardPane
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { FilterPanel } from "@/components/danmaku/FilterPanel";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
@@ -1854,19 +1855,23 @@ export function DanmakuPage() {
                     跟随背景
                   </span>
                 ) : (
-                  <select
-                    value={settings.appearance.theme}
-                    onChange={(e) =>
-                      commitSettings({
-                        appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" }
-                      })
-                    }
-                    className="h-7 rounded border border-neutral-200 bg-[#f8f8f8] px-2 text-xs text-ink outline-none focus:ring-2 focus:ring-brand/30 dark:border-neutral-700 dark:bg-[#1a1c24]"
-                  >
-                    <option value="light">浅色</option>
-                    <option value="dark">深色</option>
-                    <option value="system">跟随系统</option>
-                  </select>
+                  <div className="danmaku-theme-select">
+                    <Select
+                      value={settings.appearance.theme}
+                      onValueChange={(next) =>
+                        commitSettings({
+                          appearance: { ...settings.appearance, theme: next as "light" | "dark" | "system" }
+                        })
+                      }
+                    >
+                      <SelectTrigger aria-label="主题" className="danmaku-theme-select-trigger" />
+                      <SelectContent>
+                        <SelectItem value="light">浅色</SelectItem>
+                        <SelectItem value="dark">深色</SelectItem>
+                        <SelectItem value="system">跟随系统</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
 

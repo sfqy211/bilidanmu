@@ -52,7 +52,8 @@ export default {
         },
         app: {
           page: "var(--app-page)",
-          card: "var(--app-card)",
+          // 表面层（卡片/弹层/播放器等）统一底色，原名 card 语义过窄
+          surface: "var(--app-surface)",
         },
         ink: {
           DEFAULT: "var(--ink)",

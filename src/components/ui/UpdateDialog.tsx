@@ -104,7 +104,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         ref={dialogRef}
-        className="flex w-full max-w-md flex-col rounded-lg bg-app-card p-6 shadow-lg dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]"
+        className="flex w-full max-w-md flex-col rounded-lg bg-app-surface p-6 shadow-lg dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]"
       >
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
           发现新版本 v{updateInfo.latestVersion}
@@ -117,7 +117,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
         </p>
 
         <div
-          className="update-changelog mt-4 max-h-48 overflow-y-auto rounded bg-app-card p-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300"
+          className="update-changelog mt-4 max-h-48 overflow-y-auto rounded bg-app-surface p-3 text-sm text-slate-600 dark:bg-app-page dark:text-slate-300"
           dangerouslySetInnerHTML={{ __html: changelogHtml }}
         />
 

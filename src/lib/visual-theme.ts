@@ -118,7 +118,7 @@ export function applyVisualTheme(settings: Settings) {
   const card = resolveCardColor(profile.background, profile.foreground, dark, profile.card);
   const contentFontFamily = profile.contentFontFamily === "inherit" ? profile.fontFamily : profile.contentFontFamily;
   const values: Record<string, string> = {
-    "--app-page": profile.background, "--app-card": card, "--ink": profile.foreground,
+    "--app-page": profile.background, "--app-surface": card, "--ink": profile.foreground,
     // 侧栏底色：比内容区略浅/略深一档，形成"操作栏 + 内容区"的层次（ChatGPT 式）。
     // 亮色让侧栏略灰于白色内容区，暗色让侧栏略亮于纯黑内容区。
     "--app-sidebar": mix(profile.background, profile.foreground, dark ? 0.055 : 0.035),

@@ -427,7 +427,7 @@ export function RoomPage() {
                       : ""
                   } ${filterActive ? "" : "cursor-grab active:cursor-grabbing"}`}
                 >
-                  <div className="room-cover-image relative aspect-video overflow-hidden rounded-lg bg-app-card">
+                  <div className="room-cover-image relative aspect-video overflow-hidden rounded-lg bg-app-surface">
                     {room.cover ? (
                       <ProxiedImage
                         src={room.cover}

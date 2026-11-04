@@ -34,7 +34,7 @@
 
   /* ── 设计 token：表面与文字（亮色）── */
   --app-page: #ececee;
-  --app-card: #f6f6f7;
+  --app-surface: #f6f6f7;
   --app-sidebar: #f1f1f3;
   --border-subtle: rgba(0, 0, 0, 0.08);
   --ink: #1b1b1f;
@@ -60,7 +60,7 @@
 
   /* ── 设计 token：表面与文字（暗色）── */
   --app-page: #232327;
-  --app-card: #2a2a2f;
+  --app-surface: #2a2a2f;
   --app-sidebar: #232328;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --ink: #e8e8ea;
@@ -271,12 +271,43 @@ body {
 
 .workspace-page { padding: 24px var(--workspace-page-space); }
 .workspace-notice { margin: 12px var(--workspace-page-space) 0; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
-.workspace-mini-player { background: var(--app-card); }
+.workspace-mini-player { background: var(--app-surface); }
 .workspace-brand { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .workspace-brand-logo { box-sizing: border-box; width: 24px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 7px; background: #f7f8fa; object-fit: contain; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08); }
 .dark .workspace-brand-logo { background: #2a2a2f; box-shadow: 0 0 0 1px var(--border-subtle); }
 .workspace-brand-name { overflow: hidden; color: var(--ink); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-select { border: 1px solid var(--border-subtle); border-radius: var(--workspace-control-radius); background: var(--app-card); color: var(--ink); }
+.workspace-select { border: 1px solid var(--border-subtle); border-radius: var(--workspace-control-radius); background: var(--app-surface); color: var(--ink); }
+
+/* 添加直播间/添加视频页的搜索方式下拉：与输入框同高，弹层与按钮同宽 */
+.add-search-mode { position: relative; flex-shrink: 0; width: 128px; }
+.add-search-mode-trigger {
+  height: 32px;
+  width: 100%;
+  padding-inline: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--workspace-control-radius);
+  background: var(--app-surface);
+  color: var(--ink);
+  font-size: 13px;
+  box-shadow: none;
+}
+.add-search-mode-trigger:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.add-search-mode .select-popover { width: 100%; min-width: 0; }
+
+/* 弹幕窗外观面板里的主题下拉（原本写死浅色 #f8f8f8，深色主题下突兀） */
+.danmaku-theme-select { position: relative; width: 96px; }
+.danmaku-theme-select-trigger {
+  height: 28px;
+  width: 100%;
+  padding-inline: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--app-surface);
+  color: var(--ink);
+  font-size: 12px;
+  box-shadow: none;
+}
+.danmaku-theme-select .select-popover { width: 100%; min-width: 0; }
 .workspace-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-bottom: 24px; }
 .workspace-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 100%; }
 .workspace-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 12px; border-radius: var(--workspace-control-radius); color: var(--ink-muted); font-size: 13px; transition: background-color 150ms ease, opacity 150ms ease; }
@@ -300,7 +331,7 @@ body {
   padding: 4px 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  background: var(--app-card);
+  background: var(--app-surface);
 }
 .list-card-row {
   display: flex;
@@ -371,7 +402,7 @@ body {
 .appearance-panel { --appearance-line: color-mix(in srgb, var(--ink) 9%, transparent); }
 .appearance-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .appearance-section-heading h4 { font-size: var(--ui-font-size, 14px); font-weight: 600; }
-.appearance-card { padding: 0 16px; border: 1px solid var(--appearance-line); border-radius: var(--radius); background: var(--app-card); }
+.appearance-card { padding: 0 16px; border: 1px solid var(--appearance-line); border-radius: var(--radius); background: var(--app-surface); }
 .appearance-card + .appearance-card { margin-top: 16px; }
 .appearance-card .settings-row { min-height: 44px; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--appearance-line); }
 .appearance-card .settings-row:last-child { border-bottom: 0; }
@@ -402,6 +433,32 @@ body {
 .appearance-inline-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .appearance-select { min-height: 28px; max-width: 100%; padding: 3px 26px 3px 10px; border: 1px solid var(--appearance-line); border-radius: 999px; background: var(--app-page); color: var(--ink); font-size: calc(var(--ui-font-size, 14px) * 0.857143); cursor: pointer; }
 .appearance-select:disabled { opacity: 0.45; cursor: default; }
+/* 自绘下拉的定位容器与胶囊触发器，外观与旧的 .appearance-select 一致 */
+.appearance-select-wrap { position: relative; display: inline-block; }
+.appearance-select-trigger {
+  height: 28px;
+  min-width: 96px;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--appearance-line);
+  border-radius: 999px;
+  background: var(--app-page);
+  color: var(--ink);
+  font-size: calc(var(--ui-font-size, 14px) * 0.857143);
+  box-shadow: none;
+}
+.appearance-select-trigger:hover { border-color: var(--appearance-line); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.appearance-select-trigger[data-state="open"] { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+/* 弹层与触发按钮同宽：组件默认 w-max（按内容撑开）会比胶囊宽出一截，
+   这里覆盖成跟随触发器宽度；高度仍限制并可滚动 */
+.appearance-select-wrap .select-popover {
+  width: 100%;
+  min-width: 0;
+  max-height: none;
+}
+.appearance-select-wrap .select-popover > div {
+  max-height: min(320px, 60vh);
+}
 .appearance-icon-button { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; color: var(--ink-muted); border-radius: 6px; }
 .appearance-icon-button:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .appearance-color-field { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 9px; border: 1px solid var(--appearance-line); border-radius: 999px; background: var(--app-page); }
@@ -624,7 +681,7 @@ body {
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  background: var(--app-card);
+  background: var(--app-surface);
 }
 
 .settings-content > [role="tabpanel"] > .settings-group + .settings-group {
@@ -712,7 +769,7 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--app-card);
+  background: var(--app-surface);
   transition: transform 150ms ease;
 }
 
@@ -768,7 +825,7 @@ body {
   height: 32px;
   border-color: var(--border-subtle);
   border-radius: var(--settings-control-radius);
-  background: var(--app-card);
+  background: var(--app-surface);
   padding-inline: 10px;
   color: var(--ink);
   font-size: 13px;
@@ -779,6 +836,27 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* 自绘下拉：与旧 .settings-select 同尺寸，弹层与按钮同宽 */
+.settings-select-wrap {
+  position: relative;
+  width: 190px;
+  max-width: 100%;
+}
+.settings-select-trigger {
+  height: 32px;
+  width: 100%;
+  padding-inline: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--settings-control-radius);
+  background: var(--app-surface);
+  color: var(--ink);
+  font-size: 13px;
+  box-shadow: none;
+}
+.settings-select-trigger:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.settings-select-wrap .select-popover { width: 100%; min-width: 0; }
+.settings-select-wrap .select-popover > div { max-height: min(300px, 55vh); }
 
 .settings-range {
   height: 18px;
@@ -845,7 +923,7 @@ body {
 .dark .app-scope .room-workspace input.room-search {
   border-radius: var(--room-control-radius);
   color: var(--ink);
-  background: color-mix(in srgb, var(--app-card) 65%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 65%, transparent);
   border-color: var(--room-rule);
   font-size: 13px;
 }
@@ -899,7 +977,7 @@ body {
 .listen-player { position: relative; isolation: isolate; container-type: inline-size; display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; color: var(--ink); }
 .listen-player-heading { flex-shrink: 0; margin-bottom: 20px; }
 .listen-player-heading-row { display: flex; min-width: 0; align-items: flex-start; gap: 12px; }
-.listen-player-cover-thumb { display: flex; width: 88px; aspect-ratio: 16 / 9; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: calc(var(--radius) - 6px); background: var(--app-card); color: var(--ink-muted); }
+.listen-player-cover-thumb { display: flex; width: 88px; aspect-ratio: 16 / 9; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: calc(var(--radius) - 6px); background: var(--app-surface); color: var(--ink-muted); }
 .listen-player-cover-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .listen-player-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: clamp(16px, 2.5cqi, 22px); line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
 .listen-player-meta { display: flex; min-width: 0; gap: 8px; margin-top: 6px; color: var(--ink-muted); font-size: 12px; }
@@ -912,7 +990,7 @@ body {
 .listen-playlist-tree {
   display: flex; width: 260px; min-height: 0; flex-shrink: 0; flex-direction: column;
   overflow: hidden; border: 1px solid var(--border-subtle); border-radius: calc(var(--radius) - 4px);
-  background: var(--app-card);
+  background: var(--app-surface);
 }
 .listen-playlist-tree-header {
   display: flex; flex-shrink: 0; align-items: center; gap: 8px;
@@ -1033,7 +1111,7 @@ body {
 .app-scope input[type="url"],
 .app-scope input:not([type]),
 .app-scope textarea {
-  background-color: var(--app-card);
+  background-color: var(--app-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 0.625rem;
   color: var(--ink);
@@ -1047,7 +1125,7 @@ body {
 .dark .app-scope input[type="url"],
 .dark .app-scope input:not([type]),
 .dark .app-scope textarea {
-  background-color: var(--app-card);
+  background-color: var(--app-surface);
   border-color: var(--border-subtle);
   color: var(--ink);
 }
@@ -1066,14 +1144,14 @@ body {
 .app-scope textarea:focus-visible,
 .app-scope textarea:focus {
   border-color: rgb(var(--brand-rgb) / 0.55);
-  background-color: var(--app-card);
+  background-color: var(--app-surface);
   box-shadow: 0 0 0 3px rgb(var(--brand-rgb) / 0.14);
 }
 .dark .app-scope input:focus-visible,
 .dark .app-scope input:focus,
 .dark .app-scope textarea:focus-visible,
 .dark .app-scope textarea:focus {
-  background-color: var(--app-card);
+  background-color: var(--app-surface);
   box-shadow: 0 0 0 3px rgb(var(--brand-rgb) / 0.20);
 }
 

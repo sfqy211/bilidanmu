@@ -250,7 +250,7 @@ export function AccountPage() {
 
       {showWarning ? (
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="flex w-full max-w-lg flex-col items-center rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
+          <div className="flex w-full max-w-lg flex-col items-center rounded-lg bg-app-surface p-6 shadow-sm dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
               <AlertTriangle className="h-6 w-6" />
             </div>
@@ -282,7 +282,7 @@ export function AccountPage() {
         </div>
       ) : showAdd ? (
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-card p-6 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
+          <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-surface p-6 shadow-sm dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex w-full items-center justify-between">
               <h3 className="text-base font-medium text-ink">扫码登录</h3>
               <button
@@ -304,7 +304,7 @@ export function AccountPage() {
                   className="h-[180px] w-[180px] bg-white"
                 />
               ) : (
-                <div className="flex h-[180px] w-[180px] items-center justify-center bg-app-card dark:bg-app-page">
+                <div className="flex h-[180px] w-[180px] items-center justify-center bg-app-surface dark:bg-app-page">
                   {loading ? (
                     <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                   ) : (

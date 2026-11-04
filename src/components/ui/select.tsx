@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Check, ChevronDown } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /* ─── Context ─── */
@@ -171,13 +171,12 @@ const SelectTrigger = React.forwardRef<
       aria-expanded={open}
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex h-11 w-full items-center justify-between gap-2 whitespace-nowrap rounded-[0.625rem] border border-slate-300/60 bg-white/70 px-4 text-sm text-slate-900 shadow-sm outline-none transition",
-        "hover:border-pink-400/60",
-        "focus-visible:border-brand/55 focus-visible:bg-white/95 focus-visible:shadow-[0_0_0_3px_rgba(244,63,94,0.14)]",
-        "disabled:cursor-not-allowed disabled:opacity-55",
-        "dark:border-white/12 dark:bg-white/[0.06] dark:text-slate-100",
-        "dark:hover:border-pink-400/50",
-        "dark:focus-visible:bg-white/[0.09] dark:focus-visible:shadow-[0_0_0_3px_rgba(244,63,94,0.20)]",
+        // 默认紧凑尺寸：调用方可传 className 覆盖高度/宽度。
+        // 不再用 44px 的大号触发器，避免在设置页/弹幕窗里显得臃肿。
+        "flex h-8 w-full items-center justify-between gap-2 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--app-surface)] px-2.5 text-[13px] text-ink shadow-none outline-none transition",
+        "hover:bg-ink/[0.04]",
+        "focus-visible:border-brand/55 focus-visible:shadow-[0_0_0_2px_rgb(var(--brand-rgb)/0.18)]",
+        "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -185,7 +184,7 @@ const SelectTrigger = React.forwardRef<
       <span className="truncate">{displayLabel ?? children}</span>
       <ChevronDown
         className={cn(
-          "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 dark:text-slate-500",
+          "h-3.5 w-3.5 shrink-0 text-ink-muted transition-transform duration-200",
           open && "rotate-180"
         )}
       />
@@ -213,14 +212,15 @@ const SelectContent = React.forwardRef<
       hidden={!open}
       data-state={open ? "open" : "closed"}
       className={cn(
-        "absolute left-0 top-full z-50 mt-1.5 w-max min-w-full overflow-hidden rounded-xl border border-slate-200/60 bg-white/95 p-1 shadow-lg backdrop-blur-xl",
-        "dark:border-white/[0.08] dark:bg-[#171a26]/95",
+        // 弹层用应用统一的表面色（--app-surface），宽度与触发器一致。
+        // 收窄内边距与圆角，贴合本项目紧凑的弹幕窗/设置页风格。
+        "absolute left-0 top-full z-50 mt-1 w-full min-w-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--app-surface)] p-1 shadow-lg backdrop-blur-xl",
         "select-popover",
         className
       )}
       {...props}
     >
-      <div className="max-h-[240px] overflow-y-auto p-0.5">
+      <div className="max-h-[240px] overflow-y-auto">
         {children}
       </div>
     </div>
@@ -271,24 +271,17 @@ const SelectItem = React.forwardRef<
       }}
       onMouseEnter={() => setHighlightedIndex(myIndex)}
       className={cn(
-        "relative flex w-full cursor-pointer select-none items-center whitespace-nowrap rounded-lg py-2.5 pl-3 pr-8 text-sm text-slate-700 outline-none transition-colors",
-        "hover:bg-brand/10 hover:text-pink-700",
-        isHighlighted && "bg-brand/10 text-pink-700",
-        isSelected && "font-medium text-brand",
-        "dark:text-slate-300",
-        "dark:hover:bg-brand/15 dark:hover:text-brand",
-        isHighlighted && "dark:bg-brand/15 dark:text-brand",
-        isSelected && "dark:text-brand",
+        // 紧凑行：不显示对号、不加左边条。选中态只靠文字色 + 淡底区分，
+        // 避免多重装饰显得臃肿
+        "relative flex w-full cursor-pointer select-none items-center whitespace-nowrap rounded-md py-1.5 pl-2.5 pr-2.5 text-[13px] text-ink-muted outline-none transition-colors",
+        "hover:bg-ink/[0.06] hover:text-ink",
+        isHighlighted && "bg-ink/[0.06] text-ink",
+        isSelected && "bg-brand/10 font-medium text-brand",
         className
       )}
       {...props}
     >
-      <span>{children}</span>
-      {isSelected && (
-        <span className="absolute right-2.5 flex h-3.5 w-3.5 items-center justify-center">
-          <Check className="h-3.5 w-3.5 text-brand [&_path]:stroke-[3]" />
-        </span>
-      )}
+      <span className="truncate">{children}</span>
     </div>
   )
 })

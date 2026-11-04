@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
 import type { Settings } from "@/types/bilibili";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
 export interface SettingsPanelProps {
   settings: Settings;
@@ -54,12 +55,21 @@ export function SettingsChoice({ title, description, value, onChange, options, d
   title: string; description?: string; value: string; onChange: (value: string) => void;
   options: readonly { value: string; label: string }[]; disabled?: boolean; placeholder?: string;
 }) {
+  // 原生 <select> 的展开列表由系统绘制，无法跟随暗色主题与自定义配色，
+  // 因此统一用自绘 Select（弹层底色走 --app-surface）
+  const resolved = options.length ? options : [{ value, label: placeholder || "暂无选项" }];
   return (
     <SettingsRow title={title} description={description}>
-      <select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} aria-label={title} className="settings-select w-full">
-        {!options.length && <option value={value}>{placeholder || "暂无选项"}</option>}
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
+      <div className="settings-select-wrap">
+        <Select value={value} onValueChange={onChange} disabled={disabled}>
+          <SelectTrigger aria-label={title} className="settings-select-trigger" disabled={disabled} />
+          <SelectContent>
+            {resolved.map((option) => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </SettingsRow>
   );
 }

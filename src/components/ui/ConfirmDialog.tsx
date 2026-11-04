@@ -50,7 +50,7 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         ref={dialogRef}
-        className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-card p-6 shadow-lg dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]"
+        className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-surface p-6 shadow-lg dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]"
       >
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
           <AlertTriangle className="h-5 w-5" />

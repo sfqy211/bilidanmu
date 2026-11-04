@@ -4,6 +4,7 @@ import { BRAND_PRESETS } from "@/lib/brand-theme";
 import { DEFAULT_VISUAL } from "@/lib/visual-defaults";
 import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import type { Settings, VisualFont, VisualProfile, VisualSetting } from "@/types/bilibili";
 import { SettingsRow, type SettingsPanelProps } from "./SettingsControls";
 
@@ -12,21 +13,36 @@ const range = (min: number, max: number) => Array.from({ length: max - min + 1 }
 const UI_SIZES = range(12, 20);
 const CONTENT_SIZES = range(12, 24);
 
+/** 自绘下拉：原生 <select> 的展开列表由系统绘制，无法跟随暗色主题，
+ *  这里改用项目内的 Select 组件（自绘弹层，支持键盘导航） */
 function PillSelect({ label, value, options, onChange, disabled = false }: {
   label: string; value: string; options: readonly { value: string; label: string }[];
   onChange: (value: string) => void; disabled?: boolean;
 }) {
-  return <select aria-label={label} value={value} onChange={event => onChange(event.target.value)} disabled={disabled}
-    className="appearance-select">{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
+  return <div className="appearance-select-wrap">
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger aria-label={label} className="appearance-select-trigger" disabled={disabled} />
+      <SelectContent>
+        {options.map(option => (
+          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>;
 }
 
 function SizeSelect({ label, value, options, onChange }: {
   label: string; value: number; options: readonly number[]; onChange: (value: number) => void;
 }) {
   const sizes = options.includes(value) ? options : [...options, value].sort((first, second) => first - second);
-  return <select aria-label={label} value={String(value)} onChange={event => onChange(Number(event.target.value))} className="appearance-select">
-    {sizes.map(size => <option key={size} value={size}>{size} px</option>)}
-  </select>;
+  return <div className="appearance-select-wrap">
+    <Select value={String(value)} onValueChange={next => onChange(Number(next))}>
+      <SelectTrigger aria-label={label} className="appearance-select-trigger" />
+      <SelectContent>
+        {sizes.map(size => <SelectItem key={size} value={String(size)}>{size} px</SelectItem>)}
+      </SelectContent>
+    </Select>
+  </div>;
 }
 
 function ColorField({ label, value, onChange }: {
@@ -108,9 +124,9 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
         <SettingsRow title="背景" description="页面主背景，卡片外围的底色">
           <ColorField label="背景" value={profile.background} onChange={background => updateProfile({ background })} />
         </SettingsRow>
-        <SettingsRow title="卡片" description="卡片与面板底色。留空则按背景自动推导">
+        <SettingsRow title="表面" description="卡片、下拉弹层、播放条等浮起元素的底色。留空则按背景自动推导">
           <div className="appearance-inline-controls">
-            <ColorField label="卡片" value={profile.card || resolveCardColor(profile.background, profile.foreground, mode === "dark", "")} onChange={card => updateProfile({ card })} />
+            <ColorField label="表面" value={profile.card || resolveCardColor(profile.background, profile.foreground, mode === "dark", "")} onChange={card => updateProfile({ card })} />
             {profile.card && (
               <button type="button" className="workspace-button" onClick={() => updateProfile({ card: "" })}>自动</button>
             )}

@@ -350,7 +350,7 @@ export function VideoCommentsPage() {
               className={`px-3 py-1.5 text-xs transition ${
                 sort === value
                   ? "bg-brand text-white"
-                  : "bg-app-card text-slate-500 hover:bg-ink/[0.05] dark:bg-app-card dark:text-slate-400 dark:hover:bg-ink/[0.06]"
+                  : "bg-app-surface text-slate-500 hover:bg-ink/[0.05] dark:bg-app-surface dark:text-slate-400 dark:hover:bg-ink/[0.06]"
               }`}
             >
               {label}
@@ -362,7 +362,7 @@ export function VideoCommentsPage() {
       {error && <InlineMessage key={msgKey} type="error" className="mb-3">{error}</InlineMessage>}
 
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
+        <div className="app-rise rounded-lg bg-app-surface p-5 shadow-sm dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]">
           {loading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : comments.length > 0 ? (
@@ -489,7 +489,7 @@ export function VideoCommentsPage() {
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 w-36 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/10 dark:bg-app-card dark:ring-white/10"
+            className="fixed z-50 w-36 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/10 dark:bg-app-surface dark:ring-white/10"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -515,7 +515,7 @@ export function VideoCommentsPage() {
       {/* 输入框固定在页面底部 */}
       <div
         className={cn(
-          "relative z-30 mt-3 shrink-0 rounded-lg bg-app-card p-3 shadow-sm transition-shadow dark:bg-app-card dark:ring-1",
+          "relative z-30 mt-3 shrink-0 rounded-lg bg-app-surface p-3 shadow-sm transition-shadow dark:bg-app-surface dark:ring-1",
           replyTo ? "ring-2 ring-pink-500/60 dark:ring-pink-500/60" : "dark:ring-white/[0.06]"
         )}
       >
