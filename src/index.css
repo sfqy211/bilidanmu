@@ -507,10 +507,46 @@ body {
 
 .room-list-grid {
   display: grid;
-  grid-template-columns: minmax(100px, 148px) minmax(0, 1fr) 40px 82px 64px 60px;
+  /* 用 fr 按重要性分比例，而不是写死 px：
+     固定 px 在小窗口下会把标题列挤到不足一字宽（竖排），
+     而 2K/4K 屏幕上又会让固定列显得过窄。
+     每列仍给最小宽度，保证任何窗口下都不至于挤成竖排。 */
+  grid-template-columns:
+    minmax(92px, 1.1fr)    /* 主播 */
+    minmax(150px, 2.3fr)   /* 直播标题：最小宽度要够一行字 */
+    minmax(44px, 0.5fr)    /* 当前标记 */
+    minmax(82px, 1fr)      /* 房间号 */
+    minmax(74px, 0.85fr)   /* 状态 */
+    minmax(96px, 0.95fr);  /* 操作：3 个 28px 按钮约需 92px */
   align-items: center;
-  column-gap: 16px;
+  /* 间距随容器宽度缩放，窄窗口下不浪费空间 */
+  column-gap: clamp(8px, 1.1cqi, 16px);
   padding-inline: 12px;
+}
+
+/* 窄窗口：整体收紧列宽与间距，保持六列结构与表头一致
+   （隐藏某一列会让表头与数据行错格） */
+@container (max-width: 620px) {
+  .room-list-grid {
+    grid-template-columns:
+      minmax(76px, 1.2fr)
+      minmax(110px, 1.8fr)
+      minmax(36px, 0.4fr)
+      minmax(64px, 0.8fr)
+      minmax(64px, 0.75fr)
+      minmax(78px, 0.9fr);
+    column-gap: 6px;
+    padding-inline: 8px;
+  }
+  /* 操作按钮缩小一档，仍完整显示三个（不隐藏功能） */
+  .room-list-grid .room-row-actions > button {
+    height: 24px;
+    width: 24px;
+  }
+  .room-list-grid .room-row-actions > button svg {
+    height: 13px;
+    width: 13px;
+  }
 }
 
 .room-list-heading {
@@ -550,7 +586,8 @@ body {
 
 .room-cover-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 自适应列数：固定 3 列时全屏下每张卡会被拉得过宽，封面比例失真 */
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 12px;
 }
 
@@ -941,20 +978,13 @@ body {
 
 @container (max-width: 650px) {
   .room-list-grid {
-    grid-template-columns: 112px minmax(0, 1fr) 40px 72px 60px 60px;
     column-gap: 10px;
   }
 }
 
 @container (max-width: 540px) {
   .room-list-grid {
-    grid-template-columns: 96px minmax(0, 1fr) 40px 60px 60px;
-    column-gap: 8px;
     padding-inline: 8px;
-  }
-
-  .room-list-grid > .room-id {
-    display: none;
   }
 }
 

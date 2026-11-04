@@ -337,7 +337,7 @@ export function RoomPage() {
               <span />
               <span className="room-id text-right">房间号</span>
               <span className="text-right">状态</span>
-              <span />
+              <span className="text-right">操作</span>
             </div>
             {previewRooms.map((room) => {
               const active = currentRoomId === room.id;
@@ -367,7 +367,7 @@ export function RoomPage() {
                     {isLive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />}
                     {isLive ? "直播中" : "未开播"}
                   </span>
-                  <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <div className="room-row-actions flex shrink-0 items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     <button
                       onClick={() => handleToggleFavorite(room)}
                       className={`flex h-7 w-7 items-center justify-center rounded transition ${
@@ -474,7 +474,7 @@ export function RoomPage() {
                           </div>
                         </div>
 
-                      <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <div className="room-row-actions flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             onClick={() => handleToggleFavorite(room)}
                             className={`room-cover-button flex h-7 w-7 items-center justify-center ${
