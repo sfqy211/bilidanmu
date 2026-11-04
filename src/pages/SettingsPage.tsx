@@ -77,6 +77,8 @@ export function SettingsPage() {
         </span>
       } />
       {saveError && <p className="mb-3 text-xs text-rose-600 dark:text-rose-300" role="alert">{saveError}</p>}
+      {/* 分类竖排在左，与应用主侧栏的方向一致（横排会破坏一致性，
+          且分类项后续增加时容易杂乱）；内容区在右侧居中显示 */}
       <Tabs.Root value={activeCategory} onValueChange={setActiveCategory} orientation="vertical" className="settings-layout min-h-0 flex-1">
         <Tabs.List aria-label="设置分类" className="settings-navigation">
           {SETTINGS_CATEGORIES.map(({ value, label, icon: Icon }) => (
@@ -89,7 +91,7 @@ export function SettingsPage() {
           {SETTINGS_CATEGORIES.map(({ value, label, description, component: Panel }) => (
             <Tabs.Content key={value} value={value} className="outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
               <header className="mb-5">
-                <h3 className={`${value === "appearance" ? "appearance-title" : "text-base"} font-semibold text-ink`}>{label}</h3>
+                <h3 className="text-base font-semibold text-ink">{label}</h3>
                 {description && <p className="mt-1 text-xs text-ink-muted">{description}</p>}
               </header>
               {value === "about" ? <AboutSettings /> : loading ? (

@@ -80,10 +80,10 @@ export function ListenHomePage() {
               <button type="button" onClick={() => void loadFolders()} className="workspace-button">重新加载</button>
             </div>
           ) : (
-            <div className="app-rise divide-y divide-subtle border-t border-subtle">
+            <div className="app-rise list-card">
               <button
                 onClick={() => navigate("/listen/watchlater")}
-                className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-ink/[0.04]"
+                className="list-card-row"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                   <Clock className="h-4 w-4" />
@@ -97,7 +97,7 @@ export function ListenHomePage() {
                 <button
                   key={folder.id}
                   onClick={() => navigate(`/listen/fav/${folder.id}`)}
-                  className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-ink/[0.04]"
+                  className="list-card-row"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.05] text-ink-muted">
                     <ListMusic className="h-4 w-4" />

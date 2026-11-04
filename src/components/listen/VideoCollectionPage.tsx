@@ -103,12 +103,12 @@ export function VideoCollectionPage({
       {error && <InlineMessage key={errorKey} type="error" className="mb-3">{error}</InlineMessage>}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="app-rise rounded-lg bg-app-card p-5 shadow-sm dark:bg-app-card dark:ring-1 dark:ring-white/[0.06]">
+        <div className="app-rise list-card">
           {loading ? (
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : items.length > 0 ? (
             <>
-              <div className="flex flex-col gap-2">
+              <div>
                 {items.map((item, index) => {
                   const isCurrent = currentBvid != null && item.bvid === currentBvid;
                   const isRowLoading = playingBvid === item.bvid && playingBvid != null;
@@ -117,10 +117,8 @@ export function VideoCollectionPage({
                     key={`${item.bvid}-${index}`}
                     onClick={() => onPlay(item, index)}
                     disabled={playingBvid != null}
-                    className={`group flex items-center gap-3 rounded-lg p-2.5 text-left shadow-sm transition disabled:cursor-not-allowed ${
-                      isCurrent
-                        ? "bg-brand/[0.08] ring-1 ring-brand/40 hover:bg-brand/[0.12] dark:bg-brand/[0.12]"
-                        : "bg-app-card hover:bg-ink/[0.05] dark:bg-app-card dark:ring-1 dark:ring-white/[0.06] dark:hover:bg-[#1a1c26]"
+                    className={`list-card-row group disabled:cursor-not-allowed ${
+                      isCurrent ? "list-card-row-current" : ""
                     }`}
                   >
                     {showCovers && (item.cover ? (
@@ -131,10 +129,10 @@ export function VideoCollectionPage({
                       </div>
                     ))}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
-                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">{item.author}</p>
+                      <p className="truncate text-[13px] font-medium text-ink">{item.title}</p>
+                      <p className="mt-0.5 truncate text-xs text-ink-muted">{item.author}</p>
                     </div>
-                    <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{formatDuration(item.duration)}</span>
+                    <span className="numeric shrink-0 text-xs text-ink-muted">{formatDuration(item.duration)}</span>
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
                       {isRowLoading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -330,7 +330,7 @@ export function RoomPage() {
             {favoriteOnly && !filterActive ? "还没有收藏的直播间，点击房间卡片上的星标进行收藏" : "没有匹配的直播间"}
           </div>
         ) : viewMode === "list" ? (
-          <div className="app-rise room-list">
+          <div className="app-rise room-list list-card">
             <div className="room-list-heading room-list-grid" aria-hidden="true">
               <span>主播</span>
               <span>直播标题</span>

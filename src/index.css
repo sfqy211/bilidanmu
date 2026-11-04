@@ -262,8 +262,40 @@ body {
 .workspace-button:disabled { cursor: not-allowed; opacity: 0.5; }
 .workspace-icon-button { padding: 6px; min-width: 32px; }
 .workspace-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 200px; padding: 32px 16px; color: var(--ink-muted); font-size: 13px; text-align: center; }
-.workspace-account-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 0; border-bottom: 1px solid var(--border-subtle); }
+.workspace-account-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); }
 .workspace-account-row[data-current="true"] { background: color-mix(in srgb, var(--ink) 3%, transparent); }
+
+/* ── 通用卡片列表 ──
+   与设置页的分组卡片同一套视觉：整块一张卡，行间用细分隔线。
+   用于听视频首页、账号页等"少量条目的列表"，让空白被卡片边界框住。
+
+   圆角处理：卡片去掉左右内边距并 overflow:hidden，行自己带横向内边距。
+   这样悬停高亮会被卡片圆角裁切，不会出现"矩形色块顶着圆角边框"的违和感。 */
+.list-card {
+  overflow: hidden;
+  padding: 4px 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--app-card);
+}
+.list-card-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 150ms ease;
+}
+.list-card-row:last-child { border-bottom: 0; }
+.list-card-row:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+/* 当前播放行：左侧品牌色竖条 + 淡底，比整行描边更适合行列表 */
+.list-card-row-current {
+  background: rgb(var(--brand-rgb) / 0.08);
+  box-shadow: inset 2px 0 0 rgb(var(--brand-rgb));
+}
+.list-card-row-current:hover { background: rgb(var(--brand-rgb) / 0.12); }
 .workspace-nav-item:focus-visible,
 .workspace-button:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 .workspace-select:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
@@ -312,7 +344,6 @@ body {
   animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important; scroll-behavior: auto !important;
 }
-.appearance-title { font-size: calc(var(--ui-font-size, 14px) * 2); line-height: 1.35; }
 .appearance-panel { --appearance-line: color-mix(in srgb, var(--ink) 9%, transparent); }
 .appearance-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .appearance-section-heading h4 { font-size: var(--ui-font-size, 14px); font-weight: 600; }
@@ -512,9 +543,11 @@ body {
 .settings-layout {
   display: grid;
   grid-template-columns: 136px minmax(0, 1fr);
-  column-gap: 28px;
+  column-gap: 32px;
 }
 
+/* 分类导航：竖排，与应用主侧栏方向一致。
+   分类项会随功能增加，竖排能稳定容纳；横排则容易变杂乱。 */
 .settings-navigation {
   display: flex;
   flex-direction: column;
@@ -556,16 +589,28 @@ body {
   scrollbar-gutter: stable;
 }
 
+/* 内容铺满可用宽度：空旷感由分组卡片消解，不靠限宽留白 */
 .settings-content > [role="tabpanel"] {
-  max-width: 780px;
+  max-width: none;
+}
+
+/* 设置分组卡片化：每组一张卡，空白被卡片边界框住，
+   不再出现"内容飘在大片空处"的观感（与外观页 .appearance-card 同一套语言） */
+.settings-group {
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--app-card);
 }
 
 .settings-content > [role="tabpanel"] > .settings-group + .settings-group {
-  margin-top: 24px;
+  margin-top: 12px;
 }
 
+/* 组头与首行之间用一条细分隔线，不再额外留白 */
 .settings-group-body {
   overflow-wrap: anywhere;
+  margin-top: 10px;
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -574,15 +619,44 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  min-height: 48px;
-  padding: 10px 0;
+  min-height: 44px;
+  /* 卡片已提供内边距，行内只留必要留白 */
+  padding: 9px 0;
   border-bottom: 1px solid var(--border-subtle);
 }
+.settings-row:last-child { border-bottom: 0; }
 
 .settings-row-control {
   flex: 0 0 190px;
   max-width: 100%;
   text-align: right;
+}
+
+/* ── 宽窗口（最大化 / 全屏）适配 ──
+   小窗口下以下规则均不生效，保持原有紧凑布局。
+   做法：分类栏贴在内容左侧（与应用主侧栏方向一致），内容区铺满剩余宽度；
+   空旷感由「每组设置一张卡片」来消解，而不是靠限宽居中留白。 */
+@container (min-width: 1100px) {
+  .settings-layout {
+    grid-template-columns: 168px minmax(0, 1fr);
+    column-gap: 32px;
+  }
+  /* 内容区铺满，不再限宽居中 */
+  .settings-content > [role="tabpanel"] {
+    max-width: none;
+    margin-inline: 0;
+  }
+  /* 控件区加宽：避免标签与控件之间被拉开一大段空隙
+     （如"模式"那行三个预览缩略图共约 256px，190px 装不下） */
+  .settings-row {
+    gap: 40px;
+  }
+  .settings-row-control {
+    flex-basis: 240px;
+  }
+  .settings-row-control:has(.appearance-modes) {
+    flex-basis: auto;
+  }
 }
 
 .settings-row-block {
