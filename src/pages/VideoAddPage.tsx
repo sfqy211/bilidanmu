@@ -62,7 +62,7 @@ export function VideoAddPage() {
       onSearch={handleSearch}
       itemKey={(video) => video.bvid}
       renderRow={(video) => (
-        <div className="flex items-center gap-3 border-b border-subtle py-3">
+        <div className="add-result-row flex items-center gap-3 px-4 py-3">
           {showCovers && (video.cover ? (
             <ProxiedImage src={video.cover} alt="" className="h-9 w-16 shrink-0 rounded object-cover" />
           ) : (

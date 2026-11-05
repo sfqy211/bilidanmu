@@ -155,7 +155,7 @@ export function AddSearchPage<T>({
 
           {searched ? (
             results.length > 0 ? (
-              <div>{results.map((item) => <div key={itemKey(item)}>{renderRow(item)}</div>)}</div>
+              <div className="flex flex-col gap-2">{results.map((item) => <div key={itemKey(item)}>{renderRow(item)}</div>)}</div>
             ) : (
               <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{emptyResultText}</div>
             )
@@ -163,7 +163,7 @@ export function AddSearchPage<T>({
             initial.loading ? (
               <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
             ) : initial.items.length > 0 ? (
-              <div>{initial.items.map((item) => <div key={itemKey(item)}>{renderRow(item)}</div>)}</div>
+              <div className="flex flex-col gap-2">{initial.items.map((item) => <div key={itemKey(item)}>{renderRow(item)}</div>)}</div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
                 {InitialIcon && <InitialIcon className="h-8 w-8" strokeWidth={1.6} />}

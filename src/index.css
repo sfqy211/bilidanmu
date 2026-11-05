@@ -380,21 +380,40 @@ body {
 /* 胶囊形态的主按钮（直播间页「添加」等） */
 .workspace-button-pill { border-radius: 999px; padding-inline: 16px; }
 .workspace-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 200px; padding: 32px 16px; color: var(--ink-muted); font-size: 13px; text-align: center; }
-.workspace-account-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); }
-.workspace-account-row[data-current="true"] { background: color-mix(in srgb, var(--ink) 3%, transparent); }
+
+/* 添加页搜索结果行：与主页行卡同一套视觉 */
+.add-result-row {
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--app-surface);
+  transition: background-color 150ms ease;
+}
+.add-result-row:hover { background: color-mix(in srgb, var(--ink) 5%, var(--app-surface)); }
+/* 账号页行：与主页行卡同一套视觉（悬浮圆角块 + 品牌色左条标记当前） */
+.workspace-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--app-surface);
+  transition: background-color 150ms ease;
+}
+.workspace-account-row:hover { background: color-mix(in srgb, var(--ink) 5%, var(--app-surface)); }
+.workspace-account-row[data-current="true"] {
+  background: rgb(var(--brand-rgb) / 0.1);
+  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb));
+}
+.workspace-account-row[data-current="true"]:hover { background: rgb(var(--brand-rgb) / 0.14); }
 
 /* ── 通用卡片列表 ──
-   与设置页的分组卡片同一套视觉：整块一张卡，行间用细分隔线。
-   用于听视频首页、账号页等"少量条目的列表"，让空白被卡片边界框住。
-
-   圆角处理：卡片去掉左右内边距并 overflow:hidden，行自己带横向内边距。
-   这样悬停高亮会被卡片圆角裁切，不会出现"矩形色块顶着圆角边框"的违和感。 */
+   与直播间主页同一套视觉：行是浮在页面底色上的独立圆角色块，行间留缝。
+   容器只负责纵向排列（不再有外框与整块底色）。
+   用于听视频首页、收藏夹/稍后再看、账号页等"少量条目的列表"。 */
 .list-card {
-  overflow: hidden;
-  padding: 4px 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  background: var(--app-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .list-card-row {
   display: flex;
@@ -403,17 +422,19 @@ body {
   gap: 12px;
   padding: 11px 16px;
   text-align: left;
-  border-bottom: 1px solid var(--border-subtle);
+  /* 注意不要用 --room-control-radius：它只在 .room-workspace 作用域内定义，
+     其它页面取不到会回落成直角；这里直接用与主页行相同值的-radius 计算 */
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--app-surface);
   transition: background-color 150ms ease;
 }
-.list-card-row:last-child { border-bottom: 0; }
-.list-card-row:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
-/* 当前播放行：左侧品牌色竖条 + 淡底，比整行描边更适合行列表 */
+.list-card-row:hover { background: color-mix(in srgb, var(--ink) 5%, var(--app-surface)); }
+/* 当前行：与主页当前房间一致（品牌色左条 + 淡品牌底） */
 .list-card-row-current {
-  background: rgb(var(--brand-rgb) / 0.08);
-  box-shadow: inset 2px 0 0 rgb(var(--brand-rgb));
+  background: rgb(var(--brand-rgb) / 0.1);
+  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb));
 }
-.list-card-row-current:hover { background: rgb(var(--brand-rgb) / 0.12); }
+.list-card-row-current:hover { background: rgb(var(--brand-rgb) / 0.14); }
 .workspace-nav-item:focus-visible,
 .workspace-button:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 .workspace-select:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
@@ -841,11 +862,10 @@ body {
   max-width: none;
 }
 
-/* 设置分组卡片化：每组一张卡，空白被卡片边界框住，
-   不再出现"内容飘在大片空处"的观感（与其它设置页同一套语言） */
+/* 设置分组卡片化：每组一张卡，空白被卡片边界框住。
+   卡片为无描边的悬浮圆角块，与直播间主页的行卡同一套语言。 */
 .settings-group {
   padding: 14px 16px;
-  border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   background: var(--app-surface);
 }

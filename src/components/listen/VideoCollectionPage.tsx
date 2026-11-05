@@ -108,7 +108,7 @@ export function VideoCollectionPage({
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
           ) : items.length > 0 ? (
             <>
-              <div>
+              <div className="flex flex-col gap-2">
                 {items.map((item, index) => {
                   const isCurrent = currentBvid != null && item.bvid === currentBvid;
                   const isRowLoading = playingBvid === item.bvid && playingBvid != null;

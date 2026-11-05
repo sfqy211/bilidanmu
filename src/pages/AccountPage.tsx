@@ -335,7 +335,7 @@ export function AccountPage() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {/* 账号列表整块一张卡片，与设置页分组卡片同一套视觉 */}
+          {/* 账号列表：行卡浮在页面底色上，与直播间主页同一套视觉 */}
           <div className="list-card">
           {/* 匿名模式条目 */}
           {activeAccountId === ANONYMOUS_ACCOUNT_ID && (

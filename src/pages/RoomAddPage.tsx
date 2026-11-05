@@ -60,7 +60,7 @@ export function RoomAddPage() {
   const renderRow = (room: SearchRoomResult) => {
     const added = rooms.some((item) => item.roomId === room.roomId);
     return (
-      <div className="flex items-center gap-3 border-b border-subtle py-3">
+      <div className="add-result-row flex items-center gap-3 px-4 py-3">
         {showAvatars && (room.avatar ? (
           <ProxiedImage src={room.avatar} alt={room.uname} className="h-9 w-9 shrink-0 rounded-full object-cover" />
         ) : (
