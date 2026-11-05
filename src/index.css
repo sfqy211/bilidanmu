@@ -349,6 +349,8 @@ body {
 .workspace-button-primary:hover { background: rgb(var(--brand-rgb)); color: var(--brand-contrast); opacity: 0.9; }
 .workspace-button:disabled { cursor: not-allowed; opacity: 0.5; }
 .workspace-icon-button { padding: 6px; min-width: 32px; }
+/* 胶囊形态的主按钮（直播间页「添加」等） */
+.workspace-button-pill { border-radius: 999px; padding-inline: 16px; }
 .workspace-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 200px; padding: 32px 16px; color: var(--ink-muted); font-size: 13px; text-align: center; }
 .workspace-account-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); }
 .workspace-account-row[data-current="true"] { background: color-mix(in srgb, var(--ink) 3%, transparent); }
@@ -516,82 +518,160 @@ body {
   .appearance-mode-preview { width: 54px; height: 42px; }
 }
 
-/* 直播间工作台：固定阅读轨道，状态与当前连接各自表达。 */
+/* 直播间工作台：按「正在直播 / 未开播」分区，行列表用索引式排版：
+   序号 + 主播 + 标题 + 状态 + 操作。行是浮在页面底色上的独立圆角色块，
+   行间留缝，不再是整块带边框的卡片。 */
 .room-workspace {
   container-type: inline-size;
-  --room-hover: color-mix(in srgb, var(--ink) 4%, transparent);
-  --room-current: color-mix(in srgb, var(--ink) 3%, transparent);
+  --room-hover: color-mix(in srgb, var(--ink) 5%, transparent);
   --room-rule: color-mix(in srgb, var(--ink) 7%, transparent);
   --room-tertiary: color-mix(in srgb, var(--ink-muted) 85%, var(--app-page));
   --room-control-radius: calc(var(--radius) - 4px);
+  --room-row-bg: var(--app-surface);
+  --room-row-bg-hover: color-mix(in srgb, var(--ink) 5%, var(--app-surface));
 }
+
+/* ── 状态筛选胶囊：全部 / 直播中 / 未开播 ── */
+.room-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.room-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.room-tab:hover { color: var(--ink); }
+.room-tab:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
+.room-tab-active { background: rgb(var(--brand-rgb)); color: var(--brand-contrast); font-weight: 500; }
+.room-tab-active:hover { color: var(--brand-contrast); }
+.room-tab-count { font-size: 11px; opacity: 0.72; }
+
+/* ── 显示方式切换（列表 / 封面）：一体化双段胶囊 ── */
+.room-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.room-view-option {
+  display: flex;
+  height: 26px;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.room-view-option:hover { color: var(--ink); }
+.room-view-option-active { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.room-view-option:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
+
+/* ── 分区头：状态点 + 标题 + 数量 + 填充线 + 收起/展开 ── */
+.room-section + .room-section { margin-top: 22px; }
+.room-section-header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.room-section-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 999px; }
+.room-section-dot-live { background: rgb(var(--brand-rgb)); }
+.room-section-dot-offline { background: color-mix(in srgb, var(--ink) 28%, transparent); }
+.room-section-title { color: var(--ink); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.room-section-count { color: var(--ink-muted); font-size: 12px; }
+.room-section-rule { flex: 1; height: 1px; background: var(--room-rule); }
+.room-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.room-section-toggle:hover { color: var(--ink); background: var(--room-hover); }
+.room-section-toggle:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
+
+/* ── 行列表 ── */
+.room-list { display: flex; flex-direction: column; gap: 8px; }
 
 .room-list-grid {
   display: grid;
-  /* 用 fr 按重要性分比例，而不是写死 px：
-     固定 px 在小窗口下会把标题列挤到不足一字宽（竖排），
-     而 2K/4K 屏幕上又会让固定列显得过窄。
-     每列仍给最小宽度，保证任何窗口下都不至于挤成竖排。 */
+  /* 状态与操作按内容占位（max-content），剩余空间按重要性分给主播与标题；
+     标题列给最小宽度，避免窄窗口下挤成竖排 */
   grid-template-columns:
-    minmax(92px, 1.1fr)    /* 主播 */
-    minmax(150px, 2.3fr)   /* 直播标题：最小宽度要够一行字 */
-    minmax(44px, 0.5fr)    /* 当前标记 */
-    minmax(82px, 1fr)      /* 房间号 */
-    minmax(74px, 0.85fr)   /* 状态 */
-    minmax(96px, 0.95fr);  /* 操作：3 个 28px 按钮约需 92px */
+    minmax(96px, 1.05fr)  /* 主播 */
+    minmax(120px, 2.2fr)  /* 直播标题 */
+    max-content           /* 状态 */
+    max-content;          /* 操作 */
   align-items: center;
   /* 间距随容器宽度缩放，窄窗口下不浪费空间 */
-  column-gap: clamp(8px, 1.1cqi, 16px);
-  padding-inline: 12px;
+  column-gap: clamp(8px, 1.2cqi, 16px);
+  padding-inline: 10px 12px;
 }
 
-/* 窄窗口：整体收紧列宽与间距，保持六列结构与表头一致
-   （隐藏某一列会让表头与数据行错格） */
+/* 窄窗口：收紧最小列宽，操作按钮缩小一档（仍完整显示三个，不隐藏功能） */
 @container (max-width: 620px) {
   .room-list-grid {
     grid-template-columns:
-      minmax(76px, 1.2fr)
-      minmax(110px, 1.8fr)
-      minmax(36px, 0.4fr)
-      minmax(64px, 0.8fr)
-      minmax(64px, 0.75fr)
-      minmax(78px, 0.9fr);
-    column-gap: 6px;
-    padding-inline: 8px;
+      minmax(80px, 1.05fr)
+      minmax(90px, 1.8fr)
+      max-content
+      max-content;
+    column-gap: 8px;
+    padding-inline: 8px 10px;
   }
-  /* 操作按钮缩小一档，仍完整显示三个（不隐藏功能） */
-  .room-list-grid .room-row-actions > button {
-    height: 24px;
-    width: 24px;
-  }
-  .room-list-grid .room-row-actions > button svg {
-    height: 13px;
-    width: 13px;
-  }
-}
-
-.room-list-heading {
-  min-height: 30px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--room-rule);
-  color: var(--room-tertiary);
-  font-size: 11px;
+  .room-list-grid .room-row-actions > button { height: 24px; width: 24px; }
+  .room-list-grid .room-row-actions > button svg { height: 13px; width: 13px; }
 }
 
 .room-list-row {
-  min-height: 42px;
+  min-height: 44px;
   border-radius: var(--room-control-radius);
+  background: var(--room-row-bg);
   transition: background-color 150ms ease;
-}
-
-.room-list-row-current {
-  background: var(--room-current);
 }
 
 .room-list-row:hover,
 .room-list-row:focus-within {
-  background: var(--room-hover);
+  background: var(--room-row-bg-hover);
 }
+
+/* 当前连接的房间：品牌色左条 + 淡品牌底 */
+.room-list-row-current {
+  background: rgb(var(--brand-rgb) / 0.1);
+  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb));
+}
+.room-list-row-current:hover { background: rgb(var(--brand-rgb) / 0.14); }
+
+.room-row-divider { width: 1px; height: 16px; background: var(--room-rule); }
+
+.room-row-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.room-row-status-live { color: rgb(var(--brand-rgb)); }
+
+/* 状态簇里的时间段（已播时长 / 上次直播时间）：跟随状态但保持中性灰，
+   用间隔点与状态文字分开 */
+.room-row-time { color: var(--ink-muted); font-size: 12px; }
+.room-row-time::before { content: "·"; margin-right: 5px; opacity: 0.7; }
 
 .room-current-label {
   color: var(--ink-muted);
@@ -599,10 +679,6 @@ body {
   border-radius: 4px;
   padding: 1px 5px;
   white-space: nowrap;
-}
-
-.room-id {
-  color: var(--room-tertiary);
 }
 
 .room-cover-grid {
@@ -671,6 +747,10 @@ body {
 .room-cover-live-dot {
   background: rgb(var(--live-status-rgb));
 }
+
+/* 卡片状态徽章里的时间段（已播时长 / 上次直播时间）：随徽章底色，半透明白 */
+.room-cover-time { font-size: 11px; opacity: 0.82; }
+.room-cover-time::before { content: "·"; margin-right: 4px; }
 
 /* 设置页：左侧按使用场景分类，右侧保持紧凑的标签 / 控件布局。 */
 .settings-workspace {
@@ -1031,7 +1111,7 @@ body {
 
 .room-tool-button {
   color: var(--ink-muted);
-  border-radius: var(--room-control-radius);
+  border-radius: 999px;
   transition: color 150ms ease, background-color 150ms ease;
 }
 
@@ -1047,7 +1127,7 @@ body {
 
 .app-scope .room-workspace input.room-search,
 .dark .app-scope .room-workspace input.room-search {
-  border-radius: var(--room-control-radius);
+  border-radius: 999px;
   color: var(--ink);
   background: color-mix(in srgb, var(--app-surface) 65%, transparent);
   border-color: var(--room-rule);
@@ -1063,18 +1143,6 @@ body {
 .dark .app-scope .room-workspace input.room-search:focus {
   border-color: rgb(var(--brand-rgb) / 0.5);
   box-shadow: 0 0 0 2px rgb(var(--brand-rgb) / 0.1);
-}
-
-@container (max-width: 650px) {
-  .room-list-grid {
-    column-gap: 10px;
-  }
-}
-
-@container (max-width: 540px) {
-  .room-list-grid {
-    padding-inline: 8px;
-  }
 }
 
 /* 页面载入错落渐入 */

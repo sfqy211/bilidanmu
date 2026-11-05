@@ -143,6 +143,8 @@ export interface Room {
   avatar?: string;
   /** 显示排序值：越小越靠前（直播中分组优先，组内默认后添加在前，拖拽可改） */
   sortOrder: number;
+  /** 最近一次观察到的开播时间（秒级时间戳）；未开播时展示"上次直播"用，未观察到过为 null */
+  lastLiveStart: number | null;
 }
 
 export interface RoomInfo extends Room {

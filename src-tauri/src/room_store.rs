@@ -2,12 +2,13 @@ use crate::db;
 use crate::models::room::Room;
 use crate::AppState;
 use rusqlite::params;
+use std::collections::HashMap;
 
 pub fn load_rooms(state: &AppState) -> Result<Vec<Room>, String> {
     db::with_connection(state, |connection| {
         let mut statement = connection
             .prepare(
-                "SELECT room_id, uid, title, uname, cover, avatar, sort_order FROM rooms ORDER BY sort_order ASC, room_id DESC",
+                "SELECT room_id, uid, title, uname, cover, avatar, sort_order, last_live_start FROM rooms ORDER BY sort_order ASC, room_id DESC",
             )
             .map_err(|error| format!("准备查询房间列表失败: {error}"))?;
 
@@ -22,6 +23,7 @@ pub fn load_rooms(state: &AppState) -> Result<Vec<Room>, String> {
                     cover: row.get(4)?,
                     avatar: row.get(5)?,
                     sort_order: row.get(6)?,
+                    last_live_start: row.get(7)?,
                 })
             })
             .map_err(|error| format!("查询房间列表失败: {error}"))?;
@@ -64,6 +66,32 @@ pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
 
         Ok(())
     })
+}
+
+/// 回填各主播最近一次的开播起始时间（uid -> 秒级时间戳）。
+/// 只更新与库内值不同的行：60s 轮询反复调用时绝大多数时候是零写入。
+/// B 站接口对未开播房间不提供该信息，因此这里只增不删——下播后保留上一场的开播时间。
+pub fn update_last_live_starts(state: &AppState, starts: &HashMap<u64, i64>) {
+    if starts.is_empty() {
+        return;
+    }
+    let result = db::with_connection(state, |connection| {
+        let mut statement = connection
+            .prepare(
+                "UPDATE rooms SET last_live_start = ?1 WHERE uid = ?2 AND (last_live_start IS NULL OR last_live_start != ?1)",
+            )
+            .map_err(|error| format!("准备回填上次开播时间失败: {error}"))?;
+        for (uid, start) in starts {
+            statement
+                .execute(params![start, uid])
+                .map_err(|error| format!("回填上次开播时间失败: {error}"))?;
+        }
+        Ok(())
+    });
+    // 回填只是展示辅助，失败不影响主流程
+    if let Err(error) = result {
+        log::warn!("回填上次开播时间失败: {error}");
+    }
 }
 
 /// 按给定顺序重排房间（sort_order = 下标）。

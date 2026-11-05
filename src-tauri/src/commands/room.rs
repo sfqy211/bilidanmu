@@ -867,7 +867,22 @@ pub async fn get_rooms_live_status(
     let credential = state.credential.lock().await.clone();
     let api = build_api_client(credential, &state);
     // 带上实时直播间标题：托盘菜单与快速切换 Popover 共用此结果
-    api.get_rooms_live_status(&uids).await
+    let fresh = api.get_rooms_live_status(&uids).await?;
+    persist_last_live_starts(state.inner(), &fresh);
+    Ok(fresh)
+}
+
+/// 从批量状态结果中提取开播时间并回填 rooms.last_live_start（内部复用：
+/// 前端手动刷新与 60s 轮询两条路径都要记，保证"上次直播时间"持续累积）
+fn persist_last_live_starts(
+    state: &AppState,
+    fresh: &std::collections::HashMap<u64, crate::models::room::LiveStatusInfo>,
+) {
+    let starts: std::collections::HashMap<u64, i64> = fresh
+        .iter()
+        .filter_map(|(uid, info)| info.live_start_time.map(|t| (*uid, t)))
+        .collect();
+    room_store::update_last_live_starts(state, &starts);
 }
 
 /// 拉取全部已保存房间的开播状态并写入 AppState 缓存，返回缓存是否发生变化。
@@ -885,6 +900,9 @@ pub(crate) async fn refresh_live_status_cache(app: &tauri::AppHandle) -> bool {
     let Ok(fresh) = api.get_rooms_live_status(&uids).await else {
         return false;
     };
+
+    // 观察到新场次时回填上次开播时间（未开播房间保留最近一场，供列表展示）
+    persist_last_live_starts(state.inner(), &fresh);
 
     let mut cache = state.live_status.lock().unwrap();
     let changed = cache.as_ref() != Some(&fresh);

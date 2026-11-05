@@ -10,15 +10,21 @@ pub struct Room {
     pub avatar: Option<String>,
     /// 显示排序值：越小越靠前（直播中分组优先；默认后添加的越小、排在前）
     pub sort_order: i64,
+    /// 最近一次观察到的开播起始时间（秒级时间戳）。
+    /// B 站接口对未开播房间不提供该信息，由开播状态轮询在观察到新场次时回填，
+    /// 供直播间列表展示"上次直播时间"。
+    pub last_live_start: Option<i64>,
 }
 
-/// get_status_info_by_uids 批量查询的单条结果：开播状态 + 直播间标题
+/// get_status_info_by_uids 批量查询的单条结果：开播状态 + 直播间标题 + 本次开播时间
 /// （托盘菜单展示用；实时标题随 60s 轮询缓存刷新）
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveStatusInfo {
     pub is_live: bool,
     pub title: String,
+    /// 本次开播时间（秒级时间戳）；未开播/轮播时接口返回 0，归一为 None
+    pub live_start_time: Option<i64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -44,6 +50,7 @@ impl RoomInfo {
                 cover: None,
                 avatar: None,
                 sort_order: 0,
+                last_live_start: None,
             },
             area_name: Some("原神".into()),
             parent_area_name: Some("手游".into()),

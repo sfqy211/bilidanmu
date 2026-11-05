@@ -127,6 +127,10 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
         );
     }
 
+    // 迁移: 添加上次开播时间列（秒级时间戳；直播间列表展示"已播时长/上次直播"用）。
+    // 值由开播状态轮询在观察到新场次时回填，B 站接口对未开播房间不提供该信息。
+    let _ = connection.execute_batch("ALTER TABLE rooms ADD COLUMN last_live_start INTEGER");
+
     Ok(())
 }
 

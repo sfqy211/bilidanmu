@@ -135,6 +135,7 @@ impl BiliApiClient {
                     .to_string(),
                 uname,
                 sort_order: 0,
+                last_live_start: None,
                 cover: data
                     .get("user_cover")
                     .or_else(|| data.get("cover"))
@@ -254,7 +255,12 @@ impl BiliApiClient {
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_string();
-                result.insert(uid, LiveStatusInfo { is_live, title });
+                // 本次开播时间（秒级时间戳）；未开播/轮播时接口返回 0
+                let live_start_time = entry
+                    .get("live_time")
+                    .and_then(Value::as_i64)
+                    .filter(|t| *t > 0);
+                result.insert(uid, LiveStatusInfo { is_live, title, live_start_time });
             }
         }
 
