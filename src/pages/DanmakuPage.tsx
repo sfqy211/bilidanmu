@@ -24,7 +24,6 @@ import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { FilterPanel } from "@/components/danmaku/FilterPanel";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
-import { SuperChatCard } from "@/components/danmaku/SuperChatCard";
 import { useDanmaku } from "@/hooks/useDanmaku";
 import { useAutoLike } from "@/hooks/useAutoLike";
 import { useAutoSend } from "@/hooks/useAutoSend";
@@ -1596,11 +1595,12 @@ export function DanmakuPage() {
                           className="absolute top-0 left-0 w-full"
                           style={{ transform: `translateY(${virtualItem.start}px)` }}
                         >
-                          {item.type === "superChat" ? (
-                            <SuperChatCard item={item} />
-                          ) : (
-                            <DanmakuMessageItem item={item} />
-                          )}
+                          <DanmakuMessageItem
+                            item={item}
+                            fontSize={fontSize}
+                            cachedEmotUrls={cachedEmotUrls}
+                            onMention={handleMention}
+                          />
                         </div>
                       );
                     })}

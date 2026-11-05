@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AtSign, Copy, ExternalLink, ShieldBan, User } from "lucide-react";
+import { AtSign, Clock, Copy, ExternalLink, ShieldBan, User } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { InlineEmotText, isEmoticonOnlyContent } from "@/components/danmaku/InlineEmotText";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { formatTimestamp } from "@/lib/utils";
+import { formatDateTime, formatTimestamp } from "@/lib/utils";
 import { formatMessagePrice, resolveMessageAccent } from "@/lib/price-chip";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -208,6 +208,16 @@ function ContextMenu({
           </button>
         </>
       )}
+      {/* 时间只在右键时展示：行内常驻时间会挤占窄弹幕窗的正文宽度 */}
+      {item.timestamp > 0 && (
+        <>
+          <div className="my-1 border-t border-slate-200 dark:border-white/[0.06]" />
+          <div className="flex items-center gap-2 px-3 py-1 text-xs text-slate-400 dark:text-slate-500">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{formatDateTime(item.timestamp)}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -330,10 +340,6 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
         >
           {item.username}
         </span>
-      ) : null}
-      {/* 礼物栏的 SC/礼物/舰长都带时间，与弹幕栏的 SC 行保持一致 */}
-      {priceChip && item.timestamp > 0 ? (
-        <span className="mr-1 text-xs text-slate-400 dark:text-slate-500">{formatTimestamp(item.timestamp)}</span>
       ) : null}
       {item.replyUsername && (
         <span className="mr-1 text-xs text-slate-400 dark:text-slate-500">
