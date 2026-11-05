@@ -10,6 +10,7 @@ import { queryClient } from "@/lib/query-client";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useRoomStore } from "@/stores/room-store";
+import { clampSidebarWidth, useUiStore } from "@/stores/ui-store";
 import "./index.css";
 
 async function bootstrap() {
@@ -23,9 +24,12 @@ async function bootstrap() {
 
   // 在首帧渲染前恢复视图模式，避免 card→list 闪烁
   try {
-    const selections = await tauriCommands.selections.load(["roomViewMode"]);
+    const selections = await tauriCommands.selections.load(["roomViewMode", "sidebarWidth"]);
     if (selections.roomViewMode === "card" || selections.roomViewMode === "list") {
       useRoomStore.getState().setViewMode(selections.roomViewMode);
+    }
+    if (typeof selections.sidebarWidth === "number") {
+      useUiStore.getState().setSidebarWidth(clampSidebarWidth(selections.sidebarWidth));
     }
   } catch {
     // 忽略读取失败，使用默认值

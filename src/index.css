@@ -255,7 +255,10 @@ body {
 /* 主窗口与听视频共用外壳：固定导航轨道，页面内容独立滚动。 */
 .workspace-shell {
   container-type: inline-size;
-  --workspace-sidebar-width: 152px;
+  /* 侧栏宽度贴着最长标签（"AI 接入"）算：78px 固定开销（内边距/图标/间隙）
+     + 每字号约 3px 的标签宽度，默认 14px 字号时 120px；
+     界面字号可调 12-20px，宽度随字号伸缩避免大字号溢出 */
+  --workspace-sidebar-width: calc(78px + var(--ui-font-size, 14px) * 3);
   --workspace-page-space: 24px;
   --workspace-control-radius: calc(var(--radius) - 4px);
   --workspace-hover: color-mix(in srgb, var(--ink) 4%, transparent);
@@ -301,6 +304,31 @@ body {
 .workspace-nav-active svg { color: rgb(var(--brand-rgb)); }
 .workspace-nav-item[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; background: transparent; }
 .workspace-sidebar-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 12px 10px 0; font-size: 10px; color: var(--ink-muted); }
+
+/* 导航标签：侧栏被拖窄时以省略号收敛，不溢出叠到内容区 */
+.workspace-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── 侧边栏拖宽手柄：6px 命中区，悬停/拖动/聚焦时显示竖线 ── */
+.workspace-sidebar-handle {
+  position: relative;
+  flex: 0 0 6px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.workspace-sidebar-handle::after {
+  content: "";
+  position: absolute;
+  inset: 16px 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 150ms ease;
+}
+.workspace-sidebar-handle:hover::after,
+.workspace-sidebar-handle:focus-visible::after,
+.workspace-sidebar-handle[data-dragging]::after {
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+}
 
 .workspace-page { padding: 24px var(--workspace-page-space); }
 .workspace-notice { margin: 12px var(--workspace-page-space) 0; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
@@ -391,7 +419,6 @@ body {
 .workspace-select:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 
 @container (max-width: 760px) {
-  .workspace-sidebar { flex-basis: 128px; padding-inline: 8px; }
   .workspace-page { padding-inline: 20px; }
 }
 @container (max-width: 540px) {
@@ -408,7 +435,8 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   html:not([data-reduced-motion="false"]) .workspace-nav-item,
-  html:not([data-reduced-motion="false"]) .workspace-button { transition: none; }
+  html:not([data-reduced-motion="false"]) .workspace-button,
+  html:not([data-reduced-motion="false"]) .workspace-sidebar-handle::after { transition: none; }
 }
 
 /* 外观设置复用主窗口的颜色与排版 token。 */
