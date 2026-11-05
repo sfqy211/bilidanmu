@@ -432,18 +432,16 @@ body {
   animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important; scroll-behavior: auto !important;
 }
-.appearance-panel { --appearance-line: color-mix(in srgb, var(--ink) 9%, transparent); }
-.appearance-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
-.appearance-section-heading h4 { font-size: var(--ui-font-size, 14px); font-weight: 600; }
-.appearance-card { padding: 0 16px; border: 1px solid var(--appearance-line); border-radius: var(--radius); background: var(--app-surface); }
-.appearance-card + .appearance-card { margin-top: 16px; }
-.appearance-card .settings-row { min-height: 44px; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--appearance-line); }
-.appearance-card .settings-row:last-child { border-bottom: 0; }
-.appearance-card .settings-row > .min-w-0 { flex: 1; }
-.appearance-card .settings-row > .min-w-0 > :first-child { font-size: var(--ui-font-size, 14px); font-weight: 600; }
-.appearance-card .settings-row-control { display: flex; flex: 0 1 auto; align-items: center; justify-content: flex-end; max-width: 100%; }
-.appearance-card .settings-row .text-xs { line-height: 1.5; }
-.appearance-mode-card .settings-row { padding-block: 8px; }
+/* 外观页容器：在 panel 与卡片之间多包了一层，上面「相邻分组」的选择器够不到，
+   所以分组间距在这里用 gap 统一给出（24px，与其它页 fieldset 的 space-y-6 对齐）。 */
+.appearance-panel {
+  --appearance-line: color-mix(in srgb, var(--ink) 9%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+/* 外观页的区块统一走 .settings-group（标题在卡片内），与其它设置页一致；
+   .appearance-card 那套「标题在卡片外」的自绘卡片已移除。 */
 .appearance-modes { display: flex; gap: 14px; }
 .appearance-mode-option { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
 .appearance-mode-option > input { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
@@ -502,13 +500,9 @@ body {
 .appearance-color-field input[aria-invalid="true"] { color: rgb(var(--brand-rgb)); }
 .appearance-number-field { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: calc(var(--ui-font-size, 14px) * 0.857143); }
 .appearance-number-field input { width: 64px; height: 28px; padding: 3px 8px; border: 1px solid var(--appearance-line); border-radius: 8px; background: color-mix(in srgb, var(--ink) 3%, transparent); color: var(--ink); font-size: inherit; }
-.appearance-advanced { margin-top: 36px; }
-.appearance-advanced-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.appearance-advanced-heading h4 { font-size: var(--ui-font-size, 14px); font-weight: 600; color: var(--ink); }
 /* 「重置为默认设置」放在页面标题行右侧（作用于整页外观） */
 .appearance-reset { color: var(--ink-muted); font-size: calc(var(--ui-font-size, 14px) * 0.928571); }
 .appearance-reset:hover { color: var(--ink); }
-.appearance-advanced-options > .appearance-card + .appearance-card { margin-top: 16px; }
 .appearance-contrast { display: flex; align-items: center; justify-content: flex-end; width: 192px; gap: 16px; font-size: calc(var(--ui-font-size, 14px) * 0.857143); }
 .appearance-contrast input { width: 146px; min-width: 0; height: 16px; accent-color: rgb(var(--brand-rgb)); }
 .appearance-contrast span { width: 24px; text-align: right; }
@@ -519,11 +513,6 @@ body {
   .appearance-mode-preview { width: 60px; height: 46px; }
 }
 @container (max-width: 380px) {
-  .appearance-card { padding-inline: 12px; }
-  .appearance-card .settings-row { flex-wrap: wrap; }
-  .appearance-card .settings-row-control { flex-basis: auto; width: 100%; }
-  .appearance-mode-card .settings-row { flex-wrap: nowrap; }
-  .appearance-mode-card .settings-row-control { width: auto; }
   .appearance-mode-preview { width: 54px; height: 42px; }
 }
 
@@ -745,7 +734,7 @@ body {
 }
 
 /* 设置分组卡片化：每组一张卡，空白被卡片边界框住，
-   不再出现"内容飘在大片空处"的观感（与外观页 .appearance-card 同一套语言） */
+   不再出现"内容飘在大片空处"的观感（与其它设置页同一套语言） */
 .settings-group {
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
@@ -812,6 +801,74 @@ body {
 .settings-row-block {
   padding: 14px 0;
   border-bottom: 1px solid var(--border-subtle);
+}
+.settings-row-block:last-child {
+  border-bottom: 0;
+}
+
+/* ── 金额档位取色板 ──
+   十档配色用色板网格呈现：一行行「标签 + 色值」在宽窗口里中间会空出
+   1400px，既难一眼比较色彩关系，也显得零散。这里改成色块矩阵，
+   整块热区就是原生取色器，颜色值悬停可见。 */
+.settings-swatch-group + .settings-swatch-group {
+  margin-top: 18px;
+}
+.settings-swatch-group-title {
+  margin-bottom: 10px;
+  font-size: calc(var(--ui-font-size, 14px) * 0.857143);
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.settings-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+.settings-swatch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.settings-swatch:hover {
+  border-color: color-mix(in srgb, var(--ink) 22%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.settings-swatch:focus-within {
+  outline: 2px solid rgb(var(--brand-rgb) / 0.65);
+  outline-offset: 2px;
+}
+.settings-swatch-dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16);
+}
+/* 原生取色器铺满圆点：点圆点即打开系统色盘，且保留键盘可达性 */
+.settings-swatch-dot input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.settings-swatch-label {
+  min-width: 0;
+  font-size: calc(var(--ui-font-size, 14px) * 0.857143);
+  line-height: 1.35;
+  color: var(--ink);
 }
 
 .settings-details > summary {

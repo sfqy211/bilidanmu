@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { themePresets } from "@/lib/brand-theme";
+import { DEFAULT_PRICE_COLORS, normalizePriceColors, SC_PRICE_TIERS } from "@/lib/price-chip";
 import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { DEFAULT_PRICE_COLORS, normalizePriceColors, SC_PRICE_TIERS } from "@/lib/price-chip";
 import type { PriceColors, Settings, VisualFont, VisualProfile, VisualSetting } from "@/types/bilibili";
-import { SettingsRow, type SettingsPanelProps } from "./SettingsControls";
+import { SettingsGroup, SettingsRow, type SettingsPanelProps } from "./SettingsControls";
 
 type Mode = "light" | "dark";
 const range = (min: number, max: number) => Array.from({ length: max - min + 1 }, (_, index) => min + index);
@@ -56,10 +56,6 @@ function ColorField({ label, value, onChange }: {
       onBlur={() => { if (isHexColor(draft)) onChange(draft.toUpperCase()); else setDraft(value.toUpperCase()); }}
       onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { event.preventDefault(); setDraft(value.toUpperCase()); } }} />
   </div>;
-}
-
-function Card({ children }: { children: ReactNode }) {
-  return <div className="appearance-card">{children}</div>;
 }
 
 function ModePreview({ mode }: { mode: Settings["appearance"]["theme"] }) {
@@ -113,11 +109,8 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
     });
   };
   return <div className="appearance-panel">
-    <section aria-labelledby="appearance-style-title">
-      <div className="appearance-section-heading">
-        <h4 id="appearance-style-title">视觉风格</h4>
-      </div>
-      <Card><SettingsRow title="模式">
+    <SettingsGroup title="视觉风格">
+      <SettingsRow title="模式">
         <div className="appearance-modes" role="radiogroup" aria-label="颜色模式">
           {([{ value: "system", label: "跟随系统" }, { value: "light", label: "浅色模式" }, { value: "dark", label: "深色模式" }] as const).map(option => (
             <label key={option.value} className="appearance-mode-option" title={option.label}>
@@ -129,28 +122,26 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
             </label>
           ))}
         </div>
-      </SettingsRow></Card>
-      <Card>
-        <SettingsRow title="主题" description={`为${mode === "dark" ? "深色" : "浅色"}模式预设整套配色（强调、背景、表面、前景）。选择后会覆盖下面四个颜色。`}>
-          <div className="appearance-inline-controls">
-            <PillSelect label="主题预设" value={activePreset?.id ?? "custom"}
-              options={[...presets.map(preset => ({ value: preset.id, label: preset.name })),
-                ...(activePreset ? [] : [{ value: "custom", label: "自定义" }])]}
-              onChange={applyPreset} />
-          </div>
-        </SettingsRow>
-        <SettingsRow title="强调色">
-          <ColorField label="强调色" value={profile.accent} onChange={accent => updateProfile({ accent })} />
-        </SettingsRow>
-        <SettingsRow title="背景" description="页面主背景，卡片外围的底色">
-          <ColorField label="背景" value={profile.background} onChange={background => updateProfile({ background })} />
-        </SettingsRow>
-        <SettingsRow title="表面">
-          <ColorField label="表面" value={profile.card || effectiveSurface} onChange={card => updateProfile({ card })} />
-        </SettingsRow>
-        <SettingsRow title="前景"><ColorField label="前景" value={profile.foreground} onChange={foreground => updateProfile({ foreground })} /></SettingsRow>
-      </Card>
-    </section>
+      </SettingsRow>
+      <SettingsRow title="主题" description={`为${mode === "dark" ? "深色" : "浅色"}模式预设整套配色（强调、背景、表面、前景）。选择后会覆盖下面四个颜色。`}>
+        <div className="appearance-inline-controls">
+          <PillSelect label="主题预设" value={activePreset?.id ?? "custom"}
+            options={[...presets.map(preset => ({ value: preset.id, label: preset.name })),
+              ...(activePreset ? [] : [{ value: "custom", label: "自定义" }])]}
+            onChange={applyPreset} />
+        </div>
+      </SettingsRow>
+      <SettingsRow title="强调色">
+        <ColorField label="强调色" value={profile.accent} onChange={accent => updateProfile({ accent })} />
+      </SettingsRow>
+      <SettingsRow title="背景" description="页面主背景，卡片外围的底色">
+        <ColorField label="背景" value={profile.background} onChange={background => updateProfile({ background })} />
+      </SettingsRow>
+      <SettingsRow title="表面">
+        <ColorField label="表面" value={profile.card || effectiveSurface} onChange={card => updateProfile({ card })} />
+      </SettingsRow>
+      <SettingsRow title="前景"><ColorField label="前景" value={profile.foreground} onChange={foreground => updateProfile({ foreground })} /></SettingsRow>
+    </SettingsGroup>
     <PriceColorSettings settings={settings} patchSettings={patchSettings} />
     <AppearanceAdvanced settings={settings} mode={mode} onVisual={updateVisual} onProfile={updateProfile} />
   </div>;
@@ -167,32 +158,56 @@ function PriceColorSettings({ settings, patchSettings }: SettingsPanelProps) {
       },
     });
   };
-  const reset = () => patchSettings({
-    appearance: { ...settings.appearance, priceColors: { ...DEFAULT_PRICE_COLORS } },
-  });
-  const items: { key: keyof PriceColors; label: string; hint: string }[] = [
-    ...SC_PRICE_TIERS.map((tier) => ({ key: tier.key as keyof PriceColors, label: "醒目留言", hint: tier.label })),
-    { key: "gift", label: "礼物", hint: "所有礼物" },
-    { key: "guardGovernor", label: "总督", hint: "大航海" },
-    { key: "guardAdmiral", label: "提督", hint: "大航海" },
-    { key: "guardCaptain", label: "舰长", hint: "大航海" },
-  ];
-  return <section aria-labelledby="appearance-price-title">
-    <div className="appearance-section-heading">
-      <h4 id="appearance-price-title">金额档位配色</h4>
-      <button type="button" onClick={reset} className="appearance-reset shrink-0">恢复默认</button>
+  // 不单独放「恢复默认」：页面标题右侧的「重置为默认设置」已覆盖 appearance，
+  // 同一页面放两个重置入口容易让人以为它们作用范围不同
+  return <SettingsGroup
+    title="金额档位配色"
+    description="醒目留言按金额自动匹配档位，礼物与舰长按类型取色。点击色块即可调色，这些颜色决定弹幕窗里价格胶囊与正文的着色。"
+  >
+    <div className="settings-row-block">
+      <ColorSwatchRow title="醒目留言">
+        {SC_PRICE_TIERS.map((tier) => (
+          <ColorSwatch key={tier.key} label={tier.label} value={colors[tier.key]}
+            onChange={(value) => update(tier.key as keyof PriceColors, value)} />
+        ))}
+      </ColorSwatchRow>
+      <ColorSwatchRow title="礼物与大航海">
+        {([
+          { key: "gift", label: "礼物" },
+          { key: "guardGovernor", label: "总督" },
+          { key: "guardAdmiral", label: "提督" },
+          { key: "guardCaptain", label: "舰长" },
+        ] as const).map(({ key, label }) => (
+          <ColorSwatch key={key} label={label} value={colors[key]}
+            onChange={(value) => update(key, value)} />
+        ))}
+      </ColorSwatchRow>
     </div>
-    <Card>
-      <SettingsRow title="说明" description="醒目留言按金额自动匹配档位，礼物与舰长按类型取色。这些颜色决定弹幕窗里价格胶囊与正文的着色。">
-        <span />
-      </SettingsRow>
-      {items.map(({ key, label, hint }) => (
-        <SettingsRow key={key} title={`${label} · ${hint}`}>
-          <ColorField label={`${label}${hint}`} value={colors[key]} onChange={(value) => update(key, value)} />
-        </SettingsRow>
-      ))}
-    </Card>
-  </section>;
+  </SettingsGroup>;
+}
+
+/** 一组取色块（带分组小标题），横向排布并自动换行 */
+function ColorSwatchRow({ title, children }: { title: string; children: ReactNode }) {
+  return <div className="settings-swatch-group">
+    <p className="settings-swatch-group-title">{title}</p>
+    <div className="settings-swatch-grid">{children}</div>
+  </div>;
+}
+
+/**
+ * 单个取色块：整块就是原生 color input 的点击热区，
+ * 内部圆点显示当前色，下方标签说明档位，悬停显示色值。
+ */
+function ColorSwatch({ label, value, onChange }: {
+  label: string; value: string; onChange: (value: string) => void;
+}) {
+  return <label className="settings-swatch" data-tooltip={value.toUpperCase()}>
+    <span className="settings-swatch-dot" style={{ background: value }}>
+      <input type="color" aria-label={`${label}颜色`} value={value}
+        onChange={(event) => onChange(event.target.value.toUpperCase())} />
+    </span>
+    <span className="settings-swatch-label">{label}</span>
+  </label>;
 }
 
 /** 字体、字号与对比度：以前折叠在「高级」里，现在直接展示，少一次点击 */
@@ -202,32 +217,23 @@ function AppearanceAdvanced({ settings, mode, onVisual, onProfile }: {
 }) {
   const visual = settings.visual;
   const profile = resolveVisualProfile(settings, mode);
-  return <section className="appearance-advanced">
-    <div className="appearance-advanced-heading">
-      <h4>字体与对比度</h4>
-    </div>
-    <div className="appearance-advanced-options">
-      <Card>
-        <SettingsRow title="界面字体" description="调整导航、设置和控件使用的字体与字号。"><div className="appearance-inline-controls">
-          <PillSelect label="界面字体" value={profile.fontFamily} options={FONT_OPTIONS}
-            onChange={fontFamily => onProfile({ fontFamily: fontFamily as VisualFont })} />
-          <SizeSelect label="界面字号" value={visual.uiFontSize} options={UI_SIZES} onChange={uiFontSize => onVisual({ uiFontSize })} />
-        </div></SettingsRow>
-        <SettingsRow title="内容字体" description="调整评论正文等阅读内容的字体与字号；弹幕和视频字幕使用各自的字号设置。"><div className="appearance-inline-controls">
-          <PillSelect label="内容字体" value={profile.contentFontFamily} options={[{ value: "inherit", label: "与界面字体相同" }, ...FONT_OPTIONS]}
-            onChange={contentFontFamily => onProfile({ contentFontFamily: contentFontFamily as VisualProfile["contentFontFamily"] })} />
-          <SizeSelect label="内容字号" value={visual.contentFontSize} options={CONTENT_SIZES} onChange={contentFontSize => onVisual({ contentFontSize })} />
-        </div></SettingsRow>
-      </Card>
-      <Card>
-        <SettingsRow title="对比度" description="调整次要文字与背景的对比强度。">
-          <label className="appearance-contrast">
-            <input type="range" aria-label="对比度" value={visual.contrast} min={0} max={100} step={1}
-              onChange={event => onVisual({ contrast: event.target.valueAsNumber })} />
-            <span className="numeric">{visual.contrast}</span>
-          </label>
-        </SettingsRow>
-      </Card>
-    </div>
-  </section>;
+  return <SettingsGroup title="字体与对比度">
+    <SettingsRow title="界面字体" description="调整导航、设置和控件使用的字体与字号。"><div className="appearance-inline-controls">
+      <PillSelect label="界面字体" value={profile.fontFamily} options={FONT_OPTIONS}
+        onChange={fontFamily => onProfile({ fontFamily: fontFamily as VisualFont })} />
+      <SizeSelect label="界面字号" value={visual.uiFontSize} options={UI_SIZES} onChange={uiFontSize => onVisual({ uiFontSize })} />
+    </div></SettingsRow>
+    <SettingsRow title="内容字体" description="调整评论正文等阅读内容的字体与字号；弹幕和视频字幕使用各自的字号设置。"><div className="appearance-inline-controls">
+      <PillSelect label="内容字体" value={profile.contentFontFamily} options={[{ value: "inherit", label: "与界面字体相同" }, ...FONT_OPTIONS]}
+        onChange={contentFontFamily => onProfile({ contentFontFamily: contentFontFamily as VisualProfile["contentFontFamily"] })} />
+      <SizeSelect label="内容字号" value={visual.contentFontSize} options={CONTENT_SIZES} onChange={contentFontSize => onVisual({ contentFontSize })} />
+    </div></SettingsRow>
+    <SettingsRow title="对比度" description="调整次要文字与背景的对比强度。">
+      <label className="appearance-contrast">
+        <input type="range" aria-label="对比度" value={visual.contrast} min={0} max={100} step={1}
+          onChange={event => onVisual({ contrast: event.target.valueAsNumber })} />
+        <span className="numeric">{visual.contrast}</span>
+      </label>
+    </SettingsRow>
+  </SettingsGroup>;
 }
