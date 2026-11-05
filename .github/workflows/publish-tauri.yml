@@ -118,6 +118,14 @@ jobs:
           workspaces: './src-tauri -> target'
           key: ${{ matrix.platform }}
 
+      # rust-cache 的过期产物清理会删掉 sherpa-onnx-prebuilt 里的旧静态库文件，
+      # 却留下空目录；sherpa-onnx-sys 的 build.rs 见目录存在就跳过下载，
+      # 导致链接期找不到 sherpa-onnx-c-api。构建前删掉该目录强制重新下载
+      # （上游 v1.13.7 资产每次约 20-40MB，数秒完成）。
+      - name: Clear stale sherpa-onnx prebuilt cache
+        shell: bash
+        run: rm -rf src-tauri/target/sherpa-onnx-prebuilt
+
       - name: Install frontend dependencies
         run: npm ci
 
