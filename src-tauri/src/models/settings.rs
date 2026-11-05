@@ -127,6 +127,12 @@ pub struct AppearanceSetting {
     /// 是否在弹幕栏额外显示简化版醒目留言（默认开启：SC 同时出现在礼物栏与弹幕栏）
     #[serde(default = "default_true")]
     pub sc_in_danmaku: bool,
+    /// 关闭后 SC/礼物/舰长与普通弹幕一致：无价格胶囊与着色，只保留纯文字
+    #[serde(default)]
+    pub plain_price_messages: bool,
+    /// 金额档位配色，缺项按档回退内置默认色
+    #[serde(default)]
+    pub price_colors: PriceColors,
     /// 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画
     #[serde(default = "default_dock_anim_ms")]
     pub dock_anim_ms: u32,
@@ -142,6 +148,51 @@ pub struct AppearanceSetting {
     /// 弹幕窗口外观（强调色 / 功能栏形态 / 收起条）
     #[serde(default)]
     pub danmaku_window: DanmakuWindowStyle,
+}
+
+/// 金额档位配色：醒目留言按金额分六档，礼物与舰长按类型/等级单独配色。
+/// 所有字段都带 serde 默认值——旧持久化数据没有这个对象时整体取默认，
+/// 局部缺字段时只回退该档，不会把整份设置读失败。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PriceColors {
+    /// 醒目留言 ≤30 元
+    pub sc_tier1: String,
+    /// 醒目留言 31–50 元
+    pub sc_tier2: String,
+    /// 醒目留言 51–100 元
+    pub sc_tier3: String,
+    /// 醒目留言 101–500 元
+    pub sc_tier4: String,
+    /// 醒目留言 501–1000 元
+    pub sc_tier5: String,
+    /// 醒目留言 >1000 元
+    pub sc_tier6: String,
+    /// 礼物（不限金额）
+    pub gift: String,
+    /// 总督
+    pub guard_governor: String,
+    /// 提督
+    pub guard_admiral: String,
+    /// 舰长
+    pub guard_captain: String,
+}
+
+impl Default for PriceColors {
+    fn default() -> Self {
+        Self {
+            sc_tier1: "#2A60B2".into(),
+            sc_tier2: "#427D9A".into(),
+            sc_tier3: "#E0913F".into(),
+            sc_tier4: "#D4464A".into(),
+            sc_tier5: "#9C3D9C".into(),
+            sc_tier6: "#B01F1F".into(),
+            gift: "#B45309".into(),
+            guard_governor: "#F77102".into(),
+            guard_admiral: "#AA3CDD".into(),
+            guard_captain: "#006FE6".into(),
+        }
+    }
 }
 
 /// 弹幕窗口外观设置
@@ -546,6 +597,8 @@ impl Default for Settings {
                 activity_bar_mode: ActivityBarMode::default(),
                 activity_filter: ActivityFilter::default(),
                 sc_in_danmaku: false,
+                plain_price_messages: false,
+                price_colors: PriceColors::default(),
                 dock_anim_ms: default_dock_anim_ms(),
                 theme_accent_light: String::new(),
                 theme_accent_dark: String::new(),

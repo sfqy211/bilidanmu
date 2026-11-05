@@ -105,6 +105,12 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
         <SettingsChoice title="表情显示" value={appearance.emoticonStyle} onChange={(emoticonStyle) => update({ emoticonStyle: emoticonStyle as Settings["appearance"]["emoticonStyle"] })}
           options={[{ value: "image", label: "图片" }, { value: "text", label: "文字" }, { value: "hidden", label: "不显示" }]} />
         <SettingsToggle title="弹幕栏显示简化醒目留言" description="礼物栏中的完整醒目留言卡片不受影响。" checked={appearance.scInDanmaku} onChange={(scInDanmaku) => update({ scInDanmaku })} />
+        <SettingsToggle
+          title="金额消息与普通弹幕一致"
+          description="关闭醒目留言、礼物、舰长的彩色胶囊与着色，金额仍以纯文字显示。各档位具体颜色在「外观 → 金额档位配色」里调整。"
+          checked={appearance.plainPriceMessages ?? false}
+          onChange={(plainPriceMessages) => update({ plainPriceMessages })}
+        />
         <details className="settings-details">
           <summary>用户信息与徽章</summary>
           <SettingsToggle title="显示用户徽章" description="控制荣耀等级与粉丝牌的总开关。" checked={appearance.showMedal} onChange={(showMedal) => update({ showMedal })} />

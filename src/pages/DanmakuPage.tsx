@@ -2037,6 +2037,37 @@ export function DanmakuPage() {
                   ))}
                 </div>
               </div>
+
+              {/* 金额着色：关闭后 SC/礼物/舰长与普通弹幕一样，只剩纯文字金额 */}
+              <div>
+                <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">金额着色</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    { value: false, label: "彩色" },
+                    { value: true, label: "与普通弹幕一致" },
+                  ] as const).map(({ value, label }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() =>
+                        commitSettings({
+                          appearance: { ...settings.appearance, plainPriceMessages: value }
+                        })
+                      }
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                        (settings.appearance.plainPriceMessages ?? false) === value
+                          ? "border-brand/40 bg-brand/10 text-brand"
+                          : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-ink-muted dark:text-ink-muted">
+                  各金额档位的具体颜色在「设置 → 外观 → 金额档位配色」里调整。
+                </p>
+              </div>
             </div>
           </FloatingPanel>
         )}

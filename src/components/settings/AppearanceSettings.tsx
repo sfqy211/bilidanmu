@@ -3,7 +3,8 @@ import { themePresets } from "@/lib/brand-theme";
 import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import type { Settings, VisualFont, VisualProfile, VisualSetting } from "@/types/bilibili";
+import { DEFAULT_PRICE_COLORS, normalizePriceColors, SC_PRICE_TIERS } from "@/lib/price-chip";
+import type { PriceColors, Settings, VisualFont, VisualProfile, VisualSetting } from "@/types/bilibili";
 import { SettingsRow, type SettingsPanelProps } from "./SettingsControls";
 
 type Mode = "light" | "dark";
@@ -150,8 +151,48 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
         <SettingsRow title="前景"><ColorField label="前景" value={profile.foreground} onChange={foreground => updateProfile({ foreground })} /></SettingsRow>
       </Card>
     </section>
+    <PriceColorSettings settings={settings} patchSettings={patchSettings} />
     <AppearanceAdvanced settings={settings} mode={mode} onVisual={updateVisual} onProfile={updateProfile} />
   </div>;
+}
+
+/** 金额档位配色：醒目留言按金额六档，礼物与舰长按类型/等级 */
+function PriceColorSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const colors = normalizePriceColors(settings.appearance.priceColors);
+  const update = (key: keyof PriceColors, value: string) => {
+    patchSettings({
+      appearance: {
+        ...settings.appearance,
+        priceColors: { ...colors, [key]: value.toUpperCase() },
+      },
+    });
+  };
+  const reset = () => patchSettings({
+    appearance: { ...settings.appearance, priceColors: { ...DEFAULT_PRICE_COLORS } },
+  });
+  const items: { key: keyof PriceColors; label: string; hint: string }[] = [
+    ...SC_PRICE_TIERS.map((tier) => ({ key: tier.key as keyof PriceColors, label: "醒目留言", hint: tier.label })),
+    { key: "gift", label: "礼物", hint: "所有礼物" },
+    { key: "guardGovernor", label: "总督", hint: "大航海" },
+    { key: "guardAdmiral", label: "提督", hint: "大航海" },
+    { key: "guardCaptain", label: "舰长", hint: "大航海" },
+  ];
+  return <section aria-labelledby="appearance-price-title">
+    <div className="appearance-section-heading">
+      <h4 id="appearance-price-title">金额档位配色</h4>
+      <button type="button" onClick={reset} className="appearance-reset shrink-0">恢复默认</button>
+    </div>
+    <Card>
+      <SettingsRow title="说明" description="醒目留言按金额自动匹配档位，礼物与舰长按类型取色。这些颜色决定弹幕窗里价格胶囊与正文的着色。">
+        <span />
+      </SettingsRow>
+      {items.map(({ key, label, hint }) => (
+        <SettingsRow key={key} title={`${label} · ${hint}`}>
+          <ColorField label={`${label}${hint}`} value={colors[key]} onChange={(value) => update(key, value)} />
+        </SettingsRow>
+      ))}
+    </Card>
+  </section>;
 }
 
 /** 字体、字号与对比度：以前折叠在「高级」里，现在直接展示，少一次点击 */

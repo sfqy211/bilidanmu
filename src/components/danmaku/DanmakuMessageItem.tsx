@@ -255,8 +255,11 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
       ? cachedEmotUrls?.has(item.emoticonOptions.url) ?? false
       : false;
 
-  // 醒目留言/礼物/舰长共用一套金额胶囊与强调色，风格与礼物栏卡片一致
-  const accent = resolveMessageAccent(item);
+  // 醒目留言/礼物/舰长共用一套金额胶囊与强调色，颜色来自外观设置里的档位配色；
+  // 用户勾选「与普通弹幕一致」后去掉彩色胶囊与着色，金额仍以普通文字显示
+  const plainPriceMessages = useSettingsStore((state) => state.settings.appearance.plainPriceMessages ?? false);
+  const priceColors = useSettingsStore((state) => state.settings.appearance.priceColors);
+  const accent = plainPriceMessages ? undefined : resolveMessageAccent(item, priceColors);
   const priceChip = formatMessagePrice(item);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -326,11 +329,15 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
           style={{ height: Math.round(18 * scale) }}
         />
       ) : null}
-      {/* 金额胶囊前置：醒目留言、礼物、舰长共用同一套视觉语言 */}
-      {priceChip ? (
+      {/* 金额胶囊前置：醒目留言、礼物、舰长共用同一套视觉语言。
+          关闭彩色样式后退化为普通文字金额，信息不丢、观感与普通弹幕一致 */}
+      {priceChip && !plainPriceMessages ? (
         <span className="sc-chip" style={{ "--sc-accent": accent } as React.CSSProperties}>
           {priceChip}
         </span>
+      ) : null}
+      {priceChip && plainPriceMessages ? (
+        <span className="mr-1 font-semibold text-[#1d1d1f] dark:text-[#ffffff]">{priceChip}</span>
       ) : null}
       {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
