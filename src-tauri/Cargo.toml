@@ -1,6 +1,6 @@
 [package]
 name = "bilidanmu"
-version = "0.4.17"
+version = "0.5.0"
 description = "B站直播间弹幕发送客户端"
 authors = ["sfqy"]
 edition = "2021"
@@ -9,7 +9,7 @@ edition = "2021"
 name = "bilidanmu_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-# 礼物打赏（真实扣费）编译期开关：官方发布默认关闭，自行编译开启方式见 README「礼物打赏」一节
+# 礼物打赏（真实扣费）编译期开关：官方发布默认关闭，自行编译开启方式见 README「礼物打赏」一�?
 [features]
 gift-send = []
 
