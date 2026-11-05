@@ -11,6 +11,30 @@ const FLUSH_INTERVAL_MS = 100;
 let pendingMessages: DanmakuMessage[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * 后到的译文暂存区（key = `${roomId}:${id}`）。
+ *
+ * 同一笔 SC 的普通/日语两种下发在 Rust 侧紧挨着发出，译文更新事件常常比
+ * 正文更早到前端——此时正文还躺在 pendingMessages 批处理队列里、尚未进入
+ * store，直接回填会找不到目标而丢掉译文。这里先记下来，入列时再补上。
+ */
+const pendingTranslations = new Map<string, string>();
+const PENDING_TRANSLATION_LIMIT = 200;
+
+function translationKey(roomId: number, id: string): string {
+  return `${roomId}:${id}`;
+}
+
+function takePendingTranslation(message: DanmakuMessage): string | undefined {
+  if (message.type !== "superChat") return undefined;
+  const key = translationKey(message.roomId, message.id);
+  const value = pendingTranslations.get(key);
+  if (value !== undefined) {
+    pendingTranslations.delete(key);
+  }
+  return value;
+}
+
 function applyMessages(state: DanmakuState, batch: DanmakuMessage[]): Partial<DanmakuState> {
   // 批内先攒新消息、每栏最后只 concat 一次：存量到十万条量级时，
   // 逐条 [...arr, msg] 整组复制会产生海量临时数组，主线程与 GC 都扛不住
@@ -21,7 +45,12 @@ function applyMessages(state: DanmakuState, batch: DanmakuMessage[]): Partial<Da
   let { droppedDanmaku, droppedGift, droppedActivity } = state;
   const cap = state.messageLimit > 0 ? state.messageLimit : Number.POSITIVE_INFINITY;
 
-  for (const message of batch) {
+  for (const incoming of batch) {
+    // 译文先于正文到达时，在这里补上（同一对象会被推进两个栏，先补再分流）
+    const pendingTrans = takePendingTranslation(incoming);
+    const message = pendingTrans && pendingTrans !== incoming.contentTrans
+      ? { ...incoming, contentTrans: pendingTrans }
+      : incoming;
     // 开播/下播是系统标记，非用户消息，不做屏蔽过滤
     const isSessionMarker = message.type === "live" || message.type === "preparing";
     if (!isSessionMarker) {
@@ -124,6 +153,8 @@ interface DanmakuState {
   /** 是否在弹幕栏额外显示简化版醒目留言 */
   scInDanmaku: boolean;
   addMessage: (message: DanmakuMessage) => void;
+  /** 醒目留言译文后到：按 id 回填 contentTrans（同一笔 SC 的 JPN 变体可能晚于原文下发） */
+  updateScTranslation: (roomId: number, id: string, contentTrans: string) => void;
   setLimits: (messageLimit: number) => void;
   setScInDanmaku: (scInDanmaku: boolean) => void;
   setBlockFilter: (users: BlockedUser[], keywords: string[]) => void;
@@ -178,10 +209,41 @@ export const useDanmakuStore = create<DanmakuState>((set) => ({
   },
   setLimits: (messageLimit) => set({ messageLimit }),
   setScInDanmaku: (scInDanmaku) => set({ scInDanmaku }),
+  updateScTranslation: (roomId, id, contentTrans) => {
+    const state = useDanmakuStore.getState();
+    const hasTarget = state.giftMessages.some((m) => m.roomId === roomId && m.id === id)
+      || state.danmakuMessages.some((m) => m.roomId === roomId && m.id === id);
+    if (!hasTarget) {
+      // 目标还没进 store（正文仍在批处理队列里）——先存起来，入列时补
+      pendingTranslations.set(translationKey(roomId, id), contentTrans);
+      if (pendingTranslations.size > PENDING_TRANSLATION_LIMIT) {
+        const oldest = pendingTranslations.keys().next().value;
+        if (oldest !== undefined) pendingTranslations.delete(oldest);
+      }
+      return;
+    }
+    // 同一笔 SC 可能同时在礼物栏与弹幕栏（scInDanmaku），两处都要回填
+    const patch = (list: DanmakuMessage[]) => {
+      let changed = false;
+      const next = list.map((message) => {
+        if (message.roomId !== roomId || message.id !== id || message.contentTrans === contentTrans) {
+          return message;
+        }
+        changed = true;
+        return { ...message, contentTrans };
+      });
+      return changed ? next : list;
+    };
+    set({
+      giftMessages: patch(state.giftMessages),
+      danmakuMessages: patch(state.danmakuMessages),
+    });
+  },
   setBlockFilter: (blockedUsers, blockedKeywords) => set({ blockedUsers, blockedKeywords }),
   clearMessages: () => {
     // 丢弃尚未提交的批处理队列，避免切房后旧房间消息漏进新房间
     pendingMessages = [];
+    pendingTranslations.clear();
     if (flushTimer != null) {
       clearTimeout(flushTimer);
       flushTimer = null;

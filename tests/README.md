@@ -50,10 +50,19 @@ PowerShell 下请用 `curl.exe`（`curl` 是 `Invoke-WebRequest` 的别名，参
 # 调频率：弹幕每 50ms 一条（≈20 条/秒），礼物每 2 秒，每条延迟 300ms 模拟网络抖动
 curl.exe -X POST http://127.0.0.1:23331/config -d "{\"danmakuIntervalMs\":50,\"giftIntervalMs\":2000,\"delayMs\":300}"
 
+# 静音：停掉全部自动生成器（弹幕/礼物/进场/点赞/在线人数），只保留手工注入的消息，
+# 便于观察单条消息样式（截图时画面里只有自己造的那几条）
+curl.exe -X POST http://127.0.0.1:23331/config -d "{\"silent\":true}"
+
 # 手工注入：定向验证某类事件或指定内容
 curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"danmaku\",\"username\":\"测试用户A\",\"content\":\"指定内容\"}"
 curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"superChat\",\"content\":\"指定 SC 内容\"}"
-# type 可选：danmaku / gift / superChat / guard / entry / like / live / preparing
+# SC 可带 price 指定金额（默认 30）：配色按 B 站金额档位变化
+# 30/50=蓝系、100=橙、500=红、1000=紫、2000+=深红
+curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"superChat\",\"price\":1000,\"content\":\"指定金额的 SC\"}"
+# 双语 SC：一次注入同一笔 SC 的普通 + 日语两种下发（同 id），验证只显示一条、译文内联
+curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"superChatJpn\",\"content\":\"指定 SC 内容\"}"
+# type 可选：danmaku / gift / superChat / superChatJpn / guard / entry / like / live / preparing
 
 # 洪峰：500 条弹幕、间隔 10ms
 curl.exe -X POST http://127.0.0.1:23331/burst -d "{\"count\":500,\"intervalMs\":10}"

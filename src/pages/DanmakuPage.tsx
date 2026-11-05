@@ -616,7 +616,7 @@ export function DanmakuPage() {
   const giftVirtualizer = useVirtualizer({
     count: giftMessages.length,
     getScrollElement: () => giftScroll.scrollRef.current,
-    estimateSize: (index) => (giftMessages[index]?.type === "superChat" ? 96 : 30),
+    estimateSize: () => 30,
     overscan: 10,
     getItemKey: (index) => messageKey(giftMessages[index]),
   });

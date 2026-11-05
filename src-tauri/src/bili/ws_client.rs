@@ -206,6 +206,10 @@ async fn run_connection(
     let message_loop = async {
         // 高能榜缓存：uid -> rank（仅前 3 名）
         let mut online_rank_cache: std::collections::HashMap<u64, u8> = std::collections::HashMap::new();
+        // 醒目留言去重窗口：同一笔 SC 会以 SUPER_CHAT_MESSAGE 与
+        // SUPER_CHAT_MESSAGE_JPN 两种命令各下发一次（id 相同），
+        // 不去重会在弹幕/礼物栏各显示两遍。
+        let mut seen_super_chats = SuperChatDedupWindow::default();
 
         // 初始获取高能榜（后台异步，不阻塞消息循环）
         let (rank_tx, rank_rx) = tokio::sync::oneshot::channel::<std::collections::HashMap<u64, u8>>();
@@ -368,6 +372,23 @@ async fn run_connection(
                                 } else {
                                     // SEND_GIFT_V2 一条命令可产出多条事件，其余命令 0/1 条
                                     for mut event in parse_danmaku_events(&command, room_id) {
+                                        // 同一笔醒目留言的普通/日语两种下发只保留第一条，
+                                        // 后到的译文若更完整则补发一条译文更新事件
+                                        match seen_super_chats.accept(&event) {
+                                            ScDedup::Drop => continue,
+                                            ScDedup::TranslationUpdate => {
+                                                let _ = app.emit(
+                                                    "danmaku-sc-translation",
+                                                    serde_json::json!({
+                                                        "roomId": room_id,
+                                                        "id": event.id,
+                                                        "contentTrans": event.content_trans,
+                                                    }),
+                                                );
+                                                continue;
+                                            }
+                                            ScDedup::Forward => {}
+                                        }
                                         // 查询高能榜排名（所有消息类型均适用）
                                         if let Some(&rank) = online_rank_cache.get(&event.uid) {
                                             event.contribution_rank = Some(rank);
@@ -568,3 +589,176 @@ async fn select_best_danmu_host(hosts: &[Value]) -> Option<&Value> {
 
 /// 弹幕主机探测超时：与参考项目 JLiverTool 对齐
 const DANMU_HOST_PROBE_TIMEOUT_MS: u64 = 1500;
+
+/// SC 去重判定
+enum ScDedup {
+    /// 首次出现，正常转发
+    Forward,
+    /// 同一笔 SC 的重复下发且没有新译文，丢弃
+    Drop,
+    /// 同一笔 SC 的重复下发但带了译文，补发译文更新
+    TranslationUpdate,
+}
+
+/// 醒目留言去重窗口：同一笔 SC 会以 `SUPER_CHAT_MESSAGE` 与
+/// `SUPER_CHAT_MESSAGE_JPN` 两种命令各下发一次（`data.id` 相同）。
+/// 不去重时弹幕栏/礼物栏会各显示两遍。
+struct SuperChatDedupWindow {
+    /// id → 已随正文展示过的译文（空串 = 尚无译文）
+    seen: std::collections::HashMap<String, String>,
+    order: std::collections::VecDeque<String>,
+}
+
+impl Default for SuperChatDedupWindow {
+    fn default() -> Self {
+        const CAPACITY: usize = 512;
+        Self {
+            seen: std::collections::HashMap::with_capacity(CAPACITY),
+            order: std::collections::VecDeque::with_capacity(CAPACITY),
+        }
+    }
+}
+
+impl SuperChatDedupWindow {
+    fn accept(&mut self, event: &crate::models::message::DanmakuEvent) -> ScDedup {
+        if event.event_type != "superChat" {
+            return ScDedup::Forward;
+        }
+
+        if let Some(shown) = self.seen.get_mut(&event.id) {
+            // 重复下发：只有带来了新译文时才值得补发一次更新
+            // （例如先到的是 message_trans 机翻，后到的是 message_jpn 翻译）
+            let translation = event.content_trans.as_deref().unwrap_or("");
+            if !translation.is_empty() && translation != shown {
+                *shown = translation.to_string();
+                return ScDedup::TranslationUpdate;
+            }
+            return ScDedup::Drop;
+        }
+
+        let key = event.id.clone();
+        // 首条若自带译文（先到的是 JPN 变体），译文已随正文一起显示
+        self.seen.insert(
+            key.clone(),
+            event.content_trans.clone().unwrap_or_default(),
+        );
+        self.order.push_back(key);
+        // 窗口有界：超过容量后按到达顺序淘汰，长时间直播也不会无限增长
+        if self.order.len() > 512 {
+            if let Some(evicted) = self.order.pop_front() {
+                self.seen.remove(&evicted);
+            }
+        }
+        ScDedup::Forward
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::message::DanmakuEvent;
+
+    fn sc(id: &str, content_trans: Option<&str>) -> DanmakuEvent {
+        DanmakuEvent {
+            id: id.to_string(),
+            room_id: 1,
+            event_type: "superChat".to_string(),
+            username: "用户".to_string(),
+            content: "正文".to_string(),
+            content_trans: content_trans.map(str::to_string),
+            timestamp: 100,
+            avatar: None,
+            medal: None,
+            wealth_level: None,
+            uid: 1,
+            color: 16_777_215,
+            guard_level: 0,
+            is_admin: false,
+            dm_type: 0,
+            price: Some(30),
+            gift_name: None,
+            count: None,
+            background_color: None,
+            background_bottom_color: None,
+            background_price_color: None,
+            message_font_color: None,
+            background_image: None,
+            emots: None,
+            emoticon_options: None,
+            reply_uid: None,
+            reply_username: None,
+            contribution_rank: None,
+        }
+    }
+
+    #[test]
+    fn same_super_chat_id_is_forwarded_only_once() {
+        // 回归：同一笔 SC 的普通/日语两种下发会让弹幕窗显示两遍
+        let mut window = SuperChatDedupWindow::default();
+        assert!(matches!(window.accept(&sc("10", None)), ScDedup::Forward));
+        assert!(matches!(window.accept(&sc("10", None)), ScDedup::Drop));
+    }
+
+    #[test]
+    fn duplicate_with_translation_emits_translation_update_once() {
+        let mut window = SuperChatDedupWindow::default();
+        assert!(matches!(window.accept(&sc("10", None)), ScDedup::Forward));
+        assert!(matches!(
+            window.accept(&sc("10", Some("译文"))),
+            ScDedup::TranslationUpdate
+        ));
+        // 同一条译文不重复推送
+        assert!(matches!(
+            window.accept(&sc("10", Some("译文"))),
+            ScDedup::Drop
+        ));
+    }
+
+    #[test]
+    fn newer_translation_replaces_the_older_one() {
+        // 先到机翻（message_trans），后到日语原文翻译（message_jpn）：后者应覆盖
+        let mut window = SuperChatDedupWindow::default();
+        assert!(matches!(window.accept(&sc("10", None)), ScDedup::Forward));
+        assert!(matches!(
+            window.accept(&sc("10", Some("机翻"))),
+            ScDedup::TranslationUpdate
+        ));
+        assert!(matches!(
+            window.accept(&sc("10", Some("人工译"))),
+            ScDedup::TranslationUpdate
+        ));
+        assert!(matches!(
+            window.accept(&sc("10", Some("人工译"))),
+            ScDedup::Drop
+        ));
+    }
+
+    #[test]
+    fn first_arrival_with_translation_does_not_reemit_it() {
+        let mut window = SuperChatDedupWindow::default();
+        assert!(matches!(
+            window.accept(&sc("10", Some("译文"))),
+            ScDedup::Forward
+        ));
+        assert!(matches!(
+            window.accept(&sc("10", Some("译文"))),
+            ScDedup::Drop
+        ));
+    }
+
+    #[test]
+    fn different_ids_with_same_text_are_kept() {
+        let mut window = SuperChatDedupWindow::default();
+        assert!(matches!(window.accept(&sc("10", None)), ScDedup::Forward));
+        assert!(matches!(window.accept(&sc("11", None)), ScDedup::Forward));
+    }
+
+    #[test]
+    fn non_super_chat_events_bypass_the_window() {
+        let mut window = SuperChatDedupWindow::default();
+        let mut danmaku = sc("10", None);
+        danmaku.event_type = "danmaku".to_string();
+        assert!(matches!(window.accept(&danmaku), ScDedup::Forward));
+        assert!(matches!(window.accept(&danmaku), ScDedup::Forward));
+    }
+}

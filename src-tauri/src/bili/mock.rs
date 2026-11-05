@@ -40,6 +40,9 @@ pub struct MockState {
     pub delay_ms: u64,
     /// 踢线标记：连接处理发现为 true 时发 Close 帧并复位，演练断线重连
     pub kick: bool,
+    /// 静音：停掉生成器的自动事件（弹幕/礼物/进场/点赞/在线人数），
+    /// 只保留控制面手工注入的消息，便于观察单条样式
+    pub silent: bool,
 }
 
 impl Default for MockState {
@@ -50,6 +53,7 @@ impl Default for MockState {
             gift_interval_ms: 8000,
             delay_ms: 0,
             kick: false,
+            silent: false,
         }
     }
 }
@@ -232,21 +236,61 @@ fn gift_command(name: &str, uid: u64, seq: u64) -> Value {
     })
 }
 
-fn sc_command(name: &str, uid: u64, seq: u64, content: Option<&str>) -> Value {
+/// B 站 SC 的金额档位配色（background_color / background_bottom_color /
+/// background_price_color）。真实下发按金额给色，mock 也要跟着变，
+/// 否则不同金额的 SC 看起来一模一样，没法验证配色分支。
+fn sc_colors(price: u64) -> (&'static str, &'static str, &'static str) {
+    match price {
+        0..=30 => ("#EDF5FF", "#2A60B2", "#7497CD"),      // 蓝
+        31..=50 => ("#E5F6FF", "#427D9A", "#6C97AA"),     // 浅蓝
+        51..=100 => ("#FFF7E8", "#E0913F", "#C9894F"),    // 橙
+        101..=500 => ("#FFEDF1", "#D4464A", "#C4717A"),   // 红
+        501..=1000 => ("#F8EDFF", "#9C3D9C", "#B073B0"),  // 紫
+        _ => ("#FFF1F1", "#B01F1F", "#C25959"),           // 深红
+    }
+}
+
+fn sc_command(name: &str, uid: u64, seq: u64, content: Option<&str>, price: u64) -> Value {
+    let (bg, bg_bottom, bg_price) = sc_colors(price);
     json!({
         "cmd": "SUPER_CHAT_MESSAGE",
         "data": {
             "id": seq,
             "uid": uid,
-            "price": 30,
+            "price": price,
             "message": content.unwrap_or("这是醒目留言测试内容"),
             "start_time": super::unix_secs(),
             "user_info": { "uname": name, "face": "" },
             "gift": { "gift_name": "醒目留言", "num": 1 },
             "medal_info": mock_medal(),
-            "background_color": "#EDF5FF",
-            "background_bottom_color": "#2A60B2",
-            "background_price_color": "#7497CD",
+            "background_color": bg,
+            "background_bottom_color": bg_bottom,
+            "background_price_color": bg_price,
+            "message_font_color": "#FFFFFF",
+            "background_image": "",
+        },
+    })
+}
+
+/// 日语/双语 SC 变体：与普通 SC 同一个 `data.id`（字符串形式，与真实下发一致），
+/// 额外带 `message_jpn`。用于验证同 id 去重与译文回填。
+fn sc_jpn_command(name: &str, uid: u64, seq: u64, content: &str, content_jpn: &str, price: u64) -> Value {
+    let (bg, bg_bottom, bg_price) = sc_colors(price);
+    json!({
+        "cmd": "SUPER_CHAT_MESSAGE_JPN",
+        "data": {
+            "id": seq.to_string(),
+            "uid": uid,
+            "price": price,
+            "message": content,
+            "message_jpn": content_jpn,
+            "start_time": super::unix_secs(),
+            "user_info": { "uname": name, "face": "" },
+            "gift": { "gift_name": "醒目留言", "num": 1 },
+            "medal_info": mock_medal(),
+            "background_color": bg,
+            "background_bottom_color": bg_bottom,
+            "background_price_color": bg_price,
             "message_font_color": "#FFFFFF",
             "background_image": "",
         },
@@ -275,7 +319,7 @@ fn gift_family_command(username: Option<&str>) -> Value {
     let (uid, default_name) = mock_user(seq);
     let name = username.unwrap_or(default_name);
     match seq % 5 {
-        2 => sc_command(name, uid, seq, None),
+        2 => sc_command(name, uid, seq, None, 30),
         4 => guard_command(name, uid, seq),
         _ => gift_command(name, uid, seq),
     }
@@ -316,14 +360,14 @@ fn like_command(username: Option<&str>) -> Value {
 }
 
 /// 手动注入单条事件（控制面 /event 用），类型由 kind 显式指定
-fn manual_command(kind: &str, username: Option<&str>, content: Option<&str>) -> Option<Value> {
+fn manual_command(kind: &str, username: Option<&str>, content: Option<&str>, price: Option<u64>) -> Option<Value> {
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     let (uid, default_name) = mock_user(seq);
     let name = username.unwrap_or(default_name);
     match kind {
         "danmaku" => Some(danmaku_command(username, content)),
         "gift" => Some(gift_command(name, uid, seq)),
-        "superChat" => Some(sc_command(name, uid, seq, content)),
+        "superChat" => Some(sc_command(name, uid, seq, content, price.unwrap_or(30))),
         "guard" => Some(guard_command(name, uid, seq)),
         "entry" => Some(entry_command(username)),
         "like" => Some(like_command(username)),
@@ -354,12 +398,14 @@ async fn run_generator(state: Arc<StdMutex<MockState>>) {
             publish(online_count_command());
         }
 
-        let (live, danmaku_interval, gift_interval) = {
+        let (live, danmaku_interval, gift_interval, silent) = {
             let state = state.lock().expect("mock state poisoned");
-            (state.live, state.danmaku_interval_ms, state.gift_interval_ms)
+            (state.live, state.danmaku_interval_ms, state.gift_interval_ms, state.silent)
         };
 
-        if !live {
+        // 静音：停掉所有自动生成的事件，只保留控制面手工注入的，
+        // 方便截图/联调时画面里只有自己造的那几条
+        if !live || silent {
             continue;
         }
 
@@ -602,6 +648,7 @@ async fn apply_control(state: &Arc<StdMutex<MockState>>, path: &str, payload: &V
                 "danmakuIntervalMs": state.danmaku_interval_ms,
                 "giftIntervalMs": state.gift_interval_ms,
                 "delayMs": state.delay_ms,
+                "silent": state.silent,
             })
         }
         "/config" => {
@@ -615,12 +662,16 @@ async fn apply_control(state: &Arc<StdMutex<MockState>>, path: &str, payload: &V
             if let Some(value) = get_u64(payload, "delayMs") {
                 state.delay_ms = value;
             }
+            if let Some(value) = payload.get("silent").and_then(Value::as_bool) {
+                state.silent = value;
+            }
             json!({
                 "ok": true,
                 "live": state.live,
                 "danmakuIntervalMs": state.danmaku_interval_ms,
                 "giftIntervalMs": state.gift_interval_ms,
                 "delayMs": state.delay_ms,
+                "silent": state.silent,
             })
         }
         "/live" => {
@@ -639,7 +690,20 @@ async fn apply_control(state: &Arc<StdMutex<MockState>>, path: &str, payload: &V
         }
         "/event" => {
             let kind = get_str(payload, "type").unwrap_or("danmaku");
-            match manual_command(kind, get_str(payload, "username"), get_str(payload, "content")) {
+            let price = get_u64(payload, "price");
+            // 双语 SC 回归：同一笔 SC 的普通/日语两种下发会带同一个 id，
+            // 用 /event {"type":"superChatJpn"} 可一次注入这对命令验证去重
+            if kind == "superChatJpn" {
+                let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+                let (uid, name) = mock_user(seq);
+                let name = get_str(payload, "username").unwrap_or(name);
+                let content = get_str(payload, "content").unwrap_or("这是双语醒目留言");
+                let price = price.unwrap_or(30);
+                publish(sc_command(name, uid, seq, Some(content), price));
+                publish(sc_jpn_command(name, uid, seq, content, "これは日訳です", price));
+                return json!({ "ok": true, "type": kind, "price": price });
+            }
+            match manual_command(kind, get_str(payload, "username"), get_str(payload, "content"), price) {
                 Some(command) => {
                     publish(command);
                     json!({ "ok": true, "type": kind })

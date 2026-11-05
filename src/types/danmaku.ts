@@ -48,6 +48,8 @@ export interface DanmakuMessage {
   type: DanmakuMessageType;
   username: string;
   content: string;
+  /** 醒目留言的外文/机翻文案（message_jpn / message_trans），无翻译时为空 */
+  contentTrans?: string;
   timestamp: number;
   avatar?: string;
   medal?: Medal;

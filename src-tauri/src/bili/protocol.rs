@@ -191,6 +191,7 @@ pub(crate) fn parse_live_status(command: &Value, room_id: u64, event_type: &str,
         event_type: event_type.to_string(),
         username: String::new(),
         content: content.to_string(),
+        content_trans: None,
         timestamp,
         avatar: None,
         medal: None,
@@ -314,6 +315,7 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         event_type: "danmaku".to_string(),
         username,
         content,
+        content_trans: None,
         timestamp,
         avatar,
         medal,
@@ -360,6 +362,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         event_type: "gift".to_string(),
         username,
         content: format!("{action}了 {gift_name} ×{count}"),
+        content_trans: None,
         timestamp,
         avatar: data.get("face").and_then(Value::as_str).map(ToString::to_string),
         medal: parse_object_medal(data.get("medal_info")),
@@ -459,6 +462,7 @@ fn parse_gift_message_v2(command: &Value, room_id: u64) -> Vec<DanmakuEvent> {
                 event_type: "gift".to_string(),
                 username: username.clone(),
                 content: format!("{action}了 {gift_name} ×{count}"),
+                content_trans: None,
                 timestamp: item.get_i64(10).unwrap_or_default().max(0) as u64,
                 avatar: avatar.clone(),
                 medal: medal.clone(),
@@ -521,6 +525,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         event_type: "entry".to_string(),
         username,
         content,
+        content_trans: None,
         timestamp,
         avatar: base
             .and_then(|value| value.get("face"))
@@ -711,6 +716,7 @@ fn parse_interact_word_v2(command: &Value, room_id: u64) -> Option<DanmakuEvent>
         event_type: "entry".to_string(),
         username: uname,
         content,
+        content_trans: None,
         timestamp,
         avatar: None,
         medal,
@@ -826,11 +832,13 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     };
     let content = content.to_string();
     let timestamp = data.get("start_time").and_then(value_as_u64).unwrap_or(0);
-    let id = data
-        .get("id")
-        .and_then(value_as_u64)
-        .map(|value| value.to_string())
-        .unwrap_or_else(|| format!("sc-{room_id}-{uid}-{timestamp}"));
+    let price = data.get("price").and_then(value_as_u64);
+    // id 在两种下发里可能是数字也可能是数字字符串（JPN 样本即字符串）。
+    // 统一归一化，否则同一笔 SC 的两种下发会拿到不同 id，去重失效。
+    // 兜底 id 带上价格：同一用户同一秒内发两笔不同金额的 SC 不应互相吞掉。
+    let id = data.get("id").and_then(value_as_id_string).unwrap_or_else(|| {
+        format!("sc-{room_id}-{uid}-{timestamp}-{}", price.unwrap_or(0))
+    });
 
     Some(DanmakuEvent {
         id,
@@ -838,6 +846,13 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         event_type: "superChat".to_string(),
         username,
         content,
+        content_trans: data
+            .get("message_jpn")
+            .and_then(Value::as_str)
+            .or_else(|| data.get("message_trans").and_then(Value::as_str))
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(ToString::to_string),
         timestamp,
         avatar: user_info.get("face").and_then(Value::as_str).map(ToString::to_string),
         medal: parse_object_medal(data.get("medal_info")),
@@ -847,7 +862,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         guard_level: user_info.get("guard_level").and_then(value_as_u64).unwrap_or(0) as u8,
         is_admin: false,
         dm_type: 0,
-        price: data.get("price").and_then(value_as_u64).map(|value| value as u32),
+        price: price.map(|value| value as u32),
         gift_name: gift
             .and_then(|value| value.get("gift_name"))
             .and_then(Value::as_str)
@@ -901,6 +916,7 @@ fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         event_type: "guard".to_string(),
         username,
         content: format!("开通了 {gift_name} ×{count}"),
+        content_trans: None,
         timestamp,
         avatar: None,
         medal: None,
@@ -948,6 +964,7 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
         event_type: "like".to_string(),
         username,
         content,
+        content_trans: None,
         timestamp,
         avatar: None,
         medal: parse_object_medal(data.get("fans_medal")),
@@ -1023,6 +1040,16 @@ fn value_as_u64(value: &Value) -> Option<u64> {
     value
         .as_u64()
         .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
+}
+
+/// 消息 id 归一化：数字与数字字符串都转成字符串，保证同一条消息的不同
+/// 下发形态（如 SC 的 SUPER_CHAT_MESSAGE / _JPN 两种命令）得到同一个 id。
+fn value_as_id_string(value: &Value) -> Option<String> {
+    if let Some(text) = value.as_str() {
+        let trimmed = text.trim();
+        return (!trimmed.is_empty()).then(|| trimmed.to_string());
+    }
+    value_as_u64(value).map(|number| number.to_string())
 }
 
 #[cfg(test)]
@@ -1128,5 +1155,57 @@ mod tests {
         let medal = event.medal.as_ref().expect("medal expected");
         assert_eq!(medal.name, "棉花花");
         assert_eq!(medal.level, 24);
+    }
+
+    #[test]
+    fn super_chat_regular_and_jpn_share_the_same_id() {
+        // 回归：同一笔 SC 会以 SUPER_CHAT_MESSAGE 与 SUPER_CHAT_MESSAGE_JPN
+        // 各下发一次，data.id 一个可能是数字、一个是字符串。id 不归一化会
+        // 让去重失效，弹幕窗里同一笔 SC 显示两遍。
+        let base = json!({
+            "uid": "394060741",
+            "price": 30,
+            "message": "正文",
+            "start_time": 1_650_363_318u64,
+            "user_info": { "uname": "用户" },
+        });
+        let mut regular = base.clone();
+        regular["id"] = json!(6522809u64);
+        let mut jpn = base;
+        jpn["id"] = json!("6522809");
+        jpn["message_jpn"] = json!("翻訳");
+
+        let regular_event = parse_super_chat(
+            &json!({ "cmd": "SUPER_CHAT_MESSAGE", "data": regular }),
+            34348,
+        )
+        .expect("regular SC should parse");
+        let jpn_event =
+            parse_super_chat(&json!({ "cmd": "SUPER_CHAT_MESSAGE_JPN", "data": jpn }), 34348)
+                .expect("jpn SC should parse");
+
+        assert_eq!(regular_event.id, "6522809");
+        assert_eq!(jpn_event.id, regular_event.id);
+        assert_eq!(regular_event.content_trans, None);
+        assert_eq!(jpn_event.content_trans.as_deref(), Some("翻訳"));
+    }
+
+    #[test]
+    fn super_chat_blank_translation_is_treated_as_absent() {
+        // 真实 JPN 样本里 message_jpn 常是空字符串：不能因此渲染出空译文行
+        let body = json!({
+            "cmd": "SUPER_CHAT_MESSAGE_JPN",
+            "data": {
+                "id": "1",
+                "uid": "2",
+                "price": 30,
+                "message": "原文",
+                "message_jpn": "",
+                "user_info": { "uname": "用户" },
+            }
+        });
+        let events = parse_danmaku_events(&body, 1);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].content_trans, None);
     }
 }

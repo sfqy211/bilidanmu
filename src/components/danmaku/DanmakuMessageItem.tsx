@@ -6,6 +6,7 @@ import { InlineEmotText, isEmoticonOnlyContent } from "@/components/danmaku/Inli
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { formatTimestamp } from "@/lib/utils";
+import { resolveScAccent } from "@/lib/sc-color";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -246,6 +247,9 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
       ? cachedEmotUrls?.has(item.emoticonOptions.url) ?? false
       : false;
 
+  // 简化 SC 行与礼物栏完整卡片共用同一档强调色（B 站按金额下发）
+  const scAccent = item.type === "superChat" ? resolveScAccent(item) : undefined;
+
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -313,6 +317,12 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
           style={{ height: Math.round(18 * scale) }}
         />
       ) : null}
+      {/* 简化 SC 行：价格胶囊前置，与礼物栏的完整卡片同一套视觉语言 */}
+      {item.type === "superChat" && item.price ? (
+        <span className="sc-chip" style={{ "--sc-accent": scAccent } as React.CSSProperties}>
+          ¥{item.price}
+        </span>
+      ) : null}
       {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
       {item.type === "entry" ? <span className="mr-1 text-slate-400">↪</span> : null}
       {!hideUsername ? (
@@ -329,7 +339,8 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
       )}
       {item.type === "gift" && item.price ? <span className="mr-1 text-amber-600 dark:text-amber-200">¥{(item.price / 1000).toFixed(2)}</span> : null}
       <span
-        className={getMessageTextClass(item.type)}
+        className={item.type === "superChat" ? "break-words sc-accent-text" : getMessageTextClass(item.type)}
+        style={item.type === "superChat" ? ({ "--sc-accent": scAccent } as React.CSSProperties) : undefined}
       >
         {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (
           <span className="inline-flex items-center align-middle">
@@ -346,15 +357,15 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
         ) : item.type === "danmaku" ? (
           <InlineEmotText content={item.content} emots={item.emots} cachedEmotUrls={cachedEmotUrls} emoticonStyle={emoticonStyle} />
         ) : (
-          item.content
+          <>
+            {item.content}
+            {item.type === "superChat" && item.contentTrans ? (
+              <span className="sc-accent-trans">{" ／ "}{item.contentTrans}</span>
+            ) : null}
+          </>
         )}
         </span>
       </span>
-      {item.type === "superChat" && item.price ? (
-        <span className="ml-2 whitespace-nowrap align-middle text-xs font-semibold text-amber-600 dark:text-amber-200">
-          ¥{item.price}
-        </span>
-      ) : null}
       {contextMenu && createPortal(
         <ContextMenu
           item={item}

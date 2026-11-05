@@ -16,6 +16,9 @@ pub struct DanmakuEvent {
     pub event_type: String,
     pub username: String,
     pub content: String,
+    /// 醒目留言的外文/机翻文案（message_jpn / message_trans），无翻译时为空
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_trans: Option<String>,
     pub timestamp: u64,
     pub avatar: Option<String>,
     pub medal: Option<Medal>,

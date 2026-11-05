@@ -69,6 +69,18 @@ export function useDanmakuStream(roomId: number | null) {
     addMessage(payload);
   });
 
+  // 同一笔 SC 的普通/日语两种下发只保留第一条，译文后到时通过该事件回填
+  useTauriEvent<{ roomId: number; id: string; contentTrans?: string }>("danmaku-sc-translation", (payload) => {
+    const currentRoomId = useDanmakuStore.getState().roomId;
+    if (currentRoomId != null && payload.roomId !== currentRoomId) {
+      return;
+    }
+    if (!payload.contentTrans) {
+      return;
+    }
+    useDanmakuStore.getState().updateScTranslation(payload.roomId, payload.id, payload.contentTrans);
+  });
+
   useTauriEvent<{ roomId: number }>("ws-connected", () => {
     setWsConnected(true);
     setWsStatus("connected");
