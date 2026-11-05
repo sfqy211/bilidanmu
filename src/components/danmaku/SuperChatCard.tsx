@@ -1,7 +1,7 @@
 import { memo, type CSSProperties } from "react";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { formatTimestamp } from "@/lib/utils";
-import { resolveScAccent } from "@/lib/sc-color";
+import { formatMessagePrice, resolveMessageAccent } from "@/lib/price-chip";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -16,7 +16,8 @@ import { useSettingsStore } from "@/stores/settings-store";
 export const SuperChatCard = memo(function SuperChatCard({ item }: { item: DanmakuMessage }) {
   const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
   const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
-  const accent = resolveScAccent(item);
+  const accent = resolveMessageAccent(item);
+  const priceChip = formatMessagePrice(item);
 
   return (
     <div
@@ -24,7 +25,7 @@ export const SuperChatCard = memo(function SuperChatCard({ item }: { item: Danma
       style={{ "--sc-accent": accent } as CSSProperties}
     >
       <span className="pointer-events-auto">
-        <span className="sc-chip">{item.price ? `¥${item.price}` : "SC"}</span>
+        <span className="sc-chip">{priceChip ?? "SC"}</span>
         {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} /> : null}
         <span className="mr-1 font-bold text-[#1d1d1f] dark:text-[#ffffff]">{item.username}</span>
         {item.timestamp > 0 ? (

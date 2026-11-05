@@ -6,16 +6,14 @@ import { InlineEmotText, isEmoticonOnlyContent } from "@/components/danmaku/Inli
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { formatTimestamp } from "@/lib/utils";
-import { resolveScAccent } from "@/lib/sc-color";
+import { formatMessagePrice, resolveMessageAccent } from "@/lib/price-chip";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
 function getMessageTextClass(type: string): string {
-  if (type === "gift") {
-    return "break-words text-amber-700 dark:text-amber-100";
-  }
-
+  // 礼物/舰长文字本身不再整段染金色：金额在胶囊里，礼物名单独强调，
+  // 通体金黄在深色弹幕窗里反而糊成一片。保留兜底给未预期的类型。
   if (type === "entry") {
     return "break-words text-slate-500 dark:text-slate-300";
   }
@@ -247,8 +245,9 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
       ? cachedEmotUrls?.has(item.emoticonOptions.url) ?? false
       : false;
 
-  // 简化 SC 行与礼物栏完整卡片共用同一档强调色（B 站按金额下发）
-  const scAccent = item.type === "superChat" ? resolveScAccent(item) : undefined;
+  // 醒目留言/礼物/舰长共用一套金额胶囊与强调色，风格与礼物栏卡片一致
+  const accent = resolveMessageAccent(item);
+  const priceChip = formatMessagePrice(item);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -317,10 +316,10 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
           style={{ height: Math.round(18 * scale) }}
         />
       ) : null}
-      {/* 简化 SC 行：价格胶囊前置，与礼物栏的完整卡片同一套视觉语言 */}
-      {item.type === "superChat" && item.price ? (
-        <span className="sc-chip" style={{ "--sc-accent": scAccent } as React.CSSProperties}>
-          ¥{item.price}
+      {/* 金额胶囊前置：醒目留言、礼物、舰长共用同一套视觉语言 */}
+      {priceChip ? (
+        <span className="sc-chip" style={{ "--sc-accent": accent } as React.CSSProperties}>
+          {priceChip}
         </span>
       ) : null}
       {item.medal && showMedal && !hideFanMedal ? <MedalBadge medal={item.medal} scale={scale} /> : null}
@@ -332,15 +331,18 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
           {item.username}
         </span>
       ) : null}
+      {/* 礼物栏的 SC/礼物/舰长都带时间，与弹幕栏的 SC 行保持一致 */}
+      {priceChip && item.timestamp > 0 ? (
+        <span className="mr-1 text-xs text-slate-400 dark:text-slate-500">{formatTimestamp(item.timestamp)}</span>
+      ) : null}
       {item.replyUsername && (
         <span className="mr-1 text-xs text-slate-400 dark:text-slate-500">
           回复 @{item.replyUsername}
         </span>
       )}
-      {item.type === "gift" && item.price ? <span className="mr-1 text-amber-600 dark:text-amber-200">¥{(item.price / 1000).toFixed(2)}</span> : null}
       <span
-        className={item.type === "superChat" ? "break-words sc-accent-text" : getMessageTextClass(item.type)}
-        style={item.type === "superChat" ? ({ "--sc-accent": scAccent } as React.CSSProperties) : undefined}
+        className={accent ? "break-words sc-accent-text" : getMessageTextClass(item.type)}
+        style={accent ? ({ "--sc-accent": accent } as React.CSSProperties) : undefined}
       >
         {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (
           <span className="inline-flex items-center align-middle">
@@ -356,6 +358,15 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
           item.content
         ) : item.type === "danmaku" ? (
           <InlineEmotText content={item.content} emots={item.emots} cachedEmotUrls={cachedEmotUrls} emoticonStyle={emoticonStyle} />
+        ) : item.type === "gift" || item.type === "guard" ? (
+          // 礼物/舰长：金额已在胶囊里，正文只留「名称 ×数量」，与 SC 的正文同位。
+          // 舰长的档位名（舰长/提督/总督）本身已说明行为，不再加「开通了」这类动词。
+          <>
+            <span className="font-medium">{item.giftName ?? item.content}</span>
+            {item.count && item.count > 1 ? (
+              <span className="text-slate-500 dark:text-slate-400"> ×{item.count}</span>
+            ) : null}
+          </>
         ) : (
           <>
             {item.content}
