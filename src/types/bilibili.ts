@@ -122,6 +122,32 @@ export interface Credential {
   expiresAt?: number;
 }
 
+/** 礼物面板中的单个礼物配置 */
+export interface GiftConfig {
+  id: number;
+  name: string;
+  /** 单价：金瓜子 price/1000 元；银瓜子为瓜子数 */
+  price: number;
+  /** gold 金瓜子 / silver 银瓜子 */
+  coinType: "gold" | "silver" | string;
+  desc: string;
+  imgBasic: string;
+}
+
+/** 背包中的礼物条目 */
+export interface GiftBagItem {
+  bagId: number;
+  giftId: number;
+  giftName: string;
+  giftNum: number;
+}
+
+/** 瓜子余额（金瓜子 1000 = 1 元） */
+export interface WalletInfo {
+  gold: number;
+  silver: number;
+}
+
 export interface QrLoginResult {
   url: string;
   qrcodeKey: string;
@@ -334,6 +360,8 @@ export interface Settings {
     scInDanmaku: boolean;
     /** 关闭后 SC/礼物/舰长与普通弹幕一致：无价格胶囊与着色，只保留纯文字 */
     plainPriceMessages: boolean;
+    /** 礼物面板是否展示礼物图标（关闭后只显示名称与价格；仅 gift-send 构建有意义） */
+    showGiftIcons: boolean;
     /** 金额档位配色（SC 六档 / 礼物 / 舰长三档）；缺项回退内置默认色 */
     priceColors: PriceColors;
     /** 侧边吸附收起/展开动画时长（毫秒），0 为关闭动画 */

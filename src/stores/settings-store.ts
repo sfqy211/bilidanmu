@@ -74,6 +74,7 @@ export const defaultSettings: Settings = {
     activityFilter: "all",
     scInDanmaku: true,
     plainPriceMessages: false,
+    showGiftIcons: true,
     // 与 Rust PriceColors::default() 保持一致的六档 SC + 礼物 + 三档舰长配色
     priceColors: {
       scTier1: "#2A60B2",

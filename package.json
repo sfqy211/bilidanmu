@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tauri dev",
     "dev:mock": "cross-env BILIDANMU_MOCK=1 tauri dev",
+    "dev:gift": "tauri dev --features gift-send",
     "build": "tauri build",
+    "build:gift": "tauri build --features gift-send",
     "tauri": "tauri",
     "dev:renderer": "vite",
     "build:renderer": "vite build",

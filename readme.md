@@ -74,6 +74,28 @@ npm run dev
 
 虚拟直播间：`npm run dev:mock` 启动后，房间列表出现"测试直播间（虚拟）"，本地模拟弹幕服务器提供弹幕/礼物/SC/舰长/进场/点赞/上下播等全事件流，并通过本地 HTTP 控制面（`127.0.0.1:23331`）注入断线重连、消息洪峰、网络延迟、指定事件等场景——不连接真实直播间即可完成所有功能测试。详见 [tests/README.md](tests/README.md)。
 
+## 礼物打赏（编译期开关）
+
+弹幕窗内置礼物打赏（发送礼物）功能，因涉及**真实扣费**，由 Cargo feature `gift-send` 门控：**官方发布的安装包默认不包含此功能**，界面上也没有对应入口。
+
+如需使用，请自行编译开启：
+
+```bash
+# 方式一：npm 专用脚本（开发 / 打包）
+npm run dev:gift
+npm run build:gift
+
+# 方式二：直接用 cargo（在 src-tauri/ 下）
+cargo build --release --features gift-send
+
+# 方式三：把 src-tauri/Cargo.toml 里 gift-send 加入 default 后正常打包
+[features]
+default = ["gift-send"]
+gift-send = []
+```
+
+开启后弹幕窗发送栏会出现礼物按钮。发送金瓜子礼物（1000 金瓜子 = 1 元）前有二步确认；余额在发送后由前端本地扣减（B 站余额接口有秒级缓存）。开发调试礼物面板请用 `npm run dev:gift`。是否开启、如何使用完全由自行编译者决定并自担责任。
+
 ## 项目结构
 
 ```

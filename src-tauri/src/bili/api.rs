@@ -1,6 +1,7 @@
 use crate::bili::credential::BiliCredential;
 use crate::bili::wbi::{extract_wbi_key_from_url, sign_wbi, WbiKeyCache, WbiKeys};
 use crate::models::account::LoginStatus;
+use crate::models::gift::{GiftBagItem, GiftConfig, WalletInfo};
 use crate::models::response::BiliResponse;
 use crate::models::room::{Emoticon, EmoticonPackage, LiveStatusInfo, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::{StreamInfo, UrlInfo};
@@ -1408,6 +1409,272 @@ impl BiliApiClient {
                 format!("{message}（错误码 {code}）")
             })
         }
+    }
+
+    /// 直播间礼物面板列表 URL（无需登录）
+    const ROOM_GIFT_LIST_URL: &str =
+        "https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/roomGiftList";
+    /// 礼物背包列表 URL（需登录，room_id 必须为真实房间号）
+    const GIFT_BAG_LIST_URL: &str =
+        "https://api.live.bilibili.com/xlive/web-room/v1/gift/bag_list";
+    /// 直播间用户信息 URL（含瓜子余额 wallet 字段）
+    const GIFT_WALLET_URL: &str =
+        "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser";
+    /// 送礼端点（v2，对齐 web 直播间送礼函数）：背包 / 金瓜子 / 银瓜子
+    const GIFT_SEND_BAG_URL: &str =
+        "https://api.live.bilibili.com/xlive/revenue/v2/gift/sendBagMultiUser";
+    const GIFT_SEND_GOLD_URL: &str =
+        "https://api.live.bilibili.com/xlive/revenue/v2/gift/sendGoldMultiUser";
+    const GIFT_SEND_SILVER_URL: &str =
+        "https://api.live.bilibili.com/xlive/revenue/v2/gift/sendSilverMultiUser";
+
+    /// 获取直播间礼物面板列表
+    pub async fn get_room_gifts(&self, room_id: u64) -> Result<Vec<GiftConfig>, String> {
+        // platform 必须是 pc（web 返回的 gift_config 为 null）
+        let params = BTreeMap::from([
+            ("platform".to_string(), "pc".to_string()),
+            ("room_id".to_string(), room_id.to_string()),
+        ]);
+        let response = self.get_json(Self::ROOM_GIFT_LIST_URL, Some(params)).await?;
+        ensure_success(&response)?;
+
+        let list = response
+            .pointer("/data/gift_config/base_config/list")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "礼物列表接口缺少 data 字段".to_string())?;
+
+        Ok(list
+            .iter()
+            .map(|item| GiftConfig {
+                id: item.get("id").and_then(value_as_u64).unwrap_or(0),
+                name: item
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                price: item.get("price").and_then(value_as_u64).unwrap_or(0),
+                coin_type: item
+                    .get("coin_type")
+                    .and_then(Value::as_str)
+                    .unwrap_or("gold")
+                    .to_string(),
+                desc: item
+                    .get("desc")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                img_basic: item
+                    .get("img_basic")
+                    .and_then(Value::as_str)
+                    .map(normalize_cover_url)
+                    .unwrap_or_default(),
+            })
+            .collect())
+    }
+
+    /// 获取礼物背包列表（需登录；背包为空时接口返回 null，这里转为空数组）
+    pub async fn get_gift_bag(&self, room_id: u64) -> Result<Vec<GiftBagItem>, String> {
+        let credential = self
+            .credential
+            .as_ref()
+            .ok_or_else(|| "未登录，无法读取礼物背包".to_string())?;
+        credential.validate_for_send()?;
+
+        let params = BTreeMap::from([
+            ("t".to_string(), (super::unix_secs() * 1000).to_string()),
+            ("room_id".to_string(), room_id.to_string()),
+        ]);
+        let response = self.get_json(Self::GIFT_BAG_LIST_URL, Some(params)).await?;
+        ensure_success(&response)?;
+
+        let list = response
+            .pointer("/data/list")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(list
+            .iter()
+            .map(|item| GiftBagItem {
+                bag_id: item.get("bag_id").and_then(value_as_u64).unwrap_or(0),
+                gift_id: item.get("gift_id").and_then(value_as_u64).unwrap_or(0),
+                gift_name: item
+                    .get("gift_name")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                gift_num: item.get("gift_num").and_then(value_as_u64).unwrap_or(0) as u32,
+            })
+            .collect())
+    }
+
+    /// 获取瓜子余额（金瓜子/银瓜子）
+    pub async fn get_gift_wallet(&self, room_id: u64) -> Result<WalletInfo, String> {
+        let params = BTreeMap::from([("room_id".to_string(), room_id.to_string())]);
+        let response = self.get_json(Self::GIFT_WALLET_URL, Some(params)).await?;
+        ensure_success(&response)?;
+
+        let wallet = response
+            .pointer("/data/wallet")
+            .ok_or_else(|| "用户信息接口缺少 wallet 字段".to_string())?;
+
+        Ok(WalletInfo {
+            gold: wallet.get("gold").and_then(value_as_u64).unwrap_or(0),
+            silver: wallet.get("silver").and_then(value_as_u64).unwrap_or(0),
+        })
+    }
+
+    /// 发送礼物（打赏）
+    ///
+    /// 端点三选一（对齐 web 直播间送礼函数，v2 参数全部在 query 上）：
+    /// - `bag_id > 0`：走背包库存，不扣费
+    /// - `coin_type == "gold"`：真实扣金瓜子（1000 = 1 元）
+    /// - 其余：银瓜子
+    pub async fn send_gift(
+        &self,
+        room_id: u64,
+        ruid: u64,
+        gift_id: u64,
+        gift_num: u32,
+        bag_id: u64,
+        coin_type: &str,
+        price: u64,
+    ) -> Result<BiliResponse, String> {
+        if gift_num == 0 || gift_num > 1000 {
+            return Err("gift_num 必须在 1~1000 之间".to_string());
+        }
+        if ruid == 0 {
+            return Err("ruid 不能为 0".to_string());
+        }
+
+        let credential = self
+            .credential
+            .as_ref()
+            .ok_or_else(|| "未登录，无法发送礼物".to_string())?;
+        credential.validate_for_send()?;
+        let csrf = credential
+            .csrf()
+            .ok_or_else(|| "Cookie 缺少 bili_jct".to_string())?;
+        // 严格解析 uid
+        let uid_str = credential
+            .dede_user_id
+            .as_deref()
+            .ok_or_else(|| "Cookie 缺少 DedeUserID".to_string())?;
+        let uid: u64 = uid_str
+            .parse()
+            .map_err(|_| format!("DedeUserID 无效: {uid_str}"))?;
+
+        let url = if bag_id > 0 {
+            Self::GIFT_SEND_BAG_URL
+        } else if coin_type == "gold" {
+            Self::GIFT_SEND_GOLD_URL
+        } else {
+            Self::GIFT_SEND_SILVER_URL
+        };
+
+        // v2 端点要求 receive_users 为 JSON 数组、statistics 为紧凑 JSON
+        let live_statistics = serde_json::json!({
+            "pc_client": "pc_web",
+            "jumpfrom": "-99998",
+            "room_category": "-99998",
+            "source_event": 0,
+            "official_channel": {
+                "program_room_id": "-99998",
+                "program_up_id": "-99998"
+            }
+        })
+        .to_string();
+        let statistics = serde_json::json!({
+            "platform": 5,
+            "pc_client": "pc_web",
+            "appId": 100
+        })
+        .to_string();
+        let receive_users = format!("[{{\"uid\":{ruid}}}]");
+
+        let params = BTreeMap::from([
+            ("uid".to_string(), uid.to_string()),
+            ("gift_id".to_string(), gift_id.to_string()),
+            ("ruid".to_string(), ruid.to_string()),
+            ("send_ruid".to_string(), "0".to_string()),
+            ("gift_num".to_string(), gift_num.to_string()),
+            ("coin_type".to_string(), coin_type.to_string()),
+            ("bag_id".to_string(), bag_id.to_string()),
+            ("platform".to_string(), "pc".to_string()),
+            ("biz_code".to_string(), "Live".to_string()),
+            ("biz_id".to_string(), room_id.to_string()),
+            ("storm_beat_id".to_string(), "0".to_string()),
+            ("metadata".to_string(), String::new()),
+            ("price".to_string(), price.to_string()),
+            ("receive_users".to_string(), receive_users),
+            ("all_flag".to_string(), "1".to_string()),
+            ("live_statistics".to_string(), live_statistics),
+            ("statistics".to_string(), statistics),
+            ("web_location".to_string(), "444.8".to_string()),
+            ("csrf_token".to_string(), csrf.to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+            ("visit_id".to_string(), String::new()),
+        ]);
+
+        let referer = format!("https://live.bilibili.com/{room_id}");
+        let response = self
+            .post_query(url, &params, &referer, "https://live.bilibili.com")
+            .await?;
+
+        let code = response.get("code").and_then(Value::as_i64).unwrap_or(-1) as i32;
+        let message = response
+            .get("message")
+            .or_else(|| response.get("msg"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+
+        if code == 0 {
+            Ok(BiliResponse { code, message })
+        } else if code == -101 {
+            Err("登录已过期，请重新登录后再送礼".to_string())
+        } else {
+            Err(if message.is_empty() {
+                format!("发送礼物失败，错误码 {code}")
+            } else {
+                format!("{message}（错误码 {code}）")
+            })
+        }
+    }
+
+    /// 以 query 参数发送 POST（v2 送礼端点：参数在 query 上、无 body）。
+    ///
+    /// 相比 post_form 额外指定 live 域 referer/origin；响应非 JSON
+    /// （HTML 风控页）时返回友好错误。
+    async fn post_query(
+        &self,
+        url: &str,
+        params: &BTreeMap<String, String>,
+        referer: &str,
+        origin: &str,
+    ) -> Result<Value, String> {
+        let mut request = self
+            .client
+            .post(url)
+            .header("Referer", referer)
+            .header("Origin", origin)
+            .header("Content-Type", "application/x-www-form-urlencoded");
+
+        // 始终发送 Cookie（至少包含 buvid3）
+        let cookie_header = self.effective_credential().cookie_header();
+        if !cookie_header.is_empty() {
+            request = request.header("Cookie", cookie_header);
+        }
+
+        let response = request
+            .query(params)
+            .send()
+            .await
+            .map_err(|error| error.to_string())?;
+
+        let text = response.text().await.map_err(|error| error.to_string())?;
+        serde_json::from_str(&text)
+            .map_err(|_| "送礼请求被拦截，响应异常（可能触发风控，请稍后重试）".to_string())
     }
 }
 

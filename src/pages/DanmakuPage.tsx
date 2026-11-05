@@ -20,6 +20,7 @@ import { InlineMessage } from "@/components/ui/InlineMessage";
 import { MessageClipboardPanel } from "@/components/danmaku/MessageClipboardPanel";
 import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
+import { GiftPanel } from "@/components/danmaku/GiftPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { FilterPanel } from "@/components/danmaku/FilterPanel";
@@ -122,6 +123,7 @@ function useAutoScroll(messages: DanmakuMessage[]) {
 const PANEL = {
   AUTO_SEND: "autoSend",
   EMOTICON: "emoticon",
+  GIFT: "gift",
   FILTER: "filter",
   SETTINGS: "settings",
   CLIPBOARD: "clipboard",
@@ -145,6 +147,15 @@ export function DanmakuPage() {
     setActivePanel((prev) => (prev === name ? null : name));
   }, []);
   const emoticonPickerOpen = activePanel === PANEL.EMOTICON;
+  const giftPanelOpen = activePanel === PANEL.GIFT;
+  // 礼物打赏由 gift-send cargo feature 门控，官方发布默认关闭：关闭时完全不渲染入口
+  const [giftSendEnabled, setGiftSendEnabled] = useState(false);
+  useEffect(() => {
+    void tauriCommands.gift
+      .isEnabled()
+      .then(setGiftSendEnabled)
+      .catch(() => setGiftSendEnabled(false));
+  }, []);
   // 按账号维护的表情包缓存（key = accountId, value = 该账号的表情包列表）
   const [emoticonPkgMap, setEmoticonPkgMap] = useState<Map<string, EmoticonPackage[]>>(new Map());
   // 按账号维护的收藏表情（key = accountId）
@@ -381,7 +392,7 @@ export function DanmakuPage() {
     return `${m}m`;
   }, [liveTime, now]);
 
-  const { send, sendEmoticon, sending } = useDanmaku();
+  const { send, sendEmoticon, sendGift, sending } = useDanmaku();
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
@@ -1924,6 +1935,36 @@ export function DanmakuPage() {
                 </div>
               </div>
 
+              {/* 礼物图标：仅礼物打赏功能启用（gift-send 构建）时显示 */}
+              {giftSendEnabled && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink-muted dark:text-ink-muted">礼物图标</span>
+                  <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                    {([
+                      { value: true, label: "显示" },
+                      { value: false, label: "不显示" },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={String(value)}
+                        type="button"
+                        onClick={() =>
+                          commitSettings({
+                            appearance: { ...settings.appearance, showGiftIcons: value }
+                          })
+                        }
+                        className={`px-2.5 py-1 text-xs transition ${
+                          (settings.appearance.showGiftIcons ?? true) === value
+                            ? "bg-brand text-white"
+                            : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 侧边吸附动画速度 */}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-ink-muted dark:text-ink-muted">吸附动画</span>
@@ -2094,6 +2135,17 @@ export function DanmakuPage() {
           />
         )}
 
+        {giftPanelOpen && (
+          <GiftPanel
+            roomId={roomId ?? 0}
+            ruid={anchorId}
+            onSend={(giftId, giftNum, options) =>
+              sendGift(roomId ?? 0, anchorId, giftId, giftNum, options)
+            }
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+
         {autoSendOpen && (
           <AutoSendPanel
             isRunning={autoSendRunning}
@@ -2167,6 +2219,21 @@ export function DanmakuPage() {
           >
             <Smile className="h-3.5 w-3.5" />
           </button>
+          {giftSendEnabled && (
+            <button
+              type="button"
+              onClick={() => { if (!isAnonymous) togglePanel(PANEL.GIFT); }}
+              disabled={isAnonymous}
+              title={isAnonymous ? "匿名模式下不可用" : "礼物打赏"}
+              className={`rounded inline-flex items-center p-1.5 text-xs transition ${
+                isAnonymous ? "cursor-not-allowed opacity-40"
+                  : activePanel === PANEL.GIFT ? "bg-brand/10 text-brand"
+                  : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <Gift className="h-3.5 w-3.5" />
+            </button>
+          )}
           <AccountSwitcher viewingAccountId={activeAccountId} />
           <button
             type="button"
@@ -2223,6 +2290,9 @@ export function DanmakuPage() {
                   {[
                     { key: PANEL.AUTO_SEND, label: "自动发送", Icon: Zap, disabled: isAnonymous },
                     { key: PANEL.EMOTICON, label: "表情", Icon: Smile, disabled: isAnonymous },
+                    ...(giftSendEnabled
+                      ? [{ key: PANEL.GIFT, label: "礼物", Icon: Gift, disabled: isAnonymous }]
+                      : []),
                     { key: PANEL.FILTER, label: "屏蔽管理", Icon: ShieldBan, disabled: false },
                     { key: PANEL.SETTINGS, label: "设置", Icon: Settings, disabled: false },
                     { key: PANEL.CLIPBOARD, label: "快捷消息", Icon: ClipboardList, disabled: false },

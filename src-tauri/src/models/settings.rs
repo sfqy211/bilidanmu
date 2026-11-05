@@ -130,6 +130,9 @@ pub struct AppearanceSetting {
     /// 关闭后 SC/礼物/舰长与普通弹幕一致：无价格胶囊与着色，只保留纯文字
     #[serde(default)]
     pub plain_price_messages: bool,
+    /// 礼物面板是否展示礼物图标（关闭后只显示名称与价格；仅 gift-send 构建有意义）
+    #[serde(default = "default_true")]
+    pub show_gift_icons: bool,
     /// 金额档位配色，缺项按档回退内置默认色
     #[serde(default)]
     pub price_colors: PriceColors,
@@ -598,6 +601,7 @@ impl Default for Settings {
                 activity_filter: ActivityFilter::default(),
                 sc_in_danmaku: false,
                 plain_price_messages: false,
+                show_gift_icons: true,
                 price_colors: PriceColors::default(),
                 dock_anim_ms: default_dock_anim_ms(),
                 theme_accent_light: String::new(),

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { tauriCommands } from "@/lib/tauri";
+import { tauriCommands, type SendGiftOptions } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 
 /** 从各种错误格式中提取消息 */
@@ -57,9 +57,35 @@ export function useDanmaku() {
     [incrementSentCount, setLastError]
   );
 
+  /** 发送礼物（打赏）。礼物不计入弹幕发送统计；金瓜子为真实扣费，确认逻辑由 GiftPanel 负责 */
+  const sendGift = useCallback(
+    async (
+      roomId: number,
+      ruid: number,
+      giftId: number,
+      giftNum: number,
+      options?: SendGiftOptions
+    ) => {
+      setSending(true);
+      try {
+        const result = await tauriCommands.gift.sendGift(roomId, ruid, giftId, giftNum, options);
+        setLastError(null);
+        return result;
+      } catch (error) {
+        const message = extractErrorMessage(error, "发送礼物失败");
+        setLastError(message);
+        throw error;
+      } finally {
+        setSending(false);
+      }
+    },
+    [setLastError]
+  );
+
   return {
     sending,
     send,
-    sendEmoticon
+    sendEmoticon,
+    sendGift
   };
 }

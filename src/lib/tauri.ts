@@ -5,6 +5,8 @@ import type {
   Credential,
   FavFolder,
   FavResourcePage,
+  GiftBagItem,
+  GiftConfig,
   SearchVideoPage,
   SubtitleLine,
   VideoComment,
@@ -21,7 +23,8 @@ import type {
   StreamInfo,
   SttTranscript,
   UpdateInfo,
-  VideoInfo
+  VideoInfo,
+  WalletInfo
 } from "@/types/bilibili";
 
 export interface SendOptions {
@@ -32,6 +35,15 @@ export interface SendOptions {
 
 export interface SendEmoticonOptions extends SendOptions {
   emoticonOptions?: string;
+}
+
+export interface SendGiftOptions {
+  /** 背包条目 id，> 0 时走背包不扣费 */
+  bagId?: number;
+  /** gold 金瓜子（真实扣费）/ silver 银瓜子 */
+  coinType?: string;
+  /** 礼物单价（瓜子数），背包礼物填 0 */
+  price?: number;
 }
 
 export interface AutoSendEntry {
@@ -120,6 +132,23 @@ export const tauriCommands = {
     startAutoLike: (roomId: number, anchorId: number, targetTotal: number, batchSize: number, intervalMs: number) =>
       invoke<void>("start_auto_like", { roomId, anchorId, targetTotal, batchSize, intervalMs }),
     stopAutoLike: () => invoke<void>("stop_auto_like")
+  },
+  gift: {
+    /** 礼物打赏是否随此构建启用（gift-send cargo feature，官方发布默认关闭） */
+    isEnabled: () => invoke<boolean>("gift_send_enabled"),
+    getRoomGifts: (roomId: number) => invoke<GiftConfig[]>("get_room_gifts", { roomId }),
+    getGiftBag: (roomId: number) => invoke<GiftBagItem[]>("get_gift_bag", { roomId }),
+    getGiftWallet: (roomId: number) => invoke<WalletInfo>("get_gift_wallet", { roomId }),
+    sendGift: (roomId: number, ruid: number, giftId: number, giftNum: number, options?: SendGiftOptions) =>
+      invoke<BiliResponse>("send_gift", {
+        roomId,
+        ruid,
+        giftId,
+        giftNum,
+        bagId: options?.bagId ?? null,
+        coinType: options?.coinType ?? null,
+        price: options?.price ?? null
+      })
   },
   ws: {
     connect: (roomId: number) => invoke<void>("connect_danmaku_stream", { roomId }),
