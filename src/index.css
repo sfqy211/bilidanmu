@@ -332,7 +332,9 @@ body {
 
 .workspace-page { padding: 24px var(--workspace-page-space); }
 .workspace-notice { margin: 12px var(--workspace-page-space) 0; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
-.workspace-mini-player { background: var(--app-surface); }
+/* 迷你播放栏与外壳/侧边栏同色（此前用 --app-surface 比侧边栏浅一档，
+   视觉上像两种底色）；分隔靠自身的 border-t */
+.workspace-mini-player { background: var(--app-sidebar); }
 .workspace-brand { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .workspace-brand-logo { box-sizing: border-box; width: 24px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 7px; background: #f7f8fa; object-fit: contain; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08); }
 .dark .workspace-brand-logo { background: #2a2a2f; box-shadow: 0 0 0 1px var(--border-subtle); }
@@ -810,7 +812,8 @@ body {
 
 .settings-layout {
   display: grid;
-  grid-template-columns: 136px minmax(0, 1fr);
+  /* 分类导航贴着最长标签（"弹幕窗口/直播音频"四字）收窄，不留大段空白 */
+  grid-template-columns: 104px minmax(0, 1fr);
   column-gap: 32px;
 }
 
