@@ -1,27 +1,48 @@
 # BiliDanmu
 
-Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构建。
+Windows / macOS / Linux 桌面端 B 站直播间弹幕客户端，基于 Tauri 2 + React 18 构建。
 
 ## 功能
 
-- 多账号管理（登录/切换/移除，弹幕窗口内快速切换发送账号）
-- Cookie 登录 + 二维码登录，启动自动恢复
-- 房间搜索（主播名 / 房间号 / 链接 / UID），本地 SQLite 持久化
-- 文字弹幕发送、表情弹幕发送
-- 自动发送（文字/表情/收藏夹三 Tab，可调间隔 + 时间限制，切房自动停止）
-- 自动点赞（批量点赞，可调目标/批次/间隔）
-- WebSocket 弹幕流实时接收（弹幕、礼物、进场、醒目留言、上舰）
-- 弹幕流内联表情渲染（`[表情名]` → 图片）
-- 醒目留言真实颜色还原（两段式卡片 + 背景图）
-- 开播时长实时显示（v2 API 获取直播时间戳，自动刷新）
-- 系统托盘常驻（单击切换弹幕窗口，右键菜单切换房间/账号）
-- 图片代理（SSRF 白名单 + LRU 缓存，绕过 CDN Referer 防盗链）
+### 看直播
+
+- 多账号管理（TV 二维码登录 / 切换 / 移除 / 续期 Cookie），启动自动恢复，支持匿名模式
+- 单独选择发送账号（主账号负责观看与音频，发送账号负责弹幕与表情）
+- 房间搜索（主播名 / 房间号 / 链接 / UID），从关注列表添加正在直播的主播，本地 SQLite 持久化
+- 房间列表分区（直播中 / 未开播）、封面与列表两种视图、拖拽排序、星标收藏与「只看收藏」
+- 显示已播时长与上次直播时间，60 秒轮询开播状态
+- WebSocket 弹幕流实时接收（弹幕、礼物、醒目留言、上舰、进场、点赞、开播/下播）
+- 三栏消息布局（礼物 / 弹幕 / 活动），栏高可拖拽，活动栏三态（滚动列表 / 只看最新 / 隐藏）与栏内过滤
+- 弹幕流内联表情渲染与大表情，表情包收藏与按房间/账号隐藏
+- 醒目留言真实配色（六档金额配色可自定义），礼物与舰长金额胶囊前置
+- 关键词与用户屏蔽（右键消息直接屏蔽），礼物类型与电池数量筛选
+- 用户信息显隐（昵称、昵称颜色、荣耀等级、粉丝牌、房管标志、高能榜）
+- 文字弹幕（40 字上限、输入法安全）与表情弹幕发送
+- 自动发送（文字/表情/点赞三 Tab，间隔 + 限时可调，切房自动停止）与自动点赞（目标/批次/间隔）
+- 快捷消息模板（SQLite 持久化）
+- 系统托盘常驻（单击切换当前窗口，右键切换直播间/账号/退出）
+- 图片代理（域名白名单 + SQLite 缓存 + 前端内存 LRU，绕过 CDN Referer 防盗链）
 - 实时直播音频流播放（v2 API + 本地代理绕过 CORS + mpegts.js FLV 播放）
-- 实时语音转字幕（sherpa-onnx 流式识别 + 字幕叠加层）
-- 弹幕窗口透明度调节（0-100%，全局背景跟随主题）
-- 窗口透传模式（点击穿透，仅交互元素响应）
+- 实时语音转字幕（sherpa-onnx 流式识别 + 字幕叠加层，始终编译，设置中开关）
+- 弹幕窗口背景透明度 10–100%、贴边吸附收起、仅输入框模式、点击透传、隐身模式
+- 全局快捷键与界面缩放，窗口位置/尺寸/模式持久化
 - 自定义窗口标题栏（无原生装饰，全部窗口统一风格）
-- STT 功能内置，可在设置中按需开启/关闭；AI 接入开发中（侧边栏为占位页）
+
+### 听视频
+
+- BV 号 / 视频链接直达，关键词搜索，收藏夹与稍后再看作为播放列表
+- 分 P 与合集切换、双层播放队列、顺序/随机/单曲循环/列表循环
+- 视频原有字幕逐句高亮跟随，离开播放页后底部迷你播放条继续控制
+- 视频评论区浏览、回复、点赞（需登录）
+- 与直播互斥：进入直播间时视频音频自动暂停
+
+### 其他
+
+- 浅色/深色/跟随系统，深浅各六套主题预设，强调色/背景/表面/前景可自定义
+- 金额档位配色、弹幕字号、界面缩放、界面与内容字体
+- 消息缓存上限（三栏共用，0 = 不限）、图片缓存分类清理
+- 设置自动保存，启动检查更新
+- 礼物打赏（发送礼物）为编译期可选功能，官方构建默认关闭，见下文
 
 ## 技术栈
 
@@ -30,10 +51,10 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 | 桌面框架 | Tauri 2                                                                   |
 | 前端     | React 18 + TypeScript + Vite 7                                            |
 | 状态管理 | Zustand 5                                                                 |
-| 样式     | TailwindCSS 3                                                             |
+| 样式     | TailwindCSS 3 + Radix UI                                                  |
 | 图标     | Lucide React                                                              |
 | 后端     | Rust (reqwest, tokio-tungstenite, brotli, flate2, sherpa-onnx, symphonia) |
-| 音频播放 | mpegts.js (FLV→fMP4→MSE)                                                  |
+| 音频播放 | mpegts.js (FLV→fMP4→MSE) / HTMLAudioElement（听视频）                      |
 | 持久化   | SQLite (rusqlite) + tauri-plugin-store                                    |
 
 ## 开发
@@ -42,32 +63,36 @@ Windows 桌面端 B站直播间弹幕客户端，基于 Tauri 2 + React 18 构�
 
 - Node.js 18+
 - Rust (rustup)
-- Windows 10+（WebView2 运行时）
+- Windows 10+（WebView2 运行时）/ macOS / Linux（webkit2gtk 4.1）
 
 ### 安装依赖
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 启动开发
 
 ```bash
-npm run dev
+npm run dev        # 完整开发模式（Vite 前端 + Tauri 窗口）
+npm run dev:mock   # 同上，并启用虚拟直播间（无需真实直播间）
+npm run dev:gift   # 同上，并开启礼物打赏编译特性
 ```
 
-启动 Vite 前端（localhost:3000）+ Tauri 桌面窗口。
+启动 Vite 前端（`localhost:3000`，`strictPort`，端口被占用会直接失败）+ Tauri 桌面窗口。
 
 ### 常用命令
 
 | 命令                                   | 说明                         |
 | -------------------------------------- | ---------------------------- |
 | `npm run dev`                          | 完整开发模式（前端 + Tauri） |
-| `npm run dev:mock`                     | 开发模式 + 虚拟直播间（无需真实直播间） |
+| `npm run dev:mock`                     | 开发模式 + 虚拟直播间        |
+| `npm run dev:gift`                     | 开发模式 + 礼物打赏特性      |
 | `npm run dev:renderer`                 | 仅前端（Vite）               |
 | `npm run typecheck`                    | TypeScript 类型检查          |
 | `cargo check` (在 src-tauri/)          | Rust 编译检查                |
 | `npm run build`                        | 构建发布包                   |
+| `npm run build:gift`                   | 构建带礼物打赏的发布包       |
 | `.\scripts\bump-version.ps1 <version>` | 更新所有版本号               |
 
 ## 测试
@@ -100,31 +125,55 @@ gift-send = []
 
 ```
 src/                          前端 (React + TypeScript)
-├── pages/                    页面（RoomPage, DanmakuPage, AccountPage, AIPage, SettingsPage）
+├── pages/                    页面（RoomPage, DanmakuPage, AccountPage, SettingsPage,
+│                             ListenHomePage/WatchLaterPage/ListenFavPage,
+│                             VideoAddPage/VideoPlayerPage/VideoCommentsPage, RoomAddPage, AIPage）
 ├── components/               组件
-│   ├── danmaku/              弹幕相关（DanmakuMessageItem, AccountSwitcher, EmoticonPickerPanel, AutoSendPanel...）
-│   ├── layout/               布局（AppLayout, AppSidebar, TitleBar, SplitLayout）
-│   └── ui/                   通用 UI（PageTabs, ProxiedImage, InlineMessage）
-├── hooks/                    React Hooks（useDanmakuStream, useAutoSend, useAutoLike, useAudioPlayer, useTheme...）
-├── stores/                   Zustand 状态管理（auth, room, danmaku, settings）
-├── lib/tauri.ts              Tauri IPC 调用封装
+│   ├── danmaku/              弹幕相关（DanmakuMessageItem, AccountSwitcher, RoomSwitcher,
+│   │                         EmoticonPickerPanel, AutoSendPanel, GiftPanel, FilterPanel,
+│   │                         MessageClipboardPanel, SubtitleOverlay, FloatingPanel, MedalBadge）
+│   ├── layout/               布局（WorkspaceLayout, AppLayout, AppSidebar, WorkspaceSidebar,
+│   │                         TitleBar, PageHeader）
+│   ├── listen/               听视频（MiniPlayer, PlayerControls, PlaylistTreePanel,
+│   │                         SubtitlePanel, VideoCollectionPage）
+│   ├── settings/             设置分区（通用/快捷键/外观/弹幕窗口/直播音频/听视频/存储/关于）
+│   ├── rooms/                收藏管理（FavoriteManageDialog）
+│   ├── add/                  添加直播间/视频共用的搜索页（AddSearchPage）
+│   └── ui/                   通用 UI（ProxiedImage, InlineMessage, ConfirmDialog, CloseDialog,
+│                             UpdateDialog, Select, checkbox, slider）
+├── hooks/                    React Hooks（useDanmakuStream, useAutoSend, useAutoLike,
+│                             useAudioPlayer, useSttTranscript, useTheme, useBackgroundTheme,
+│                             useWindowDock, useProxyImage, useDividerDrag, useInfiniteScroll,
+│                             useUiScale, useZoom, useUpdateCheck, useTauriEvent...）
+├── stores/                   Zustand 状态（auth, room, danmaku, settings, ui, video-audio）
+├── lib/                      tauri.ts（IPC 封装）、theme/visual-theme/brand-theme、app-history 等
 └── types/                    TypeScript 类型定义
 
 src-tauri/                    后端 (Rust)
-├── src/bili/                 B站协议实现（API、WebSocket、WBI 签名、协议解析）
-├── src/commands/             Tauri IPC 命令处理（auth, room, danmaku, settings, proxy, stt...）
+├── src/bili/                 B站协议实现（api, ws_client, protocol, wbi, credential, buvid,
+│                             heartbeat, pb（protobuf 最小解码）, mock（虚拟直播间））
+├── src/commands/             Tauri IPC 命令（auth, room, danmaku, gift, video, settings,
+│                             proxy, stt, selections, message_template, update, download,
+│                             log, websocket）
 ├── src/models/               数据模型
-├── src/stt/                  语音识别模块（FLV 解复用、AAC 解码、sherpa-onnx 流式识别）
-├── src/proxy/                本地 HTTP 流代理（hyper 1.x，STT 字节流 tee）
-├── src/tray.rs               系统托盘（单击切换弹幕窗口，右键菜单）
-└── src/lib.rs                应用入口 + AppState
+├── src/stt/                  语音识别（FLV 解复用、AAC 解码、sherpa-onnx 流式识别）
+├── src/proxy/                本地 HTTP 流代理（hyper 1.x，STT 字节流 tee；直播流 + 视频流双槽）
+├── src/tray.rs               系统托盘
+├── src/window_dock.rs        侧边吸附收起
+├── src/window_state.rs       弹幕窗口几何持久化
+├── src/window_stealth.rs     隐身模式
+├── src/shortcuts.rs          全局快捷键
+├── src/send_queue.rs         发送队列（人工/自动优先级）
+├── src/screen_luminance.rs   背景亮度采样
+└── lib.rs                    应用入口 + AppState
 
 tests/                        测试（测试手册 + 场景脚本，见 tests/README.md）
+docs/                         Docusaurus 文档站（用户指南 / 技术架构 / API 参考 / 设计规范 / 调研）
 ```
 
 ## 文档
 
-`docs/` 目录包含 Docusaurus 文档站：
+`docs/` 目录包含 Docusaurus 文档站，线上地址 <https://sfqy211.github.io/bilidanmu/>：
 
 | 目录 | 说明 |
 | --- | --- |
@@ -133,8 +182,13 @@ tests/                        测试（测试手册 + 场景脚本，见 tests/R
 | [docs/docs/api/](docs/docs/api/) | API 参考（B 站 API、IPC 命令、事件列表） |
 | [docs/docs/design/](docs/docs/design/) | 设计规范（设计风格、页面布局） |
 | [docs/docs/research/](docs/docs/research/) | 技术调研（协议调研、方案选型） |
+| [docs/design/](docs/design/) | 功能设计记录（如礼物打赏） |
 
-本地预览：`cd docs && npm install && npm run dev`
+本地预览：`cd docs && npm ci && npm run dev`。推送到 `main` 且改动 `docs/**` 时，GitHub Actions 会自动构建并部署到 GitHub Pages。
+
+## 发布
+
+推送 `main` 且 `src-tauri/tauri.conf.json` 的版本号变化时，GitHub Actions 会构建 Windows（x64）、macOS（Universal）、Linux（x64）三平台安装包并发布为 GitHub Release，标签 `app-v<version>`。版本变动等于发布触发器，用 `.\scripts\bump-version.ps1 <version>` 统一改版本号。
 
 ## 许可
 
@@ -157,5 +211,6 @@ tests/                        测试（测试手册 + 场景脚本，见 tests/R
 | [chatterbox](https://github.com/laplace-live/chatterbox)                                   | AGPLv3       |
 | [live-moyu](https://github.com/amount-chen/live-moyu)                                      | MIT          |
 | [JLiverTool](https://github.com/Xinrea/JLiverTool)                                         | MIT          |
+| [BilibiliApis](https://github.com/cv-cat/BilibiliApis)                                     | 未声明许可   |
 
 `bilibili-API-collect` 采用 CC BY-NC 4.0 许可（禁止商业使用），本项目的 B 站 API 文档参考自该项目，同样禁止将本项目用于商业用途。

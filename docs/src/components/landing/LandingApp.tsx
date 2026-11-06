@@ -420,12 +420,12 @@ export function LandingApp({ base, cleanUrls, assetBase }: LandingProps) {
                 <em>你的样子。</em>
               </h2>
               <p className="lp-section-lede">
-                浅色、深色或跟随系统；强调色、字体、字号和对比度都能调。保存后，下次打开还是熟悉的样子。
+                浅色、深色或跟随系统；强调色、字体、字号和对比度都能调。改动自动保存，下次打开还是熟悉的样子。
               </p>
               <ul className="lp-points">
-                <li>浅色与深色分别设置，修改即时预览。</li>
-                <li>强调色、背景、前景和界面字体都能换。</li>
-                <li>主题可以复制或导出 JSON，随时重来。</li>
+                <li>浅色与深色分别设置，深浅各六套预设，修改即时预览。</li>
+                <li>强调色、背景、表面、前景和界面字体都能换。</li>
+                <li>醒目留言与礼物的金额配色也可逐档指定。</li>
               </ul>
               <a className="lp-link" href={link("/guide/features")}>
                 外观设置说明 <span aria-hidden="true">↗</span>
