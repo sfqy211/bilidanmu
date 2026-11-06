@@ -4,7 +4,7 @@ use crate::bili::wbi::WbiKeyCache;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex as TokioMutex};
+use tokio::sync::{mpsc, oneshot, Mutex as TokioMutex};
 use tokio::time::{sleep, Duration};
 
 /// 发送优先级
@@ -23,6 +23,19 @@ pub struct QueueItem {
     pub credential: Option<BiliCredential>,
     /// 预留：提示词 ID，后续提示词管理可标记每条消息使用的提示词
     pub prompt_id: Option<String>,
+    /// 回执通道：需要知道发送结果的调用方（AI 工具）在这里等。
+    /// `None` 表示即发即忘（手动/自动发送的既有行为）。
+    pub respond: Option<oneshot::Sender<SendResult>>,
+    /// 文字颜色（十进制 RGB），None 用默认白色
+    pub color: Option<u32>,
+    /// 弹幕模式：1/2/3 滚动、4 底部、5 顶部。None 用滚动
+    pub mode: Option<u32>,
+    /// dm_type: 0=文字, 1=表情
+    pub dm_type: u32,
+    /// 表情弹幕的 emoticon_options JSON
+    pub emoticon_options: Option<String>,
+    /// 入队序号：BinaryHeap 是最大堆，同优先级下按序号倒序取出才是 FIFO
+    pub seq: u64,
 }
 
 /// 队列事件：普通消息 或 取消信号
@@ -36,7 +49,7 @@ struct OrdItem(QueueItem);
 
 impl PartialEq for OrdItem {
     fn eq(&self, other: &Self) -> bool {
-        self.0.priority == other.0.priority
+        self.cmp(other) == Ordering::Equal
     }
 }
 
@@ -50,15 +63,26 @@ impl PartialOrd for OrdItem {
 
 impl Ord for OrdItem {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.0.priority as u8).cmp(&(other.0.priority as u8))
+        // 先比优先级（高的先发），再比序号（小的先发 = FIFO）。
+        // 最大堆里 seq 要反向比较，否则先入队的会被压到堆底。
+        (self.0.priority as u8)
+            .cmp(&(other.0.priority as u8))
+            .then_with(|| other.0.seq.cmp(&self.0.seq))
     }
 }
 
 /// 发送结果
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SendResult {
     Success,
     Error(String),
+}
+
+/// 入队序号自增计数（单调递增即可，无需跨进程唯一）
+fn next_seq() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    SEQ.fetch_add(1, AtomicOrdering::Relaxed)
 }
 
 /// 取消所有 AUTO 优先级的待发送项
@@ -94,6 +118,58 @@ impl SendQueue {
         if self.tx.send(QueueEvent::CancelAuto).is_err() {
             log::error!("[SendQueue] 队列已关闭，取消信号丢失");
         }
+    }
+}
+
+/// 经由发送队列发一条弹幕并等待结果。
+///
+/// AI 工具走这条路径，从而复用用户设置里的发送间隔与频率限制——
+/// 模型不该拥有比界面更快的刷屏能力。
+pub async fn send_via_queue(
+    state: &crate::AppState,
+    room_id: u64,
+    message: &str,
+    priority: SendPriority,
+    color: Option<u32>,
+    mode: Option<u32>,
+    dm_type: u32,
+    emoticon_options: Option<String>,
+) -> Result<SendResult, String> {
+    let queue = {
+        let slot = state.send_queue.lock().await;
+        slot.as_ref().map(|queue| queue.tx.clone())
+    };
+
+    let Some(tx) = queue else {
+        return Err("发送队列尚未就绪，请稍后重试".to_string());
+    };
+
+    let credential = crate::commands::get_sending_credential(state).await;
+    let (respond, receiver) = oneshot::channel();
+
+    let item = QueueItem {
+        room_id,
+        message: message.to_string(),
+        priority,
+        credential,
+        prompt_id: None,
+        respond: Some(respond),
+        color,
+        mode,
+        dm_type,
+        emoticon_options,
+        seq: next_seq(),
+    };
+
+    if tx.send(QueueEvent::Item(item)).is_err() {
+        return Err("发送队列已关闭".to_string());
+    }
+
+    // 队列按发送间隔串行处理，等待上限放宽到 30s（含限流等待）
+    match tokio::time::timeout(Duration::from_secs(30), receiver).await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(_)) => Err("发送队列未能返回结果".to_string()),
+        Err(_) => Err("发送排队超时：当前发送频率受限，请稍后再试".to_string()),
     }
 }
 
@@ -143,6 +219,11 @@ async fn run_queue(
             );
             let result = send_one(&api, &item).await;
 
+            // 先回执再打日志：等待方拿到结果就能立刻返回，不必等限流间隔
+            if let Some(respond) = item.respond {
+                let _ = respond.send(result.clone());
+            }
+
             match &result {
                 SendResult::Success => {
                     log::info!("[SendQueue] 发送成功: room={} msg={}", item.room_id, item.message);
@@ -171,7 +252,14 @@ async fn run_queue(
 /// 发送单条弹幕
 async fn send_one(api_client: &BiliApiClient, item: &QueueItem) -> SendResult {
     match api_client
-        .send_danmaku(item.room_id, &item.message, None, None, 0, None)
+        .send_danmaku(
+            item.room_id,
+            &item.message,
+            item.color,
+            item.mode,
+            item.dm_type,
+            item.emoticon_options.clone(),
+        )
         .await
     {
         Ok(resp) => {

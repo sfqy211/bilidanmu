@@ -35,3 +35,6 @@ promo/
 # 本地临时测试，保留测试开发指南
 /tests/*
 !/tests/README.md
+
+# video2code 工具缓存
+.v2c/

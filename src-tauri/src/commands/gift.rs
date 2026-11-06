@@ -36,7 +36,7 @@ fn mock_active(room_id: u64) -> bool {
     room_id == mock::MOCK_ROOM_ID && mock::is_enabled()
 }
 
-fn mock_gifts() -> Vec<GiftConfig> {
+pub(crate) fn mock_gifts() -> Vec<GiftConfig> {
     vec![
         GiftConfig {
             id: 1,
@@ -73,7 +73,7 @@ fn mock_gifts() -> Vec<GiftConfig> {
     ]
 }
 
-fn mock_bag() -> Vec<GiftBagItem> {
+pub(crate) fn mock_bag() -> Vec<GiftBagItem> {
     vec![
         GiftBagItem {
             bag_id: 1001,

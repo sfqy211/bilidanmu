@@ -4,7 +4,7 @@ use crate::bili::credential::BiliCredential;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{oneshot, Mutex};
 use tokio::time::{sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -182,6 +182,13 @@ async fn run_connection(
     }
 
     let _ = app.emit("ws-connected", serde_json::json!({"roomId": room_id}));
+    // 直播间上下文的连接状态与房间号同步给 Rust 侧缓冲（MCP server 读它）
+    if let Some(state) = app.try_state::<crate::AppState>() {
+        if let Ok(mut context) = state.live_context.lock() {
+            context.reset_for_room(room_id);
+            context.connected = true;
+        }
+    }
     writer
         .send(Message::Binary(heartbeat_packet()?.into()))
         .await
@@ -271,6 +278,11 @@ async fn run_connection(
                                             .get("click_count")
                                             .and_then(value_as_u64)
                                             .unwrap_or(0);
+                                        if let Some(state) = app.try_state::<crate::AppState>() {
+                                            if let Ok(mut context) = state.live_context.lock() {
+                                                context.like_count = Some(click_count);
+                                            }
+                                        }
                                         let _ = app.emit(
                                             "like-count-update",
                                             serde_json::json!({
@@ -302,6 +314,11 @@ async fn run_connection(
                                             .get("online_count")
                                             .and_then(value_as_u64)
                                             .unwrap_or(0);
+                                        if let Some(state) = app.try_state::<crate::AppState>() {
+                                            if let Ok(mut context) = state.live_context.lock() {
+                                                context.online_count = Some(online_count);
+                                            }
+                                        }
                                         let _ = app.emit(
                                             "online-count-update",
                                             serde_json::json!({
@@ -332,6 +349,7 @@ async fn run_connection(
                                             if let Some(&rank) = online_rank_cache.get(&event.uid) {
                                                 event.contribution_rank = Some(rank);
                                             }
+                                            push_live_context(&app, &event);
                                             let _ = app.emit("danmaku-received", &event);
                                         }
                                     }
@@ -345,6 +363,11 @@ async fn run_connection(
                                             .trim()
                                             .to_string();
                                         if !title.is_empty() {
+                                            if let Some(state) = app.try_state::<crate::AppState>() {
+                                                if let Ok(mut context) = state.live_context.lock() {
+                                                    context.title = Some(title.clone());
+                                                }
+                                            }
                                             let _ = app.emit(
                                                 "room-title-changed",
                                                 serde_json::json!({
@@ -361,6 +384,11 @@ async fn run_connection(
                                             .get("num")
                                             .and_then(value_as_u64)
                                             .unwrap_or(0);
+                                        if let Some(state) = app.try_state::<crate::AppState>() {
+                                            if let Ok(mut context) = state.live_context.lock() {
+                                                context.watched_count = Some(watched);
+                                            }
+                                        }
                                         let _ = app.emit(
                                             "watched-count-update",
                                             serde_json::json!({
@@ -393,11 +421,17 @@ async fn run_connection(
                                         if let Some(&rank) = online_rank_cache.get(&event.uid) {
                                             event.contribution_rank = Some(rank);
                                         }
+                                        push_live_context(&app, &event);
                                         let _ = app.emit("danmaku-received", &event);
                                     }
                                 }
                             }
                             ParsedPacket::HeartbeatReply(popularity) => {
+                                if let Some(state) = app.try_state::<crate::AppState>() {
+                                    if let Ok(mut context) = state.live_context.lock() {
+                                        context.popularity = Some(popularity as u64);
+                                    }
+                                }
                                 let _ = app.emit("ws-heartbeat", serde_json::json!({"popularity": popularity}));
                             }
                             ParsedPacket::AuthReply(_) => {}
@@ -406,6 +440,7 @@ async fn run_connection(
                 }
                 Message::Close(frame) => {
                     let reason = frame.map(|value| value.reason.to_string()).unwrap_or_else(|| "closed".to_string());
+                    mark_context_disconnected(&app);
                     let _ = app.emit("ws-disconnected", serde_json::json!({"reason": reason}));
                     return Err("连接已关闭".to_string());
                 }
@@ -415,10 +450,10 @@ async fn run_connection(
             }
         }
 
+        mark_context_disconnected(&app);
         let _ = app.emit("ws-disconnected", serde_json::json!({"reason": "socket ended"}));
         Err("WebSocket 连接结束".to_string())
     };
-
     // 判断是否为匿名模式（无 SESSDATA）
     let has_sessdata = credential.as_ref().map_or(false, |c| c.has_sessdata());
 
@@ -650,6 +685,26 @@ impl SuperChatDedupWindow {
             }
         }
         ScDedup::Forward
+    }
+}
+
+/// 把已解析的事件写入 Rust 侧的直播间上下文缓冲。
+///
+/// 前端的 zustand store 只活在 webview 里，MCP server 读不到；这里同步留一份，
+/// 让 `live_get_context` 这类工具能回答"刚才发生了什么"。
+fn push_live_context(app: &AppHandle, event: &crate::models::message::DanmakuEvent) {
+    if let Some(state) = app.try_state::<crate::AppState>() {
+        if let Ok(mut context) = state.live_context.lock() {
+            context.push(event);
+        }
+    }
+}
+
+fn mark_context_disconnected(app: &AppHandle) {
+    if let Some(state) = app.try_state::<crate::AppState>() {
+        if let Ok(mut context) = state.live_context.lock() {
+            context.disconnect();
+        }
     }
 }
 

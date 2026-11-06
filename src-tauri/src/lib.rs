@@ -1,8 +1,10 @@
+mod ai;
 mod bili;
 mod commands;
 mod credential_store;
 mod db;
 mod emoticon_store;
+mod mcp;
 mod message_template_store;
 mod models;
 mod proxy;
@@ -81,6 +83,13 @@ pub struct AppState {
     pub shortcut_errors: std::sync::Mutex<Vec<String>>,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
     pub live_status: std::sync::Mutex<Option<HashMap<u64, crate::models::room::LiveStatusInfo>>>,
+    /// 直播间的滚动上下文（最近弹幕/礼物/指标）。MCP server 跑在 Rust 进程内，
+    /// 拿不到前端的 zustand store，所以 ws 客户端在此额外留一份
+    pub live_context: std::sync::Mutex<ai::context::LiveContext>,
+    /// AI 工具调用的待确认注册表：请求方在此等待用户在弹窗里的决定
+    pub ai_pending_confirm: std::sync::Mutex<ai::confirm::ConfirmRegistry>,
+    /// MCP server 句柄（None = 尚未启动）
+    pub mcp_server: mcp::server::ServerSlot,
 }
 
 /// 「仅输入框」模式展开表情面板前保存的紧凑栏几何
@@ -167,6 +176,9 @@ pub fn run() {
             danmaku_stealth: std::sync::Mutex::new(None),
             shortcut_errors: std::sync::Mutex::new(Vec::new()),
             live_status: std::sync::Mutex::new(None),
+            live_context: std::sync::Mutex::new(ai::context::LiveContext::new()),
+            ai_pending_confirm: std::sync::Mutex::new(ai::confirm::ConfirmRegistry::default()),
+            mcp_server: Arc::new(TokioMutex::new(None)),
         }
         })
         .setup(|app| {
@@ -313,6 +325,27 @@ pub fn run() {
                 commands::room::refresh_all_rooms(app_handle).await;
             });
 
+            // MCP server：默认随应用启动，供外部 AI 客户端连入。
+            // 绑定失败只降级（AIPage 显示错误），不影响应用其余功能
+            {
+                let state = app.state::<AppState>();
+                if ai::policy::load_mcp_enabled(state.inner()) {
+                    let app_handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        match mcp::server::spawn_server(app_handle).await {
+                            Ok(status) if status.running => {
+                                log::info!("[mcp] 就绪：{}", status.endpoint)
+                            }
+                            Ok(status) => log::warn!(
+                                "[mcp] 未启动：{}",
+                                status.error.unwrap_or_else(|| "未知原因".into())
+                            ),
+                            Err(error) => log::error!("[mcp] 启动失败：{error}"),
+                        }
+                    });
+                }
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -454,6 +487,18 @@ pub fn run() {
             commands::download::download_file,
             commands::download::open_file_path,
             commands::log::open_log_dir,
+            ai::commands::ai_list_tools,
+            ai::commands::ai_call_tool,
+            ai::commands::ai_get_permission_mode,
+            ai::commands::ai_set_permission_mode,
+            ai::commands::ai_confirm_response,
+            ai::commands::ai_mcp_status,
+            ai::commands::ai_mcp_start,
+            ai::commands::ai_mcp_stop,
+            ai::commands::ai_mcp_token,
+            ai::commands::ai_mcp_regenerate_token,
+            ai::commands::ai_audit_list,
+            ai::commands::ai_audit_clear,
             tray::quit_app_cmd
         ])
         .run(tauri::generate_context!())
