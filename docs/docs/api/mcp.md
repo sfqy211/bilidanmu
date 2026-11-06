@@ -100,6 +100,11 @@
 | `danmaku_send` | **costly** | `roomId`、`message`*(≤20 字)、`color`、`mode` | 发送文字弹幕，经发送队列限流 |
 | `danmaku_send_emoticon` | **costly** | `roomId`、`emoticonUnique`*、`emoticonOptions` | 发送表情弹幕 |
 | `danmaku_like` | write | `roomId`、`anchorId`、`clickTimes`(1-100) | 给直播间点赞 |
+| `auto_send_start` | **costly** | `roomId`、`entries`*（≤20 条，含 `message`/`dmType`/`emoticonOptions`）、`intervalMs`(≥300，默认 3000，会抬到用户设置的最小发送间隔)、`timeLimitSecs` | 后台循环发送，一次确认覆盖整段循环；与模型会话无关 |
+| `auto_send_stop` | write | — | 停止循环发送 |
+| `auto_like_start` | write | `roomId`、`anchorId`、`targetTotal`(1-1000，默认 100)、`batchSize`(1-100，默认 20)、`intervalMs`(≥500，默认 5000) | 分批点赞到目标次数后自动停止 |
+| `auto_like_stop` | write | — | 停止自动点赞 |
+| `auto_status` | read | — | 循环发送 / 自动点赞是否还在后台运行 |
 | `template_list` | read | — | 消息模板列表 |
 | `template_save` | write | `id`、`title`*、`content`* | 新建（无 id）或更新模板 |
 | `template_delete` | write | `id`* | 删除模板 |

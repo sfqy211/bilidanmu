@@ -185,6 +185,26 @@ fn describe_call(name: &str, title: &str, args: &serde_json::Value) -> String {
                 parts.push(format!("发送表情弹幕：{unique}"));
             }
         }
+        "auto_send_start" => {
+            let count = args
+                .get("entries")
+                .and_then(|value| value.as_array())
+                .map(|entries| entries.len())
+                .unwrap_or(0);
+            let interval = args
+                .get("intervalMs")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(3000);
+            let limit = args
+                .get("timeLimitSecs")
+                .and_then(|value| value.as_u64())
+                .map(|secs| format!("，{secs} 秒后自动停止"))
+                .unwrap_or_else(|| "，持续到手动停止".to_string());
+            parts.push(format!(
+                "启动循环发送弹幕：{count} 条轮播，每 {} 秒一条{limit}",
+                interval as f64 / 1000.0
+            ));
+        }
         "gift_send" => {
             let gift_id = args.get("giftId").and_then(|value| value.as_u64()).unwrap_or(0);
             let count = args.get("giftNum").and_then(|value| value.as_u64()).unwrap_or(1);

@@ -50,6 +50,11 @@ pub async fn dispatch_tool(
         "danmaku_send" => tools::danmaku::send(app, state, args).await,
         "danmaku_send_emoticon" => tools::danmaku::send_emoticon(app, state, args).await,
         "danmaku_like" => tools::danmaku::like(app, state, args).await,
+        "auto_send_start" => tools::danmaku::auto_send_start(app, state, args).await,
+        "auto_send_stop" => tools::danmaku::auto_send_stop(app, state, args).await,
+        "auto_like_start" => tools::danmaku::auto_like_start(app, state, args).await,
+        "auto_like_stop" => tools::danmaku::auto_like_stop(app, state, args).await,
+        "auto_status" => tools::danmaku::auto_status(app, state, args).await,
         "template_list" => tools::danmaku::list_templates(app, state, args).await,
         "template_save" => tools::danmaku::save_template(app, state, args).await,
         "template_delete" => tools::danmaku::delete_template(app, state, args).await,
@@ -376,6 +381,77 @@ pub fn all_specs() -> Vec<ToolSpec> {
                 },
                 "additionalProperties": false
             })),
+        },
+        ToolSpec {
+            name: "auto_send_start",
+            title: "启动循环发送弹幕",
+            description: "在后台按固定间隔循环发送 entries 里的文案（桌面端「自动发送」同一个后台任务）。\
+一次确认覆盖整段循环，节奏由 Rust 定时器控制，不依赖模型往返。intervalMs 会被抬到用户设置的最小发送间隔。\
+文字弹幕每条不超过 20 字，entries 按顺序轮播；用 auto_send_stop 停止，auto_status 查看状态。",
+            risk: Risk::Costly,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "roomId": { "type": "integer", "description": "房间号，省略则用当前直播间" },
+                    "entries": {
+                        "type": "array",
+                        "description": "循环条目，最多 20 条，按顺序轮播",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "message": { "type": "string", "description": "文字弹幕正文（≤20 字），或表情的 emoticonUnique" },
+                                "dmType": { "type": "integer", "enum": [0, 1], "description": "0=文字，1=表情" },
+                                "emoticonOptions": { "type": "string", "description": "dmType=1 时的 emoticon_options JSON，省略按 emoticonUnique 兜底" }
+                            },
+                            "required": ["message"],
+                            "additionalProperties": false
+                        }
+                    },
+                    "intervalMs": { "type": "integer", "minimum": 300, "description": "发送间隔毫秒，默认 3000；不会低于用户设置的最小发送间隔" },
+                    "timeLimitSecs": { "type": "integer", "minimum": 1, "description": "可选：运行多少秒后自动停止；省略则持续到手动停止" }
+                },
+                "required": ["entries"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "auto_send_stop",
+            title: "停止循环发送弹幕",
+            description: "停止正在运行的循环发送任务。",
+            risk: Risk::Write,
+            input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
+        },
+        ToolSpec {
+            name: "auto_like_start",
+            title: "启动自动点赞",
+            description: "分批给直播间点赞直到 targetTotal，到量自动停止（桌面端「自动点赞」同一个后台任务）。\
+batchSize 为每批次数，intervalMs 为批次间隔。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "roomId": { "type": "integer", "description": "房间号，省略则用当前直播间" },
+                    "anchorId": { "type": "integer", "description": "主播 uid，省略则从已保存房间读取" },
+                    "targetTotal": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 },
+                    "batchSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+                    "intervalMs": { "type": "integer", "minimum": 500, "default": 5000, "description": "每批之间的间隔毫秒" }
+                },
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "auto_like_stop",
+            title: "停止自动点赞",
+            description: "停止正在运行的自动点赞任务。",
+            risk: Risk::Write,
+            input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
+        },
+        ToolSpec {
+            name: "auto_status",
+            title: "自动任务状态",
+            description: "循环发送与自动点赞是否还在后台运行。",
+            risk: Risk::Read,
+            input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
         },
         ToolSpec {
             name: "template_list",
