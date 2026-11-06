@@ -178,6 +178,18 @@ interface SttTranscript {
 | --- | --- | --- |
 | `download-progress` | `{ filename, downloaded, total }` | 安装包下载进度，前端换算百分比 |
 
+## AI 工具事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `ai-confirm-request` | `{ id, tool, title, message, risk }` | AI 请求执行需确认的操作，主窗口弹确认框；用户决定后经 `ai_confirm_response` 回传 |
+| `ai-permission-changed` | `"confirmAll" \| "autonomous" \| "full"` | 权限模式变更，界面同步按钮状态 |
+| `ai-tool-activity` | `{ tool, ok }` | 外部 MCP 客户端每调用一次工具后广播，用于刷新调用记录 |
+| `ai-navigate` | `{ path }` | 请求主窗口跳到指定路由（如 `video_play` 打开视频页） |
+
+`ai-confirm-request` 的 `id` 是关联键：Rust 侧等待用户决定，超时（55 秒）后该 id
+失效，`ai_confirm_response` 会返回 `false`。
+
 ## 事件一览
 
 | 事件 | 方向 | 来源模块 |
@@ -195,3 +207,7 @@ interface SttTranscript {
 | `stt-transcript` | Rust → 前端 | `stt/mod.rs` |
 | `download-progress` | Rust → 前端 | `commands/download.rs` |
 | `settings-changed` | 前端 → 前端（跨窗口） | `stores/settings-store.ts` |
+| `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |
+| `ai-permission-changed` | Rust → 前端 | `ai/commands.rs` |
+| `ai-tool-activity` | Rust → 前端 | `mcp/handlers.rs` |
+| `ai-navigate` | Rust → 主窗口 | `ai/tools/video.rs` |

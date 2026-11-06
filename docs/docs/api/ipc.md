@@ -202,3 +202,28 @@ const settings = await tauriCommands.settings.get()
 | 命令 | 参数 | 返回 | 说明 |
 | --- | --- | --- | --- |
 | `quit_app_cmd` | — | `void` | 停止自动任务、断开连接、保存几何后退出 |
+
+## AI 命令 (`ai`)
+
+「AI 接入」页使用的管理命令。外部 AI 客户端走的是本地 MCP 通道
+（见 [MCP 工具参考](./mcp)），两条路最终都进同一个调度入口
+`ai::dispatch::call_tool`，因此权限与审计对两者一致。
+
+| 命令 | 参数 | 返回 | 说明 |
+| --- | --- | --- | --- |
+| `ai_list_tools` | — | `ToolSpec[]` | 全部工具规格（名称/标题/描述/风险/参数 schema） |
+| `ai_call_tool` | `name, args?` | `ToolResult` | 从调试面板调用工具，受权限模式约束并记入审计 |
+| `ai_get_permission_mode` | — | `"confirmAll" \| "autonomous" \| "full"` | 当前权限模式 |
+| `ai_set_permission_mode` | `mode` | `void` | 切换权限模式，广播 `ai-permission-changed` |
+| `ai_confirm_response` | `id, approved` | `boolean` | 回应确认请求；返回 false 表示该请求已超时失效 |
+| `ai_mcp_status` | — | `McpStatus` | MCP 服务状态（`running`/`port`/`endpoint`/`error`） |
+| `ai_mcp_start` | — | `McpStatus` | 启动 MCP 服务 |
+| `ai_mcp_stop` | — | `McpStatus` | 停止 MCP 服务 |
+| `ai_mcp_token` | — | `string` | 读取访问 token |
+| `ai_mcp_regenerate_token` | — | `string` | 重新生成 token，旧 token 立即失效 |
+| `ai_audit_list` | `limit?` | `AuditEntry[]` | 最近工具调用记录（默认 50，最大 500） |
+| `ai_audit_clear` | — | `void` | 清空调用记录 |
+
+`ToolResult` 形状：`{ ok, data?, error?, truncated?, cursor? }`，其中
+`error` 为 `{ code, message, hint?, retryable, confirmationId? }`。
+

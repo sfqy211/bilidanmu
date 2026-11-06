@@ -12,7 +12,7 @@
 - Docs site verification: `npm run build` from `docs/` (Docusaurus).
 - After changing `src-tauri/icons/`: `touch src-tauri/build.rs` before rebuilding (cargo fingerprints don't watch icon files, so the embedded icon stays stale), then `ie4uinit.exe -show` to flush the Windows taskbar icon cache.
 - Version bump: `.\scripts\bump-version.ps1 <version>` (also rewrites `RELEASE_VERSION` in `docs/src/components/landing/LandingApp.tsx`; keep that in sync or the homepage download links 404).
-- No lite build variant — STT is always compiled in, toggled at runtime via settings. The AI backend was removed entirely; `src/pages/AIPage.tsx` is an intentional "开发中" placeholder — do not clean it up as dead code or propose restoring an integration.
+- No lite build variant — STT is always compiled in, toggled at runtime via settings. There is no built-in LLM: `src/pages/AIPage.tsx` is the MCP management page (service status/token, 三档权限, tool list, audit log, debug panel). AI capability lives in external MCP clients, not in this app.
 - 礼物打赏（发送礼物）由 cargo feature `gift-send` 门控，官方构建默认关闭：命令层 `ensure_enabled()` 硬校验 + 前端按 `gift_send_enabled` 隐藏入口；开发调试用 `npm run dev:gift`。
 - There is no configured JS test/lint task in `package.json`; do not claim tests/lint passed unless you actually ran the available checks above.
 
@@ -60,7 +60,19 @@
 - Danmaku window modes are Rust-driven where geometry/topmost/hit-testing matter: `set_danmaku_input_only` (240–520 × 48 logical, bottom-edge anchored, dock-exclusive), `set_danmaku_input_only_emotes` (temporary 360×400 panel), `set_danmaku_stealth`, dock commands (`dock_expand` / `dock_apply_expand` / `dock_collapse` / `dock_exit` / `get_dock_state`). Frontend only switches rendering shape and listens to `danmaku-input-only`, `danmaku-input-only-emotes`, `danmaku-stealth`, `dock-changed`.
 - Video audio and live audio are mutually exclusive: entering a room emits `danmaku-entered`, which pauses the video player (queue and progress are kept; the mini player resumes it manually).
 - Dual credential: `state.credential` (main, for WS/audio) + `state.sending_credential` (for sending danmaku/emoticons/gifts). `get_sending_credential()` helper in `commands/mod.rs` falls back to main.
-- STT is always compiled in (no feature gates); `is_stt_available` always returns true and runtime toggles via settings control whether it's active. There is no AI module in Rust; `src/pages/AIPage.tsx` is a deliberate "开发中" placeholder.
+- STT is always compiled in (no feature gates); `is_stt_available` always returns true and runtime toggles via settings control whether it's active.
+
+## AI tool layer / MCP server
+
+- `src-tauri/src/ai/` is the tool layer; `src-tauri/src/mcp/` is the local MCP server. They do NOT duplicate business logic — write tools call the same `#[tauri::command]` fns (`app.state::<AppState>()` supplies the `State`), so AI actions and UI actions share one code path (tray refresh, window exclusivity, routing included).
+- **Single dispatch entry**: `ai::dispatch::call_tool(app, &AppState, name, args, origin)` is the only place that runs a tool. Both the MCP handler and the AIPage debug panel go through it — permission gate, rate limiting and audit cannot be bypassed by adding a new caller.
+- Three permission modes (`aiPermissionMode` in `app_metadata`): `confirmAll` (every non-read op asks), `autonomous` (default; only `Costly`/`Destructive` ask), `full` (never asks). Risk levels live in each `ToolSpec` in `ai/registry.rs` — change them there, not in the frontend.
+- Confirmation flow: dispatch generates an id → emits `ai-confirm-request` to `main` → `ConfirmRequestDialog` → `ai_confirm_response` wakes the waiter. Timeout is 55s and returns `NEEDS_CONFIRMATION` with a retryable id. The main window is temporarily shown if it was hidden, then restored.
+- `ai/context.rs` keeps a Rust-side ring buffer (danmaku 2000 / gifts 500 / activity 500 + metrics). The frontend zustand store is unreachable from Rust, so `bili/ws_client.rs` writes to this buffer next to each `emit`. `live_get_context` is the main "understand the room" tool.
+- `send_queue.rs` is no longer dead code: AI sends go through `send_via_queue` (`SendPriority::Ai`) so they obey the user's send interval. `QueueItem` carries a `respond` oneshot for real results and a `seq` field for FIFO within the same priority (BinaryHeap is a max-heap, so `seq` compares reversed).
+- MCP transport is Streamable HTTP on fixed `127.0.0.1:23332/mcp` with `Authorization: Bearer <token>` (`aiMcpToken` in `app_metadata`). Only `initialize` / `notifications/initialized` / `tools/list` / `tools/call` / `ping` are implemented — no SSE, no stdio (the single-instance plugin makes a client-spawned stdio process exit immediately).
+- `settings_patch` only accepts a field whitelist (`sendInterval`/`rateLimit`/`riskControl`/`receive`/`filter`). Never widen it to the whole `Settings` struct — that walks into the `mergeSettings` one-level-deep merge trap and can crash old databases' settings page.
+- Deliberately NOT exposed as tools: `proxy_image`, cache clearing, luminance sampling, `open_file_path`, `open_log_dir`, `download_file`, `check_update`, window geometry/dock/stealth internals.
 
 ## Data/contracts to keep in sync
 - TS types in `src/types/` mirror Rust structs in `src-tauri/src/models/`; Rust models use `serde(rename_all = "camelCase")`. Keep field names aligned across both sides.
@@ -72,7 +84,7 @@
 ## Docs conventions
 - Guide pages must describe the UI that actually exists, using the exact on-screen labels. When a feature is absent (e.g. subtitle focus/cover toggle, drawer windows, mode switch), delete the claim rather than softening it.
 - Feature lists in `README.md`, `docs/docs/guide/features.md` and the landing page (`docs/src/components/landing/data.ts`) describe the same product — keep them consistent with each other and with the code.
-- `docs/api/ipc.md` and `docs/api/events.md` must stay complete: every registered command and every emitted event name should be listed, with payload fields matching the Rust/TS definitions.
+- `docs/docs/api/{ipc,events,mcp}.md` must stay complete: every registered command and every emitted event name should be listed with payload fields matching the Rust/TS definitions; MCP tools are documented in `mcp.md` and their specs live (single source of truth) in `src-tauri/src/ai/registry.rs`.
 
 ## CSS conventions for danmaku window
 - `[data-transparent]` on html element makes body background transparent.

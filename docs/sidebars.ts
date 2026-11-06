@@ -47,7 +47,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'API 参考',
       collapsed: false,
-      items: ['api/bili', 'api/ipc', 'api/events'],
+      items: ['api/bili', 'api/ipc', 'api/events', 'api/mcp'],
     },
     {
       type: 'category',
