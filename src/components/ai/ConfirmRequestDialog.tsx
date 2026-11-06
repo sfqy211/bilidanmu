@@ -8,9 +8,11 @@ import type { AiConfirmRequest } from "@/types/ai";
  * AI 工具调用的确认弹窗。
  *
  * MCP 客户端发起需要确认的操作时，Rust 侧 emit `ai-confirm-request`，
- * 这里展示详情并把用户的决定回传。超时（55s）由 Rust 侧处理，前端不做倒计时，
- * 但会显示剩余时间提示，避免用户以为卡住了。
+ * 这里展示详情并把用户的决定回传。Rust 侧等待 55s，前端多留 1s 后自动关闭——
+ * 请求作废后弹窗必须自行消失，否则用户再点「允许」只会静默失败。
  */
+const CONFIRM_TIMEOUT_MS = 56_000;
+
 export function ConfirmRequestDialog() {
   const [request, setRequest] = useState<AiConfirmRequest | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +34,13 @@ export function ConfirmRequestDialog() {
       setSubmitting(false);
     }
   };
+
+  // 超时后 Rust 侧的 id 已失效：弹窗自己关掉，别让用户对着一个点了没反应的框
+  useEffect(() => {
+    if (!request) return;
+    const timer = window.setTimeout(() => setRequest(null), CONFIRM_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [request]);
 
   // Esc 等同拒绝：明确的操作比"点了外面"更安全
   useEffect(() => {
