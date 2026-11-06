@@ -1,5 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  AiAuditEntry,
+  AiPermissionMode,
+  AiToolResult,
+  AiToolSpec,
+  McpStatus,
+} from "@/types/ai";
+import type {
   AudioStreamInfo,
   CommentPage,
   Credential,
@@ -228,6 +235,23 @@ export const tauriCommands = {
   },
   log: {
     openDir: () => invoke<void>("open_log_dir"),
+  },
+  ai: {
+    listTools: () => invoke<AiToolSpec[]>("ai_list_tools"),
+    callTool: (name: string, args?: Record<string, unknown>) =>
+      invoke<AiToolResult>("ai_call_tool", { name, args: args ?? {} }),
+    getPermissionMode: () => invoke<AiPermissionMode>("ai_get_permission_mode"),
+    setPermissionMode: (mode: AiPermissionMode) =>
+      invoke<void>("ai_set_permission_mode", { mode }),
+    confirmResponse: (id: string, approved: boolean) =>
+      invoke<boolean>("ai_confirm_response", { id, approved }),
+    mcpStatus: () => invoke<McpStatus>("ai_mcp_status"),
+    mcpStart: () => invoke<McpStatus>("ai_mcp_start"),
+    mcpStop: () => invoke<McpStatus>("ai_mcp_stop"),
+    mcpToken: () => invoke<string>("ai_mcp_token"),
+    mcpRegenerateToken: () => invoke<string>("ai_mcp_regenerate_token"),
+    auditList: (limit?: number) => invoke<AiAuditEntry[]>("ai_audit_list", { limit: limit ?? 50 }),
+    auditClear: () => invoke<void>("ai_audit_clear"),
   },
   app: {
     quit: () => invoke<void>("quit_app_cmd"),

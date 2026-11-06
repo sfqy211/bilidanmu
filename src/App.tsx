@@ -15,6 +15,7 @@ import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useErrorCapture } from "@/hooks/useErrorCapture";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
+import { ConfirmRequestDialog } from "@/components/ai/ConfirmRequestDialog";
 
 /** 主窗口标记：主窗口与弹幕窗共用这份 App，跨窗口事件需按 label 过滤 */
 const isMainWindow = getCurrentWindow().label === "main";
@@ -123,6 +124,19 @@ export default function App() {
     };
   }, [setCurrentRoomId]);
 
+  // AI 工具请求主窗口跳到某个路由（如 video_play 打开视频页）
+  useEffect(() => {
+    const unlisten = listen<{ path: string }>("ai-navigate", (event) => {
+      const path = event.payload?.path;
+      if (typeof path === "string" && path.startsWith("/")) {
+        navigate(path);
+      }
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [navigate]);
+
   // 监听房间信息更新（启动时后台刷新标题等）
   useEffect(() => {
     const unlisten = listen("rooms-updated", async () => {
@@ -212,6 +226,8 @@ export default function App() {
         <Outlet />
       </ErrorBoundary>
       <UpdateDialog updateInfo={updateInfo} onDismiss={dismiss} />
+      {/* AI 确认弹窗挂在根部：AI 可能在任何页面上发起需要确认的操作 */}
+      {isMainWindow && <ConfirmRequestDialog />}
     </>
   );
 }
