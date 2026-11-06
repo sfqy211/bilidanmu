@@ -5,7 +5,6 @@ pub struct Account {
     pub uid: u64,
     pub username: String,
     pub avatar: Option<String>,
-    pub cookie: String,
     pub expires_at: Option<String>,
 }
 
@@ -16,8 +15,6 @@ pub struct Credential {
     pub uid: u64,
     pub username: String,
     pub avatar: Option<String>,
-    pub cookie: String,
-    pub bili_jct: Option<String>,
     /// Cookie 过期时间（Unix 时间戳，秒）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
@@ -30,8 +27,6 @@ impl Credential {
             uid: 10001,
             username: "示例用户".into(),
             avatar: None,
-            cookie: "SESSDATA=mock; bili_jct=mock;".into(),
-            bili_jct: Some("mock".into()),
             expires_at: None,
         }
     }

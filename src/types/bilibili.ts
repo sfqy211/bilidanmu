@@ -116,8 +116,6 @@ export interface Credential {
   uid: number;
   username: string;
   avatar?: string;
-  cookie: string;
-  biliJct?: string;
   /** Cookie 过期时间（Unix 时间戳，秒） */
   expiresAt?: number;
 }

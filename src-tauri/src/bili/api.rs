@@ -1022,11 +1022,6 @@ impl BiliApiClient {
                 uid: mid,
                 username: nav.uname.unwrap_or_else(|| "Bilibili 用户".to_string()),
                 avatar: nav.face,
-                cookie: self
-                    .credential
-                    .as_ref()
-                    .map(BiliCredential::cookie_header)
-                    .unwrap_or_default(),
                 expires_at: None,
             }),
         })

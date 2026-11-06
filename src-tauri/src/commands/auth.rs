@@ -222,7 +222,7 @@ async fn complete_login_with_cookie(
     let _ = tray::refresh_tray(&app);
 
     let expires_at = state.account_metas.lock().unwrap().get(&uid).and_then(|m| m.expires_at);
-    Ok(build_credential_from_login(&login_status, &parsed, parsed.cookie_header(), expires_at))
+    Ok(build_credential_from_login(&login_status, &parsed, expires_at))
 }
 
 // ── TV 扫码登录（获取 access_key） ──
@@ -409,7 +409,6 @@ pub async fn poll_tv_qr(
 fn build_credential_from_login(
     login_status: &crate::models::account::LoginStatus,
     cred: &BiliCredential,
-    cookie: String,
     expires_at: Option<i64>,
 ) -> Credential {
     let mut credential = Credential::mock();
@@ -426,8 +425,6 @@ fn build_credential_from_login(
             .unwrap_or(0);
         credential.username = "Bilibili 用户".to_string();
     }
-    credential.cookie = cookie;
-    credential.bili_jct = cred.bili_jct.clone();
     credential.expires_at = expires_at;
     credential
 }
@@ -441,15 +438,13 @@ pub async fn restore_login(
     // 检查当前是否处于匿名模式（新窗口需要同步状态）
     let is_anonymous = state.active_account_id.lock().unwrap().as_deref() == Some(ANONYMOUS_ACCOUNT_ID);
     if is_anonymous {
-        let cred = state.credential.lock().await.clone();
-        if let Some(cred) = cred {
+        // 只需知道"是否有活跃凭据"，凭据本身不再回传前端
+        if state.credential.lock().await.is_some() {
             return Ok(Some(Credential {
                 account_id: ANONYMOUS_ACCOUNT_ID.to_string(),
                 uid: 0,
                 username: "匿名模式".to_string(),
                 avatar: None,
-                cookie: cred.cookie_header(),
-                bili_jct: None,
                 expires_at: None,
             }));
         }
@@ -545,8 +540,6 @@ pub async fn restore_login(
                 .as_deref()
                 .and_then(|value| value.parse::<u64>().ok())
                 .unwrap_or(0);
-            credential.cookie = parsed.cookie_header();
-            credential.bili_jct = parsed.bili_jct.clone();
             credential.expires_at = {
                 let active_id = state.active_account_id.lock().unwrap();
                 let metas = state.account_metas.lock().unwrap();
@@ -577,7 +570,7 @@ pub async fn restore_login(
         let metas = state.account_metas.lock().unwrap();
         active_id.as_deref().and_then(|id| metas.get(id)).and_then(|m| m.expires_at)
     };
-    Ok(Some(build_credential_from_login(&login_status, &parsed, parsed.cookie_header(), expires_at)))
+    Ok(Some(build_credential_from_login(&login_status, &parsed, expires_at)))
 }
 
 /// 停止自动发送 + 断开 WS
@@ -739,7 +732,7 @@ pub async fn switch_account(
     let _ = tray::refresh_tray(&app);
 
     let expires_at = state.account_metas.lock().unwrap().get(&account_id).and_then(|m| m.expires_at);
-    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header(), expires_at))
+    Ok(build_credential_from_login(&login_status, &cred, expires_at))
 }
 
 /// 获取所有已登录的账号列表
@@ -763,8 +756,6 @@ pub async fn list_accounts(state: State<'_, AppState>) -> Result<Vec<Credential>
             uid: uid_num,
             username: meta.map(|m| m.username.clone()).unwrap_or_else(|| format!("账号 {uid_num}")),
             avatar: meta.and_then(|m| m.avatar.clone()),
-            cookie: cred.cookie_header(),
-            bili_jct: cred.bili_jct.clone(),
             expires_at: meta.and_then(|m| m.expires_at),
         });
     }
@@ -804,7 +795,7 @@ pub async fn switch_sending_account(
     log::info!("已切换发送账号为: {account_id}");
 
     let expires_at = state.account_metas.lock().unwrap().get(&account_id).and_then(|m| m.expires_at);
-    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header(), expires_at))
+    Ok(build_credential_from_login(&login_status, &cred, expires_at))
 }
 
 /// 获取当前发送账号 ID（未设置时返回 None）
@@ -824,7 +815,6 @@ pub async fn switch_to_anonymous(
 
     // 创建匿名凭据
     let anon_cred = BiliCredential::anonymous();
-    let cookie_header = anon_cred.cookie_header();
 
     // 设置为活跃凭据
     {
@@ -859,8 +849,6 @@ pub async fn switch_to_anonymous(
         uid: 0,
         username: "匿名模式".to_string(),
         avatar: None,
-        cookie: cookie_header,
-        bili_jct: None,
         expires_at: None,
     };
 
@@ -914,7 +902,7 @@ pub async fn refresh_account_info(
 
     let _ = tray::refresh_tray(&app);
 
-    Ok(build_credential_from_login(&login_status, &cred, cred.cookie_header(), existing_expires))
+    Ok(build_credential_from_login(&login_status, &cred, existing_expires))
 }
 
 /// 刷新 Cookie 授权（通过 TV OAuth refresh_token 续期）
