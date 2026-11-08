@@ -184,18 +184,3 @@ impl ToolResult {
     }
 }
 
-/// 工具调用的来源，用于审计区分
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Origin {
-    Mcp,
-    DebugPanel,
-}
-
-impl Origin {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Origin::Mcp => "mcp",
-            Origin::DebugPanel => "debug",
-        }
-    }
-}

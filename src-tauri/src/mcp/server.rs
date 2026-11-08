@@ -3,7 +3,6 @@
 //! 传输实现照搬 `proxy/stream_proxy.rs` 的 hyper 范式：`TcpListener` + `service_fn`，
 //! 每条连接一个 task。协议层只认 POST /mcp，其余路径 404。
 
-use crate::ai::spec::Origin;
 use crate::AppState;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
@@ -111,6 +110,7 @@ pub async fn spawn_server(app: tauri::AppHandle) -> Result<McpStatus, String> {
         error: None,
     };
     log::info!("[mcp] 服务已启动：{}", status_value.endpoint);
+    crate::ai::audit::note(&app, &format!("MCP 服务已启动 {}", status_value.endpoint));
 
     let status_slot = Arc::new(std::sync::Mutex::new(status_value.clone()));
     let app_for_loop = app.clone();
@@ -214,14 +214,14 @@ async fn handle_request(
     }
 }
 
-/// 处理工具调用：走统一调度入口，因此权限与审计对 MCP 同样生效。
+/// 处理工具调用：走统一调度入口，因此权限与 AI 日志对 MCP 同样生效。
 pub async fn call_tool_for_mcp(
     app: &tauri::AppHandle,
     name: &str,
     args: serde_json::Value,
 ) -> crate::ai::spec::ToolResult {
     let state = app.state::<AppState>();
-    crate::ai::dispatch::call_tool(app, state.inner(), name, args, Origin::Mcp).await
+    crate::ai::dispatch::call_tool(app, state.inner(), name, args).await
 }
 
 pub fn supported_versions() -> &'static [&'static str] {

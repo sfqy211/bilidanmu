@@ -5,11 +5,11 @@
 //! 2. 读权限模式 → 判断是否需要用户确认
 //! 3. 需要确认则登记 + emit 事件 + 等待，拒绝则返回 `USER_DENIED`
 //! 4. 交给 [`crate::ai::registry::dispatch_tool`] 执行
-//! 5. 写审计（无论成败）
+//! 5. 写 AI 日志（无论成败，见 [`crate::ai::audit`]）
 //!
-//! MCP server 与前端调试面板都只调 [`call_tool`]，因此权限与审计不可能被绕过。
+//! MCP server 只调 [`call_tool`]，因此权限与日志记录不可能被绕过。
 
-use crate::ai::spec::{Origin, ToolError, ToolResult};
+use crate::ai::spec::{ToolError, ToolResult};
 use crate::AppState;
 use std::time::Instant;
 use tauri::{Emitter, Manager};
@@ -23,16 +23,14 @@ pub async fn call_tool(
     state: &AppState,
     name: &str,
     args: serde_json::Value,
-    origin: Origin,
 ) -> ToolResult {
     let started = Instant::now();
 
     let Some(spec) = crate::ai::registry::find_spec(name) else {
         let error = ToolError::unknown_tool(name);
         crate::ai::audit::record(
-            state,
+            app,
             name,
-            origin.as_str(),
             &args,
             false,
             &error.to_string(),
@@ -48,9 +46,8 @@ pub async fn call_tool(
             Ok(false) => {
                 let error = ToolError::user_denied();
                 crate::ai::audit::record(
-                    state,
+                    app,
                     name,
-                    origin.as_str(),
                     &args,
                     false,
                     "用户拒绝",
@@ -60,9 +57,8 @@ pub async fn call_tool(
             }
             Err(error) => {
                 crate::ai::audit::record(
-                    state,
+                    app,
                     name,
-                    origin.as_str(),
                     &args,
                     false,
                     &error.to_string(),
@@ -79,19 +75,11 @@ pub async fn call_tool(
     match outcome {
         Ok(data) => {
             let summary = summarize(&data);
-            crate::ai::audit::record(state, name, origin.as_str(), &args, true, &summary, duration);
+            crate::ai::audit::record(app, name, &args, true, &summary, duration);
             ToolResult::ok(data)
         }
         Err(error) => {
-            crate::ai::audit::record(
-                state,
-                name,
-                origin.as_str(),
-                &args,
-                false,
-                &error.to_string(),
-                duration,
-            );
+            crate::ai::audit::record(app, name, &args, false, &error.to_string(), duration);
             ToolResult::fail(error)
         }
     }
@@ -246,7 +234,7 @@ fn describe_call(name: &str, title: &str, args: &serde_json::Value) -> String {
     text
 }
 
-/// 审计里存的结果摘要：不存整个 data（可能很大），只留关键信息。
+/// 日志里存的结果摘要：不存整个 data（可能很大），只留关键信息。
 fn summarize(data: &serde_json::Value) -> String {
     if let Some(count) = data.get("count").and_then(|value| value.as_u64()) {
         return format!("成功，返回 {count} 条");

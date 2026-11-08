@@ -1,80 +1,123 @@
-//! AI 工具调用审计：每次调用落一条记录，供 AIPage 展示与后续做 eval 数据集。
+//! AI 专用日志：与主应用日志（bilidanmu.log）分开的 `ai.log`，与主日志同目录。
+//!
+//! 记录两件事：启动时的工具清单（给排查"客户端为什么看不到某工具"用）
+//! 与每次工具调用的结果。页面不再展示这些内容——可用工具是给 AI 客户端看的
+//! （走 MCP tools/list），调用记录查这个日志即可。写入失败只进主日志，
+//! 绝不影响工具调用本身。
 
-use crate::db;
-use crate::AppState;
-use rusqlite::params;
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use tauri::Manager;
 
-/// 写一条审计记录。失败只记日志，不影响工具调用本身。
+/// 日志文件名，与 tauri_plugin_log 的 bilidanmu.log 放在同一目录
+const LOG_FILE: &str = "ai.log";
+
+/// 超过该大小（字节）在下次启动时轮转，避免无限增长
+const ROTATE_THRESHOLD: u64 = 1024 * 1024;
+
+/// 并发调用可能同时追加，串行化写入避免行交错
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
+/// 启动时调用：必要时轮转过大文件，然后写入当前工具清单。
+pub fn log_startup(app: &tauri::AppHandle) {
+    rotate_if_large(app);
+    let specs = crate::ai::registry::all_specs();
+    let mut lines = vec![format!("[启动] 工具清单共 {} 项", specs.len())];
+    for spec in &specs {
+        lines.push(format!(
+            "[工具] {} [{}] {}",
+            spec.name,
+            risk_label(spec.risk),
+            spec.title
+        ));
+    }
+    append(app, &lines);
+}
+
+/// 记录一次工具调用（无论成败）。
 pub fn record(
-    state: &AppState,
+    app: &tauri::AppHandle,
     tool: &str,
-    origin: &str,
     args: &serde_json::Value,
     ok: bool,
     summary: &str,
     duration_ms: u64,
 ) {
+    // 参数截短留痕即可，完整结果本来就在调用方手里
     let args_text = serde_json::to_string(args).unwrap_or_else(|_| "{}".to_string());
-    // 审计表不该被单个超大参数撑爆：超长直接截断
-    let args_text = truncate(&args_text, 2000);
+    let args_text = truncate(&args_text, 500);
     let summary = truncate(summary, 500);
-    let created_at = chrono::Utc::now().timestamp_millis();
+    let outcome = if ok { "成功" } else { "失败" };
+    let mut line = format!("[调用] {tool} → {outcome}（{duration_ms}ms）{summary}");
+    if args_text != "{}" {
+        line.push_str(&format!(" ｜ 参数：{args_text}"));
+    }
+    append(app, &[line]);
+}
 
-    let result = db::with_connection(state, |connection| {
-        connection
-            .execute(
-                "INSERT INTO ai_audit (tool, origin, args, ok, summary, duration_ms, created_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![tool, origin, args_text, ok as i32, summary, duration_ms as i64, created_at],
-            )
-            .map_err(|error| format!("写入工具审计失败: {error}"))?;
-        Ok(())
-    });
+/// 记录一条与具体调用无关但值得留痕的事件（如 MCP 服务启动）。
+pub fn note(app: &tauri::AppHandle, text: &str) {
+    append(app, &[format!("[事件] {text}")]);
+}
 
+fn log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_log_dir()
+        .map(|dir| dir.join(LOG_FILE))
+        .map_err(|error| format!("获取日志目录失败: {error}"))
+}
+
+fn append(app: &tauri::AppHandle, lines: &[String]) {
+    let path = match log_path(app) {
+        Ok(path) => path,
+        Err(error) => {
+            log::warn!("[ai] {error}");
+            return;
+        }
+    };
+    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    // 首次启动时主日志插件可能还没建目录，自己兜底
+    let result = std::fs::create_dir_all(path.parent().unwrap_or(&path))
+        .and_then(|()| std::fs::OpenOptions::new().create(true).append(true).open(&path))
+        .and_then(|mut file| {
+            for line in lines {
+                writeln!(file, "{timestamp} {line}")?;
+            }
+            Ok(())
+        });
     if let Err(error) = result {
-        log::warn!("[ai] {error}");
+        log::warn!("[ai] 写 {LOG_FILE} 失败: {error}");
     }
 }
 
-/// 读取最近 N 条审计记录，最新的在前。
-pub fn list(state: &AppState, limit: usize) -> Result<Vec<serde_json::Value>, String> {
-    db::with_connection(state, |connection| {
-        let mut statement = connection
-            .prepare(
-                "SELECT tool, origin, args, ok, summary, duration_ms, created_at \
-                 FROM ai_audit ORDER BY id DESC LIMIT ?1",
-            )
-            .map_err(|error| format!("准备查询工具审计失败: {error}"))?;
-        let rows = statement
-            .query_map(params![limit as i64], |row| {
-                let args: String = row.get(2)?;
-                Ok(serde_json::json!({
-                    "tool": row.get::<_, String>(0)?,
-                    "origin": row.get::<_, String>(1)?,
-                    "args": serde_json::from_str::<serde_json::Value>(&args)
-                        .unwrap_or(serde_json::Value::Null),
-                    "ok": row.get::<_, i32>(3)? != 0,
-                    "summary": row.get::<_, String>(4)?,
-                    "durationMs": row.get::<_, i64>(5)?,
-                    "createdAt": row.get::<_, i64>(6)?,
-                }))
-            })
-            .map_err(|error| format!("查询工具审计失败: {error}"))?;
-        let mut records = Vec::new();
-        for row in rows {
-            records.push(row.map_err(|error| format!("读取工具审计行失败: {error}"))?);
-        }
-        Ok(records)
-    })
+/// 超过阈值时把旧文件挪走（保留一份 .old），本次启动重新开始记
+fn rotate_if_large(app: &tauri::AppHandle) {
+    let path = match log_path(app) {
+        Ok(path) => path,
+        Err(_) => return,
+    };
+    let Ok(metadata) = std::fs::metadata(&path) else {
+        return;
+    };
+    if metadata.len() <= ROTATE_THRESHOLD {
+        return;
+    }
+    let old = path.with_file_name(format!("{LOG_FILE}.old"));
+    let _ = std::fs::remove_file(&old);
+    if let Err(error) = std::fs::rename(&path, &old) {
+        log::warn!("[ai] 轮转 {LOG_FILE} 失败: {error}");
+    }
 }
 
-pub fn clear(state: &AppState) -> Result<(), String> {
-    db::with_connection(state, |connection| {
-        connection
-            .execute("DELETE FROM ai_audit", [])
-            .map_err(|error| format!("清空工具审计失败: {error}"))?;
-        Ok(())
-    })
+fn risk_label(risk: crate::ai::spec::Risk) -> &'static str {
+    match risk {
+        crate::ai::spec::Risk::Read => "只读",
+        crate::ai::spec::Risk::Write => "写",
+        crate::ai::spec::Risk::Costly => "有风险",
+        crate::ai::spec::Risk::Destructive => "不可逆",
+    }
 }
 
 /// 按字符边界截断，避免把多字节 UTF-8 切成半个字符。

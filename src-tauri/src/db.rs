@@ -103,18 +103,6 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               content TEXT NOT NULL,
               created_at INTEGER NOT NULL
             );
-
-            -- AI 工具调用审计：每次 tools/call 一条，供 AIPage 展示与事后回溯
-            CREATE TABLE IF NOT EXISTS ai_audit (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              tool TEXT NOT NULL,
-              origin TEXT NOT NULL,
-              args TEXT NOT NULL,
-              ok INTEGER NOT NULL,
-              summary TEXT NOT NULL,
-              duration_ms INTEGER NOT NULL,
-              created_at INTEGER NOT NULL
-            );
             "#,
         )
         .map_err(|error| format!("初始化 SQLite 数据库失败: {error}"))?;

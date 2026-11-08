@@ -5,7 +5,6 @@
 use crate::ai::registry;
 use crate::mcp::jsonrpc::{IncomingMessage, OutgoingResponse};
 use crate::mcp::server;
-use tauri::Manager;
 
 const SERVER_NAME: &str = "bilidanmu";
 const DEFAULT_VERSION: &str = "2025-06-18";
@@ -122,20 +121,6 @@ async fn handle_tools_call(
         "structuredContent": result,
         "isError": !result.ok,
     });
-
-    // 顺便把调用情况广播给前端，AIPage 可以实时显示"AI 正在做什么"
-    {
-        let state = app.state::<crate::AppState>();
-        let _ = state;
-        use tauri::Emitter;
-        let _ = app.emit(
-            "ai-tool-activity",
-            serde_json::json!({
-                "tool": name,
-                "ok": result.ok,
-            }),
-        );
-    }
 
     OutgoingResponse::ok(id, payload)
 }

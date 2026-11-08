@@ -1,35 +1,11 @@
-//! AI 层对前端的命令：工具清单、调试调用、权限模式、MCP 开关、审计查询、确认应答。
+//! AI 层对前端的命令：权限模式、MCP 开关、token 管理、确认应答。
 //!
-//! 这些命令只服务 AIPage 的管理与调试；外部 AI 客户端走的是 MCP HTTP 通道，
-//! 两条路最终都进 [`crate::ai::dispatch::call_tool`]。
+//! 这些命令只服务 AIPage 的管理界面；外部 AI 客户端走的是 MCP HTTP 通道，
+//! 最终进 [`crate::ai::dispatch::call_tool`]。工具清单与调用记录不再走前端，
+//! 记在 AI 专用日志里（见 [`crate::ai::audit`]）。
 
-use crate::ai::spec::{Origin, ToolResult};
 use crate::AppState;
 use tauri::{Manager, State};
-
-/// 列出全部工具规格（AIPage 的工具清单与调试面板下拉用）
-#[tauri::command]
-pub fn ai_list_tools() -> Vec<crate::ai::spec::ToolSpec> {
-    crate::ai::registry::all_specs()
-}
-
-/// 从调试面板直接调用一个工具（同样受权限模式与审计约束）
-#[tauri::command]
-pub async fn ai_call_tool(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    name: String,
-    args: Option<serde_json::Value>,
-) -> Result<ToolResult, String> {
-    Ok(crate::ai::dispatch::call_tool(
-        &app,
-        state.inner(),
-        &name,
-        args.unwrap_or_else(|| serde_json::json!({})),
-        Origin::DebugPanel,
-    )
-    .await)
-}
 
 /// 读取权限模式
 #[tauri::command]
@@ -101,19 +77,4 @@ pub async fn ai_mcp_token(app: tauri::AppHandle) -> Result<String, String> {
 pub async fn ai_mcp_regenerate_token(app: tauri::AppHandle) -> Result<String, String> {
     let state = app.state::<AppState>();
     crate::mcp::token::regenerate(state.inner())
-}
-
-/// 最近若干条工具调用审计
-#[tauri::command]
-pub async fn ai_audit_list(
-    state: State<'_, AppState>,
-    limit: Option<usize>,
-) -> Result<Vec<serde_json::Value>, String> {
-    crate::ai::audit::list(state.inner(), limit.unwrap_or(50).clamp(1, 500))
-}
-
-/// 清空审计
-#[tauri::command]
-pub async fn ai_audit_clear(state: State<'_, AppState>) -> Result<(), String> {
-    crate::ai::audit::clear(state.inner())
 }

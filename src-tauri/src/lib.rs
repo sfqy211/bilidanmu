@@ -325,6 +325,9 @@ pub fn run() {
                 commands::room::refresh_all_rooms(app_handle).await;
             });
 
+            // AI 专用日志：启动时轮转过大文件并记录当前工具清单
+            ai::audit::log_startup(app.handle());
+
             // MCP server：默认随应用启动，供外部 AI 客户端连入。
             // 绑定失败只降级（AIPage 显示错误），不影响应用其余功能
             {
@@ -487,8 +490,6 @@ pub fn run() {
             commands::download::download_file,
             commands::download::open_file_path,
             commands::log::open_log_dir,
-            ai::commands::ai_list_tools,
-            ai::commands::ai_call_tool,
             ai::commands::ai_get_permission_mode,
             ai::commands::ai_set_permission_mode,
             ai::commands::ai_confirm_response,
@@ -497,8 +498,6 @@ pub fn run() {
             ai::commands::ai_mcp_stop,
             ai::commands::ai_mcp_token,
             ai::commands::ai_mcp_regenerate_token,
-            ai::commands::ai_audit_list,
-            ai::commands::ai_audit_clear,
             tray::quit_app_cmd
         ])
         .run(tauri::generate_context!())
