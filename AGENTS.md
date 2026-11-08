@@ -12,7 +12,7 @@
 - Docs site verification: `npm run build` from `docs/` (Docusaurus).
 - After changing `src-tauri/icons/`: `touch src-tauri/build.rs` before rebuilding (cargo fingerprints don't watch icon files, so the embedded icon stays stale), then `ie4uinit.exe -show` to flush the Windows taskbar icon cache.
 - Version bump: `.\scripts\bump-version.ps1 <version>` (also rewrites `RELEASE_VERSION` in `docs/src/components/landing/LandingApp.tsx`; keep that in sync or the homepage download links 404).
-- No lite build variant — STT is always compiled in, toggled at runtime via settings. There is no built-in LLM: `src/pages/AIPage.tsx` is the MCP management page (service status/token, 三档权限, tool list, audit log, debug panel). AI capability lives in external MCP clients, not in this app.
+- No lite build variant — STT is always compiled in, toggled at runtime via settings. There is no built-in LLM: `src/pages/AIPage.tsx` is the MCP management page (service status/token, 三档权限). AI capability lives in external MCP clients, not in this app.
 - 礼物打赏（发送礼物）由 cargo feature `gift-send` 门控，官方构建默认关闭：命令层 `ensure_enabled()` 硬校验 + 前端按 `gift_send_enabled` 隐藏入口；开发调试用 `npm run dev:gift`。
 - There is no configured JS test/lint task in `package.json`; do not claim tests/lint passed unless you actually ran the available checks above.
 
@@ -65,7 +65,8 @@
 ## AI tool layer / MCP server
 
 - `src-tauri/src/ai/` is the tool layer; `src-tauri/src/mcp/` is the local MCP server. They do NOT duplicate business logic — write tools call the same `#[tauri::command]` fns (`app.state::<AppState>()` supplies the `State`), so AI actions and UI actions share one code path (tray refresh, window exclusivity, routing included).
-- **Single dispatch entry**: `ai::dispatch::call_tool(app, &AppState, name, args, origin)` is the only place that runs a tool. Both the MCP handler and the AIPage debug panel go through it — permission gate, rate limiting and audit cannot be bypassed by adding a new caller.
+- **Single dispatch entry**: `ai::dispatch::call_tool(app, &AppState, name, args)` is the only place that runs a tool. Only the MCP handler calls it — permission gate, rate limiting and logging cannot be bypassed by adding a new caller.
+- Tool calls are recorded in the AI-only log `ai.log` (`ai/audit.rs`, same dir as the main app log): startup writes the tool catalog, every `call_tool` writes one line (tool, ok, duration, summary, truncated args); over 1MB it rotates to `ai.log.old` at next startup. The AIPage shows neither tool list nor call history — there are no `ai_list_tools`/`ai_call_tool`/`ai_audit_*` commands and no `ai-tool-activity` event.
 - Three permission modes (`aiPermissionMode` in `app_metadata`): `confirmAll` (every non-read op asks), `autonomous` (default; only `Costly`/`Destructive` ask), `full` (never asks). Risk levels live in each `ToolSpec` in `ai/registry.rs` — change them there, not in the frontend.
 - Confirmation flow: dispatch generates an id → emits `ai-confirm-request` to `main` → `ConfirmRequestDialog` → `ai_confirm_response` wakes the waiter. Timeout is 55s and returns `NEEDS_CONFIRMATION` with a retryable id. The main window is temporarily shown if it was hidden, then restored.
 - `ai/context.rs` keeps a Rust-side ring buffer (danmaku 2000 / gifts 500 / activity 500 + metrics). The frontend zustand store is unreachable from Rust, so `bili/ws_client.rs` writes to this buffer next to each `emit`. `live_get_context` is the main "understand the room" tool.

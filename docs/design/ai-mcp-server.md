@@ -13,18 +13,24 @@
 ## 三层结构
 
 ```
-外部 AI 客户端 ──HTTP(JSON-RPC)──┐
-                                  ├─→ mcp/server.rs ─┐
-主窗口前端 ──────Tauri IPC────────┤                  ├─→ ai/dispatch.rs ─→ 现有业务实现
-（AIPage 调试面板）               └──────────────────┘        │
-                                                              ├─ policy（三档权限）
-                                                              ├─ confirm（确认通道）
-                                                              ├─ send_queue（限流）
-                                                              └─ audit（SQLite）
+外部 AI 客户端 ──HTTP(JSON-RPC)── mcp/server.rs ─┐
+                                                  ├─→ ai/dispatch.rs ─→ 现有业务实现
+                                                  │
+                                                  ├─ policy（三档权限）
+                                                  ├─ confirm（确认通道）
+                                                  ├─ send_queue（限流）
+                                                  └─ audit（AI 专用日志 ai.log）
 ```
 
-**唯一入口**：`ai::dispatch::call_tool(app, &AppState, name, args, origin)`。
-MCP handler 与前端调试面板都只调它，因此权限、限流、审计不可能被绕过。
+**唯一入口**：`ai::dispatch::call_tool(app, &AppState, name, args)`。
+MCP handler 只调它，因此权限、限流、日志记录不可能被绕过。
+
+> 2026-11-08 调整：AIPage 的调试面板（不接模型直接调工具）已移除，
+> `call_tool` 的 `origin` 参数随之删除；工具清单与调用记录不再走前端
+> IPC/SQLite（`ai_audit` 表已停建、`ai_list_tools`/`ai_call_tool`/
+> `ai_audit_*` 命令已删、`ai-tool-activity` 事件已删），统一记入与主日志
+> 同目录的 `ai.log`——启动时写工具清单，每次调用写一条结果。可用工具是给
+> AI 客户端看的（MCP tools/list），人查日志即可。
 
 **一条代码路径**：有 UI 副作用的操作（进房/退房）直接调命令层的
 `switch_room` / `exit_room`——`#[tauri::command]` 函数本身也是普通 async fn，
