@@ -173,6 +173,12 @@ const settings = await tauriCommands.settings.get()
 | `get_stt_model_dir` | — | `string` | 模型目录路径 |
 | `list_stt_models` | — | `string[]` | 列出可用模型目录 |
 | `open_stt_model_dir` | — | `void` | 在文件管理器中打开模型目录 |
+| `list_available_stt_models` | — | `SttCatalogEntry[]` | 精选可下载模型目录（内置清单，仅含当前管线可加载的流式模型） |
+| `get_stt_model_download_status` | — | `string \| null` | 进行中的下载任务模型 id，无任务返回 null |
+| `start_stt_model_download` | `modelId` | `void` | 开始下载精选模型（单并发，镜像优先自动回退直连，完成后自动解压安装） |
+| `cancel_stt_model_download` | `modelId` | `void` | 取消进行中的模型下载 |
+
+`SttCatalogEntry`：`{ id, filename, sizeBytes, description }`，`id` 即安装后的模型子目录名。
 
 ## 快捷消息命令 (`messageTemplate`)
 

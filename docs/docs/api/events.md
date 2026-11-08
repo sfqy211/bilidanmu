@@ -176,6 +176,22 @@ interface SttTranscript {
 }
 ```
 
+### `stt-model-download`
+
+识别模型下载进度与状态。
+
+```typescript
+interface SttModelDownloadEvent {
+  modelId: string
+  /** downloading | decompressing | done | cancelled | error */
+  status: string
+  downloaded: number
+  total: number
+  /** 仅 error 时有值 */
+  error: string | null
+}
+```
+
 ## 下载事件
 
 | 事件 | 载荷 | 说明 |
