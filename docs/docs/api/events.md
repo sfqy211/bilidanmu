@@ -169,6 +169,10 @@ interface WsHeartbeatPayload {
 interface SttTranscript {
   text: string
   isFinal: boolean
+  /** 音频流内时间戳（毫秒，自当前 tee 连接起点起算），用于与播放进度对齐 */
+  audioTsMs: number
+  /** 时间轴世代：tee 连接切换时递增，变化即需重新锚定 */
+  epoch: number
 }
 ```
 
