@@ -79,7 +79,11 @@ pub async fn refresh_all_rooms(app: tauri::AppHandle) {
     );
 
     let mut updated = false;
-    for room in &rooms {
+    for (index, room) in rooms.iter().enumerate() {
+        // 逐个房间之间稍作间隔：启动瞬间与 WS/关注列表等请求叠加，连发易触发风控
+        if index > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
         if let Ok(info) = api.get_room_info(room.room_id).await {
             if room_store::upsert_room(state.inner(), &info.room).is_ok() {
                 updated = true;

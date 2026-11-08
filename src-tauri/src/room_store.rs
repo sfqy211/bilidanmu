@@ -54,11 +54,12 @@ pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
                 INSERT INTO rooms (room_id, uid, title, uname, cover, avatar, sort_order)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE((SELECT MIN(sort_order) FROM rooms), 1) - 1)
                 ON CONFLICT(room_id) DO UPDATE SET
-                  uid = excluded.uid,
+                  uid = COALESCE(excluded.uid, rooms.uid),
                   title = excluded.title,
-                  uname = excluded.uname,
-                  cover = excluded.cover,
-                  avatar = excluded.avatar
+                  -- 补充接口偶发失败（限频/风控静默降级）会拿到空名，保留库内旧值，待下次成功刷新再覆盖
+                  uname = CASE WHEN excluded.uname = '' THEN rooms.uname ELSE excluded.uname END,
+                  cover = COALESCE(excluded.cover, rooms.cover),
+                  avatar = COALESCE(excluded.avatar, rooms.avatar)
                 "#,
                 params![room.room_id, room.uid, room.title, room.uname, room.cover, room.avatar],
             )

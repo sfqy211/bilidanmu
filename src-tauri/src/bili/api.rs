@@ -1029,18 +1029,28 @@ impl BiliApiClient {
 
     /// 通过 uid 获取主播名和头像
     async fn fetch_user_info(&self, uid: u64) -> (Option<String>, Option<String>) {
-        let response = self
+        let response = match self
             .get_json(
                 "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids",
                 Some(BTreeMap::from([("uids[]".to_string(), uid.to_string())])),
             )
             .await
-            .ok();
+        {
+            Ok(response) => Some(response),
+            Err(error) => {
+                log::warn!("[room] 补全主播信息失败 uid={uid}: {error}");
+                None
+            }
+        };
 
         let entry = response
             .as_ref()
             .and_then(|r| r.get("data"))
             .and_then(|data| data.get(uid.to_string()));
+
+        if entry.is_none() {
+            log::warn!("[room] 补全主播信息失败 uid={uid}: 接口未返回该用户（可能被限频降级）");
+        }
 
         let uname = entry
             .and_then(|e| e.get("uname"))
