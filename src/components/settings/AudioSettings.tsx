@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, RefreshCw } from "lucide-react";
+import { Download, FolderOpen, RefreshCw } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
+import { SttModelDownloadDialog } from "./SttModelDownloadDialog";
 import { SettingsChoice, SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 
 export function AudioSettings({ settings, patchSettings }: SettingsPanelProps) {
@@ -29,6 +30,7 @@ function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
 
   useEffect(() => {
     if (!available) { setLoading(false); return; }
@@ -65,6 +67,9 @@ function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[13px] text-ink">模型文件</p>
           <div className="flex gap-2">
+            <button type="button" className="settings-action" disabled={!available} onClick={() => setShowDownloadDialog(true)}>
+              <Download className="h-3.5 w-3.5" /> 下载模型
+            </button>
             <button type="button" className="settings-action" disabled={!available || loading} onClick={() => setRefreshKey((key) => key + 1)}>
               <RefreshCw className="h-3.5 w-3.5" /> 刷新模型
             </button>
@@ -78,9 +83,15 @@ function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
         {error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">{error}</p>}
         <details className="mt-2 text-xs leading-relaxed text-ink-muted">
           <summary className="cursor-pointer py-1">如何安装模型</summary>
-          <p className="mt-1">将模型放入此目录，每个模型使用独立子文件夹，包含 encoder、decoder、joiner 的 ONNX 文件及 tokens.txt。放好后点击“刷新模型”，选择模型并保存设置。</p>
+          <p className="mt-1">点击「下载模型」即可在线安装精选模型（自动下载、解压并放入模型目录）。也可将模型手动放入此目录：每个模型使用独立子文件夹，包含 encoder、decoder、joiner 的 ONNX 文件及 tokens.txt，放好后点击“刷新模型”。</p>
         </details>
       </div>
+      <SttModelDownloadDialog
+        open={showDownloadDialog}
+        onClose={() => setShowDownloadDialog(false)}
+        onInstalled={() => setRefreshKey((key) => key + 1)}
+        installedModels={models}
+      />
     </SettingsGroup>
   );
 }

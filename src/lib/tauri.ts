@@ -18,6 +18,7 @@ import type {
   QrPollResult,
   Room,
   RoomInfo,
+  SttCatalogEntry,
   SearchRoomMode,
   SearchRoomResult,
   Settings,
@@ -211,7 +212,11 @@ export const tauriCommands = {
     switchModel: (modelId: string) => invoke<void>("switch_stt_model", { modelId }),
     getModelDir: () => invoke<string>("get_stt_model_dir"),
     listModels: () => invoke<string[]>("list_stt_models"),
-    openModelDir: () => invoke<void>("open_stt_model_dir")
+    openModelDir: () => invoke<void>("open_stt_model_dir"),
+    listAvailableModels: () => invoke<SttCatalogEntry[]>("list_available_stt_models"),
+    getDownloadStatus: () => invoke<string | null>("get_stt_model_download_status"),
+    startModelDownload: (modelId: string) => invoke<void>("start_stt_model_download", { modelId }),
+    cancelModelDownload: (modelId: string) => invoke<void>("cancel_stt_model_download", { modelId })
   },
   messageTemplate: {
     list: () => invoke<MessageTemplate[]>("list_message_templates"),

@@ -451,3 +451,27 @@ export interface SttTranscript {
   /** 时间轴世代：tee 连接切换时递增，变化即需重新锚定 */
   epoch: number;
 }
+
+/** 精选可下载模型目录条目（来自 Rust 内置 catalog） */
+export interface SttCatalogEntry {
+  /** 模型 id = 压缩包内顶层目录名 = 安装后的子目录名 */
+  id: string;
+  /** release asset 文件名（.tar.bz2） */
+  filename: string;
+  /** asset 大小（字节） */
+  sizeBytes: number;
+  description: string;
+  /** streaming（边说边出字）| offline（VAD 切句整句识别，精度更高） */
+  group: "streaming" | "offline";
+  /** transducer | paraformer | ctc | sensevoice | firered | qwen3 */
+  kind: string;
+}
+
+/** `stt-model-download` 事件载荷：模型下载进度与状态 */
+export interface SttModelDownloadEvent {
+  modelId: string;
+  status: "downloading" | "decompressing" | "done" | "cancelled" | "error";
+  downloaded: number;
+  total: number;
+  error: string | null;
+}
