@@ -14,6 +14,7 @@ pub mod room;
 pub mod selections;
 pub mod settings;
 pub mod stt;
+pub mod stt_download;
 pub mod update;
 pub mod video;
 pub mod websocket;

@@ -59,6 +59,8 @@ pub struct AppState {
     pub proxy_client: reqwest::Client,
     pub stream_proxy: Arc<StreamProxyServer>,
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
+    /// 正在进行的 STT 模型下载任务（None = 空闲；单并发）
+    pub stt_download_job: Arc<TokioMutex<Option<commands::stt_download::DownloadJob>>>,
     /// 各窗口的侧边吸附状态（label -> DockState）
     pub window_docks: std::sync::Mutex<HashMap<String, window_dock::DockState>>,
     /// 退出吸附后的拖动冷却集合：冷却中的窗口即使贴边也不重新吸附，
@@ -166,6 +168,7 @@ pub fn run() {
             proxy_client: proxy_client.clone(),
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
             stt_manager: Arc::new(TokioMutex::new(None)),
+            stt_download_job: commands::stt_download::initial_job_slot(),
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
@@ -482,6 +485,10 @@ pub fn run() {
             commands::stt::get_stt_model_dir,
             commands::stt::list_stt_models,
             commands::stt::open_stt_model_dir,
+            commands::stt_download::list_available_stt_models,
+            commands::stt_download::get_stt_model_download_status,
+            commands::stt_download::start_stt_model_download,
+            commands::stt_download::cancel_stt_model_download,
             commands::message_template::list_message_templates,
             commands::message_template::create_message_template,
             commands::message_template::update_message_template,
