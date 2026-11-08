@@ -12,6 +12,8 @@ use http_body_util::{BodyExt, Full, StreamBody, combinators::BoxBody};
 use hyper::body::{Bytes, Frame, Incoming};
 use futures_util::StreamExt;
 
+use crate::stt::pipeline::PipelineMessage;
+
 /// 运行时的流代理状态（端口 + 共享 URL + STT 发送器）
 pub struct StreamProxyState {
     stream_url: Arc<TokioMutex<Option<String>>>,
@@ -25,7 +27,7 @@ pub struct StreamProxyState {
     /// 1. The Arc allows cheap cloning for each HTTP connection handler.
     /// 2. The Mutex allows the sender to be swapped atomically from any task.
     /// 3. The Option allows clearing the sender when STT stops.
-    stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
+    stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
 }
 
 /// 惰性启动的本地 HTTP 流代理服务器
@@ -36,7 +38,7 @@ pub struct StreamProxyState {
 pub struct StreamProxyServer {
     state: OnceCell<Arc<StreamProxyState>>,
     proxy_client: reqwest::Client,
-    stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
+    stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
     active_stt_stream: Arc<AtomicU64>,
 }
 
@@ -53,7 +55,7 @@ impl StreamProxyServer {
     /// 绑定 127.0.0.1:0、启动 hyper 服务，返回 StreamProxyState（包装在 Arc 中）
     async fn start_inner(
         proxy_client: reqwest::Client,
-        stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
+        stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
         active_stt_stream: Arc<AtomicU64>,
     ) -> Result<Arc<StreamProxyState>, String> {
         let listener = TcpListener::bind("127.0.0.1:0")
@@ -166,7 +168,7 @@ impl StreamProxyServer {
     }
 
     /// 设置 STT 字节发送器（从 SttManager 注入）
-    pub async fn set_stt_sender(&self, sender: Option<mpsc::Sender<Bytes>>) -> Result<(), String> {
+    pub async fn set_stt_sender(&self, sender: Option<mpsc::Sender<PipelineMessage>>) -> Result<(), String> {
         let state = self.ensure_started().await?;
         *state.stt_sender.lock().map_err(|e| format!("STT 发送器锁失败: {e}"))? = sender;
         Ok(())
@@ -198,7 +200,7 @@ async fn handle_proxy_request(
     stream_url: Arc<TokioMutex<Option<String>>>,
     vod_url: Arc<TokioMutex<Option<String>>>,
     proxy_client: reqwest::Client,
-    stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
+    stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
     active_stt_stream: Arc<AtomicU64>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
     // CORS preflight
@@ -305,7 +307,7 @@ async fn handle_live_audio(
     req: Request<Incoming>,
     stream_url: Arc<TokioMutex<Option<String>>>,
     proxy_client: reqwest::Client,
-    stt_sender: Arc<StdMutex<Option<mpsc::Sender<Bytes>>>>,
+    stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
     active_stt_stream: Arc<AtomicU64>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
     if req.method() != Method::GET {
@@ -354,6 +356,15 @@ async fn handle_live_audio(
 
     let stt_stream_id = active_stt_stream.fetch_add(1, Ordering::Relaxed) + 1;
 
+    // 通知 STT 管线重置音频时间轴：新连接是 CDN 重新拉起的完整流，
+    // 播放器 currentTime 也随新 MSE 实例归零，两侧需要同时回到新起点。
+    // （旧连接已入队的残余字节会在该消息之前被处理，顺序天然正确。）
+    if let Ok(guard) = stt_sender.lock() {
+        if let Some(sender) = guard.as_ref() {
+            let _ = sender.try_send(PipelineMessage::ResetStream);
+        }
+    }
+
     // 将 reqwest 字节流 → hyper Body 流，同时 tee 到 STT 管道。
     // mpegts.js 在启动/重连时可能短暂存在多个 /live-audio 连接；
     // STT 只接收最新连接，避免同一段音频被并发旧连接重复送入识别器。
@@ -364,7 +375,7 @@ async fn handle_live_audio(
                 if active_stt_stream.load(Ordering::Relaxed) == stt_stream_id {
                     if let Ok(guard) = stt_sender.lock() {
                         if let Some(sender) = guard.as_ref() {
-                            let _ = sender.try_send(bytes.clone());
+                            let _ = sender.try_send(PipelineMessage::Bytes(bytes.clone()));
                         }
                     }
                 }

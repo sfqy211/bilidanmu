@@ -19,6 +19,18 @@ use tokio::task::JoinHandle;
 use crate::stt::flv_demux::FlvDemuxer;
 use crate::stt::SttTranscript;
 
+/// Target sample rate fed to the recognizer (after resampling).
+const TARGET_SAMPLE_RATE: u64 = 16000;
+
+/// Messages on the bytes channel from the proxy tee.
+pub enum PipelineMessage {
+    /// FLV stream bytes to demux/decode/recognize.
+    Bytes(Bytes),
+    /// A new tee connection replaced the old one: reset the audio timeline
+    /// (epoch bump) so timestamps stay meaningful for the fresh stream.
+    ResetStream,
+}
+
 /// Find model files in the given directory.
 fn find_model_files(model_dir: &str) -> Result<(String, String, String, String), String> {
     let dir = std::fs::read_dir(model_dir)
@@ -370,7 +382,7 @@ impl PipelineState {
 pub struct SttPipeline {
     /// Wrapped in `Option` so `stop()` can drop the sender, closing the
     /// channel and unblocking `blocking_recv()` in the pipeline thread.
-    bytes_tx: Option<mpsc::Sender<Bytes>>,
+    bytes_tx: Option<mpsc::Sender<PipelineMessage>>,
     cancel: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
 }
@@ -381,7 +393,7 @@ impl SttPipeline {
         model_dir: &str,
         transcript_tx: mpsc::Sender<SttTranscript>,
     ) -> Result<Self, String> {
-        let (bytes_tx, bytes_rx) = mpsc::channel::<Bytes>(128);
+        let (bytes_tx, bytes_rx) = mpsc::channel::<PipelineMessage>(128);
         let cancel = Arc::new(AtomicBool::new(false));
         let cancel_clone = cancel.clone();
         let model_dir = model_dir.to_string();
@@ -399,7 +411,7 @@ impl SttPipeline {
 
     /// Get the sender for injecting FLV bytes from the proxy.
     /// Panics if called after stop (bytes_tx already dropped).
-    pub fn get_bytes_sender(&self) -> mpsc::Sender<Bytes> {
+    pub fn get_bytes_sender(&self) -> mpsc::Sender<PipelineMessage> {
         self.bytes_tx.as_ref().unwrap().clone()
     }
 
@@ -417,7 +429,7 @@ impl SttPipeline {
 /// Main blocking loop: recv bytes → demux → decode → resample → recognize → emit.
 fn run_pipeline(
     model_dir: &str,
-    mut bytes_rx: mpsc::Receiver<Bytes>,
+    mut bytes_rx: mpsc::Receiver<PipelineMessage>,
     transcript_tx: mpsc::Sender<SttTranscript>,
     cancel: Arc<AtomicBool>,
 ) {
@@ -436,6 +448,11 @@ fn run_pipeline(
     let mut f32_buffer: Vec<f32> = Vec::new();
     let mut chunk_count: u32 = 0;
     let mut last_transcript_text = String::new();
+
+    // Audio timeline for caption alignment: cumulative 16kHz samples fed to
+    // the recognizer, converted to ms. Reset on every tee stream switch.
+    let mut audio_samples: u64 = 0;
+    let mut epoch: u64 = 1;
     log::info!("STT pipeline: waiting for audio bytes...");
 
     loop {
@@ -443,9 +460,23 @@ fn run_pipeline(
             break;
         }
 
-        // Receive FLV bytes from the proxy (blocking)
+        // Receive bytes or a stream-reset signal from the proxy (blocking)
         let bytes = match bytes_rx.blocking_recv() {
-            Some(b) => b,
+            Some(PipelineMessage::Bytes(b)) => b,
+            Some(PipelineMessage::ResetStream) => {
+                // New tee connection: restart the timeline so audioTsMs maps
+                // onto the fresh stream the player is also starting from.
+                epoch += 1;
+                audio_samples = 0;
+                f32_buffer.clear();
+                state.flv_demuxer.reset();
+                // Lazy-rebuild the AAC decoder from the new stream's header.
+                state.aac_decoder = None;
+                state.recognizer.reset(&state.stream);
+                last_transcript_text.clear();
+                log::info!("STT: tee stream switched, timeline reset (epoch {epoch})");
+                continue;
+            }
             None => break, // channel closed
         };
 
@@ -459,6 +490,7 @@ fn run_pipeline(
             // Flush old resampler to avoid losing buffered samples (#11)
             let leftover = state.resampler.resample(&[], true);
             if !leftover.is_empty() {
+                audio_samples += leftover.len() as u64;
                 state.stream.accept_waveform(16000, &leftover);
             }
             if let Some(new_resampler) = LinearResampler::create(current_sample_rate as i32, 16000) {
@@ -525,8 +557,12 @@ fn run_pipeline(
                                     chunk_size, resampled.len());
                             }
 
-                            // Feed to sherpa-onnx
+                            // Feed to sherpa-onnx and advance the audio timeline
+                            audio_samples += resampled.len() as u64;
                             state.stream.accept_waveform(16000, &resampled);
+
+                            // Audio-stream timestamp for emitted captions (ms)
+                            let audio_ts_ms = (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64;
 
                             while state.recognizer.is_ready(&state.stream) {
                                 state.recognizer.decode(&state.stream);
@@ -539,6 +575,8 @@ fn run_pipeline(
                                     let _ = transcript_tx.blocking_send(SttTranscript {
                                         text: result.text.clone(),
                                         is_final: result.is_final,
+                                        audio_ts_ms,
+                                        epoch,
                                     });
                                 }
                             }
@@ -551,6 +589,8 @@ fn run_pipeline(
                                         let _ = transcript_tx.blocking_send(SttTranscript {
                                             text: result.text,
                                             is_final: true,
+                                            audio_ts_ms,
+                                            epoch,
                                         });
                                     }
                                 }
@@ -607,6 +647,7 @@ fn run_pipeline(
     if !f32_buffer.is_empty() {
         let resampled = state.resampler.resample(&f32_buffer, true);
         if !resampled.is_empty() {
+            audio_samples += resampled.len() as u64;
             state.stream.accept_waveform(16000, &resampled);
             state.stream.input_finished();
             while state.recognizer.is_ready(&state.stream) {
@@ -617,6 +658,8 @@ fn run_pipeline(
                     let _ = transcript_tx.blocking_send(SttTranscript {
                         text: result.text,
                         is_final: true,
+                        audio_ts_ms: (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64,
+                        epoch,
                     });
                 }
             }

@@ -20,6 +20,13 @@ use crate::proxy::stream_proxy::StreamProxyServer;
 pub struct SttTranscript {
     pub text: String,
     pub is_final: bool,
+    /// Audio-stream timestamp (ms since the current tee connection started),
+    /// so the frontend can align captions with the player's currentTime
+    /// instead of wall-clock arrival time.
+    pub audio_ts_ms: i64,
+    /// Timeline generation: incremented on every tee stream switch/reset.
+    /// A change of value tells the frontend to re-anchor its alignment.
+    pub epoch: u64,
 }
 
 /// Manages the STT pipeline lifecycle.

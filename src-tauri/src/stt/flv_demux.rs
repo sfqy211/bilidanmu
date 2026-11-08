@@ -149,6 +149,14 @@ impl FlvDemuxer {
         }
     }
 
+    /// Reset parse state for a new stream connection: drop any half-parsed
+    /// tag residue and resync from the new stream's FLV header.
+    pub fn reset(&mut self) {
+        self.buffer.clear();
+        self.synced = false;
+        self.aac_sequence_header = None;
+    }
+
     /// Return the sample rate extracted from the AAC AudioSpecificConfig.
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
