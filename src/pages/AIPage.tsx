@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
-  ChevronDown,
   Copy,
-  Play,
   RefreshCw,
   RotateCcw,
   ShieldAlert,
@@ -13,15 +11,7 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
-import type {
-  AiAuditEntry,
-  AiPermissionMode,
-  AiRisk,
-  AiToolActivity,
-  AiToolResult,
-  AiToolSpec,
-  McpStatus,
-} from "@/types/ai";
+import type { AiPermissionMode, McpStatus } from "@/types/ai";
 
 const MODES: Array<{ value: AiPermissionMode; label: string; description: string }> = [
   {
@@ -41,26 +31,10 @@ const MODES: Array<{ value: AiPermissionMode; label: string; description: string
   },
 ];
 
-const RISK_LABEL: Record<AiRisk, string> = {
-  read: "只读",
-  write: "写",
-  costly: "有风险",
-  destructive: "不可逆",
-};
-
-const RISK_CLASS: Record<AiRisk, string> = {
-  read: "bg-slate-100 text-slate-600 dark:bg-white/[0.08] dark:text-slate-300",
-  write: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
-  costly: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  destructive: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
-};
-
 export function AIPage() {
   const [status, setStatus] = useState<McpStatus | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [mode, setMode] = useState<AiPermissionMode>("autonomous");
-  const [tools, setTools] = useState<AiToolSpec[]>([]);
-  const [audit, setAudit] = useState<AiAuditEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -68,16 +42,12 @@ export function AIPage() {
   const refresh = useCallback(async () => {
     setError(null);
     try {
-      const [mcpStatus, permissionMode, toolSpecs, auditEntries] = await Promise.all([
+      const [mcpStatus, permissionMode] = await Promise.all([
         tauriCommands.ai.mcpStatus(),
         tauriCommands.ai.getPermissionMode(),
-        tauriCommands.ai.listTools(),
-        tauriCommands.ai.auditList(30),
       ]);
       setStatus(mcpStatus);
       setMode(permissionMode);
-      setTools(toolSpecs);
-      setAudit(auditEntries);
     } catch (reason) {
       setError(String(reason));
     }
@@ -87,10 +57,6 @@ export function AIPage() {
     void refresh();
   }, [refresh]);
 
-  // MCP 侧的调用会广播活动事件：刷新审计让界面跟上真实发生的事
-  useTauriEvent<AiToolActivity>("ai-tool-activity", () => {
-    void tauriCommands.ai.auditList(30).then(setAudit).catch(() => {});
-  });
   useTauriEvent<AiPermissionMode>("ai-permission-changed", (next) => {
     setMode(next);
   });
@@ -146,15 +112,6 @@ export function AIPage() {
       setError(String(reason));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const clearAudit = async () => {
-    try {
-      await tauriCommands.ai.auditClear();
-      setAudit([]);
-    } catch (reason) {
-      setError(String(reason));
     }
   };
 
@@ -248,7 +205,7 @@ export function AIPage() {
                   </div>
                 </div>
                 <code className="block break-all rounded-md bg-slate-100 px-2.5 py-2 font-mono text-[11px] text-ink dark:bg-white/[0.06]">
-                  {token ?? "••••••••••••••••••••••••••••••••"}
+                  {token ?? "••••••••••••••••••••••••••••••••••"}
                 </code>
                 <p className="mt-1.5 text-[11px] text-ink-muted">
                   客户端必须带 <code className="font-mono">Authorization: Bearer &lt;token&gt;</code>。重置后旧 token 立即失效。
@@ -276,6 +233,11 @@ export function AIPage() {
               </div>
             </div>
           )}
+
+          <p className="mt-4 text-[11px] text-ink-muted">
+            可用工具清单与每次调用记录写在 AI 专用日志 <code className="font-mono">ai.log</code>
+            （与主应用日志同目录），可在「设置 → 关于 → 日志目录」里打开查看。
+          </p>
         </section>
 
         {/* ── 权限模式 ─────────────────────────────────────── */}
@@ -325,225 +287,7 @@ export function AIPage() {
             </p>
           )}
         </section>
-
-        {/* ── 工具清单 ─────────────────────────────────────── */}
-        <section className="border-t border-subtle py-5">
-          <h3 className="text-[13px] font-medium text-ink">
-            可用工具 <span className="text-ink-muted">（{tools.length}）</span>
-          </h3>
-          <div className="mt-3 space-y-1.5">
-            {tools.map((tool) => (
-              <ToolRow key={tool.name} tool={tool} />
-            ))}
-            {tools.length === 0 && (
-              <p className="text-xs text-ink-muted">正在加载工具清单…</p>
-            )}
-          </div>
-        </section>
-
-        {/* ── 调用记录 ─────────────────────────────────────── */}
-        <section className="border-t border-subtle py-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[13px] font-medium text-ink">
-              最近调用 <span className="text-ink-muted">（{audit.length}）</span>
-            </h3>
-            {audit.length > 0 && (
-              <button type="button" className="settings-action text-[11px]" onClick={() => void clearAudit()}>
-                清空
-              </button>
-            )}
-          </div>
-          <div className="mt-3 space-y-1">
-            {audit.map((entry, index) => (
-              <div
-                key={`${entry.createdAt}-${index}`}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-[11px] hover:bg-slate-50 dark:hover:bg-white/[0.03]"
-              >
-                <span
-                  className={
-                    entry.ok
-                      ? "h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
-                      : "h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500"
-                  }
-                />
-                <code className="shrink-0 font-mono text-ink">{entry.tool}</code>
-                <span className="shrink-0 text-ink-muted">{entry.origin === "mcp" ? "外部" : "调试"}</span>
-                <span className="min-w-0 flex-1 truncate text-ink-muted">{entry.summary}</span>
-                <span className="shrink-0 tabular-nums text-ink-muted">{entry.durationMs}ms</span>
-              </div>
-            ))}
-            {audit.length === 0 && (
-              <p className="text-xs text-ink-muted">还没有调用记录。外部客户端连上来后，这里会实时出现。</p>
-            )}
-          </div>
-        </section>
-
-        {/* ── 调试面板 ─────────────────────────────────────── */}
-        <ToolDebugPanel tools={tools} />
       </div>
     </section>
   );
-}
-
-function ToolRow({ tool }: { tool: AiToolSpec }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-md border border-subtle">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 px-2.5 py-2 text-left"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ChevronDown
-          className={
-            open
-              ? "h-3 w-3 shrink-0 rotate-180 text-ink-muted transition-transform"
-              : "h-3 w-3 shrink-0 text-ink-muted transition-transform"
-          }
-        />
-        <code className="shrink-0 font-mono text-[11px] text-ink">{tool.name}</code>
-        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-muted">{tool.title}</span>
-        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${RISK_CLASS[tool.risk]}`}>
-          {RISK_LABEL[tool.risk]}
-        </span>
-      </button>
-      {open && (
-        <div className="border-t border-subtle px-2.5 py-2">
-          <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-ink-muted">{tool.description}</p>
-          <pre className="mt-2 max-h-48 overflow-auto rounded bg-slate-100 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-ink dark:bg-white/[0.06]">
-            {JSON.stringify(tool.inputSchema, null, 2)}
-          </pre>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** 调试面板：不接模型也能验证整条工具链路 */
-function ToolDebugPanel({ tools }: { tools: AiToolSpec[] }) {
-  const [toolName, setToolName] = useState("");
-  const [argsText, setArgsText] = useState("{}");
-  const [result, setResult] = useState<AiToolResult | null>(null);
-  const [running, setRunning] = useState(false);
-  const [parseError, setParseError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!toolName && tools.length > 0) setToolName(tools[0].name);
-  }, [tools, toolName]);
-
-  const run = async () => {
-    setParseError(null);
-    let args: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(argsText || "{}");
-      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("参数必须是 JSON 对象");
-      }
-      args = parsed as Record<string, unknown>;
-    } catch (reason) {
-      setParseError(`参数解析失败：${String(reason)}`);
-      return;
-    }
-
-    setRunning(true);
-    try {
-      setResult(await tauriCommands.ai.callTool(toolName, args));
-    } catch (reason) {
-      setResult({
-        ok: false,
-        error: { code: "INVOKE_FAILED", message: String(reason), retryable: false },
-      });
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  return (
-    <section className="border-t border-subtle py-5">
-      <h3 className="text-[13px] font-medium text-ink">调试面板</h3>
-      <p className="mt-1 text-xs text-ink-muted">
-        直接调用一个工具验证返回结构。同样受权限模式约束，调用会记入上面的调用记录。
-      </p>
-
-      <div className="mt-3 space-y-2">
-        <select
-          className="settings-select w-full"
-          value={toolName}
-          onChange={(event) => {
-            setToolName(event.target.value);
-            setResult(null);
-          }}
-        >
-          {tools.map((tool) => (
-            <option key={tool.name} value={tool.name}>
-              {tool.name} — {tool.title}
-            </option>
-          ))}
-        </select>
-
-        <textarea
-          className="settings-select h-28 w-full resize-y font-mono text-[11px]"
-          value={argsText}
-          spellCheck={false}
-          onChange={(event) => setArgsText(event.target.value)}
-        />
-
-        {parseError && (
-          <p className="text-[11px] text-rose-600 dark:text-rose-300" role="alert">{parseError}</p>
-        )}
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="settings-action inline-flex items-center gap-1.5"
-            disabled={running || !toolName}
-            onClick={() => void run()}
-          >
-            <Play className="h-3.5 w-3.5" />{running ? "执行中…" : "执行"}
-          </button>
-          <button
-            type="button"
-            className="settings-action text-[11px]"
-            onClick={() => setArgsText(JSON.stringify(exampleArgs(toolName), null, 2))}
-          >
-            填入示例
-          </button>
-        </div>
-
-        {result && (
-          <pre
-            className={
-              result.ok
-                ? "max-h-72 overflow-auto rounded-md bg-slate-100 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-ink dark:bg-white/[0.06]"
-                : "max-h-72 overflow-auto rounded-md bg-rose-50 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
-            }
-          >
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** 几个常用工具的最小可运行参数，省得手敲 */
-function exampleArgs(toolName: string): Record<string, unknown> {
-  switch (toolName) {
-    case "live_get_context":
-      return { danmakuLimit: 20, includeActivity: true };
-    case "live_query_danmaku":
-      return { limit: 20 };
-    case "room_search":
-      return { keyword: "原神", mode: "name" };
-    case "room_get":
-      return { roomId: 1 };
-    case "danmaku_send":
-      return { message: "测试弹幕" };
-    case "video_search":
-      return { keyword: "编程" };
-    case "settings_get":
-      return { keys: ["sendInterval", "rateLimit"] };
-    default:
-      return {};
-  }
 }
