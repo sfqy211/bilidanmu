@@ -6,12 +6,22 @@ use crate::stt::SttManager;
 use crate::AppState;
 
 /// Get the base directory for STT models: {app_data_dir}/models/stt/
-fn get_stt_base_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+pub(crate) fn get_stt_base_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let data_dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("获取数据目录失败: {e}"))?;
     Ok(data_dir.join("models").join("stt"))
+}
+
+/// 模型目录的 meta 标记是否为离线类型（需 VAD 切句）。
+fn is_offline_model(model_dir: &std::path::Path) -> bool {
+    std::fs::read_to_string(model_dir.join("model.meta.json"))
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|json| json.get("kind").and_then(|k| k.as_str()).map(|s| s.to_string()))
+        .map(|kind| matches!(kind.as_str(), "sensevoice" | "firered" | "qwen3"))
+        .unwrap_or(false)
 }
 
 /// Get the model directory for a given model ID.
@@ -64,17 +74,24 @@ pub fn list_stt_models(app: tauri::AppHandle) -> Result<Vec<String>, String> {
             continue;
         }
         let dir = entry.path();
-        // Check if it contains the required model files
-        let has_encoder = dir.read_dir().ok().map_or(false, |mut entries| {
-            entries.any(|e| {
-                e.ok().map_or(false, |e| {
-                    let name = e.file_name();
-                    name.to_string_lossy().starts_with("encoder") && name.to_string_lossy().ends_with(".onnx")
-                })
-            })
+        // 有效模型 = 任一 onnx + (tokens.txt / tokenizer / meta 标记任一)。
+        // 流式包是 encoder/decoder/joiner 三件套，离线包（SenseVoice 等）
+        // 是 model.int8.onnx、Qwen3 是四件套 + tokenizer，判定需放宽。
+        let (has_onnx, has_desc) = dir.read_dir().ok().map_or((false, false), |entries| {
+            let mut has_onnx = false;
+            let mut has_desc = false;
+            for e in entries.filter_map(|e| e.ok()) {
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                if name.ends_with(".onnx") {
+                    has_onnx = true;
+                }
+                if name == "tokens.txt" || name.starts_with("tokenizer") || name == "model.meta.json" {
+                    has_desc = true;
+                }
+            }
+            (has_onnx, has_desc)
         });
-        let has_tokens = dir.join("tokens.txt").exists();
-        if has_encoder && has_tokens {
+        if has_onnx && has_desc {
             models.push(entry.file_name().to_string_lossy().to_string());
         }
     }
@@ -111,6 +128,21 @@ pub async fn start_stt(
     let settings = settings_store::load_settings(&state).map_err(|e| format!("读取设置失败: {e}"))?;
     let model_dir = get_model_dir(&app, &settings.stt.model_id)?;
     log::info!("start_stt: model_id={}, dir={}", settings.stt.model_id, model_dir);
+
+    // 离线模型依赖 Silero VAD（下载器自动附带）；缺失时提前报错而非静默失败
+    if is_offline_model(std::path::Path::new(&model_dir)) {
+        let vad = std::path::Path::new(&model_dir)
+            .parent()
+            .map(|p| p.join(crate::commands::stt_download::VAD_DIR).join(crate::commands::stt_download::VAD_FILE));
+        if let Some(vad) = vad {
+            if !vad.exists() {
+                return Err(format!(
+                    "离线识别缺少 VAD 模型（{}），请在设置中重新下载该离线模型",
+                    vad.display()
+                ));
+            }
+        }
+    }
 
     let stream_proxy = state.stream_proxy.clone();
     let manager = SttManager::start(model_dir, app, stream_proxy).await?;

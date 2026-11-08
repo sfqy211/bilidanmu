@@ -2,11 +2,16 @@
 //! resample (sherpa-onnx LinearResampler) → sherpa-onnx OnlineRecognizer →
 //! emit transcript events
 
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use bytes::Bytes;
-use sherpa_onnx::{OnlineRecognizer, OnlineRecognizerConfig, OnlineStream, LinearResampler};
+use sherpa_onnx::{
+    LinearResampler, OfflineRecognizer, OfflineRecognizerConfig, OnlineRecognizer,
+    OnlineRecognizerConfig, OnlineStream, SileroVadModelConfig, VadModelConfig,
+    VoiceActivityDetector,
+};
 use symphonia::core::audio::{Audio, Channels, GenericAudioBufferRef};
 use symphonia::core::codecs::audio::well_known::{CODEC_ID_AAC, profiles::CODEC_PROFILE_AAC_LC};
 use symphonia::core::codecs::audio::{AudioCodecParameters, AudioDecoder, AudioDecoderOptions};
@@ -31,38 +36,168 @@ pub enum PipelineMessage {
     ResetStream,
 }
 
-/// Find model files in the given directory.
-fn find_model_files(model_dir: &str) -> Result<(String, String, String, String), String> {
-    let dir = std::fs::read_dir(model_dir)
-        .map_err(|e| format!("无法读取模型目录: {e}"))?;
+/// 模型家族标记（`model.meta.json` 优先，目录内容启发式兜底）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ModelKind {
+    /// 流式 transducer（encoder/decoder/joiner）
+    Transducer,
+    /// 流式 paraformer（encoder/decoder，无 joiner）
+    Paraformer,
+    /// 流式 CTC（仅 encoder）
+    Ctc,
+    /// 离线 SenseVoice（含同架构的 FunASR-Nano）
+    SenseVoice,
+    /// 离线 FireRedASR/2（encoder/decoder transducer 式）
+    FireRed,
+    /// 离线 Qwen3-ASR（conv_frontend/encoder/decoder/tokenizer）
+    Qwen3,
+}
 
-    let mut encoder: Option<String> = None;
-    let mut decoder: Option<String> = None;
-    let mut joiner: Option<String> = None;
-    let mut tokens: Option<String> = None;
+impl ModelKind {
+    fn is_offline(self) -> bool {
+        matches!(self, ModelKind::SenseVoice | ModelKind::FireRed | ModelKind::Qwen3)
+    }
+
+    /// 读 `model.meta.json`（下载器解压成功后写入的 `{"kind": "..."}`）。
+    fn from_meta(model_dir: &Path) -> Option<Self> {
+        let raw = std::fs::read_to_string(model_dir.join("model.meta.json")).ok()?;
+        let json: serde_json::Value = serde_json::from_str(&raw).ok()?;
+        let kind = json.get("kind")?.as_str()?;
+        Some(match kind {
+            "transducer" => ModelKind::Transducer,
+            "paraformer" => ModelKind::Paraformer,
+            "ctc" => ModelKind::Ctc,
+            "sensevoice" => ModelKind::SenseVoice,
+            "firered" => ModelKind::FireRed,
+            "qwen3" => ModelKind::Qwen3,
+            _ => return None,
+        })
+    }
+
+    /// 手动放置（无 meta）时的目录内容启发式。
+    fn from_files(files: &ModelFiles) -> Option<Self> {
+        if files.joiner.is_some() {
+            Some(ModelKind::Transducer)
+        } else if files.conv_frontend.is_some() || files.tokenizer.is_some() {
+            Some(ModelKind::Qwen3)
+        } else if files.model_onnx.is_some() {
+            Some(ModelKind::SenseVoice)
+        } else if files.decoder.is_some() {
+            Some(ModelKind::Paraformer)
+        } else if files.encoder.is_some() {
+            Some(ModelKind::Ctc)
+        } else {
+            None
+        }
+    }
+}
+
+/// 目录内发现的模型文件（int8 变体优先）。
+#[derive(Debug, Default)]
+struct ModelFiles {
+    encoder: Option<String>,
+    decoder: Option<String>,
+    joiner: Option<String>,
+    /// SenseVoice 系：model*.onnx（非 encoder/decoder 前缀）
+    model_onnx: Option<String>,
+    /// Qwen3 系
+    conv_frontend: Option<String>,
+    tokenizer: Option<String>,
+    tokens: Option<String>,
+}
+
+/// 从候选中挑一个：int8 优先，其次最后一个（文件名序）。
+fn pick_variant(paths: &mut Vec<String>) -> Option<String> {
+    if paths.len() <= 1 {
+        return paths.pop();
+    }
+    let int8 = paths.iter().position(|p| p.ends_with(".int8.onnx"));
+    let chosen = int8.unwrap_or(paths.len() - 1);
+    Some(paths.swap_remove(chosen))
+}
+
+/// 扫描模型目录，发现全部 onnx/tokens 资产。
+fn find_model_files(model_dir: &Path) -> Result<ModelFiles, String> {
+    let dir =
+        std::fs::read_dir(model_dir).map_err(|e| format!("无法读取模型目录: {e}"))?;
+
+    let mut encoders: Vec<String> = Vec::new();
+    let mut decoders: Vec<String> = Vec::new();
+    let mut joiners: Vec<String> = Vec::new();
+    let mut models: Vec<String> = Vec::new();
+    let mut convs: Vec<String> = Vec::new();
+    let mut files = ModelFiles::default();
 
     for entry in dir {
         let entry = entry.map_err(|e| format!("目录条目错误: {e}"))?;
         let name = entry.file_name().to_string_lossy().to_string();
         let path = entry.path().to_string_lossy().to_string();
 
-        if name.starts_with("encoder") && name.ends_with(".onnx") {
-            encoder = Some(path);
-        } else if name.starts_with("decoder") && name.ends_with(".onnx") {
-            decoder = Some(path);
-        } else if name.starts_with("joiner") && name.ends_with(".onnx") {
-            joiner = Some(path);
-        } else if name == "tokens.txt" {
-            tokens = Some(path);
+        if name == "tokens.txt" {
+            files.tokens = Some(path);
+        } else if !name.ends_with(".onnx") {
+            if name.starts_with("tokenizer") {
+                files.tokenizer = Some(path);
+            }
+        } else if name.starts_with("encoder") {
+            encoders.push(path);
+        } else if name.starts_with("decoder") {
+            decoders.push(path);
+        } else if name.starts_with("joiner") {
+            joiners.push(path);
+        } else if name.starts_with("conv_frontend") {
+            convs.push(path);
+        } else if name.starts_with("model") {
+            models.push(path);
         }
     }
 
-    Ok((
-        encoder.ok_or_else(|| "找不到 encoder 模型文件".to_string())?,
-        decoder.ok_or_else(|| "找不到 decoder 模型文件".to_string())?,
-        joiner.ok_or_else(|| "找不到 joiner 模型文件".to_string())?,
-        tokens.ok_or_else(|| "找不到 tokens.txt 文件".to_string())?,
-    ))
+    files.encoder = pick_variant(&mut encoders);
+    files.decoder = pick_variant(&mut decoders);
+    files.joiner = pick_variant(&mut joiners);
+    files.model_onnx = pick_variant(&mut models);
+    files.conv_frontend = pick_variant(&mut convs);
+    Ok(files)
+}
+
+/// 解析模型目录：kind + 文件齐备性校验。
+fn resolve_model(model_dir: &Path) -> Result<(ModelKind, ModelFiles), String> {
+    let mut files = find_model_files(model_dir)?;
+    let kind = ModelKind::from_meta(model_dir)
+        .or_else(|| ModelKind::from_files(&files))
+        .ok_or_else(|| "无法识别模型类型（缺少 joiner/encoder 等特征文件）".to_string())?;
+    // tokens.txt 除 Qwen3（可用 tokenizer 顶替）外均为必需
+    if kind != ModelKind::Qwen3 && files.tokens.is_none() {
+        return Err("找不到 tokens.txt 文件".to_string());
+    }
+
+    // 按 kind 校验关键文件齐备（qwen3 的 tokens.txt 缺失可由 tokenizer 顶替）
+    let ok = match kind {
+        ModelKind::Transducer => {
+            files.encoder.is_some() && files.decoder.is_some() && files.joiner.is_some()
+        }
+        ModelKind::Paraformer | ModelKind::FireRed => {
+            files.encoder.is_some() && files.decoder.is_some()
+        }
+        // CTC 包内命名不统一：大包用 encoder*.onnx，小包用 model*.onnx
+        ModelKind::Ctc => files.encoder.is_some() || files.model_onnx.is_some(),
+        ModelKind::SenseVoice => files.model_onnx.is_some(),
+        ModelKind::Qwen3 => {
+            files.conv_frontend.is_some()
+                && files.encoder.is_some()
+                && files.decoder.is_some()
+                && (files.tokenizer.is_some() || files.tokens.is_some())
+        }
+    };
+    if !ok {
+        return Err(format!("模型文件不完整（类型 {:?}）", kind));
+    }
+
+    // tokens 兜底：qwen3 无 tokens.txt 时不强制
+    if kind == ModelKind::Qwen3 && files.tokens.is_none() {
+        files.tokens = files.tokenizer.clone();
+    }
+    Ok((kind, files))
 }
 
 /// Persistent AAC decoder state that survives across frames.
@@ -329,52 +464,239 @@ fn extract_f32_samples(
     }
 }
 
+/// 待 emit 的识别文本事件（ingest/flush 返回）。
+struct EmittedText {
+    text: String,
+    is_final: bool,
+}
+
+/// 识别引擎：流式（边说边出字）或离线（VAD 切句 + 整句识别）。
+enum Engine {
+    Streaming {
+        recognizer: OnlineRecognizer,
+        stream: OnlineStream,
+    },
+    Offline {
+        recognizer: OfflineRecognizer,
+        vad: VoiceActivityDetector,
+    },
+}
+
 /// Pipeline configuration state, created once at start.
 struct PipelineState {
-    recognizer: OnlineRecognizer,
-    stream: OnlineStream,
+    engine: Engine,
     resampler: LinearResampler,
     flv_demuxer: FlvDemuxer,
     aac_decoder: Option<AacDecoder>,
+    /// 流式 partial 去重缓存（离线模式不使用）
+    last_streaming_text: String,
 }
 
 impl PipelineState {
-    fn new(model_dir: &str) -> Result<Self, String> {
-        let (encoder, decoder, joiner, tokens) = find_model_files(model_dir)?;
+    fn new(model_dir: &Path) -> Result<Self, String> {
+        let (kind, files) = resolve_model(model_dir)?;
 
+        let engine = if kind.is_offline() {
+            Engine::Offline {
+                recognizer: Self::create_offline(kind, &files)?,
+                vad: Self::create_vad(model_dir)?,
+            }
+        } else {
+            let recognizer = Self::create_online(kind, &files)?;
+            let stream = recognizer.create_stream();
+            Engine::Streaming { recognizer, stream }
+        };
+
+        let resampler = LinearResampler::create(48000, 16000)
+            .ok_or_else(|| "创建 LinearResampler 失败".to_string())?;
+        let flv_demuxer = FlvDemuxer::new();
+
+        Ok(Self {
+            engine,
+            resampler,
+            flv_demuxer,
+            aac_decoder: None,
+            last_streaming_text: String::new(),
+        })
+    }
+
+    /// 流式引擎（transducer / paraformer / ctc 三系）。
+    fn create_online(kind: ModelKind, files: &ModelFiles) -> Result<OnlineRecognizer, String> {
         let mut config = OnlineRecognizerConfig::default();
-        config.model_config.transducer.encoder = Some(encoder);
-        config.model_config.transducer.decoder = Some(decoder);
-        config.model_config.transducer.joiner = Some(joiner);
-        config.model_config.tokens = Some(tokens);
+        match kind {
+            ModelKind::Transducer => {
+                config.model_config.transducer.encoder = files.encoder.clone();
+                config.model_config.transducer.decoder = files.decoder.clone();
+                config.model_config.transducer.joiner = files.joiner.clone();
+            }
+            ModelKind::Paraformer => {
+                config.model_config.paraformer.encoder = files.encoder.clone();
+                config.model_config.paraformer.decoder = files.decoder.clone();
+            }
+            ModelKind::Ctc => {
+                config.model_config.zipformer2_ctc.model =
+                    files.encoder.clone().or(files.model_onnx.clone());
+            }
+            _ => unreachable!("非流式类型不应进入在线引擎"),
+        }
+        config.model_config.tokens = files.tokens.clone();
         config.enable_endpoint = true;
         config.decoding_method = Some("greedy_search".to_string());
-
         // Endpoint detection settings for streaming
         config.rule1_min_trailing_silence = 2.4;
         config.rule2_min_trailing_silence = 1.2;
         config.rule3_min_utterance_length = 20.0;
 
-        let recognizer = OnlineRecognizer::create(&config)
-            .ok_or_else(|| "创建 OnlineRecognizer 失败".to_string())?;
+        OnlineRecognizer::create(&config).ok_or_else(|| "创建 OnlineRecognizer 失败".to_string())
+    }
 
-        let stream = recognizer.create_stream();
+    /// 离线引擎（sensevoice / firered / qwen3 三系）。
+    fn create_offline(kind: ModelKind, files: &ModelFiles) -> Result<OfflineRecognizer, String> {
+        let mut config = OfflineRecognizerConfig::default();
+        match kind {
+            ModelKind::SenseVoice => {
+                config.model_config.sense_voice.model = files.model_onnx.clone();
+                config.model_config.sense_voice.use_itn = true;
+            }
+            ModelKind::FireRed => {
+                config.model_config.fire_red_asr.encoder = files.encoder.clone();
+                config.model_config.fire_red_asr.decoder = files.decoder.clone();
+            }
+            ModelKind::Qwen3 => {
+                config.model_config.qwen3_asr.conv_frontend = files.conv_frontend.clone();
+                config.model_config.qwen3_asr.encoder = files.encoder.clone();
+                config.model_config.qwen3_asr.decoder = files.decoder.clone();
+                config.model_config.qwen3_asr.tokenizer = files.tokenizer.clone();
+            }
+            _ => unreachable!("非离线类型不应进入离线引擎"),
+        }
+        config.model_config.tokens = files.tokens.clone();
 
-        // Resampler will be created with actual sample rate once the
-        // first AAC sequence header is parsed by FlvDemuxer.
-        // Default to 48000→16000 (most common for B站 live streams).
-        let resampler = LinearResampler::create(48000, 16000)
-            .ok_or_else(|| "创建 LinearResampler 失败".to_string())?;
+        OfflineRecognizer::create(&config).ok_or_else(|| "创建 OfflineRecognizer 失败".to_string())
+    }
 
-        let flv_demuxer = FlvDemuxer::new();
+    /// Silero VAD（离线模式切句依赖），模型位于模型目录上级的 `_vad/`。
+    fn create_vad(model_dir: &Path) -> Result<VoiceActivityDetector, String> {
+        let vad_path = model_dir
+            .parent()
+            .ok_or_else(|| "无法定位模型目录上级".to_string())?
+            .join(super::super::commands::stt_download::VAD_DIR)
+            .join(super::super::commands::stt_download::VAD_FILE);
+        if !vad_path.exists() {
+            return Err(format!(
+                "缺少离线识别依赖的 VAD 模型: {}（请重新下载该离线模型以自动附带）",
+                vad_path.display()
+            ));
+        }
+        let config = VadModelConfig {
+            silero_vad: SileroVadModelConfig {
+                model: Some(vad_path.to_string_lossy().to_string()),
+                threshold: 0.5,
+                min_silence_duration: 0.4,
+                min_speech_duration: 0.25,
+                window_size: 512,
+                max_speech_duration: 15.0,
+            },
+            ..Default::default()
+        };
+        VoiceActivityDetector::create(&config, 30.0)
+            .ok_or_else(|| "创建 VAD 失败".to_string())
+    }
 
-        Ok(Self {
-            recognizer,
-            stream,
-            resampler,
-            flv_demuxer,
-            aac_decoder: None,
-        })
+    /// 喂入一段 16kHz 重采样音频并推进识别，返回待 emit 的文本事件。
+    fn ingest(&mut self, resampled: &[f32]) -> Vec<EmittedText> {
+        match &mut self.engine {
+            Engine::Streaming { recognizer, stream } => {
+                stream.accept_waveform(16000, resampled);
+                while recognizer.is_ready(stream) {
+                    recognizer.decode(stream);
+                }
+                let mut out = Vec::new();
+                // 中间结果：文本变化时才发
+                if let Some(result) = recognizer.get_result(stream) {
+                    if !result.text.is_empty() && result.text != self.last_streaming_text {
+                        self.last_streaming_text.clone_from(&result.text);
+                        out.push(EmittedText { text: result.text.clone(), is_final: result.is_final });
+                    }
+                }
+                // endpoint 命中：发最终结果并复位
+                if recognizer.is_endpoint(stream) {
+                    if let Some(result) = recognizer.get_result(stream) {
+                        if !result.text.is_empty() {
+                            out.push(EmittedText { text: result.text, is_final: true });
+                        }
+                    }
+                    recognizer.reset(stream);
+                    self.last_streaming_text.clear();
+                }
+                out
+            }
+            Engine::Offline { recognizer, vad } => {
+                vad.accept_waveform(resampled);
+                let mut out = Vec::new();
+                // VAD 段完成 → 整句离线识别
+                while let Some(seg) = vad.front() {
+                    let stream = recognizer.create_stream();
+                    stream.accept_waveform(16000, seg.samples());
+                    recognizer.decode(&stream);
+                    if let Some(result) = stream.get_result() {
+                        if !result.text.trim().is_empty() {
+                            out.push(EmittedText { text: result.text, is_final: true });
+                        }
+                    }
+                    vad.pop();
+                }
+                out
+            }
+        }
+    }
+
+    /// tee 流切换：复位识别状态（音频时间轴由调用方归零）。
+    fn reset_stream(&mut self) {
+        match &mut self.engine {
+            Engine::Streaming { recognizer, stream } => {
+                recognizer.reset(stream);
+            }
+            Engine::Offline { vad, .. } => {
+                vad.clear();
+            }
+        }
+        self.last_streaming_text.clear();
+    }
+
+    /// 停止前排空引擎缓冲（离线模式 flush 尾段并识别）。
+    fn flush(&mut self) -> Vec<EmittedText> {
+        match &mut self.engine {
+            Engine::Streaming { recognizer, stream } => {
+                stream.input_finished();
+                while recognizer.is_ready(stream) {
+                    recognizer.decode(stream);
+                }
+                let mut out = Vec::new();
+                if let Some(result) = recognizer.get_result(stream) {
+                    if !result.text.is_empty() {
+                        out.push(EmittedText { text: result.text, is_final: true });
+                    }
+                }
+                out
+            }
+            Engine::Offline { recognizer, vad } => {
+                vad.flush();
+                let mut out = Vec::new();
+                while let Some(seg) = vad.front() {
+                    let stream = recognizer.create_stream();
+                    stream.accept_waveform(16000, seg.samples());
+                    recognizer.decode(&stream);
+                    if let Some(result) = stream.get_result() {
+                        if !result.text.trim().is_empty() {
+                            out.push(EmittedText { text: result.text, is_final: true });
+                        }
+                    }
+                    vad.pop();
+                }
+                out
+            }
+        }
     }
 }
 
@@ -433,7 +755,7 @@ fn run_pipeline(
     transcript_tx: mpsc::Sender<SttTranscript>,
     cancel: Arc<AtomicBool>,
 ) {
-    let mut state = match PipelineState::new(model_dir) {
+    let mut state = match PipelineState::new(Path::new(model_dir)) {
         Ok(s) => s,
         Err(e) => {
             log::error!("STT pipeline initialization failed: {e}");
@@ -472,7 +794,7 @@ fn run_pipeline(
                 state.flv_demuxer.reset();
                 // Lazy-rebuild the AAC decoder from the new stream's header.
                 state.aac_decoder = None;
-                state.recognizer.reset(&state.stream);
+                state.reset_stream();
                 last_transcript_text.clear();
                 log::info!("STT: tee stream switched, timeline reset (epoch {epoch})");
                 continue;
@@ -491,7 +813,14 @@ fn run_pipeline(
             let leftover = state.resampler.resample(&[], true);
             if !leftover.is_empty() {
                 audio_samples += leftover.len() as u64;
-                state.stream.accept_waveform(16000, &leftover);
+                for ev in state.ingest(&leftover) {
+                    let _ = transcript_tx.blocking_send(SttTranscript {
+                        text: ev.text,
+                        is_final: ev.is_final,
+                        audio_ts_ms: (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64,
+                        epoch,
+                    });
+                }
             }
             if let Some(new_resampler) = LinearResampler::create(current_sample_rate as i32, 16000) {
                 state.resampler = new_resampler;
@@ -557,45 +886,21 @@ fn run_pipeline(
                                     chunk_size, resampled.len());
                             }
 
-                            // Feed to sherpa-onnx and advance the audio timeline
+                            // Feed to the engine and advance the audio timeline
                             audio_samples += resampled.len() as u64;
-                            state.stream.accept_waveform(16000, &resampled);
-
-                            // Audio-stream timestamp for emitted captions (ms)
                             let audio_ts_ms = (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64;
-
-                            while state.recognizer.is_ready(&state.stream) {
-                                state.recognizer.decode(&state.stream);
-                            }
-
-                            // Get interim result
-                            if let Some(result) = state.recognizer.get_result(&state.stream) {
-                                if !result.text.is_empty() && result.text != last_transcript_text {
-                                    last_transcript_text.clone_from(&result.text);
-                                    let _ = transcript_tx.blocking_send(SttTranscript {
-                                        text: result.text.clone(),
-                                        is_final: result.is_final,
-                                        audio_ts_ms,
-                                        epoch,
-                                    });
+                            let events = state.ingest(&resampled);
+                            for ev in events {
+                                if ev.is_final {
+                                    log::info!("STT transcript (final): {}", ev.text);
                                 }
-                            }
-
-                            // Check endpoint
-                            if state.recognizer.is_endpoint(&state.stream) {
-                                if let Some(result) = state.recognizer.get_result(&state.stream) {
-                                    if !result.text.is_empty() {
-                                        last_transcript_text.clone_from(&result.text);
-                                        let _ = transcript_tx.blocking_send(SttTranscript {
-                                            text: result.text,
-                                            is_final: true,
-                                            audio_ts_ms,
-                                            epoch,
-                                        });
-                                    }
-                                }
-                                state.recognizer.reset(&state.stream);
-                                last_transcript_text.clear();
+                                last_transcript_text.clone_from(&ev.text);
+                                let _ = transcript_tx.blocking_send(SttTranscript {
+                                    text: ev.text,
+                                    is_final: ev.is_final,
+                                    audio_ts_ms,
+                                    epoch,
+                                });
                             }
                         }
                     }
@@ -643,26 +948,27 @@ fn run_pipeline(
         }
     }
 
-    // Flush remaining buffered audio
+    // Flush remaining buffered audio, then drain the engine
     if !f32_buffer.is_empty() {
         let resampled = state.resampler.resample(&f32_buffer, true);
         if !resampled.is_empty() {
             audio_samples += resampled.len() as u64;
-            state.stream.accept_waveform(16000, &resampled);
-            state.stream.input_finished();
-            while state.recognizer.is_ready(&state.stream) {
-                state.recognizer.decode(&state.stream);
-            }
-            if let Some(result) = state.recognizer.get_result(&state.stream) {
-                if !result.text.is_empty() {
-                    let _ = transcript_tx.blocking_send(SttTranscript {
-                        text: result.text,
-                        is_final: true,
-                        audio_ts_ms: (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64,
-                        epoch,
-                    });
-                }
+            for ev in state.ingest(&resampled) {
+                let _ = transcript_tx.blocking_send(SttTranscript {
+                    text: ev.text,
+                    is_final: ev.is_final,
+                    audio_ts_ms: (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64,
+                    epoch,
+                });
             }
         }
+    }
+    for ev in state.flush() {
+        let _ = transcript_tx.blocking_send(SttTranscript {
+            text: ev.text,
+            is_final: ev.is_final,
+            audio_ts_ms: (audio_samples * 1000 / TARGET_SAMPLE_RATE) as i64,
+            epoch,
+        });
     }
 }
