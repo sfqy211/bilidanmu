@@ -59,7 +59,7 @@ function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
       <SettingsChoice title="识别模型" value={settings.stt.modelId} options={options}
         disabled={!available || loading || models.length === 0} placeholder={loading ? "正在读取模型…" : "未检测到模型"}
         onChange={(modelId) => patchSettings({ stt: { ...settings.stt, modelId } })} />
-      <SettingsRange title="字幕同步偏移" description="负值提前，正值延迟；0 表示不调整。" value={settings.stt.syncDelayMs} min={-2000} max={2000} step={100} unit="ms"
+      <SettingsRange title="字幕同步偏移" description="字幕已按播放进度自动对齐，一般无需调整；仅在实测仍有固定偏移时微调（负值提前，正值延迟）。" value={settings.stt.syncDelayMs} min={-2000} max={2000} step={100} unit="ms"
         disabled={!available} onChange={(syncDelayMs) => patchSettings({ stt: { ...settings.stt, syncDelayMs } })} />
       <div className="settings-row-block">
         <div className="flex flex-wrap items-center justify-between gap-2">

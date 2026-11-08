@@ -459,7 +459,12 @@ export function DanmakuPage() {
       audioToggleMute();
     }
   });
-  const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(sttAvailable ? sttSettings.syncDelayMs : 0);
+  // 字幕对齐需要播放进度作为调度时钟（暂停时字幕冻结）
+  const getAudioCurrentTime = useCallback(() => audioRef.current?.currentTime ?? 0, []);
+  const { currentText: sttText, isSpeaking: sttSpeaking } = useSttTranscript(
+    sttAvailable ? sttSettings.syncDelayMs : 0,
+    getAudioCurrentTime
+  );
   // 跟随屏幕背景亮暗自动切主题（仅弹幕窗启用，采样在 Rust 侧）
   useBackgroundTheme();
 
