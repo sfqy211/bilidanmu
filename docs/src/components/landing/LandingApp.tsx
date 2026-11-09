@@ -13,7 +13,7 @@ const REPOSITORY = "https://github.com/sfqy211/bilidanmu";
 
 // 下载直链指向具体版本的 release 资产（Tauri 产物本名就带版本号，无需 CI 改名）。
 // 升级版本时由 scripts/bump-version.ps1 自动同步这一行，切勿只改别处忘了这里。
-const RELEASE_VERSION = "0.5.0";
+const RELEASE_VERSION = "0.5.1";
 const RELEASE_TAG = `app-v${RELEASE_VERSION}`;
 const RELEASE_ASSETS = `${REPOSITORY}/releases/download/${RELEASE_TAG}`;
 
