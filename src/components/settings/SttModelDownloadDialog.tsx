@@ -181,13 +181,22 @@ function ModelCard({
   return (
     <div className="rounded-lg border border-slate-200 p-3 dark:border-white/[0.06]">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-            {entry.description}
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+              {entry.description}
+            </span>
+            <span className="shrink-0 text-xs tabular-nums text-slate-400 dark:text-slate-500">
+              {formatSize(entry.sizeBytes)}
+            </span>
           </p>
-          <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">
-            {entry.id} · {formatSize(entry.sizeBytes)}
-          </p>
+          {/* 模型全名可能很长：单行截断，悬停由原生 title 显示完整名称 */}
+          <span
+            title={entry.id}
+            className="mt-1 block cursor-help truncate text-xs text-slate-400 dark:text-slate-500"
+          >
+            {entry.id}
+          </span>
         </div>
         {installed ? (
           <span className="inline-flex shrink-0 items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
