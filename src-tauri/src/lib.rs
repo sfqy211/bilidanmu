@@ -19,7 +19,6 @@ mod window_state;
 mod window_stealth;
 mod shortcuts;
 mod focus;
-mod ingest;
 mod screen_luminance;
 
 use bili::credential::BiliCredential;
@@ -89,8 +88,6 @@ pub struct AppState {
     /// 直播间的滚动上下文（最近弹幕/礼物/指标）。MCP server 跑在 Rust 进程内，
     /// 拿不到前端的 zustand store，所以 ws 客户端在此额外留一份
     pub live_context: std::sync::Mutex<ai::context::LiveContext>,
-    /// 弹幕共享上报客户端
-    pub ingest: std::sync::Arc<ingest::IngestClient>,
     /// AI 工具调用的待确认注册表：请求方在此等待用户在弹窗里的决定
     pub ai_pending_confirm: std::sync::Mutex<ai::confirm::ConfirmRegistry>,
     /// MCP server 句柄（None = 尚未启动）
@@ -168,8 +165,6 @@ pub fn run() {
             auto_like: TokioMutex::new(AutoLikeState { shutdown_tx: None }),
             db: Arc::new(StdMutex::new(None)),
             send_queue: Arc::new(TokioMutex::new(None)),
-            // 后台循环在 setup 阶段启动（此处是同步上下文，没有 Tokio runtime）
-            ingest: std::sync::Arc::new(ingest::IngestClient::new(proxy_client.clone())),
             proxy_client: proxy_client.clone(),
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
             stt_manager: Arc::new(TokioMutex::new(None)),
@@ -206,16 +201,6 @@ pub fn run() {
                 if let Ok(mut db) = state.db.lock() {
                     *db = Some(connection);
                 }
-            }
-
-            // 共享上报：启动后台刷盘与心跳循环。
-            // 必须在 setup 内启动 —— AppState 构造发生在同步上下文，
-            // 那里没有 Tokio runtime，直接调用 tokio::spawn 会 panic。
-            {
-                let ingest = app.state::<AppState>().ingest.clone();
-                tauri::async_runtime::spawn(async move {
-                    ingest.run_loops().await;
-                });
             }
 
             // 数据库就绪后按设置注册全局快捷键（未绑定的动作跳过）
@@ -425,10 +410,6 @@ pub fn run() {
             commands::auth::switch_to_anonymous,
             commands::auth::refresh_account_info,
             commands::auth::refresh_cookie,
-            commands::ingest::ingest_stats,
-            commands::ingest::ingest_test_connection,
-            commands::ingest::ingest_apply_config,
-            commands::ingest::ingest_leave_session,
             commands::room::search_room,
             commands::room::add_room,
             commands::room::remove_room,

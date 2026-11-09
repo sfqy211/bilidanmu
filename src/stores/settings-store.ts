@@ -140,12 +140,6 @@ export const defaultSettings: Settings = {
   closeBehavior: "ask",
   silentStart: false,
   showAvatars: true,
-  ingest: {
-    enabled: false,
-    centerUrl: "",
-    nodeToken: "",
-    nodeId: "",
-  },
   shortcuts: {
     toggleWindow: "Ctrl+Alt+D",
     toggleInputOnly: "Ctrl+Alt+B",

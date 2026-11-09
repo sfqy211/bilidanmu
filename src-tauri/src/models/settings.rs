@@ -556,38 +556,6 @@ pub struct Settings {
     /// 在直播间列表、添加主播、账号与视频评论中展示头像
     #[serde(default)]
     pub show_avatars: bool,
-    /// 弹幕共享上报（把本机采集到的弹幕推送到中心归档服务）
-    #[serde(default)]
-    pub ingest: IngestSetting,
-}
-
-/// 弹幕共享上报配置。中心地址与节点 Token 由中心管理后台创建并分发。
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IngestSetting {
-    /// 是否开启上报
-    #[serde(default)]
-    pub enabled: bool,
-    /// 中心服务地址，如 https://api.example.com
-    #[serde(default)]
-    pub center_url: String,
-    /// 节点 Token（中心后台创建时返回）
-    #[serde(default)]
-    pub node_token: String,
-    /// 本节点标识，需与中心后台创建时填写的 nodeId 一致
-    #[serde(default)]
-    pub node_id: String,
-}
-
-impl Default for IngestSetting {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            center_url: String::new(),
-            node_token: String::new(),
-            node_id: String::new(),
-        }
-    }
 }
 
 fn default_close_behavior() -> String {
@@ -656,7 +624,6 @@ impl Default for Settings {
             close_behavior: default_close_behavior(),
             silent_start: false,
             show_avatars: true,
-            ingest: IngestSetting::default(),
         }
     }
 }

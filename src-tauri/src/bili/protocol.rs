@@ -187,7 +187,6 @@ pub(crate) fn parse_live_status(command: &Value, room_id: u64, event_type: &str,
 
     Some(DanmakuEvent {
         id: format!("{event_type}-{room_id}-{timestamp}-{nanos}"),
-        message_id: None,
         room_id,
         event_type: event_type.to_string(),
         username: String::new(),
@@ -312,12 +311,6 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
 
     Some(DanmakuEvent {
         id,
-        // B 站弹幕唯一 ID（extra.id_str），用于跨节点去重
-        message_id: extra
-            .as_ref()
-            .and_then(|e| e.get("id_str"))
-            .and_then(Value::as_str)
-            .map(ToString::to_string),
         room_id,
         event_type: "danmaku".to_string(),
         username,
@@ -356,19 +349,15 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let count = data.get("num").and_then(value_as_u64).unwrap_or(1) as u32;
     let action = data.get("action").and_then(Value::as_str).unwrap_or("送出");
     let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
-    // B 站下发的礼物唯一 ID（tid 与 rnd 同义）。取不到时为空，不参与共享上报。
-    let real_id = data
-        .get("tid")
+    let id = data
+        .get("rnd")
         .and_then(Value::as_str)
         .map(ToString::to_string)
-        .or_else(|| data.get("rnd").and_then(Value::as_str).map(ToString::to_string));
-    let id = real_id
-        .clone()
+        .or_else(|| data.get("tid").and_then(Value::as_str).map(ToString::to_string))
         .unwrap_or_else(|| format!("gift-{room_id}-{uid}-{timestamp}"));
 
     Some(DanmakuEvent {
         id,
-        message_id: real_id,
         room_id,
         event_type: "gift".to_string(),
         username,
@@ -467,13 +456,8 @@ fn parse_gift_message_v2(command: &Value, room_id: u64) -> Vec<DanmakuEvent> {
             let gift_name = item.get_str(2).unwrap_or("未知礼物").to_string();
             let count = item.get_u64(3).unwrap_or(1) as u32;
             let action = item.get_str(18).unwrap_or("投喂");
-            // V2 礼物唯一 ID：gift_item.tid（protobuf 字段 9）
-            let real_id = item.get_str(9).map(str::to_string);
             DanmakuEvent {
-                id: real_id
-                    .clone()
-                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-                message_id: real_id,
+                id: uuid::Uuid::new_v4().to_string(),
                 room_id,
                 event_type: "gift".to_string(),
                 username: username.clone(),
@@ -537,7 +521,6 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
 
     Some(DanmakuEvent {
         id: format!("interact-{room_id}-{uid}-{timestamp}"),
-        message_id: None,
         room_id,
         event_type: "entry".to_string(),
         username,
@@ -729,7 +712,6 @@ fn parse_interact_word_v2(command: &Value, room_id: u64) -> Option<DanmakuEvent>
 
     Some(DanmakuEvent {
         id: format!("interact-{room_id}-{uid}-{timestamp}"),
-        message_id: None,
         room_id,
         event_type: "entry".to_string(),
         username: uname,
@@ -854,14 +836,12 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     // id 在两种下发里可能是数字也可能是数字字符串（JPN 样本即字符串）。
     // 统一归一化，否则同一笔 SC 的两种下发会拿到不同 id，去重失效。
     // 兜底 id 带上价格：同一用户同一秒内发两笔不同金额的 SC 不应互相吞掉。
-    let real_id = data.get("id").and_then(value_as_id_string);
-    let id = real_id.clone().unwrap_or_else(|| {
+    let id = data.get("id").and_then(value_as_id_string).unwrap_or_else(|| {
         format!("sc-{room_id}-{uid}-{timestamp}-{}", price.unwrap_or(0))
     });
 
     Some(DanmakuEvent {
         id,
-        message_id: real_id,
         room_id,
         event_type: "superChat".to_string(),
         username,
@@ -928,13 +908,10 @@ fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let timestamp = data.get("start_time").and_then(value_as_u64)
         .or_else(|| data.get("end_time").and_then(value_as_u64))
         .unwrap_or(0);
-    // 舰长无原生消息 ID，用 uid+开通时间+等级构造确定性键（各节点算出的值一致）
     let id = format!("guard-{room_id}-{uid}-{timestamp}");
-    let real_id = Some(format!("guard-{uid}-{timestamp}-{guard_level}"));
 
     Some(DanmakuEvent {
         id,
-        message_id: real_id,
         room_id,
         event_type: "guard".to_string(),
         username,
@@ -983,7 +960,6 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
 
     Some(DanmakuEvent {
         id: format!("like-{room_id}-{uid}-{timestamp}"),
-        message_id: None,
         room_id,
         event_type: "like".to_string(),
         username,
