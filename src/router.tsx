@@ -1,18 +1,51 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import App from "@/App";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { RoomPage } from "@/pages/RoomPage";
-import { RoomAddPage } from "@/pages/RoomAddPage";
-import { ListenHomePage } from "@/pages/ListenHomePage";
-import { ListenFavPage } from "@/pages/ListenFavPage";
-import { VideoAddPage } from "@/pages/VideoAddPage";
-import { VideoPlayerPage } from "@/pages/VideoPlayerPage";
-import { VideoCommentsPage } from "@/pages/VideoCommentsPage";
-import { WatchLaterPage } from "@/pages/WatchLaterPage";
-import { AccountPage } from "@/pages/AccountPage";
-import { AIPage } from "@/pages/AIPage";
-import { SettingsPage } from "@/pages/SettingsPage";
-import { DanmakuPage } from "@/pages/DanmakuPage";
+
+/** 路由级懒加载：每个页面拆成独立 chunk，首屏只加载当前路由所需代码。
+ *  在 Tauri 本地资源下加载极快（无网络往返），主要用于缩短冷启动解析时间。 */
+const RoomPage = lazy(() => import("@/pages/RoomPage").then((m) => ({ default: m.RoomPage })));
+const RoomAddPage = lazy(() =>
+  import("@/pages/RoomAddPage").then((m) => ({ default: m.RoomAddPage }))
+);
+const ListenHomePage = lazy(() =>
+  import("@/pages/ListenHomePage").then((m) => ({ default: m.ListenHomePage }))
+);
+const ListenFavPage = lazy(() =>
+  import("@/pages/ListenFavPage").then((m) => ({ default: m.ListenFavPage }))
+);
+const VideoAddPage = lazy(() =>
+  import("@/pages/VideoAddPage").then((m) => ({ default: m.VideoAddPage }))
+);
+const VideoPlayerPage = lazy(() =>
+  import("@/pages/VideoPlayerPage").then((m) => ({ default: m.VideoPlayerPage }))
+);
+const VideoCommentsPage = lazy(() =>
+  import("@/pages/VideoCommentsPage").then((m) => ({ default: m.VideoCommentsPage }))
+);
+const WatchLaterPage = lazy(() =>
+  import("@/pages/WatchLaterPage").then((m) => ({ default: m.WatchLaterPage }))
+);
+const AccountPage = lazy(() =>
+  import("@/pages/AccountPage").then((m) => ({ default: m.AccountPage }))
+);
+const AIPage = lazy(() => import("@/pages/AIPage").then((m) => ({ default: m.AIPage })));
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
+const DanmakuPage = lazy(() =>
+  import("@/pages/DanmakuPage").then((m) => ({ default: m.DanmakuPage }))
+);
+
+/** 懒加载占位：本地资源加载通常在几十毫秒内，仅避免白屏闪烁。 */
+function RouteFallback() {
+  return <div className="flex h-full items-center justify-center text-sm text-ink-muted" />;
+}
+
+function withSuspense(node: ReactNode) {
+  return <Suspense fallback={<RouteFallback />}>{node}</Suspense>;
+}
 
 export const router = createBrowserRouter([
   {
@@ -24,21 +57,24 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: "/rooms", element: <RoomPage /> },
-          { path: "/rooms/add", element: <RoomAddPage /> },
-          { path: "/accounts", element: <AccountPage /> },
-          { path: "/ai", element: <AIPage /> },
-          { path: "/settings", element: <SettingsPage /> },
-          { path: "/listen", element: <ListenHomePage /> },
-          { path: "/listen/add", element: <VideoAddPage /> },
+          { path: "/rooms", element: withSuspense(<RoomPage />) },
+          { path: "/rooms/add", element: withSuspense(<RoomAddPage />) },
+          { path: "/accounts", element: withSuspense(<AccountPage />) },
+          { path: "/ai", element: withSuspense(<AIPage />) },
+          { path: "/settings", element: withSuspense(<SettingsPage />) },
+          { path: "/listen", element: withSuspense(<ListenHomePage />) },
+          { path: "/listen/add", element: withSuspense(<VideoAddPage />) },
           { path: "/listen/search", element: <Navigate to="/listen/add" replace /> },
-          { path: "/listen/watchlater", element: <WatchLaterPage /> },
-          { path: "/listen/fav/:mediaId", element: <ListenFavPage /> },
-          { path: "/listen/video/:bvid", element: <VideoPlayerPage /> },
-          { path: "/listen/video/:bvid/comments", element: <VideoCommentsPage /> },
-        ]
+          { path: "/listen/watchlater", element: withSuspense(<WatchLaterPage />) },
+          { path: "/listen/fav/:mediaId", element: withSuspense(<ListenFavPage />) },
+          { path: "/listen/video/:bvid", element: withSuspense(<VideoPlayerPage />) },
+          {
+            path: "/listen/video/:bvid/comments",
+            element: withSuspense(<VideoCommentsPage />),
+          },
+        ],
       },
-      { path: "/danmaku/:roomId", element: <DanmakuPage /> }
-    ]
-  }
+      { path: "/danmaku/:roomId", element: withSuspense(<DanmakuPage />) },
+    ],
+  },
 ]);
