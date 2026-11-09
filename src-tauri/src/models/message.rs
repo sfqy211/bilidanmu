@@ -11,6 +11,11 @@ pub struct Medal {
 #[serde(rename_all = "camelCase")]
 pub struct DanmakuEvent {
     pub id: String,
+    /// B 站下发的消息唯一 ID，用于多节点共享上报时跨机去重。
+    /// 弹幕取 `info[0][15].extra.id_str`；礼物取 `tid`；SC 取 `data.id`。
+    /// 取不到真实 ID 的事件为 None，不参与共享上报。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
     pub room_id: u64,
     #[serde(rename = "type")]
     pub event_type: String,

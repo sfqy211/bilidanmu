@@ -188,6 +188,16 @@ async fn run_connection(
             context.reset_for_room(room_id);
             context.connected = true;
         }
+
+        // 共享上报：注册/加入中心会话。以主播 uid 作为会话归并键的主要部分，
+        // 多台机器录同一场会落到中心同一个 Session 上。
+        let ingest = state.ingest.clone();
+        let up_uid = up_id.to_string();
+        let rid = real_room_id;
+        tauri::async_runtime::spawn(async move {
+            // 标题由中心侧按房间号补全，here 传 None 即可
+            ingest.ensure_session(&up_uid, rid, None, None, None).await;
+        });
     }
     writer
         .send(Message::Binary(heartbeat_packet()?.into()))
@@ -697,6 +707,15 @@ fn push_live_context(app: &AppHandle, event: &crate::models::message::DanmakuEve
         if let Ok(mut context) = state.live_context.lock() {
             context.push(event);
         }
+
+        // 共享上报：所有事件都经过这里，统一入队。
+        // enqueue 内部会过滤掉没有 B 站真实 message_id 的事件（进场/点赞等），
+        // 未启用上报时立即返回，不影响原有链路。
+        let ingest = state.ingest.clone();
+        let event = event.clone();
+        tauri::async_runtime::spawn(async move {
+            ingest.enqueue(&event).await;
+        });
     }
 }
 

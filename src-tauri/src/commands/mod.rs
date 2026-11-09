@@ -7,6 +7,7 @@ pub mod auth;
 pub mod danmaku;
 pub mod download;
 pub mod gift;
+pub mod ingest;
 pub mod log;
 pub mod message_template;
 pub mod proxy;

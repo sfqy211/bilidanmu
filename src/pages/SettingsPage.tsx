@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { HardDrive, Headphones, Info, Keyboard, MessageSquare, Palette, SlidersHorizontal, Volume2 } from "lucide-react";
+import { HardDrive, Headphones, Info, Keyboard, MessageSquare, Palette, Share2, SlidersHorizontal, Volume2 } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
 import { defaultSettings, useSettingsStore } from "@/stores/settings-store";
 import type { Settings } from "@/types/bilibili";
@@ -13,6 +13,7 @@ import { StorageSettings } from "@/components/settings/StorageSettings";
 import { ShortcutsSettings } from "@/components/settings/ShortcutsSettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { IngestSettings } from "@/components/settings/IngestSettings";
 
 const SETTINGS_CATEGORIES = [
   // resetKeys：本页「重置为默认设置」会还原的顶层字段，只影响本页
@@ -29,6 +30,8 @@ const SETTINGS_CATEGORIES = [
     resetKeys: ["listen"] },
   { value: "storage", label: "存储", description: "消息保留与图片缓存", icon: HardDrive, component: StorageSettings,
     resetKeys: ["cache"] },
+  { value: "ingest", label: "共享上报", description: "把弹幕推送到中心归档服务", icon: Share2, component: IngestSettings,
+    resetKeys: ["ingest"] },
   { value: "about", label: "关于", description: "版本、更新与帮助", icon: Info, component: AboutSettings,
     resetKeys: [] },
 ] satisfies Array<{

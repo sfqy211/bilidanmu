@@ -397,6 +397,25 @@ export interface Settings {
   silentStart: boolean;
   /** 在直播间列表、添加主播、账号与视频评论中展示头像 */
   showAvatars: boolean;
+  /** 弹幕共享上报（把本机采集的弹幕推送到中心归档服务） */
+  ingest: IngestSetting;
+}
+
+export interface IngestSetting {
+  enabled: boolean;
+  centerUrl: string;
+  nodeToken: string;
+  nodeId: string;
+}
+
+export interface IngestStats {
+  enabled: boolean;
+  connected: boolean;
+  queued: number;
+  sent: number;
+  dropped: number;
+  lastError?: string | null;
+  activeSessionId?: number | null;
 }
 
 export type VisualFont = "system" | "yahei" | "dengxian" | "serif";
