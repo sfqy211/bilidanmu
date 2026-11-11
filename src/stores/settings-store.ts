@@ -75,7 +75,7 @@ export const defaultSettings: Settings = {
     scInDanmaku: true,
     plainPriceMessages: false,
     showGiftIcons: true,
-    // 与 Rust PriceColors::default() 保持一致的六档 SC + 礼物 + 三档舰长配色
+    // 与 Rust PriceColors::default() 保持一致的六档金额色 + 三档舰长配色
     priceColors: {
       scTier1: "#2A60B2",
       scTier2: "#427D9A",
@@ -83,7 +83,6 @@ export const defaultSettings: Settings = {
       scTier4: "#D4464A",
       scTier5: "#9C3D9C",
       scTier6: "#B01F1F",
-      gift: "#B45309",
       guardGovernor: "#F77102",
       guardAdmiral: "#AA3CDD",
       guardCaptain: "#006FE6",

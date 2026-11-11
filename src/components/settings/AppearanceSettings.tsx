@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { themePresets } from "@/lib/brand-theme";
-import { DEFAULT_PRICE_COLORS, normalizePriceColors, SC_PRICE_TIERS } from "@/lib/price-chip";
+import { normalizePriceColors, PRICE_TIERS } from "@/lib/price-chip";
 import { FONT_OPTIONS, isHexColor, resolveCardColor, resolveVisualProfile } from "@/lib/visual-theme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -147,7 +147,7 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
   </div>;
 }
 
-/** 金额档位配色：醒目留言按金额六档，礼物与舰长按类型/等级 */
+/** 金额档位配色：醒目留言与礼物按金额六档，大航海按等级 */
 function PriceColorSettings({ settings, patchSettings }: SettingsPanelProps) {
   const colors = normalizePriceColors(settings.appearance.priceColors);
   const update = (key: keyof PriceColors, value: string) => {
@@ -162,18 +162,17 @@ function PriceColorSettings({ settings, patchSettings }: SettingsPanelProps) {
   // 同一页面放两个重置入口容易让人以为它们作用范围不同
   return <SettingsGroup
     title="金额档位配色"
-    description="醒目留言按金额自动匹配档位，礼物与舰长按类型取色。点击色块即可调色，这些颜色决定弹幕窗里价格胶囊与正文的着色。"
+    description="醒目留言与礼物都按金额自动匹配档位，大航海按等级取色。点击色块即可调色，这些颜色决定弹幕窗里价格胶囊与正文的着色。"
   >
     <div className="settings-row-block">
-      <ColorSwatchRow title="醒目留言">
-        {SC_PRICE_TIERS.map((tier) => (
+      <ColorSwatchRow title="醒目留言与礼物">
+        {PRICE_TIERS.map((tier) => (
           <ColorSwatch key={tier.key} label={tier.label} value={colors[tier.key]}
             onChange={(value) => update(tier.key as keyof PriceColors, value)} />
         ))}
       </ColorSwatchRow>
-      <ColorSwatchRow title="礼物与大航海">
+      <ColorSwatchRow title="大航海">
         {([
-          { key: "gift", label: "礼物" },
           { key: "guardGovernor", label: "总督" },
           { key: "guardAdmiral", label: "提督" },
           { key: "guardCaptain", label: "舰长" },

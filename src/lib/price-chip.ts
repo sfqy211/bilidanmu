@@ -16,14 +16,13 @@ export const DEFAULT_PRICE_COLORS: PriceColors = {
   scTier4: "#D4464A",
   scTier5: "#9C3D9C",
   scTier6: "#B01F1F",
-  gift: "#B45309",
   guardGovernor: "#F77102",
   guardAdmiral: "#AA3CDD",
   guardCaptain: "#006FE6",
 };
 
-/** 六档醒目留言（按金额升序），供解析与设置页共用 */
-export const SC_PRICE_TIERS = [
+/** 六档金额配色（按人民币升序），醒目留言与礼物共用；设置页与解析共用同一份 */
+export const PRICE_TIERS = [
   { key: "scTier1", label: "≤ ¥30", max: 30 },
   { key: "scTier2", label: "¥31 – ¥50", max: 50 },
   { key: "scTier3", label: "¥51 – ¥100", max: 100 },
@@ -32,9 +31,18 @@ export const SC_PRICE_TIERS = [
   { key: "scTier6", label: "> ¥1000", max: Number.POSITIVE_INFINITY },
 ] as const satisfies readonly { key: keyof PriceColors; label: string; max: number }[];
 
-/** 补全缺失档位：用户只配过部分颜色时，其余档位取默认值 */
+/**
+ * 补全缺失档位：用户只配过部分颜色时，其余档位取默认值。
+ *
+ * 按默认值的键逐个取值（而不是直接 spread incoming），
+ * 这样已废弃的旧键（如曾经独立的 `gift`）不会残留在对象里被反复写回。
+ */
 export function normalizePriceColors(incoming?: Partial<PriceColors>): PriceColors {
-  return { ...DEFAULT_PRICE_COLORS, ...(incoming ?? {}) };
+  const merged = {} as PriceColors;
+  for (const key of Object.keys(DEFAULT_PRICE_COLORS) as (keyof PriceColors)[]) {
+    merged[key] = incoming?.[key] ?? DEFAULT_PRICE_COLORS[key];
+  }
+  return merged;
 }
 
 /** #RGB / #RRGGBB 归一化，非法值返回 undefined */
@@ -51,17 +59,28 @@ function formatYuan(yuan: number): string {
   return yuan.toFixed(2);
 }
 
-/** 醒目留言按金额落到六档，取对应配置色 */
-function scTierColor(price: number, colors: PriceColors): string {
-  const tier = SC_PRICE_TIERS.find((item) => price <= item.max) ?? SC_PRICE_TIERS[SC_PRICE_TIERS.length - 1];
+/**
+ * 消息实付人民币金额：醒目留言的 price 直传人民币；
+ * 礼物与舰长的 price 是金瓜子单价，需乘数量后按 1000:1 换算。
+ */
+function messageYuan(item: DanmakuMessage): number {
+  const price = item.price ?? 0;
+  if (item.type === "superChat") return price;
+  return (price * (item.count ?? 1)) / BEANS_PER_YUAN;
+}
+
+/** 按金额落到六档，取对应配置色 */
+function amountTierColor(yuan: number, colors: PriceColors): string {
+  const tier = PRICE_TIERS.find((item) => yuan <= item.max) ?? PRICE_TIERS[PRICE_TIERS.length - 1];
   return normalizeHexColor(colors[tier.key]) ?? DEFAULT_PRICE_COLORS[tier.key];
 }
 
 /**
  * 消息强调色：醒目留言、礼物、舰长共用一套价格胶囊。
  *
- * 颜色取自用户配置的 `appearance.priceColors`（设置页「外观」可改），
- * SC 按金额落档，礼物与舰长按类型/等级取色。
+ * 颜色取自用户配置的 `appearance.priceColors`（设置页「外观」可改）。
+ * 醒目留言与礼物合并为同一套金额档位——礼物不再有专属色，
+ * 于是 ¥100 的礼物与 ¥100 的 SC 同色；大航海仍按等级取色。
  */
 export function resolveMessageAccent(
   item: DanmakuMessage,
@@ -70,9 +89,12 @@ export function resolveMessageAccent(
   const colors = normalizePriceColors(priceColors);
   switch (item.type) {
     case "superChat":
-      return scTierColor(item.price ?? 0, colors);
+      return amountTierColor(messageYuan(item), colors);
     case "gift":
-      return normalizeHexColor(colors.gift) ?? DEFAULT_PRICE_COLORS.gift;
+      // 免费礼物/下发的 price 缺失时不给强调色：落第一档会把正文整段染蓝，
+      // 而它本来连价格胶囊都不显示，着色只会误导
+      if (!item.price) return undefined;
+      return amountTierColor(messageYuan(item), colors);
     case "guard":
       switch (item.guardLevel) {
         case 1:
@@ -100,6 +122,5 @@ export function formatMessagePrice(item: DanmakuMessage): string | undefined {
   if (item.type === "superChat") {
     return `¥${item.price}`;
   }
-  const total = item.price * (item.count ?? 1);
-  return `¥${formatYuan(total / BEANS_PER_YUAN)}`;
+  return `¥${formatYuan(messageYuan(item))}`;
 }

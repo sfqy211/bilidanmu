@@ -153,26 +153,27 @@ pub struct AppearanceSetting {
     pub danmaku_window: DanmakuWindowStyle,
 }
 
-/// 金额档位配色：醒目留言按金额分六档，礼物与舰长按类型/等级单独配色。
+/// 金额档位配色：醒目留言与礼物共用金额六档，大航海按等级单独配色。
 /// 所有字段都带 serde 默认值——旧持久化数据没有这个对象时整体取默认，
 /// 局部缺字段时只回退该档，不会把整份设置读失败。
+///
+/// 早期版本有一档独立 `gift` 色（已删除）。旧库里残留的该键会被 serde 忽略
+/// （本结构未启用 `deny_unknown_fields`），读取不受影响。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct PriceColors {
-    /// 醒目留言 ≤30 元
+    /// 醒目留言与礼物 ≤30 元
     pub sc_tier1: String,
-    /// 醒目留言 31–50 元
+    /// 醒目留言与礼物 31–50 元
     pub sc_tier2: String,
-    /// 醒目留言 51–100 元
+    /// 醒目留言与礼物 51–100 元
     pub sc_tier3: String,
-    /// 醒目留言 101–500 元
+    /// 醒目留言与礼物 101–500 元
     pub sc_tier4: String,
-    /// 醒目留言 501–1000 元
+    /// 醒目留言与礼物 501–1000 元
     pub sc_tier5: String,
-    /// 醒目留言 >1000 元
+    /// 醒目留言与礼物 >1000 元
     pub sc_tier6: String,
-    /// 礼物（不限金额）
-    pub gift: String,
     /// 总督
     pub guard_governor: String,
     /// 提督
@@ -190,7 +191,6 @@ impl Default for PriceColors {
             sc_tier4: "#D4464A".into(),
             sc_tier5: "#9C3D9C".into(),
             sc_tier6: "#B01F1F".into(),
-            gift: "#B45309".into(),
             guard_governor: "#F77102".into(),
             guard_admiral: "#AA3CDD".into(),
             guard_captain: "#006FE6".into(),
@@ -624,6 +624,38 @@ impl Default for Settings {
             close_behavior: default_close_behavior(),
             silent_start: false,
             show_avatars: true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_price_colors_with_legacy_gift_key_still_load() {
+        // 回归：早期版本有一档独立的 `gift` 色，现已并入金额档位。
+        // 旧库里残留该键时必须能正常反序列化（serde 会忽略未知字段），
+        // 否则老用户升级后设置页直接读失败。
+        // 注意用 r##"..."##：JSON 里的 "#111111" 会被 r#"..."# 的 "# 提前闭合
+        let raw = r##"{
+            "scTier1": "#111111", "scTier2": "#222222", "scTier3": "#333333",
+            "scTier4": "#444444", "scTier5": "#555555", "scTier6": "#666666",
+            "gift": "#B45309",
+            "guardGovernor": "#777777", "guardAdmiral": "#888888", "guardCaptain": "#999999"
+        }"##;
+        let colors: PriceColors = serde_json::from_str(raw).expect("旧数据应能读取");
+        assert_eq!(colors.sc_tier1, "#111111");
+        assert_eq!(colors.guard_captain, "#999999");
+    }
+
+    #[test]
+    fn price_colors_round_trip_has_no_gift_key() {
+        // 新结构序列化后不应再写出已废弃的 gift 键
+        let json = serde_json::to_value(PriceColors::default()).unwrap();
+        assert!(json.get("gift").is_none(), "gift 键应已移除");
+        for key in ["scTier1", "scTier6", "guardGovernor", "guardAdmiral", "guardCaptain"] {
+            assert!(json.get(key).is_some(), "{key} 缺失");
         }
     }
 }

@@ -277,22 +277,20 @@ export interface DanmakuWindowStyle {
   dockIndicator?: boolean;
 }
 
-/** 金额档位配色：醒目留言按金额分六档，礼物与舰长按类型/等级单独配色 */
+/** 金额档位配色：醒目留言与礼物共用金额六档，大航海按等级单独配色 */
 export interface PriceColors {
-  /** 醒目留言 ≤30 元 */
+  /** 醒目留言与礼物 ≤30 元 */
   scTier1: string;
-  /** 醒目留言 31–50 元 */
+  /** 醒目留言与礼物 31–50 元 */
   scTier2: string;
-  /** 醒目留言 51–100 元 */
+  /** 醒目留言与礼物 51–100 元 */
   scTier3: string;
-  /** 醒目留言 101–500 元 */
+  /** 醒目留言与礼物 101–500 元 */
   scTier4: string;
-  /** 醒目留言 501–1000 元 */
+  /** 醒目留言与礼物 501–1000 元 */
   scTier5: string;
-  /** 醒目留言 >1000 元 */
+  /** 醒目留言与礼物 >1000 元 */
   scTier6: string;
-  /** 礼物（不限金额） */
-  gift: string;
   /** 总督 */
   guardGovernor: string;
   /** 提督 */

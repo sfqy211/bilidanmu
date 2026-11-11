@@ -220,6 +220,12 @@ fn danmaku_command(username: Option<&str>, content: Option<&str>) -> Value {
 }
 
 fn gift_command(name: &str, uid: u64, seq: u64) -> Value {
+    gift_command_with_price(name, uid, seq, 100, None)
+}
+
+/// price 是金瓜子单价（1000 = ¥1）。手动注入时按金额挑一档，
+/// 才能验证「礼物按金额自动配色」在各档的表现。
+fn gift_command_with_price(name: &str, uid: u64, seq: u64, price: u64, count: Option<u64>) -> Value {
     json!({
         "cmd": "SEND_GIFT",
         "data": {
@@ -227,11 +233,11 @@ fn gift_command(name: &str, uid: u64, seq: u64) -> Value {
             "uid": uid,
             "face": "",
             "giftName": if seq % 2 == 0 { "小花花" } else { "辣条" },
-            "num": 1 + (seq % 3),
+            "num": count.unwrap_or(1 + (seq % 3)),
             "action": "送出",
             "timestamp": super::unix_secs(),
             "rnd": format!("mock-gift-{seq}"),
-            "price": 100,
+            "price": price,
             "guard_level": 0,
             "medal_info": mock_medal(),
         },
@@ -362,13 +368,27 @@ fn like_command(username: Option<&str>) -> Value {
 }
 
 /// 手动注入单条事件（控制面 /event 用），类型由 kind 显式指定
-fn manual_command(kind: &str, username: Option<&str>, content: Option<&str>, price: Option<u64>) -> Option<Value> {
+fn manual_command(
+    kind: &str,
+    username: Option<&str>,
+    content: Option<&str>,
+    price: Option<u64>,
+    count: Option<u64>,
+) -> Option<Value> {
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     let (uid, default_name) = mock_user(seq);
     let name = username.unwrap_or(default_name);
     match kind {
         "danmaku" => Some(danmaku_command(username, content)),
-        "gift" => Some(gift_command(name, uid, seq)),
+        // /event {"type":"gift","price":128000,"count":1} 可指定单价与数量，
+        // 用来验证礼物按金额落档的配色
+        "gift" => Some(gift_command_with_price(
+            name,
+            uid,
+            seq,
+            price.unwrap_or(100),
+            count,
+        )),
         "superChat" => Some(sc_command(name, uid, seq, content, price.unwrap_or(30))),
         "guard" => Some(guard_command(name, uid, seq)),
         "entry" => Some(entry_command(username)),
@@ -705,7 +725,13 @@ async fn apply_control(state: &Arc<StdMutex<MockState>>, path: &str, payload: &V
                 publish(sc_jpn_command(name, uid, seq, content, "これは日訳です", price));
                 return json!({ "ok": true, "type": kind, "price": price });
             }
-            match manual_command(kind, get_str(payload, "username"), get_str(payload, "content"), price) {
+            match manual_command(
+                kind,
+                get_str(payload, "username"),
+                get_str(payload, "content"),
+                price,
+                get_u64(payload, "count"),
+            ) {
                 Some(command) => {
                     publish(command);
                     json!({ "ok": true, "type": kind })
