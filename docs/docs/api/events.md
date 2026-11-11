@@ -28,7 +28,7 @@ interface DanmakuMessage {
   username: string
   content: string
   contentTrans?: string      // 醒目留言的机翻文案
-  timestamp: number
+  timestamp: number          // Unix 秒（各命令原始单位不一，Rust 侧已归一化）
   avatar?: string
   medal?: Medal
   wealthLevel?: number

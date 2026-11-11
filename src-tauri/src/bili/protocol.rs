@@ -172,12 +172,17 @@ pub fn parse_danmaku_command(command: &Value, room_id: u64) -> Option<DanmakuEve
 /// 开播/下播系统行构造（ws_client 处理 STOP_LIVE_ROOM_LIST 时复用）
 pub(crate) fn parse_live_status(command: &Value, room_id: u64, event_type: &str, content: &str) -> Option<DanmakuEvent> {
     let timestamp = match event_type {
-        // 文档规定 live_time 在根级（unix 秒）
-        "live" => command.get("live_time").and_then(value_as_u64).unwrap_or_else(system_unix_now),
+        // 文档规定 live_time 在根级（unix 秒）；过一遍归一化是幂等的，防上游改单位
+        "live" => command
+            .get("live_time")
+            .and_then(value_as_u64)
+            .map(to_unix_seconds)
+            .unwrap_or_else(system_unix_now),
+        // send_time 是服务器发送时间，按毫秒下发
         _ => command
             .get("send_time")
             .and_then(value_as_u64)
-            .map(|millis| millis / 1000)
+            .map(to_unix_seconds)
             .unwrap_or_else(system_unix_now),
     };
     let nanos = std::time::SystemTime::now()
@@ -254,8 +259,21 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         .or_else(|| user_info.get(1).and_then(Value::as_str).map(ToString::to_string))
         .unwrap_or_default();
 
-    let timestamp = basic.get(4).and_then(value_as_u64).unwrap_or(0);
-    let id = basic.get(5).and_then(value_as_u64).unwrap_or(timestamp).to_string();
+    // info[0][4] 是毫秒时间戳（文档与抓包一致，如 1723979200649），
+    // 而事件契约里的 timestamp 一律是秒。id 保留毫秒原值，
+    // 否则同一秒内的多条弹幕会撞 id（前端虚拟滚动 getItemKey 要求唯一）。
+    let raw_timestamp = basic
+        .get(4)
+        .and_then(value_as_u64)
+        .filter(|&value| value > 0)
+        // 极低概率缺少 info[0][4]，退化到根级 send_time（同样按毫秒下发）
+        .or_else(|| command.get("send_time").and_then(value_as_u64))
+        .unwrap_or(0);
+    let timestamp = match to_unix_seconds(raw_timestamp) {
+        0 => system_unix_now(),
+        seconds => seconds,
+    };
+    let id = basic.get(5).and_then(value_as_u64).unwrap_or(raw_timestamp).to_string();
     let color = basic.get(3).and_then(value_as_u64).unwrap_or(16_777_215) as u32;
     let dm_type = basic.get(12).and_then(value_as_u64).unwrap_or(0) as u8;
     let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
@@ -348,7 +366,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let gift_name = data.get("giftName")?.as_str()?.to_string();
     let count = data.get("num").and_then(value_as_u64).unwrap_or(1) as u32;
     let action = data.get("action").and_then(Value::as_str).unwrap_or("送出");
-    let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
+    let timestamp = to_unix_seconds(data.get("timestamp").and_then(value_as_u64).unwrap_or(0));
     let id = data
         .get("rnd")
         .and_then(Value::as_str)
@@ -463,7 +481,7 @@ fn parse_gift_message_v2(command: &Value, room_id: u64) -> Vec<DanmakuEvent> {
                 username: username.clone(),
                 content: format!("{action}了 {gift_name} ×{count}"),
                 content_trans: None,
-                timestamp: item.get_i64(10).unwrap_or_default().max(0) as u64,
+                timestamp: to_unix_seconds(item.get_i64(10).unwrap_or_default().max(0) as u64),
                 avatar: avatar.clone(),
                 medal: medal.clone(),
                 wealth_level: None,
@@ -504,7 +522,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         .and_then(value_as_u64)
         .or_else(|| data.get("uid").and_then(value_as_u64))
         .unwrap_or(0);
-    let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
+    let timestamp = to_unix_seconds(data.get("timestamp").and_then(value_as_u64).unwrap_or(0));
     let msg_type = data.get("msg_type").and_then(value_as_u64).unwrap_or(1);
     if msg_type == 6 {
         return None;
@@ -697,6 +715,9 @@ fn parse_interact_word_v2(command: &Value, room_id: u64) -> Option<DanmakuEvent>
     if uname.is_empty() {
         return None;
     }
+    // INTERACT_WORD_V2 的 protobuf 里 timestamp(7) 是秒、timestamp_ms(8) 是毫秒；
+    // 本解析只读 field 7，仍统一过一遍单位，避免上游改字段号时静默出错
+    let timestamp = to_unix_seconds(timestamp);
     if msg_type == 6 {
         return None;
     }
@@ -831,7 +852,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         return None;
     };
     let content = content.to_string();
-    let timestamp = data.get("start_time").and_then(value_as_u64).unwrap_or(0);
+    let timestamp = to_unix_seconds(data.get("start_time").and_then(value_as_u64).unwrap_or(0));
     let price = data.get("price").and_then(value_as_u64);
     // id 在两种下发里可能是数字也可能是数字字符串（JPN 样本即字符串）。
     // 统一归一化，否则同一笔 SC 的两种下发会拿到不同 id，去重失效。
@@ -905,9 +926,11 @@ fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let gift_name = data.get("gift_name").and_then(Value::as_str).unwrap_or("舰长").to_string();
     let count = data.get("num").and_then(value_as_u64).unwrap_or(1) as u32;
     let price = data.get("price").and_then(value_as_u64).map(|v| v as u32);
-    let timestamp = data.get("start_time").and_then(value_as_u64)
-        .or_else(|| data.get("end_time").and_then(value_as_u64))
-        .unwrap_or(0);
+    let timestamp = to_unix_seconds(
+        data.get("start_time").and_then(value_as_u64)
+            .or_else(|| data.get("end_time").and_then(value_as_u64))
+            .unwrap_or(0),
+    );
     let id = format!("guard-{room_id}-{uid}-{timestamp}");
 
     Some(DanmakuEvent {
@@ -946,7 +969,7 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
     let data = command.get("data")?;
     let uid = data.get("uid").and_then(value_as_u64).unwrap_or(0);
     let username = data.get("uname").and_then(Value::as_str)?.to_string();
-    let timestamp = data.get("timestamp").and_then(value_as_u64).unwrap_or(0);
+    let timestamp = to_unix_seconds(data.get("timestamp").and_then(value_as_u64).unwrap_or(0));
     let click_time = data.get("click_time").and_then(value_as_u64).unwrap_or(1) as u32;
 
     let content = data
@@ -1042,6 +1065,22 @@ fn value_as_u64(value: &Value) -> Option<u64> {
         .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
 }
 
+/// 时间戳统一到 Unix 秒。B 站各消息的时间单位不统一：DANMU_MSG 的
+/// info[0][4] 下发的是毫秒，礼物/SC/舰长/互动下发的是秒，INTERACT_WORD_V2
+/// 还专设了 timestamp_ms 字段。前端一律按秒 ×1000 换算，毫秒值不除
+/// 会让日期跳到几万年之后（右键菜单里显示成 58831 年）。
+fn to_unix_seconds(raw: u64) -> u64 {
+    // 1e11 秒已是公元 5138 年，真实秒级时间戳不可能这么大；
+    // 1e14 秒更夸张，按微秒（如 trigger_time）处理
+    if raw >= 100_000_000_000_000 {
+        raw / 1_000_000
+    } else if raw >= 100_000_000_000 {
+        raw / 1000
+    } else {
+        raw
+    }
+}
+
 /// 消息 id 归一化：数字与数字字符串都转成字符串，保证同一条消息的不同
 /// 下发形态（如 SC 的 SUPER_CHAT_MESSAGE / _JPN 两种命令）得到同一个 id。
 fn value_as_id_string(value: &Value) -> Option<String> {
@@ -1087,6 +1126,58 @@ mod tests {
     fn parse_send_gift_v2_rejected_when_pb_missing() {
         let body = json!({ "cmd": "SEND_GIFT_V2", "data": { "dmscore": 1 } });
         assert!(parse_danmaku_events(&body, 1).is_empty());
+    }
+
+    #[test]
+    fn danmaku_millisecond_timestamp_is_converted_to_seconds() {
+        // 回归：DANMU_MSG 的 info[0][4] 是毫秒（真实抓包 1723979200649）。
+        // 直接当成秒塞进事件，前端 new Date(ts*1000) 会显示成 58831 年，
+        // 而礼物用秒级字段所以时间正常——右键菜单时间错误即由此而来。
+        let body = json!({
+            "cmd": "DANMU_MSG",
+            "info": [
+                [0, 1, 25, 16_777_215, 1_723_979_200_649u64, -1312973962, 0, "0bc8acd0", 0, 0, 0, "", 0, "{}", "{}", {}],
+                "测试弹幕",
+                [123, "测试用户", "", 0, 0, 0, 0, 0, 0],
+            ],
+        });
+        let events = parse_danmaku_events(&body, 1);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].timestamp, 1_723_979_200);
+        // 秒级时间戳必须落在合理区间，防止再次回退成毫秒
+        assert!((1_600_000_000..=2_000_000_000).contains(&events[0].timestamp));
+    }
+
+    #[test]
+    fn danmaku_second_timestamp_is_left_untouched() {
+        // 上游若改成秒级下发，不应被二次缩放
+        let body = json!({
+            "cmd": "DANMU_MSG",
+            "info": [
+                [0, 1, 25, 16_777_215, 1_723_979_200u64, -1312973962, 0, "", 0, 0, 0, "", 0, "{}", "{}", {}],
+                "弹幕",
+                [1, "用户", "", 0, 0, 0, 0, 0, 0],
+            ],
+        });
+        let events = parse_danmaku_events(&body, 1);
+        assert_eq!(events[0].timestamp, 1_723_979_200);
+    }
+
+    #[test]
+    fn danmaku_missing_timestamp_falls_back_to_now() {
+        // 缺 info[0][4] 时不能留 0，否则右键菜单整行时间消失
+        let body = json!({
+            "cmd": "DANMU_MSG",
+            "info": [
+                [0, 1, 25, 16_777_215],
+                "弹幕",
+                [1, "用户", "", 0, 0, 0, 0, 0, 0],
+            ],
+        });
+        let events = parse_danmaku_events(&body, 1);
+        assert_eq!(events.len(), 1);
+        let now = system_unix_now();
+        assert!(events[0].timestamp > 0 && now.abs_diff(events[0].timestamp) < 60);
     }
 
     #[test]

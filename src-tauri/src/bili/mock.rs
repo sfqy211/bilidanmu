@@ -207,10 +207,12 @@ fn danmaku_command(username: Option<&str>, content: Option<&str>) -> Value {
     ];
     let (default_uid, default_name) = mock_user(seq);
     let content = content.unwrap_or(CONTENTS[(seq as usize) % CONTENTS.len()]);
+    // info[0][4] 在真实协议里是毫秒时间戳（如 1723979200649），mock 必须照抄，
+    // 否则秒/毫秒单位错位这类 bug 在本地永远复现不出来
     json!({
         "cmd": "DANMU_MSG",
         "info": [
-            [0, 1, 25, 16_777_215, super::unix_secs(), format!("mock-{seq}"), 0, "", "", "", 0, "", "", 0],
+            [0, 1, 25, 16_777_215, unix_millis(), format!("mock-{seq}"), 0, "", "", "", 0, "", "", 0],
             content,
             [default_uid, username.unwrap_or(default_name), "", 0, 0, 0, 0, 0, 0],
         ],

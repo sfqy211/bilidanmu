@@ -19,6 +19,8 @@ pub struct DanmakuEvent {
     /// 醒目留言的外文/机翻文案（message_jpn / message_trans），无翻译时为空
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_trans: Option<String>,
+    /// 消息时间，Unix **秒**。各命令原始下发单位不一致（DANMU_MSG 是毫秒，
+    /// 礼物/SC/舰长是秒），解析时统一由 `to_unix_seconds` 归一化。
     pub timestamp: u64,
     pub avatar: Option<String>,
     pub medal: Option<Medal>,

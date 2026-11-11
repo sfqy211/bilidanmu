@@ -50,6 +50,7 @@ export interface DanmakuMessage {
   content: string;
   /** 醒目留言的外文/机翻文案（message_jpn / message_trans），无翻译时为空 */
   contentTrans?: string;
+  /** 消息时间，Unix **秒**（Rust 侧已把各命令不统一的毫秒/微秒归一化） */
   timestamp: number;
   avatar?: string;
   medal?: Medal;
