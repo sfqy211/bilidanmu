@@ -1,6 +1,6 @@
 [package]
 name = "bilidanmu"
-version = "0.5.1"
+version = "0.5.2"
 description = "B站直播间弹幕发送客户端"
 authors = ["sfqy"]
 edition = "2021"
@@ -67,5 +67,6 @@ codegen-units = 1
 lto = "thin"
 opt-level = "s"
 strip = "symbols"
+
 
 
