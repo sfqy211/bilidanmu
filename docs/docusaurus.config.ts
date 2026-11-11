@@ -21,7 +21,7 @@ function tailwindPlugin(): Plugin {
   };
 }
 
-// 首页复用 App 源码里的 ui/slider 与 ui/PageTabs，需要 @ 别名指向应用根目录。
+// 首页复用 App 源码里的金额档位配置，@ 别名指向应用根目录。
 function appAliasPlugin(): Plugin {
   return {
     name: 'bilidanmu-app-alias',
