@@ -883,13 +883,20 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         event_type: "superChat".to_string(),
         username,
         content,
-        content_trans: data
-            .get("message_jpn")
-            .and_then(Value::as_str)
-            .or_else(|| data.get("message_trans").and_then(Value::as_str))
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .map(ToString::to_string),
+        // 译文只在发送者勾选了「同步翻译」时才有：
+        //   SUPER_CHAT_MESSAGE_JPN 带 message_jpn（勾选）
+        //   SUPER_CHAT_MESSAGE     带 message_trans（同一笔的镜像，通常为空串）
+        // 两者都可能存在但为空串，必须先 trim+过滤再回退，
+        // 否则 message_jpn="" 会把有值的 message_trans 挡掉（or_else 不会因空串跳过）。
+        content_trans: ["message_jpn", "message_trans"]
+            .iter()
+            .find_map(|key| {
+                data.get(*key)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|text| !text.is_empty())
+                    .map(ToString::to_string)
+            }),
         timestamp,
         avatar: user_info.get("face").and_then(Value::as_str).map(ToString::to_string),
         medal: parse_object_medal(data.get("medal_info")),
@@ -1356,5 +1363,56 @@ mod tests {
         let events = parse_danmaku_events(&body, 1);
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].content_trans, None);
+    }
+
+    #[test]
+    fn super_chat_only_shows_translation_when_sender_enabled_it() {
+        // 回归：B 站对每笔 SC 都下发 message_trans 字段，但没勾选翻译时是空串。
+        // 实测绝大多数 SC 的 message_trans 为空，只有勾了「同步翻译」的才有值。
+        // 必须过滤空串，否则所有 SC 都会挂一段空译文行。
+        let plain = json!({
+            "cmd": "SUPER_CHAT_MESSAGE",
+            "data": {
+                "id": "1", "uid": "2", "price": 30,
+                "message": "没勾翻译",
+                "message_trans": "",
+                "user_info": { "uname": "用户" },
+            }
+        });
+        let events = parse_danmaku_events(&plain, 1);
+        assert_eq!(events[0].content_trans, None, "空串译文不能显示");
+
+        let translated = json!({
+            "cmd": "SUPER_CHAT_MESSAGE_JPN",
+            "data": {
+                "id": "2", "uid": "2", "price": 30,
+                "message": "勾了翻译",
+                "message_jpn": "私は黙ってコストをかけた",
+                "user_info": { "uname": "用户" },
+            }
+        });
+        let events = parse_danmaku_events(&translated, 1);
+        assert_eq!(
+            events[0].content_trans.as_deref(),
+            Some("私は黙ってコストをかけた")
+        );
+    }
+
+    #[test]
+    fn super_chat_falls_back_to_trans_when_jpn_is_blank() {
+        // 边界：message_jpn 存在但为空白时，仍应回退去取 message_trans。
+        // 旧实现用 or_else，Some("") 会挡住后面的回退分支，导致译文丢失。
+        let body = json!({
+            "cmd": "SUPER_CHAT_MESSAGE_JPN",
+            "data": {
+                "id": "3", "uid": "2", "price": 30,
+                "message": "原文",
+                "message_jpn": "   ",
+                "message_trans": "機翻のテキスト",
+                "user_info": { "uname": "用户" },
+            }
+        });
+        let events = parse_danmaku_events(&body, 1);
+        assert_eq!(events[0].content_trans.as_deref(), Some("機翻のテキスト"));
     }
 }
