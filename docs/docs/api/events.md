@@ -50,8 +50,13 @@ interface DanmakuMessage {
   replyUid?: number
   replyUsername?: string
   contributionRank?: number  // 高能榜前 3 名
+  bubbleColor?: string       // 气泡背景色 `#RRGGBBAA,#RRGGBBAA,#RRGGBBAA`（起/止/边框）
 }
 ```
+
+> `bubbleColor` 随 `DANMU_MSG` 的 `info[0][11]` 一起下发，无需额外请求。
+> 相邻的 `info[0][10]` 是气泡样式 ID（`0` = 无气泡），`info[0][17]` 是 v2 样式 ID。
+> 注意根级 `dm_v2` 字段虽然存在但恒为空串，气泡数据不在那里。
 
 ### `danmaku-sc-translation`
 

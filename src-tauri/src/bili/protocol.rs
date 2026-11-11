@@ -219,6 +219,7 @@ pub(crate) fn parse_live_status(command: &Value, room_id: u64, event_type: &str,
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -278,6 +279,16 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
     let dm_type = basic.get(12).and_then(value_as_u64).unwrap_or(0) as u8;
     let is_admin = user_info.get(2).and_then(value_as_u64).unwrap_or(0) == 1;
     let guard_level = info.get(7).and_then(value_as_u64).unwrap_or(0) as u8;
+
+    // 气泡聊天皮肤：info[0][10] 是气泡样式 ID（0 = 无气泡），
+    // info[0][11] 是三段渐变配色 `#RRGGBBAA,#RRGGBBAA,#RRGGBBAA`（起/止/边框），
+    // info[0][17] 是 v2 样式 ID。三者随弹幕一起下发，无需额外请求。
+    let bubble_color = basic
+        .get(11)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(ToString::to_string);
 
     // 解析 extra 字段（包含 @回复、表情等信息）
     let extra: Option<Value> = basic
@@ -356,6 +367,7 @@ fn parse_text_danmaku(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         reply_uid,
         reply_username,
         contribution_rank: None,
+        bubble_color,
     })
 }
 
@@ -403,6 +415,7 @@ fn parse_gift_message(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -503,6 +516,7 @@ fn parse_gift_message_v2(command: &Value, room_id: u64) -> Vec<DanmakuEvent> {
                 reply_uid: None,
                 reply_username: None,
                 contribution_rank: None,
+                bubble_color: None,
             }
         })
         .collect()
@@ -573,6 +587,7 @@ fn parse_interact_word(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -760,6 +775,7 @@ fn parse_interact_word_v2(command: &Value, room_id: u64) -> Option<DanmakuEvent>
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -915,6 +931,7 @@ fn parse_super_chat(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -962,6 +979,7 @@ fn parse_guard_buy(command: &Value, room_id: u64) -> Option<DanmakuEvent> {
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -1010,6 +1028,7 @@ fn parse_like_info_v3_click(command: &Value, room_id: u64) -> Option<DanmakuEven
         reply_uid: None,
         reply_username: None,
         contribution_rank: None,
+        bubble_color: None,
     })
 }
 
@@ -1178,6 +1197,45 @@ mod tests {
         assert_eq!(events.len(), 1);
         let now = system_unix_now();
         assert!(events[0].timestamp > 0 && now.abs_diff(events[0].timestamp) < 60);
+    }
+
+    #[test]
+    fn danmaku_bubble_color_comes_with_the_message() {
+        // 回归：气泡配色随 DANMU_MSG 的 info[0][11] 一起下发（实测抓包确认），
+        // 不在 dm_v2 里（dm_v2 恒空串），也不在 info[0][10]（那是样式 ID，0=无气泡）。
+        // 曾误判"WS 不下发"，改用历史接口轮询回填——纯属多余，且请求量巨大。
+        let body = json!({
+            "cmd": "DANMU_MSG:4:0:2:2:2:0",
+            "dm_v2": "",
+            "info": [
+                [0, 4, 25, 14_893_055u64, 1_794_396_320_815u64, -1_224_305_149, 0, "285c906d",
+                 0, 0, 43, "#1453BAFF,#3353BAFF,#3353BAFF", 1, {}, "{}", {}, {}, 43],
+                "比心",
+                [646190245, "钻头碧翠丝", "", 0, 0, 0, 0, 0, 0],
+            ],
+        });
+        let events = parse_danmaku_events(&body, 1820703922);
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0].bubble_color.as_deref(),
+            Some("#1453BAFF,#3353BAFF,#3353BAFF")
+        );
+    }
+
+    #[test]
+    fn danmaku_without_bubble_has_no_color() {
+        // 普通弹幕 info[0][10]=0、info[0][11]=""，不应产出气泡色
+        let body = json!({
+            "cmd": "DANMU_MSG",
+            "info": [
+                [0, 1, 25, 16_777_215u64, 1_723_979_200_649u64, -1312973962, 0, "",
+                 0, 0, 0, "", 0, "{}", "{}", {}],
+                "普通弹幕",
+                [1, "普通用户", "", 0, 0, 0, 0, 0, 0],
+            ],
+        });
+        let events = parse_danmaku_events(&body, 1);
+        assert_eq!(events[0].bubble_color, None);
     }
 
     #[test]

@@ -222,5 +222,8 @@ fn compact_event(event: &crate::models::message::DanmakuEvent) -> serde_json::Va
             serde_json::json!(event.wealth_level),
         );
     }
+    if let Some(bubble) = event.bubble_color.as_ref().filter(|text| !text.is_empty()) {
+        map.insert("bubbleColor".to_string(), serde_json::json!(bubble));
+    }
     value
 }

@@ -68,6 +68,7 @@ export const defaultSettings: Settings = {
     hideUserIdColor: false,
     hideUsername: false,
     hideContributionRank: false,
+    hideBubbleColor: false,
     opacity: 90,
     emoticonStyle: "image",
     activityBarMode: "latest",

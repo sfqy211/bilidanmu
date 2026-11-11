@@ -76,4 +76,10 @@ export interface DanmakuMessage {
   replyUsername?: string;
   /** 高能榜排名（仅前 3 名） */
   contributionRank?: number;
+  /**
+   * 弹幕气泡渐变背景色，形如 `#RRGGBBAA,#RRGGBBAA,#RRGGBBAA`
+   * （起始 / 结束 / 边框三档）。随 `DANMU_MSG` 的 `info[0][11]` 一起下发，
+   * 无需额外请求；无气泡时缺省。
+   */
+  bubbleColor?: string;
 }

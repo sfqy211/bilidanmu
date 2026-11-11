@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { InlineEmotText, isEmoticonOnlyContent } from "@/components/danmaku/InlineEmotText";
 import { MedalBadge } from "@/components/danmaku/MedalBadge";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { formatDateTime, formatTimestamp } from "@/lib/utils";
+import { formatDateTime, formatTimestamp, parseBubbleColor } from "@/lib/utils";
 import { formatMessagePrice, resolveMessageAccent } from "@/lib/price-chip";
 import type { DanmakuMessage } from "@/types/danmaku";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -264,6 +264,23 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
+  // 气泡聊天皮肤：颜色随 DANMU_MSG 的 info[0][11] 一起下发，只有普通文本弹幕参与
+  // （礼物/SC/舰长已有自己的金额胶囊与强调色，再套气泡会打架）
+  const hideBubbleColor = useSettingsStore((state) => state.settings.appearance.hideBubbleColor ?? false);
+  const bubble =
+    item.type === "danmaku" && !accent && !hideBubbleColor
+      ? parseBubbleColor(item.bubbleColor)
+      : undefined;
+  const bubbleStyle = bubble
+    ? ({
+        "--bubble-start": bubble.start,
+        "--bubble-end": bubble.end,
+        ...(bubble.border ? { "--bubble-border": bubble.border } : {}),
+      } as React.CSSProperties)
+    : undefined;
+  // 气泡是深色渐变底，默认黑字正文会看不清；用户名/勋章保留各自的档位色，
+  // 只有正文需要提亮，这里跟着正文一起切换
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
@@ -297,8 +314,14 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
   }
 
   return (
-    <div className="mb-2 block select-none leading-6 pointer-events-none">
-      <span className="pointer-events-auto" onContextMenu={handleContextMenu}>
+    <div
+      className={`mb-2 select-none leading-6 pointer-events-none${bubble ? " danmaku-bubble" : ""}`}
+      style={bubble ? (bubbleStyle as React.CSSProperties) : undefined}
+    >
+      <span
+        className="pointer-events-auto"
+        onContextMenu={handleContextMenu}
+      >
       {item.contributionRank && item.contributionRank <= 3 && !hideContributionRank && item.type !== "superChat" ? (
         <span
           className={`mr-1 inline-flex items-center justify-center rounded-sm align-middle font-bold text-white ${
@@ -354,7 +377,13 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem({
         </span>
       )}
       <span
-        className={accent ? "break-words sc-accent-text" : getMessageTextClass(item.type)}
+        className={
+          accent
+            ? "break-words sc-accent-text"
+            : bubble
+              ? "break-words danmaku-bubble-text"
+              : getMessageTextClass(item.type)
+        }
         style={accent ? ({ "--sc-accent": accent } as React.CSSProperties) : undefined}
       >
         {item.type === "danmaku" && item.dmType === 1 && item.emoticonOptions && bigEmoticonSize ? (

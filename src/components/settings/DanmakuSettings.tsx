@@ -119,6 +119,11 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
               checked={!appearance[key]} onChange={(visible) => update({ [key]: !visible })}
               disabled={!appearance.showMedal && (key === "hideGloryLevel" || key === "hideFanMedal")} />
           ))}
+          {/* 语义与上面一组相反：这里勾选 = 显示，默认开启 */}
+          <SettingsToggle title="显示气泡背景"
+            description="使用 B 站聊天气泡皮肤的用户，其弹幕按该皮肤的半透明渐变色铺满整行背景。"
+            checked={!appearance.hideBubbleColor}
+            onChange={(visible) => update({ hideBubbleColor: !visible })} />
         </details>
       </SettingsGroup>
       <SettingsGroup title="活动栏" description="管理直播间的进场与点赞消息。">

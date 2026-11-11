@@ -113,6 +113,9 @@ pub struct AppearanceSetting {
     pub hide_username: bool,
     #[serde(default)]
     pub hide_contribution_rank: bool,
+    /// 关闭后不渲染 B 站「气泡」聊天皮肤的半透明渐变背景
+    #[serde(default)]
+    pub hide_bubble_color: bool,
     #[serde(default = "default_opacity")]
     pub opacity: u32,
     /// 表情显示样式：hidden / text / image
@@ -595,6 +598,7 @@ impl Default for Settings {
                 hide_user_id_color: false,
                 hide_username: false,
                 hide_contribution_rank: false,
+                hide_bubble_color: false,
                 opacity: 90,
                 emoticon_style: default_emoticon_style(),
                 activity_bar_mode: ActivityBarMode::default(),

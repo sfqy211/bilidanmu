@@ -2018,6 +2018,26 @@ export function DanmakuPage() {
                       {label}
                     </button>
                   ))}
+                  {/* 气泡背景默认显示，所以这里的按钮语义是「取消气泡背景」，
+                      与上面那排「命中即隐藏」的字段反向 */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      commitSettings({
+                        appearance: {
+                          ...settings.appearance,
+                          hideBubbleColor: !settings.appearance.hideBubbleColor,
+                        },
+                      })
+                    }
+                    className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                      settings.appearance.hideBubbleColor
+                        ? "border-brand/40 bg-brand/10 text-brand"
+                        : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                    }`}
+                  >
+                    气泡背景
+                  </button>
                 </div>
               </div>
 

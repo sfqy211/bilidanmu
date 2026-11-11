@@ -170,6 +170,29 @@ body {
   opacity: 0.62;
 }
 
+/* ── 弹幕气泡（B 站「气泡」聊天皮肤）──
+   三段色是 Android 的 AARRGGBB（带透明度），已由 parseBubbleColor 转成 CSS
+   的 #RRGGBBAA。所以背景本身就是半透明玻璃感，不能再叠不透明底色，
+   也不要按主题压暗——那会把 alpha 语义破坏掉。
+   气泡加在**块级**外层上（而非文字内联元素），这样换行后的每一行、
+   表情弹幕的整张图、以及右侧留白都属于同一块背景，与 B 站网页版评论栏一致。 */
+.danmaku-bubble {
+  display: block;
+  /* 三段色：start / end 做渐变，border 作描边（同样带 alpha） */
+  background-image: linear-gradient(90deg, var(--bubble-start) 0%, var(--bubble-end) 100%);
+  border: 1px solid var(--bubble-border, transparent);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+/* 正文配色跟着主题走：气泡本身只有 8–20% 不透明度，
+   深色页面上用白字可读，浅色页面上必须换深字，否则白底白字看不见 */
+.danmaku-bubble-text {
+  color: #ffffff;
+}
+html:not(.dark) .danmaku-bubble-text {
+  color: #1d1d1f;
+}
+
 /* ── 侧边吸附收起条 ──
    跟随亮/暗主题：亮色用浅色玻璃 + 深色描边，暗色用半透明墨色。
    之前写死 bg-slate-900/75，导致亮色主题下也是一条深色块。 */

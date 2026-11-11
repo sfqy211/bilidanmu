@@ -346,6 +346,8 @@ export interface Settings {
     hideUserIdColor: boolean;
     hideUsername: boolean;
     hideContributionRank: boolean;
+    /** 关闭后不渲染 B 站「气泡」聊天皮肤的半透明渐变背景 */
+    hideBubbleColor: boolean;
     opacity: number;
     emoticonStyle: "hidden" | "text" | "image";
     /** 活动栏（进场/点赞）显示模式：hidden 隐藏 / latest 只看最新一条 / scroll 滚动列表 */

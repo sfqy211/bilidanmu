@@ -47,4 +47,8 @@ pub struct DanmakuEvent {
     /// 高能榜排名（仅前 3 名有值）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contribution_rank: Option<u8>,
+    /// 弹幕气泡渐变背景色（`#RRGGBBAA,#RRGGBBAA,#RRGGBBAA`，起止/边框三档）。
+    /// 随 `DANMU_MSG` 的 `info[0][11]` 一起下发；`info[0][10]` 是样式 ID（0 = 无气泡）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bubble_color: Option<String>,
 }

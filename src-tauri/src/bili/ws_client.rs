@@ -743,6 +743,7 @@ mod tests {
             reply_uid: None,
             reply_username: None,
             contribution_rank: None,
+            bubble_color: None,
         }
     }
 
