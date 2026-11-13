@@ -748,6 +748,9 @@ impl SttPipeline {
     }
 }
 
+/// 管线世代号发号器：每次启动 / 每次 tee 重连都要拿到一个新值，前端据此重置字幕时间轴。
+static PIPELINE_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 /// Main blocking loop: recv bytes → demux → decode → resample → recognize → emit.
 fn run_pipeline(
     model_dir: &str,
@@ -774,8 +777,12 @@ fn run_pipeline(
     // Audio timeline for caption alignment: cumulative 16kHz samples fed to
     // the recognizer, converted to ms. Reset on every tee stream switch.
     let mut audio_samples: u64 = 0;
-    let mut epoch: u64 = 1;
-    log::info!("STT pipeline: waiting for audio bytes...");
+    // 世代号必须是**进程内单调递增**：每次管线启动取一个新值，不能每轮都从 1 开始。
+    // 前端用 epoch 变化判断"时间轴换了、要重新锚定"；如果重启后 epoch 与上一轮相同，
+    // 前端会沿用旧锚点，而 audioTsMs 已从 0 重新计时，两者相差几分钟，导致每条新字幕
+    // 一上屏就被判成早已过期——表现为关掉字幕再开启后「逐字闪烁」。
+    let mut epoch: u64 = PIPELINE_EPOCH.fetch_add(1, Ordering::Relaxed);
+    log::info!("STT pipeline: waiting for audio bytes... (epoch {epoch})");
 
     loop {
         if cancel.load(Ordering::Relaxed) {
