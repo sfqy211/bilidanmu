@@ -12,9 +12,14 @@
     "tauri": "tauri",
     "dev:renderer": "vite",
     "build:renderer": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:shared": "npm --prefix ../danmaku-core run build",
+    "predev:renderer": "npm run build:shared",
+    "prebuild:renderer": "npm run build:shared",
+    "pretypecheck": "npm run build:shared"
   },
   "dependencies": {
+    "@danmaku-core/ui": "file:../danmaku-core/packages/ui",
     "@radix-ui/react-checkbox": "^1.4.1",
     "@radix-ui/react-dialog": "^1.3.1",
     "@radix-ui/react-select": "^2.4.1",

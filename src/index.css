@@ -137,62 +137,6 @@ body {
   background-color: rgb(var(--brand-rgb) / calc(var(--bg-a) * 0.14));
 }
 
-/* ── 醒目留言（单行紧凑）──
-   颜色只落在价格胶囊与正文文字上，不再铺整块背景：弹幕窗很窄，
-   两段式彩色卡片会吃掉大半屏。强调色由 --sc-accent 传入（B 站按金额
-   档位下发），暗色下朝白色提亮，保证在深底上仍然可读。
-   字号与内边距对齐 MedalBadge（11px / 1px 5px / leading-tight），
-   否则胶囊会比紧挨着的粉丝勋章高出一截。 */
-.sc-chip {
-  display: inline-block;
-  margin-right: 4px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background-color: var(--sc-accent, #2a60b2);
-  color: #ffffff;
-  font-size: 0.79em;
-  font-weight: 700;
-  line-height: 1.25;
-}
-.dark .sc-chip {
-  /* 深底上的饱和色胶囊偏闷，提亮一档更接近 B 站深色播放页的观感 */
-  background-color: color-mix(in srgb, var(--sc-accent, #2a60b2) 78%, #ffffff);
-  color: #10131a;
-}
-.sc-accent-text {
-  color: var(--sc-accent, #2a60b2);
-}
-.dark .sc-accent-text {
-  color: color-mix(in srgb, var(--sc-accent, #2a60b2) 55%, #ffffff);
-}
-/* 双语 SC 的译文：内联跟在原文后，降一档不抢主文案 */
-.sc-accent-trans {
-  opacity: 0.62;
-}
-
-/* ── 弹幕气泡（B 站「气泡」聊天皮肤）──
-   三段色是 Android 的 AARRGGBB（带透明度），已由 parseBubbleColor 转成 CSS
-   的 #RRGGBBAA。所以背景本身就是半透明玻璃感，不能再叠不透明底色，
-   也不要按主题压暗——那会把 alpha 语义破坏掉。
-   气泡加在**块级**外层上（而非文字内联元素），这样换行后的每一行、
-   表情弹幕的整张图、以及右侧留白都属于同一块背景，与 B 站网页版评论栏一致。 */
-.danmaku-bubble {
-  display: block;
-  /* 三段色：start / end 做渐变，border 作描边（同样带 alpha） */
-  background-image: linear-gradient(90deg, var(--bubble-start) 0%, var(--bubble-end) 100%);
-  border: 1px solid var(--bubble-border, transparent);
-  border-radius: 6px;
-  padding: 2px 8px;
-}
-/* 正文配色跟着主题走：气泡本身只有 8–20% 不透明度，
-   深色页面上用白字可读，浅色页面上必须换深字，否则白底白字看不见 */
-.danmaku-bubble-text {
-  color: #ffffff;
-}
-html:not(.dark) .danmaku-bubble-text {
-  color: #1d1d1f;
-}
-
 /* ── 侧边吸附收起条 ──
    跟随亮/暗主题：亮色用浅色玻璃 + 深色描边，暗色用半透明墨色。
    之前写死 bg-slate-900/75，导致亮色主题下也是一条深色块。 */

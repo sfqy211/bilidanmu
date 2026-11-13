@@ -88,16 +88,38 @@ jobs:
             args: --target x86_64-pc-windows-msvc
             rust-targets: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: bilidanmu
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          path: bilidanmu
+
+      - name: Read pinned shared core revision
+        id: core
+        shell: bash
+        run: |
+          revision="$(node scripts/shared-core-revision.mjs)"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout shared core
+        uses: actions/checkout@v7
+        with:
+          repository: sfqy211/danmaku-core
+          ref: ${{ steps.core.outputs.revision }}
+          path: danmaku-core
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm
+          cache-dependency-path: |
+            bilidanmu/package-lock.json
+            danmaku-core/package-lock.json
 
       - name: Install Linux build dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -115,7 +137,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: 'bilidanmu/src-tauri -> target'
           key: ${{ matrix.platform }}
 
       # rust-cache 的过期产物清理会删掉 sherpa-onnx-prebuilt 里的旧静态库文件，
@@ -126,21 +148,30 @@ jobs:
         shell: bash
         run: rm -rf src-tauri/target/sherpa-onnx-prebuilt
 
+      - name: Install shared frontend dependencies
+        working-directory: danmaku-core
+        run: npm ci
+
+      - name: Build shared frontend
+        working-directory: danmaku-core
+        run: npm run build
+
       - name: Install frontend dependencies
         run: npm ci
 
       - name: TypeScript typecheck
         run: npm run typecheck
 
-      - name: Rust check
-        run: cargo check
-        working-directory: src-tauri
+      - name: Rust check with locked shared core
+        run: cargo check --locked
+        working-directory: bilidanmu/src-tauri
 
       - name: Build and publish Tauri app
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          projectPath: bilidanmu
           tagName: app-v__VERSION__
           releaseName: 'BiliDanmu v__VERSION__'
           releaseBody: ${{ needs.changelog.outputs.body }}

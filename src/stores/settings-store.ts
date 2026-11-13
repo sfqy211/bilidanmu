@@ -3,6 +3,7 @@ import { emit } from "@tauri-apps/api/event";
 import { tauriCommands } from "@/lib/tauri";
 import type { Settings } from "@/types/bilibili";
 import { DEFAULT_VISUAL, normalizeVisual } from "@/lib/visual-defaults";
+import { DEFAULT_PRICE_COLORS } from "@/lib/price-chip";
 
 /** 需要深合并的子对象键 */
 const DEEP_KEYS = [
@@ -76,18 +77,7 @@ export const defaultSettings: Settings = {
     scInDanmaku: true,
     plainPriceMessages: false,
     showGiftIcons: true,
-    // 与 Rust PriceColors::default() 保持一致的六档金额色 + 三档舰长配色
-    priceColors: {
-      scTier1: "#2A60B2",
-      scTier2: "#427D9A",
-      scTier3: "#E0913F",
-      scTier4: "#D4464A",
-      scTier5: "#9C3D9C",
-      scTier6: "#B01F1F",
-      guardGovernor: "#F77102",
-      guardAdmiral: "#AA3CDD",
-      guardCaptain: "#006FE6",
-    },
+    priceColors: { ...DEFAULT_PRICE_COLORS },
     dockAnimMs: 220,
     themeAccentLight: "#E11D48",
     themeAccentDark: "#FB7185",

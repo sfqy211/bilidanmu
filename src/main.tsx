@@ -12,6 +12,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useRoomStore } from "@/stores/room-store";
 import { clampSidebarWidth, useUiStore } from "@/stores/ui-store";
 import "./index.css";
+import "@danmaku-core/ui/styles.css";
 
 async function bootstrap() {
   try {

@@ -9,7 +9,9 @@
 | 虚拟直播间（`npm run dev:mock`） | 全链路：协议解析 → 事件广播 → 前端渲染 | 环境变量 `BILIDANMU_MOCK=1` |
 | 控制面 HTTP API | 断线/洪峰/延迟/上下播等场景注入 + 定向事件 | 虚拟直播间已启用（应用运行中） |
 | `cargo test --lib bili::mock` | mock 服务器本身（协议回包/生成器/控制面/踢线） | 端口 23330/23331 空闲 |
+| 共享核心 `cargo test --workspace --locked` | 协议解析、Protobuf 与事件 JSON 契约 | 同级 `../danmaku-core` 仓库 |
 | `npm run typecheck` + `cargo check` | 静态验证（每次改动的最低要求） | 无 |
+| 公共 UI `npm test` | 金额、配色、表情与主条目显示契约 | 先在同级公共仓库运行 `npm ci` |
 
 ## 2. 虚拟直播间
 
@@ -115,8 +117,22 @@ curl.exe -X POST http://127.0.0.1:23331/event -d "{\"type\":\"superChat\",\"cont
 
 ## 4. 自动化测试（cargo test）
 
+事件模型、协议解析和 Protobuf 实现及其原有测试位于共享核心。以下命令从客户端仓库根目录执行。
+
+```bash
+cargo test --manifest-path ../danmaku-core/Cargo.toml --workspace --locked
+```
+
+客户端保留共享类型与协议入口的接入回归、SC 去重和 mock 端到端测试。
+
+公共前端包的回归在同级 `danmaku-core` 根目录运行 `npm test`，该命令先构建包，再执行 Node 内置测试。打包消费验证使用 `npm pack --workspace @danmaku-core/ui` 的产物，视觉与交互验证记录放在客户端 `tests/` 中。客户端的 `npm run typecheck`、`npm run build:renderer` 会先构建共享 UI。
+
+干净环境先按根 README 检出 `node scripts/shared-core-revision.mjs` 输出的公共修订，再按公共包、客户端、docs 的顺序安装依赖。CI 同样将两仓放在 workspace 内相邻的 `bilidanmu/` 与 `danmaku-core/` 目录。`.github/workflows/ci.yml` 验证三平台 renderer 与原生 debug 构建、Rust 回归和独立 docs 构建，公共仓库的 CI 验证共享包自身。发布工作流保留版本 tag 判断，已有 tag 时的跳过结果需要与构建检查结果分别核对。
+
 ```bash
 cd src-tauri
+cargo test --lib bili::protocol --locked
+cargo test --lib bili::ws_client --locked
 cargo test --lib bili::mock
 ```
 

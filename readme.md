@@ -67,9 +67,37 @@ Windows / macOS / Linux 桌面端 B 站直播间弹幕客户端，基于 Tauri 2
 
 ### 安装依赖
 
+前端共享组件通过同级 `../danmaku-core/packages/ui` 本地包引用。首次使用时，将公共仓库克隆到同级目录。
+
 ```bash
+git clone https://github.com/sfqy211/danmaku-core.git ../danmaku-core
+```
+
+已有公共仓库时先获取远端更新。然后从客户端根目录检出固定修订、构建公共包并安装客户端依赖。
+
+```bash
+git -C ../danmaku-core fetch origin
+git -C ../danmaku-core checkout --detach "$(node scripts/shared-core-revision.mjs)"
+npm --prefix ../danmaku-core ci
+npm --prefix ../danmaku-core run build
 npm ci
 ```
+
+`typecheck`、`build:renderer` 和 `dev:renderer` 会先构建共享 UI。客户端保留设置、图片代理、屏蔽持久化和 Tauri 回调适配，展示组件与规则由 `@danmaku-core/ui` 提供。`scripts/shared-core-revision.mjs` 从 `src-tauri/Cargo.toml` 读取固定修订，Rust 和前端使用同一份公共源码版本。
+
+Rust 事件模型和 Bilibili 协议解析依赖公开的 `sfqy211/danmaku-core` 仓库。`src-tauri/Cargo.toml` 的 `rev` 与 `Cargo.lock` 固定公共核心修订，常规开发、CI 和打包由 Cargo 自动获取源码。
+
+需要联调公共源码时，将 `danmaku-core` 克隆到客户端同级目录。从 `src-tauri/` 执行以下 PowerShell 命令，使用本地 path 覆盖，并把联调锁文件保存到被忽略的构建目录。该锁文件配置需要 Cargo 1.97 及以上版本。
+
+```powershell
+New-Item -ItemType Directory -Force 'target/local-core' | Out-Null
+Copy-Item -LiteralPath 'Cargo.lock' -Destination 'target/local-core/Cargo.lock'
+cargo check `
+  --config "patch.'https://github.com/sfqy211/danmaku-core.git'.danmaku-core.path='../../danmaku-core/crates/danmaku-core'" `
+  --config "resolver.lockfile-path='target/local-core/Cargo.lock'"
+```
+
+同样的两个 `--config` 参数可用于 `cargo test --lib`，正式锁文件继续记录固定 Git 来源。共享核心源码的测试命令见 `tests/README.md`。
 
 ### 启动开发
 
@@ -184,7 +212,9 @@ docs/                         Docusaurus 文档站（用户指南 / 技术架构
 | [docs/docs/research/](docs/docs/research/) | 技术调研（协议调研、方案选型） |
 | [docs/design/](docs/design/) | 功能设计记录（如礼物打赏） |
 
-本地预览：`cd docs && npm ci && npm run dev`。推送到 `main` 且改动 `docs/**` 时，GitHub Actions 会自动构建并部署到 GitHub Pages。
+先按安装依赖小节准备共享 UI 与客户端依赖，再运行 `cd docs && npm ci && npm run dev` 进行本地预览。文档首页读取共享金额规则。GitHub Actions 在 workspace 内将客户端与固定修订的公共仓库检出为相邻子目录，按公共包、客户端、docs 的顺序安装与构建。推送到 `main` 且改动文档、共享依赖来源或文档工作流时，会构建 Docusaurus 站点并部署到 GitHub Pages。
+
+`.github/workflows/ci.yml` 在 Windows、macOS、Linux 执行类型检查、renderer 构建及带锁的 Rust 检查、测试和原生 debug 构建，并单独检查 docs 构建。该工作流可手动触发，用于验证当前固定来源的完整构建链路。
 
 ## 发布
 

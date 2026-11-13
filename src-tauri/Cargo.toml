@@ -17,6 +17,7 @@ gift-send = []
 tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
+danmaku-core = { git = "https://github.com/sfqy211/danmaku-core.git", rev = "712785f8f8b8e6e5ac026f961630a1b1583ce2ae" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2.12", features = ["tray-icon", "image-png", "devtools"] }
@@ -30,8 +31,6 @@ reqwest = { version = "0.13", features = ["rustls", "json", "stream", "query", "
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "sync"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
-brotli = "7"
-flate2 = "1"
 md-5 = "0.10"
 rand = "0.8"
 chrono = "0.4"

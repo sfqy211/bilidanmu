@@ -1,3 +1,5 @@
+import type { PriceColors } from "@danmaku-core/ui/types";
+
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
 /** 视频的一个分 P（听视频模式里的"一首歌"） */
@@ -277,27 +279,7 @@ export interface DanmakuWindowStyle {
   dockIndicator?: boolean;
 }
 
-/** 金额档位配色：醒目留言与礼物共用金额六档，大航海按等级单独配色 */
-export interface PriceColors {
-  /** 醒目留言与礼物 ≤30 元 */
-  scTier1: string;
-  /** 醒目留言与礼物 31–50 元 */
-  scTier2: string;
-  /** 醒目留言与礼物 51–100 元 */
-  scTier3: string;
-  /** 醒目留言与礼物 101–500 元 */
-  scTier4: string;
-  /** 醒目留言与礼物 501–1000 元 */
-  scTier5: string;
-  /** 醒目留言与礼物 >1000 元 */
-  scTier6: string;
-  /** 总督 */
-  guardGovernor: string;
-  /** 提督 */
-  guardAdmiral: string;
-  /** 舰长 */
-  guardCaptain: string;
-}
+export type { PriceColors } from "@danmaku-core/ui/types";
 
 /** 弹幕窗口标题栏按钮显隐（false = 从标题栏移除） */
 export interface TitleBarButtons {

@@ -1,13 +1,18 @@
 name: Deploy Docs
 
 # 文档站（Docusaurus）自动部署到 GitHub Pages：
-# 推送到 main 且涉及 docs/ 或本工作流时触发，改动其他文件不重建。
+# 文档与其共享价格规则、固定来源变化时重新构建。
 
 on:
   push:
     branches: [main]
     paths:
       - "docs/**"
+      - "src/lib/price-chip.ts"
+      - "src-tauri/Cargo.toml"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/shared-core-revision.mjs"
       - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
@@ -24,31 +29,63 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bilidanmu
     steps:
       - uses: actions/checkout@v7
         with:
           # lastUpdated: true 需要完整 git 历史计算每页最后提交时间
           fetch-depth: 0
+          path: bilidanmu
+
+      - name: Read pinned shared core revision
+        id: core
+        shell: bash
+        run: |
+          revision="$(node scripts/shared-core-revision.mjs)"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout shared core
+        uses: actions/checkout@v7
+        with:
+          repository: sfqy211/danmaku-core
+          ref: ${{ steps.core.outputs.revision }}
+          path: danmaku-core
 
       - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm
-          cache-dependency-path: docs/package-lock.json
+          cache-dependency-path: |
+            bilidanmu/package-lock.json
+            bilidanmu/docs/package-lock.json
+            danmaku-core/package-lock.json
+
+      - name: Install shared frontend dependencies
+        working-directory: danmaku-core
+        run: npm ci
+
+      - name: Build shared frontend
+        working-directory: danmaku-core
+        run: npm run build
+
+      - name: Install client dependencies
+        run: npm ci
 
       - name: Install dependencies
-        working-directory: docs
+        working-directory: bilidanmu/docs
         run: npm ci
 
       - name: Build
-        working-directory: docs
+        working-directory: bilidanmu/docs
         run: npm run build
 
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/build
+          path: bilidanmu/docs/build
 
   deploy:
     runs-on: ubuntu-latest

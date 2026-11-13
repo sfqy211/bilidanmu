@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "docs/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "vite.config.ts"
+      - "scripts/shared-core-revision.mjs"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "docs/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "vite.config.ts"
+      - "scripts/shared-core-revision.mjs"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: bilidanmu
+
+jobs:
+  desktop:
+    name: Desktop (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout client
+        uses: actions/checkout@v7
+        with:
+          path: bilidanmu
+
+      - name: Read pinned shared core revision
+        id: core
+        shell: bash
+        run: |
+          revision="$(node scripts/shared-core-revision.mjs)"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout shared core
+        uses: actions/checkout@v7
+        with:
+          repository: sfqy211/danmaku-core
+          ref: ${{ steps.core.outputs.revision }}
+          path: danmaku-core
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: |
+            bilidanmu/package-lock.json
+            danmaku-core/package-lock.json
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install -y -o Acquire::Retries=10 -o Acquire::http::Timeout=30 libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: 'bilidanmu/src-tauri -> target'
+          key: ${{ matrix.platform }}
+
+      - name: Clear stale sherpa-onnx prebuilt cache
+        shell: bash
+        run: rm -rf src-tauri/target/sherpa-onnx-prebuilt
+
+      - name: Install shared frontend dependencies
+        working-directory: danmaku-core
+        run: npm ci
+
+      - name: Build shared frontend
+        working-directory: danmaku-core
+        run: npm run build
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Build renderer
+        run: npm run build:renderer
+
+      - name: Rust check
+        working-directory: bilidanmu/src-tauri
+        run: cargo check --locked
+
+      - name: Rust regression tests
+        working-directory: bilidanmu/src-tauri
+        run: cargo test --lib --locked
+
+      - name: Build desktop binary
+        working-directory: bilidanmu/src-tauri
+        run: cargo build --locked
+
+  docs:
+    name: Documentation build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout client
+        uses: actions/checkout@v7
+        with:
+          path: bilidanmu
+
+      - name: Read pinned shared core revision
+        id: core
+        shell: bash
+        run: |
+          revision="$(node scripts/shared-core-revision.mjs)"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout shared core
+        uses: actions/checkout@v7
+        with:
+          repository: sfqy211/danmaku-core
+          ref: ${{ steps.core.outputs.revision }}
+          path: danmaku-core
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: |
+            bilidanmu/package-lock.json
+            bilidanmu/docs/package-lock.json
+            danmaku-core/package-lock.json
+
+      - name: Install shared frontend dependencies
+        working-directory: danmaku-core
+        run: npm ci
+
+      - name: Build shared frontend
+        working-directory: danmaku-core
+        run: npm run build
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: Install documentation dependencies
+        working-directory: bilidanmu/docs
+        run: npm ci
+
+      - name: Build documentation
+        working-directory: bilidanmu/docs
+        run: npm run build
