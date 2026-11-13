@@ -129,9 +129,12 @@ pub async fn live_status(
     state: &AppState,
     _raw: &serde_json::Value,
 ) -> Result<serde_json::Value, ToolError> {
-    let statuses = crate::commands::room::get_rooms_live_status(app.state::<AppState>())
-        .await
-        .map_err(super::classify_business_error)?;
+    let statuses = crate::commands::room::get_rooms_live_status(
+        app.clone(),
+        app.state::<AppState>(),
+    )
+    .await
+    .map_err(super::classify_business_error)?;
 
     let rooms = crate::room_store::load_rooms(state).map_err(super::classify_business_error)?;
     let items: Vec<serde_json::Value> = rooms

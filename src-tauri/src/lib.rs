@@ -266,6 +266,10 @@ pub fn run() {
                         let changed = commands::room::refresh_live_status_cache(&app_handle).await;
                         if changed {
                             let _ = tray::refresh_tray(&app_handle);
+                            // 标题随轮询刷新后落库，通知两个窗口重读房间列表，
+                            // 否则列表与弹幕窗标题栏会一直停留在加入时的旧标题
+                            use tauri::Emitter;
+                            let _ = app_handle.emit("rooms-updated", ());
                         }
                         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                     }

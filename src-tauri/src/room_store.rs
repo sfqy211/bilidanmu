@@ -95,6 +95,41 @@ pub fn update_last_live_starts(state: &AppState, starts: &HashMap<u64, i64>) {
     }
 }
 
+/// 用批量开播状态里的实时标题刷新房间记录，返回是否真有标题发生变化。
+///
+/// 仅按 uid 匹配；空标题表示接口没给出可用值（未开播/轮播时常见），跳过它保留库内旧值。
+/// 返回 true 时调用方应通知前端重新读取房间列表，否则列表会一直显示加入时的旧标题。
+pub fn update_room_titles(state: &AppState, titles: &HashMap<u64, String>) -> bool {
+    let titles: HashMap<u64, String> = titles
+        .iter()
+        .filter(|(_, title)| !title.trim().is_empty())
+        .map(|(uid, title)| (*uid, title.clone()))
+        .collect();
+    if titles.is_empty() {
+        return false;
+    }
+    let result = db::with_connection(state, |connection| {
+        let mut statement = connection
+            .prepare("UPDATE rooms SET title = ?1 WHERE uid = ?2 AND title != ?1")
+            .map_err(|error| format!("准备刷新直播间标题失败: {error}"))?;
+        let mut changed = 0usize;
+        for (uid, title) in &titles {
+            changed += statement
+                .execute(params![title, uid])
+                .map_err(|error| format!("刷新直播间标题失败: {error}"))?;
+        }
+        Ok(changed)
+    });
+    match result {
+        Ok(changed) => changed > 0,
+        Err(error) => {
+            // 标题刷新只是展示辅助，失败不影响开播状态主流程
+            log::warn!("刷新直播间标题失败: {error}");
+            false
+        }
+    }
+}
+
 /// 按给定顺序重排房间（sort_order = 下标）。
 /// 给定的应是完整显示顺序（直播中在前），之后直播状态变化时各组内仍按该自定义顺序排列。
 pub fn reorder_rooms(state: &AppState, room_ids: &[u64]) -> Result<(), String> {
