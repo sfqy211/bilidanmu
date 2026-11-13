@@ -487,13 +487,45 @@ export function DanmakuPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeDanmakuMessages]);
 
-  // 音频播放后自动启动 STT
+  // 音频播放 + 已启用实时字幕 → 启动 STT；任一条件消失就停止（包括在弹幕窗设置里
+  // 关掉字幕）。只加启动不加停止的话，关掉开关后识别仍在后台跑，字幕也不会消失。
   useEffect(() => {
-    if (audioPlaying && sttAvailable && sttSettings.enabled) {
+    if (!sttAvailable) return;
+    if (audioPlaying && sttSettings.enabled) {
       tauriCommands.stt.start().catch(() => {});
+    } else {
+      tauriCommands.stt.stop().catch(() => {});
     }
   }, [audioPlaying, sttAvailable, sttSettings.enabled]);
 
+  // 字幕快捷开关的可用性：面板打开时才查一次模型目录（常驻窗口，不适合反复扫盘）
+  const [subtitleModelReady, setSubtitleModelReady] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!settingsOpen || !sttAvailable) {
+      setSubtitleModelReady(null);
+      return;
+    }
+    let cancelled = false;
+    tauriCommands.stt
+      .listModels()
+      .then((models) => {
+        if (!cancelled) setSubtitleModelReady(models.includes(sttSettings.modelId));
+      })
+      .catch(() => {
+        if (!cancelled) setSubtitleModelReady(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsOpen, sttAvailable, sttSettings.modelId]);
+
+  const subtitleHint = !sttAvailable
+    ? "语音识别当前不可用"
+    : subtitleModelReady === false
+      ? "未安装识别模型，请到 设置 → 实时字幕 安装"
+      : sttSettings.enabled && !audioPlaying
+        ? "开始播放直播音频后才会生成字幕"
+        : undefined;
 
   const handleAudioPlay = useCallback(async () => {
     await audioPlay();
@@ -1855,7 +1887,8 @@ export function DanmakuPage() {
           )}
         </div>
 
-        {sttAvailable && <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />}
+        {/* 关掉字幕开关时立即隐藏：不等识别队列自然淡出，否则最后半句会再挂一会儿 */}
+        {sttAvailable && sttSettings.enabled && <SubtitleOverlay text={sttText} isSpeaking={sttSpeaking} />}
       </div>
 
       {/* 浮动面板（覆盖在内容区上方） */}
@@ -1915,6 +1948,34 @@ export function DanmakuPage() {
                 />
                 <span className="w-9 shrink-0 text-right text-xs text-ink-muted dark:text-ink-muted">{fontSize}px</span>
               </div>
+
+              {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
+                  放在这里是为了看直播时不用为了关字幕跑回主窗口 */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-muted dark:text-ink-muted">实时字幕</span>
+                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                  {([true, false] as const).map((value) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      // 只在「打开」时要求可用，避免模型缺失时连关都关不掉
+                      disabled={value && (!sttAvailable || subtitleModelReady === false)}
+                      title={subtitleHint}
+                      onClick={() => commitSettings({ stt: { ...settings.stt, enabled: value } })}
+                      className={`px-2.5 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                        settings.stt.enabled === value
+                          ? "bg-brand text-white"
+                          : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                      }`}
+                    >
+                      {value ? "开启" : "关闭"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {subtitleHint && (
+                <p className="-mt-1 text-[11px] text-ink-muted dark:text-ink-muted">{subtitleHint}</p>
+              )}
 
               {/* 表情样式 */}
               <div className="flex items-center justify-between gap-2">
