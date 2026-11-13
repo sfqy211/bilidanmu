@@ -181,16 +181,43 @@ export function DanmakuPage() {
     setActivePanel(null);
     void tauriCommands.room.setInputOnly(!inputOnly).catch(() => {});
   }, [inputOnly]);
-  // 仅输入框模式的表情面板：窗口临时变形由 Rust 侧完成，这里只切渲染形态
-  const [inputOnlyEmotes, setInputOnlyEmotes] = useState(false);
-  useTauriEvent<boolean>("danmaku-input-only-emotes", setInputOnlyEmotes);
-  useEffect(() => {
-    // 切房重挂载/异常残留时收起面板，窗口恢复紧凑栏几何（已收起时为空操作）
-    void tauriCommands.room.setInputOnlyEmotes(false).catch(() => {});
-  }, []);
-  const toggleInputOnlyEmotes = useCallback((open: boolean) => {
-    void tauriCommands.room.setInputOnlyEmotes(open).catch(() => {});
-  }, []);
+  const inputOnlyGripCleanupRef = useRef<(() => void) | null>(null);
+  // 仅输入框模式右侧的二合一控件：拖动＝移动窗口，点按＝回到完整窗口。
+  // 位移超过阈值才交给系统拖动；一旦 startDragging 交出去，mouseup 未必还能回到本窗口，
+  // 所以调用前先摘掉监听，避免松手时被当成一次点击。
+  const handleInputOnlyGrip = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return;
+      // 上一次的监听若因鼠标移出窗口没收到 mouseup，先清掉，避免残留的 mousemove 误触发拖动
+      inputOnlyGripCleanupRef.current?.();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      let moved = false;
+      const cleanup = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        inputOnlyGripCleanupRef.current = null;
+      };
+      const onMove = (move: MouseEvent) => {
+        if (moved) return;
+        if (Math.hypot(move.clientX - startX, move.clientY - startY) < 4) return;
+        moved = true;
+        // 锁定位置时只记录位移，不发起拖动：这样松手不会被当成点击而误恢复窗口
+        if (locked) return;
+        cleanup();
+        void appWindow.startDragging();
+      };
+      const onUp = () => {
+        cleanup();
+        // 全程没位移就是一次点击：回到完整窗口
+        if (!moved) toggleInputOnly();
+      };
+      inputOnlyGripCleanupRef.current = cleanup;
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [appWindow, locked, toggleInputOnly],
+  );
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
   const passthroughIgnoredRef = useRef(false);
   // 隐身模式：后端按光标位置自动显隐并切点击穿透，前端只负责渲染淡入淡出。
@@ -914,12 +941,12 @@ export function DanmakuPage() {
 
   // 当发送账号变化时，如果当前账号没有缓存的表情包，自动加载
   useEffect(() => {
-    if (!roomId || !(emoticonPickerOpen || inputOnlyEmotes)) return;
+    if (!roomId || !emoticonPickerOpen) return;
     const key = effectiveSendingId ?? "";
     if (!emoticonPkgMap.has(key) && !loadingEmoticons) {
       void loadEmoticons();
     }
-  }, [effectiveSendingId, roomId, emoticonPickerOpen, inputOnlyEmotes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveSendingId, roomId, emoticonPickerOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleEmoticonPicker = useCallback(async () => {
     const nextOpen = !emoticonPickerOpen;
@@ -1006,6 +1033,9 @@ export function DanmakuPage() {
   const showDanmaku = ratio < 0.98;
 
   const bgAlpha = opacity / 100;
+  // 仅输入框模式的描边强度跟背景不透明度反向联动：不透明度越高（窗口越实）描边越浅，
+  // 越低（越透）描边越深。紧凑栏本身没有底色，描边是唯一的视觉边界，所以留 0.15 作为下限
+  const inputOnlyRingAlpha = Math.round((0.15 + (1 - bgAlpha) * 0.3) * 100) / 100;
 
   const handleTitleBarMouseDown = useCallback((e: React.MouseEvent) => {
     if (locked) return;
@@ -1165,77 +1195,12 @@ export function DanmakuPage() {
       }}
     >
     {inputOnly ? (
-      inputOnlyEmotes ? (
-        <div
-          data-interactive=""
-          className="danmaku-bg-main window-rounded flex h-full w-full flex-col overflow-hidden select-none"
-        >
-          <div
-            className="danmaku-bg-bar flex shrink-0 items-center pl-3"
-            onMouseDown={(e) => {
-              if (locked) return;
-              if ((e.target as HTMLElement).closest("button")) return;
-              if (e.button === 0) void appWindow.startDragging();
-            }}
-          >
-            <span className="flex-1 truncate text-xs text-ink-muted dark:text-ink-muted">表情</span>
-            <button
-              type="button"
-              onClick={() => toggleInputOnlyEmotes(false)}
-              className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-              title="收起"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            {loadingEmoticons ? (
-              <p className="py-8 text-center text-xs text-ink-muted">正在加载表情…</p>
-            ) : emoticonError ? (
-              <div className="py-6 text-center">
-                <p className="text-xs text-rose-500">{emoticonError}</p>
-                <button
-                  type="button"
-                  className="mt-2 rounded px-2 py-1 text-xs text-ink-muted transition hover:bg-[#ebebeb] dark:text-ink-muted dark:hover:bg-white/[0.06]"
-                  onClick={() => void loadEmoticons()}
-                >
-                  重试
-                </button>
-              </div>
-            ) : emoticonPackages.length === 0 ? (
-              <p className="py-8 text-center text-xs text-ink-muted">当前直播间没有可用表情</p>
-            ) : (
-              emoticonPackages.map((pkg) => (
-                <section key={pkg.pkgId} className="mb-3">
-                  <p className="mb-1 px-1 text-[11px] text-ink-muted">{pkg.pkgName}</p>
-                  <div className="grid grid-cols-4 gap-1">
-                    {pkg.emoticons.map((emoticon) => (
-                      <button
-                        key={emoticon.emoticonUnique ?? emoticon.url}
-                        type="button"
-                        disabled={(emoticon.perm ?? 1) === 0}
-                        title={emoticon.descript ?? emoticon.emoji ?? ""}
-                        onClick={() => {
-                          void handleSendEmoticon(emoticon);
-                          // 发送即收起面板，回到紧凑栏（对齐 live-moyu 的发完收起）
-                          toggleInputOnlyEmotes(false);
-                        }}
-                        className="flex aspect-square items-center justify-center rounded p-1 transition hover:bg-[#ebebeb] disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-white/[0.06]"
-                      >
-                        <ProxiedImage src={emoticon.url} alt={emoticon.emoji ?? ""} className="max-h-10 max-w-10 object-contain" />
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              ))
-            )}
-          </div>
-        </div>
-      ) : (
       <div
         data-interactive=""
         className="danmaku-bg-bar window-rounded flex h-full w-full items-center gap-1 px-2 select-none"
       >
+        {/* 紧凑栏没有底色，输入框只靠一圈中性浅灰描边划出边界；描边深浅由 --field-ring-a
+            跟着「不透明度」设置走：设置越高（窗口越实）描边越浅，越低（越透）描边越深 */}
         <input
           value={message}
           disabled={isAnonymous}
@@ -1258,47 +1223,22 @@ export function DanmakuPage() {
             event.preventDefault();
             void handleSend();
           }}
-          className="danmaku-bg-main min-w-0 flex-1 rounded px-2 py-1.5 text-sm outline-none"
+          style={{ "--field-ring-a": inputOnlyRingAlpha } as React.CSSProperties}
+          className="min-w-0 flex-1 rounded bg-transparent px-2 py-1.5 text-sm outline-none ring-1 ring-inset ring-[rgb(148_163_184_/_var(--field-ring-a))] focus:ring-brand/70"
         />
+        {/* 拖动 + 恢复完整窗口二合一：按住移动超过 4px 就走系统拖动，
+            松手前没产生位移就算一次点击，回到完整窗口 */}
         <button
           type="button"
-          onClick={() => void handleSend()}
-          disabled={!message.trim() || isAnonymous}
-          className="flex h-7 w-7 shrink-0 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] disabled:opacity-40 text-ink-muted dark:hover:bg-white/[0.06]"
-          title="发送"
+          onMouseDown={handleInputOnlyGrip}
+          className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded bg-black/5 text-ink-muted transition hover:bg-black/10 hover:text-ink active:cursor-grabbing dark:bg-white/10 dark:hover:bg-white/[0.18]"
+          title={locked ? "点击恢复完整窗口（位置已锁定）" : "点击恢复完整窗口 · 按住拖动移动窗口"}
+          aria-label="恢复完整窗口，或拖动移动窗口"
         >
-          <Send className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => toggleInputOnlyEmotes(true)}
-          disabled={isAnonymous}
-          className="flex h-7 w-7 shrink-0 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] disabled:opacity-40 text-ink-muted dark:hover:bg-white/[0.06]"
-          title="表情"
-        >
-          <Smile className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={toggleInputOnly}
-          className="flex h-7 w-7 shrink-0 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          title="恢复完整窗口"
-        >
+          {/* 必须是看得见的图标：紧凑栏没有底色，一根 25% 透明度的细竖条在桌面上等于隐形 */}
           <Expand className="h-3.5 w-3.5" />
         </button>
-        {/* 拖动把手：可操作元素统一靠右，仅竖条区域可拖动窗口 */}
-        <span
-          className="flex h-5 w-4 shrink-0 cursor-grab items-center justify-center active:cursor-grabbing"
-          onMouseDown={(e) => {
-            if (locked || e.button !== 0) return;
-            void appWindow.startDragging();
-          }}
-          title="拖动"
-        >
-          <span className="h-4 w-[3px] rounded-full bg-ink/25 dark:bg-ink/35" />
-        </span>
       </div>
-      )
     ) : dockPhase === "collapsed" ? (
       <DockCollapsedBar side={dockSide} onExpand={dockExpand} />
     ) : (

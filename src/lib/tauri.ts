@@ -107,8 +107,6 @@ export const tauriCommands = {
       invoke<number | null>("sample_background_luminance"),
     setInputOnly: (enabled: boolean) =>
       invoke<boolean>("set_danmaku_input_only", { enabled }),
-    setInputOnlyEmotes: (open: boolean) =>
-      invoke<boolean>("set_danmaku_input_only_emotes", { open }),
     getRoomsLiveStatus: () =>
       invoke<
         Record<string, { isLive: boolean; title: string; liveStartTime: number | null }>
