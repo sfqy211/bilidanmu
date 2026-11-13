@@ -601,7 +601,9 @@ body {
 
 /* ── 分区头：状态点 + 标题 + 数量 + 填充线 + 收起/展开 ── */
 .room-section + .room-section { margin-top: 22px; }
-.room-section-header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+/* 分区头与行内内容共用同一左右内边距：标题圆点必须和列表行的首列文字对齐，
+   否则分区标题会比行内容向左凸出 10px，整块看起来是歪的 */
+.room-section-header { display: flex; align-items: center; gap: 10px; min-height: 32px; padding-inline: 10px 12px; }
 .room-section-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 999px; }
 .room-section-dot-live { background: rgb(var(--brand-rgb)); }
 .room-section-dot-offline { background: color-mix(in srgb, var(--ink) 28%, transparent); }
@@ -627,32 +629,37 @@ body {
 
 .room-list-grid {
   display: grid;
-  /* 状态与操作按内容占位（max-content），剩余空间按重要性分给主播与标题；
-     标题列给最小宽度，避免窄窗口下挤成竖排 */
+  /* 每行是独立的 grid 容器，列宽必须由固定值决定：只要有一列用 max-content，
+     该列就会按本行内容的实际宽度计算，剩余空间再分给 fr 两列，
+     于是「直播中 · 已播 3小时」和「未开播」两行的标题起始位置就会差出一截。
+     状态列按最长文案（未开播 · 2025年12月31日，等宽数字约 165px）留足，
+     操作列按三个按钮 + 分隔线固定。 */
   grid-template-columns:
     minmax(96px, 1.05fr)  /* 主播 */
     minmax(120px, 2.2fr)  /* 直播标题 */
-    max-content           /* 状态 */
-    max-content;          /* 操作 */
+    172px                 /* 状态 */
+    108px;                /* 操作 */
   align-items: center;
   /* 间距随容器宽度缩放，窄窗口下不浪费空间 */
   column-gap: clamp(8px, 1.2cqi, 16px);
   padding-inline: 10px 12px;
 }
 
-/* 窄窗口：收紧最小列宽，操作按钮缩小一档（仍完整显示三个，不隐藏功能） */
+/* 窄窗口：收紧前两列与操作列（按钮缩小一档，仍完整显示三个），状态列保持原宽
+   以免「未开播 · 11月13日」这类最长文案被截断 */
 @container (max-width: 620px) {
   .room-list-grid {
     grid-template-columns:
       minmax(80px, 1.05fr)
       minmax(90px, 1.8fr)
-      max-content
-      max-content;
+      172px
+      96px;
     column-gap: 8px;
     padding-inline: 8px 10px;
   }
   .room-list-grid .room-row-actions > button { height: 24px; width: 24px; }
   .room-list-grid .room-row-actions > button svg { height: 13px; width: 13px; }
+  .room-section-header { padding-inline: 8px 10px; }
 }
 
 .room-list-row {
@@ -685,6 +692,10 @@ body {
   white-space: nowrap;
 }
 .room-row-status-live { color: rgb(var(--brand-rgb)); }
+
+/* 直播中的状态点是 6px 圆点，左右各补 3px 外边距凑成 12px，
+   与未开播那行的时钟图标同宽，两种状态的文字和时间才会落在同一条竖线上 */
+.room-row-dot { margin-inline: 3px; }
 
 /* 状态簇里的时间段（已播时长 / 上次直播时间）：跟随状态但保持中性灰，
    用间隔点与状态文字分开 */

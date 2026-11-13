@@ -171,8 +171,9 @@ export function RoomPage() {
   const liveRooms = useMemo(() => previewRooms.filter((r) => roomIsLive(r, liveStatusMap)), [previewRooms, liveStatusMap]);
   const offlineRooms = useMemo(() => previewRooms.filter((r) => !roomIsLive(r, liveStatusMap)), [previewRooms, liveStatusMap]);
 
-  // 筛选态下顺序语义不完整（搜索/收藏/状态筛选），禁用拖拽
-  const canDrag = !filterActive && !favoriteOnly && statusTab === "all";
+  // 拖拽在三个标签页里都能用：可见集合只是完整列表的一部分时，落手时把可见顺序
+  // 按位写回完整顺序（见 onUp）。搜索与只看收藏仍禁用，那两种筛选下顺序语义太弱。
+  const canDrag = !filterActive && !favoriteOnly;
 
   const handleDragMouseDown = (room: Room, event: React.MouseEvent) => {
     // 按在按钮上不启动拖拽，避免误触发点击
@@ -218,7 +219,12 @@ export function RoomPage() {
       const state = dragStateRef.current;
       dragStateRef.current = null;
       if (state?.active && dragOrderIdsRef.current) {
-        const ids = dragOrderIdsRef.current;
+        const visibleIds = dragOrderIdsRef.current;
+        // 状态筛选下可见集合只是完整顺序的一段：把重排后的可见顺序按位写回，
+        // 被筛掉的房间在完整顺序里的位置保持不变，否则它们的 sort_order 会被挤乱
+        const visibleSet = new Set(visibleIds);
+        let cursor = 0;
+        const ids = displayRooms.map((item) => (visibleSet.has(item.id) ? visibleIds[cursor++] : item.id));
         // 持久化完整显示顺序（直播中在前），后续开播状态变化时组内仍按该顺序排列
         void tauriCommands.room.reorderRooms(ids.map(Number));
         const indexOf = new Map(ids.map((id, i) => [id, i] as const));
@@ -388,7 +394,7 @@ export function RoomPage() {
             className="room-row-status room-row-status-live"
             title={timeInfo?.tooltip ?? "直播中"}
           >
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
+            <span className="room-row-dot h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
             直播中
             {timeInfo && <span className="room-row-time numeric">{timeInfo.text}</span>}
           </span>
