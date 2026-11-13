@@ -627,25 +627,30 @@ export function DanmakuPage() {
   const activityScroll = useAutoScroll(activityMessages);
 
   // ── 虚拟滚动：行高按类型估算，实际高度由 measureElement 动态回填 ──
+  // 估计值必须＝真实行高：共享组件的 .danmaku-message 是 24px 行高 + 8px 下间距，
+  // 外层包裹容器实测 offsetHeight 为 32px。原来的 30 比真实值小 2px，新挂载的行在
+  // measureElement 回填前会先按偏小的高度排布，刷屏/滚动时一屏十几行就累积成
+  // 二十几像素的上移，表现为「行与行压在一起」。
+  const ROW_ESTIMATE_PX = 32;
   const messageKey = (m: DanmakuMessage) => `${m.roomId}-${m.id}-${m.timestamp}`;
   const giftVirtualizer = useVirtualizer({
     count: giftMessages.length,
     getScrollElement: () => giftScroll.scrollRef.current,
-    estimateSize: () => 30,
+    estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 10,
     getItemKey: (index) => messageKey(giftMessages[index]),
   });
   const danmakuVirtualizer = useVirtualizer({
     count: danmakuMessages.length,
     getScrollElement: () => danmakuScroll.scrollRef.current,
-    estimateSize: () => 30,
+    estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 10,
     getItemKey: (index) => messageKey(danmakuMessages[index]),
   });
   const activityVirtualizer = useVirtualizer({
     count: activityMessages.length,
     getScrollElement: () => activityScroll.scrollRef.current,
-    estimateSize: () => 30,
+    estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 10,
     getItemKey: (index) => messageKey(activityMessages[index]),
   });
