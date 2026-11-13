@@ -456,42 +456,6 @@ fn sample_background_luminance_sync(app: &tauri::AppHandle) -> Option<f32> {
 
 /// 把目标窗口矩形（物理像素）钳制进其中心所在显示器的工作区，
 /// 多屏热插拔/极端贴边场景的防御（借鉴 live-moyu）。找不到匹配显示器时原样返回。
-fn clamp_into_work_area(
-    window: &tauri::WebviewWindow,
-    x: i32,
-    y: i32,
-    w_px: i32,
-    h_px: i32,
-) -> (i32, i32) {
-    let monitor = window
-        .available_monitors()
-        .unwrap_or_default()
-        .into_iter()
-        .find(|m| {
-            let pos = m.position();
-            let size = m.size();
-            let cx = x + w_px / 2;
-            let cy = y + h_px / 2;
-            cx >= pos.x
-                && cx < pos.x + size.width as i32
-                && cy >= pos.y
-                && cy < pos.y + size.height as i32
-        })
-        .or_else(|| window.primary_monitor().ok().flatten());
-    let Some(monitor) = monitor else {
-        return (x, y);
-    };
-    let area = monitor.work_area();
-    let ax = area.position.x;
-    let ay = area.position.y;
-    let aw = area.size.width as i32;
-    let ah = area.size.height as i32;
-    (
-        x.clamp(ax, (ax + aw - w_px).max(ax)),
-        y.clamp(ay, (ay + ah - h_px).max(ay)),
-    )
-}
-
 /// 切换弹幕窗口「仅输入框」紧凑模式核心（设置命令与全局快捷键共用）：
 /// 进入时先解除吸附（互斥；未吸附时为安全空操作），随后切换尺寸约束与窗口大小，
 /// 广播事件通知前端切换渲染，并立即落盘模式与几何。
@@ -561,7 +525,7 @@ pub fn apply_input_only(
     let anchor_y = pos.y + outer.height as i32 - (size.height * scale).round() as i32;
     let w_px = (size.width * scale).round() as i32;
     let h_px = (size.height * scale).round() as i32;
-    let (target_x, target_y) = clamp_into_work_area(&window, pos.x, anchor_y, w_px, h_px);
+    let (target_x, target_y) = crate::window_state::clamp_into_work_area(&window, pos.x, anchor_y, w_px, h_px);
     window
         .set_position(tauri::PhysicalPosition::new(target_x, target_y))
         .map_err(|e| e.to_string())?;
@@ -632,7 +596,7 @@ pub fn apply_input_only_emotes(
             - (window_state::INPUT_ONLY_EMOTE_H * scale).round() as i32;
         let w_px = (window_state::INPUT_ONLY_EMOTE_W * scale).round() as i32;
         let h_px = (window_state::INPUT_ONLY_EMOTE_H * scale).round() as i32;
-        let (tx, ty) = clamp_into_work_area(&window, pos.x, anchor_y, w_px, h_px);
+        let (tx, ty) = crate::window_state::clamp_into_work_area(&window, pos.x, anchor_y, w_px, h_px);
         window
             .set_position(tauri::PhysicalPosition::new(tx, ty))
             .map_err(|e| e.to_string())?;
@@ -666,7 +630,7 @@ pub fn apply_input_only_emotes(
                 .map_err(|e| e.to_string())?;
             let w_px = (saved.size.0 * scale).round() as i32;
             let h_px = (window_state::INPUT_ONLY_H * scale).round() as i32;
-            let (tx, ty) = clamp_into_work_area(&window, saved.pos.0 + dx, saved.pos.1 + dy, w_px, h_px);
+            let (tx, ty) = crate::window_state::clamp_into_work_area(&window, saved.pos.0 + dx, saved.pos.1 + dy, w_px, h_px);
             window
                 .set_position(tauri::PhysicalPosition::new(tx, ty))
                 .map_err(|e| e.to_string())?;

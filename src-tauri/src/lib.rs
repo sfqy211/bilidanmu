@@ -368,9 +368,26 @@ pub fn run() {
                 }
                 // 弹幕窗口几何持久化：Resized/Moved 事件防抖落盘（吸附态由 window_state
                 // 自行取吸附前几何；位置为物理像素，尺寸换算为逻辑像素）
-                WindowEvent::Resized(_) | WindowEvent::Moved(_) => {
+                WindowEvent::Resized(_) => {
                     if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
                         window_state::on_geometry_changed(window.app_handle());
+                    }
+                }
+                WindowEvent::Moved(_) => {
+                    if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
+                        window_state::on_geometry_changed(window.app_handle());
+                        // 仅输入框模式没有标题栏、也没有可抓的空白区，拖出屏幕就再也拿不回来：
+                        // 拖动停稳后把窗口夹回工作区（拖动过程中不动，避免和用户的手抢位置）
+                        let state = window.app_handle().state::<AppState>();
+                        if state
+                            .danmaku_input_only
+                            .load(std::sync::atomic::Ordering::Relaxed)
+                        {
+                            window_state::schedule_clamp_into_work_area(
+                                window.app_handle(),
+                                window.label(),
+                            );
+                        }
                     }
                 }
                 // 窗口销毁时清理其侧边吸附残留（DockState/冷却/轮询任务），

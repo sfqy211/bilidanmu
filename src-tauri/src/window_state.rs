@@ -14,6 +14,7 @@
 //! 吸附各态（细条/展开预览）的几何不是用户摆放结果，改存 DockState 记录的吸附前几何；
 //! 窗口销毁路径（exit_room / 托盘退出）在 destroy 前同步 flush。
 //! 越界尺寸（瞬态占位/销毁瞬间的异常几何）不落盘；尺寸恢复时整对校验，
+//! 仅输入框模式下额外做一次「拖出屏幕就夹回来」的兜底（见 schedule_clamp_into_work_area）。
 //! 任一维越界整组弃用，杜绝「宽回退默认、高保留脏值」的细长条。
 
 use crate::{commands::room::DANMAKU_WINDOW_LABEL, selections_store, window_dock, AppState};
@@ -217,4 +218,93 @@ fn save_normal_geometry(app: &AppHandle) {
     if let Err(e) = selections_store::save_values(state.inner(), &entries) {
         log::warn!("保存弹幕窗口几何失败: {e}");
     }
+}
+
+/// 把窗口矩形夹进它中心所在显示器的工作区；找不到对应显示器时退回主显示器。
+/// 坐标一律物理像素（全局坐标系）。
+pub(crate) fn clamp_into_work_area(
+    window: &WebviewWindow,
+    x: i32,
+    y: i32,
+    w_px: i32,
+    h_px: i32,
+) -> (i32, i32) {
+    let monitor = window
+        .available_monitors()
+        .unwrap_or_default()
+        .into_iter()
+        .find(|m| {
+            let pos = m.position();
+            let size = m.size();
+            let cx = x + w_px / 2;
+            let cy = y + h_px / 2;
+            cx >= pos.x
+                && cx < pos.x + size.width as i32
+                && cy >= pos.y
+                && cy < pos.y + size.height as i32
+        })
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else {
+        return (x, y);
+    };
+    let area = monitor.work_area();
+    let ax = area.position.x;
+    let ay = area.position.y;
+    let aw = area.size.width as i32;
+    let ah = area.size.height as i32;
+    (
+        x.clamp(ax, (ax + aw - w_px).max(ax)),
+        y.clamp(ay, (ay + ah - h_px).max(ay)),
+    )
+}
+
+/// 每个窗口最后一次「移动」的序号：拖动过程中 Moved 会连续触发，只有停下来之后的那一次
+/// 才真正夹取，避免和用户拖动较劲。
+static CLAMP_GENERATIONS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, u64>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+/// 窗口停止移动约 300ms 后把它夹回工作区。
+///
+/// 仅输入框模式的紧凑栏没有标题栏，也没有可以抓的空白区，一旦被拖到屏幕外就再也拿不回来，
+/// 所以在拖动停稳后做一次兜底归位；拖动过程中不做，否则会和用户的手抢位置。
+pub fn schedule_clamp_into_work_area(app: &AppHandle, label: &str) {
+    let generation = {
+        let mut generations = CLAMP_GENERATIONS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let entry = generations.entry(label.to_string()).or_insert(0);
+        *entry += 1;
+        *entry
+    };
+    let app = app.clone();
+    let label = label.to_string();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let latest = {
+            let generations = CLAMP_GENERATIONS
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            generations.get(&label).copied().unwrap_or(0)
+        };
+        // 期间又移动过：交给最新那次调度处理
+        if latest != generation {
+            return;
+        }
+        let Some(window) = app.get_webview_window(&label) else {
+            return;
+        };
+        let (Ok(position), Ok(size)) = (window.outer_position(), window.outer_size()) else {
+            return;
+        };
+        let (x, y) = clamp_into_work_area(
+            &window,
+            position.x,
+            position.y,
+            size.width as i32,
+            size.height as i32,
+        );
+        if x != position.x || y != position.y {
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        }
+    });
 }
