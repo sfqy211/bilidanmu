@@ -3,6 +3,7 @@ import { Play, Search } from "lucide-react";
 import { AddSearchPage, type AddSearchMode } from "@/components/add/AddSearchPage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { tauriCommands } from "@/lib/tauri";
+import { formatClock } from "@/lib/time";
 import { useSettingsStore } from "@/stores/settings-store";
 
 interface VideoCandidate {
@@ -23,10 +24,6 @@ function extractBvid(input: string): string | null {
   return input.match(/BV[0-9A-Za-z]{10}/)?.[0] ?? null;
 }
 
-function formatDuration(seconds: number) {
-  const total = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
 
 /** 添加视频子页：与添加主播共用 AddSearchPage，BV 号也会先展示结果供确认。 */
 export function VideoAddPage() {
@@ -72,7 +69,7 @@ export function VideoAddPage() {
             <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{video.title}</p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">{video.author}</p>
           </div>
-          <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{formatDuration(video.duration)}</span>
+          <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{formatClock(video.duration)}</span>
           <button
             onClick={() => navigate(`/listen/video/${video.bvid}`)}
             className="workspace-button workspace-icon-button shrink-0"

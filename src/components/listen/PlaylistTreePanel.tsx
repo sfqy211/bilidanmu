@@ -3,19 +3,13 @@ import { ChevronRight, Disc3, Layers, ListMusic, Pause, Play } from "lucide-reac
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
 import type { VideoInfo } from "@/types/bilibili";
 import { cn } from "@/lib/utils";
+import { formatClock } from "@/lib/time";
 
 /** 树节点：曲目（父节点）下的分 P 子节点 */
 interface PageNode {
   cid: number;
   label: string;
   duration: number;
-}
-
-function formatDuration(seconds: number) {
-  const total = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(total / 3600);
-  const mmss = `${String(Math.floor(total / 60) % 60).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-  return hours ? `${hours}:${mmss}` : mmss;
 }
 
 /**
@@ -82,7 +76,7 @@ export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClos
                   <span className="block truncate text-xs">{track.title}</span>
                   <span className="block truncate text-[11px] text-ink-muted">{track.ownerName}</span>
                 </span>
-                <span className="numeric shrink-0 text-[11px] text-ink-muted">{formatDuration(track.duration)}</span>
+                <span className="numeric shrink-0 text-[11px] text-ink-muted">{formatClock(track.duration)}</span>
               </button>
 
               {/* 分 P 子节点：仅当前视频展开 */}
@@ -107,7 +101,7 @@ export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClos
                         title={page.label}
                       >
                         <span className="min-w-0 flex-1 truncate text-[11px]">{page.label}</span>
-                        <span className="numeric shrink-0 text-[11px] text-ink-muted">{formatDuration(page.duration)}</span>
+                        <span className="numeric shrink-0 text-[11px] text-ink-muted">{formatClock(page.duration)}</span>
                       </button>
                     );
                   })}
@@ -156,7 +150,7 @@ export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClos
                       title={ep.title}
                     >
                       <span className="min-w-0 flex-1 truncate text-[11px]">{ep.title}</span>
-                      <span className="numeric shrink-0 text-[11px] text-ink-muted">{formatDuration(ep.duration)}</span>
+                      <span className="numeric shrink-0 text-[11px] text-ink-muted">{formatClock(ep.duration)}</span>
                     </button>
                   );
                 })}

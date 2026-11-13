@@ -1,6 +1,7 @@
 import { type CSSProperties } from "react";
 import { Layers, ListOrdered, Loader2, MessageSquare, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { PLAY_MODE_LABEL, useVideoAudioStore, type PlayMode } from "@/stores/video-audio-store";
+import { formatClock } from "@/lib/time";
 
 const MODE_ICON: Record<PlayMode, typeof Repeat> = {
   order: ListOrdered,
@@ -8,13 +9,6 @@ const MODE_ICON: Record<PlayMode, typeof Repeat> = {
   "repeat-one": Repeat1,
   "repeat-all": Repeat,
 };
-
-function formatTime(seconds: number) {
-  const total = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(total / 3600);
-  const mmss = `${String(Math.floor(total / 60) % 60).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-  return hours ? `${hours}:${mmss}` : mmss;
-}
 
 export function PlayerControls({ onComments, treeOpen, onToggleTree }: {
   onComments: () => void;
@@ -32,7 +26,7 @@ export function PlayerControls({ onComments, treeOpen, onToggleTree }: {
         value={Math.min(currentTime, displayDuration)} disabled={!displayDuration} onChange={(event) => seek(event.target.valueAsNumber)}
         className="listen-player-progress" style={{ "--listen-progress": `${displayDuration ? Math.min(100, Math.max(0, currentTime / displayDuration * 100)) : 0}%` } as CSSProperties} />
       <div className="numeric mt-1 flex justify-between text-xs text-ink-muted">
-        <span>{formatTime(currentTime)}</span><span>{formatTime(displayDuration)}</span>
+        <span>{formatClock(currentTime)}</span><span>{formatClock(displayDuration)}</span>
       </div>
       <div className="listen-player-controls">
         <button type="button" onClick={onComments} className="workspace-button listen-player-comments" title="查看评论"><MessageSquare className="h-4 w-4" />评论</button>

@@ -5,6 +5,7 @@ import { ArrowLeft, ListMusic, Loader2, Pause, Play, RefreshCw } from "lucide-re
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { useSettingsStore } from "@/stores/settings-store";
+import { formatClock } from "@/lib/time";
 
 export interface CollectionVideo {
   bvid: string;
@@ -15,10 +16,6 @@ export interface CollectionVideo {
   cid?: number | null;
 }
 
-function formatDuration(seconds: number) {
-  const total = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
 
 /**
  * 收藏夹内容与稍后再看共用的列表页：返回、标题、计数、刷新与行样式完全一致。
@@ -132,7 +129,7 @@ export function VideoCollectionPage({
                       <p className="truncate text-[13px] font-medium text-ink">{item.title}</p>
                       <p className="mt-0.5 truncate text-xs text-ink-muted">{item.author}</p>
                     </div>
-                    <span className="numeric shrink-0 text-xs text-ink-muted">{formatDuration(item.duration)}</span>
+                    <span className="numeric shrink-0 text-xs text-ink-muted">{formatClock(item.duration)}</span>
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
                       {isRowLoading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
