@@ -7,7 +7,7 @@ const REPOSITORY = "https://github.com/sfqy211/bilidanmu";
 const RELEASES = `${REPOSITORY}/releases/latest`;
 
 // scripts/bump-version.ps1 同步此版本，下载资产名称包含版本号。
-const RELEASE_VERSION = "0.5.2";
+const RELEASE_VERSION = "0.5.3";
 const RELEASE_TAG = `app-v${RELEASE_VERSION}`;
 const RELEASE_ASSETS = `${REPOSITORY}/releases/download/${RELEASE_TAG}`;
 
