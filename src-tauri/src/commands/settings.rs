@@ -70,7 +70,7 @@ pub async fn update_settings(
 
             // Restart if it was running
             if was_running {
-                match super::stt::get_model_dir(&app_clone, &new_model_id) {
+                match super::stt::get_model_dir(&app_clone, &app_clone.state::<AppState>(), &new_model_id) {
                     Ok(model_dir) => {
                         match crate::stt::SttManager::start(
                             model_dir,

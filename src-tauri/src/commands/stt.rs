@@ -5,8 +5,20 @@ use crate::settings_store;
 use crate::stt::SttManager;
 use crate::AppState;
 
-/// Get the base directory for STT models: {app_data_dir}/models/stt/
-pub(crate) fn get_stt_base_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+/// Get the base directory for STT models。设置了自定义模型目录（stt.customModelDir）
+/// 时优先使用，否则回退默认 {app_data_dir}/models/stt/
+pub(crate) fn get_stt_base_dir(
+    app: &tauri::AppHandle,
+    state: &AppState,
+) -> Result<std::path::PathBuf, String> {
+    let custom = settings_store::load_settings(state)
+        .ok()
+        .and_then(|settings| settings.stt.custom_model_dir)
+        .map(|dir| dir.trim().to_string())
+        .filter(|dir| !dir.is_empty());
+    if let Some(dir) = custom {
+        return Ok(std::path::PathBuf::from(dir));
+    }
     let data_dir = app
         .path()
         .app_data_dir()
@@ -25,13 +37,17 @@ fn is_offline_model(model_dir: &std::path::Path) -> bool {
 }
 
 /// Get the model directory for a given model ID.
-pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, String> {
+pub fn get_model_dir(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    model_id: &str,
+) -> Result<String, String> {
     // Sanitize model_id against path traversal (#5)
     if model_id.contains("..") || model_id.contains('/') || model_id.contains('\\') {
         return Err(format!("Invalid model ID: {model_id}"));
     }
 
-    let model_path = get_stt_base_dir(app)?.join(model_id);
+    let model_path = get_stt_base_dir(app, state)?.join(model_id);
 
     if !model_path.exists() {
         return Err(format!(
@@ -48,8 +64,8 @@ pub fn get_model_dir(app: &tauri::AppHandle, model_id: &str) -> Result<String, S
 
 /// Get the STT model base directory path (for display in settings).
 #[tauri::command]
-pub fn get_stt_model_dir(app: tauri::AppHandle) -> Result<String, String> {
-    let base = get_stt_base_dir(&app)?;
+pub fn get_stt_model_dir(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+    let base = get_stt_base_dir(&app, state.inner())?;
     // Auto-create the directory so users know where to put models
     std::fs::create_dir_all(&base)
         .map_err(|e| format!("创建模型目录失败: {e}"))?;
@@ -61,8 +77,8 @@ pub fn get_stt_model_dir(app: tauri::AppHandle) -> Result<String, String> {
 /// List available STT models by scanning the model directory.
 /// Returns model IDs for subdirectories that contain the required files.
 #[tauri::command]
-pub fn list_stt_models(app: tauri::AppHandle) -> Result<Vec<String>, String> {
-    let base = get_stt_base_dir(&app)?;
+pub fn list_stt_models(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let base = get_stt_base_dir(&app, state.inner())?;
     if !base.exists() {
         return Ok(Vec::new());
     }
@@ -102,8 +118,11 @@ pub fn list_stt_models(app: tauri::AppHandle) -> Result<Vec<String>, String> {
 
 /// Open the STT model directory in the system file explorer.
 #[tauri::command]
-pub async fn open_stt_model_dir(app: tauri::AppHandle) -> Result<(), String> {
-    let base = get_stt_base_dir(&app)?;
+pub async fn open_stt_model_dir(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let base = get_stt_base_dir(&app, state.inner())?;
     std::fs::create_dir_all(&base)
         .map_err(|e| format!("创建模型目录失败: {e}"))?;
     app.opener()
@@ -126,7 +145,7 @@ pub async fn start_stt(
 
     // Read model_id from settings
     let settings = settings_store::load_settings(&state).map_err(|e| format!("读取设置失败: {e}"))?;
-    let model_dir = get_model_dir(&app, &settings.stt.model_id)?;
+    let model_dir = get_model_dir(&app, state.inner(), &settings.stt.model_id)?;
     log::info!("start_stt: model_id={}, dir={}", settings.stt.model_id, model_dir);
 
     // 离线模型依赖 Silero VAD（下载器自动附带）；缺失时提前报错而非静默失败
@@ -171,7 +190,7 @@ pub async fn switch_stt_model(
     model_id: String,
 ) -> Result<(), String> {
     // Validate model directory exists
-    let _model_dir = get_model_dir(&app, &model_id)?;
+    let _model_dir = get_model_dir(&app, state.inner(), &model_id)?;
 
     // Stop current pipeline if running — remember whether it was active (#4)
     let mut manager_lock = state.stt_manager.lock().await;
@@ -187,12 +206,48 @@ pub async fn switch_stt_model(
 
     // Only restart pipeline if it was previously running (#4)
     if was_running {
-        let model_dir = get_model_dir(&app, &settings.stt.model_id)?;
+        let model_dir = get_model_dir(&app, state.inner(), &settings.stt.model_id)?;
         let stream_proxy = state.stream_proxy.clone();
         let manager = SttManager::start(model_dir, app, stream_proxy).await?;
         *manager_lock = Some(manager);
     }
 
     log::info!("STT model switched (was_running={was_running})");
+    Ok(())
+}
+
+/// 设置/重置自定义模型目录（dir 为 None 或空串 = 恢复默认目录）。
+/// 目录不存在时自动创建；STT 管线运行中则先停止——新目录下原模型可能不存在，
+/// 由用户在模型列表中重新选择后再次启用。
+#[tauri::command]
+pub async fn set_stt_model_dir(
+    state: State<'_, AppState>,
+    dir: Option<String>,
+) -> Result<(), String> {
+    let trimmed = dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|d| !d.is_empty())
+        .map(|d| d.to_string());
+    if let Some(path) = &trimmed {
+        let path = std::path::Path::new(path);
+        if !path.is_absolute() {
+            return Err("模型目录必须是绝对路径".to_string());
+        }
+        std::fs::create_dir_all(path).map_err(|e| format!("创建模型目录失败: {e}"))?;
+    }
+
+    let mut settings =
+        settings_store::load_settings(state.inner()).map_err(|e| format!("读取设置失败: {e}"))?;
+    settings.stt.custom_model_dir = trimmed;
+    settings_store::save_settings(state.inner(), &settings)
+        .map_err(|e| format!("保存设置失败: {e}"))?;
+
+    // 管线运行中：先停止，避免继续用旧目录里的模型
+    let mut manager_lock = state.stt_manager.lock().await;
+    if let Some(mut manager) = manager_lock.take() {
+        manager.stop().await?;
+        log::info!("模型目录已变更，STT 管线已停止");
+    }
     Ok(())
 }

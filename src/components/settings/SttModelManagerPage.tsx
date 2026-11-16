@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Download, ExternalLink, FolderOpen, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, ExternalLink, FolderOpen, FolderPen, Loader2, RefreshCw, Undo2 } from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
@@ -95,6 +96,32 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
   const openDirectory = async () => {
     try { await tauriCommands.stt.openModelDir(); }
     catch (reason) { setError(`打开模型目录失败：${String(reason)}`); }
+  };
+
+  /** 目录选择器：选定后落库并刷新模型列表（Rust 侧会停掉运行中的 STT 管线） */
+  const changeDirectory = async () => {
+    setError(null);
+    try {
+      const picked = await openDialog({ directory: true, multiple: false, title: "选择识别模型目录" });
+      if (typeof picked !== "string") return;
+      await tauriCommands.stt.setModelDir(picked);
+      // 同步本地 store：设置页下次自动保存带上的是新目录，避免旧值写回覆盖
+      patchSettings({ stt: { ...settings.stt, customModelDir: picked } });
+      refresh();
+    } catch (reason) {
+      setError(`修改模型目录失败：${String(reason)}`);
+    }
+  };
+
+  const resetDirectory = async () => {
+    setError(null);
+    try {
+      await tauriCommands.stt.setModelDir(null);
+      patchSettings({ stt: { ...settings.stt, customModelDir: null } });
+      refresh();
+    } catch (reason) {
+      setError(`恢复默认目录失败：${String(reason)}`);
+    }
   };
 
   const currentId = settings.stt.modelId;
@@ -200,6 +227,14 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[13px] text-ink">模型目录</p>
             <div className="flex gap-2">
+              <button type="button" className="settings-action" disabled={!available} onClick={() => void changeDirectory()}>
+                <FolderPen className="h-3.5 w-3.5" /> 修改目录
+              </button>
+              {settings.stt.customModelDir && (
+                <button type="button" className="settings-action" disabled={!available} onClick={() => void resetDirectory()}>
+                  <Undo2 className="h-3.5 w-3.5" /> 恢复默认
+                </button>
+              )}
               <button type="button" className="settings-action" disabled={!available} onClick={refresh}>
                 <RefreshCw className="h-3.5 w-3.5" /> 刷新模型
               </button>
@@ -209,8 +244,14 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
             </div>
           </div>
           {sttModels.modelDir && (
-            <p className="mt-2 break-all select-text text-xs text-ink-muted">{sttModels.modelDir}</p>
+            <p className="mt-2 break-all select-text text-xs text-ink-muted">
+              {sttModels.modelDir}
+              {settings.stt.customModelDir && <span className="ml-2 text-ink-muted">（自定义）</span>}
+            </p>
           )}
+          <p className="mt-1 text-xs text-ink-muted">
+            修改目录后模型列表会重新扫描；正在运行的实时字幕会先停止，需在新目录中选择模型后重新启用。
+          </p>
           <details className="mt-2 text-xs leading-relaxed text-ink-muted">
             <summary className="cursor-pointer py-1">如何手动安装模型</summary>
             <p className="mt-1">

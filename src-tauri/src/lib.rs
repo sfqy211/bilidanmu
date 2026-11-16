@@ -126,6 +126,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -525,6 +526,7 @@ pub fn run() {
             commands::stt::get_stt_model_dir,
             commands::stt::list_stt_models,
             commands::stt::open_stt_model_dir,
+            commands::stt::set_stt_model_dir,
             commands::stt_download::list_available_stt_models,
             commands::stt_download::get_stt_model_download_status,
             commands::stt_download::start_stt_model_download,

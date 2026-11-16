@@ -239,7 +239,7 @@ pub async fn start_stt_model_download(
     if let Some(job) = slot.as_ref() {
         return Err(format!("已有模型下载任务进行中（{}）", job.model_id));
     }
-    let base = get_stt_base_dir(&app)?;
+    let base = get_stt_base_dir(&app, state.inner())?;
     let dest = base.join(entry.id);
     if dest.join("tokens.txt").exists() || dest.join("model.meta.json").exists() {
         return Err("该模型已安装".to_string());
@@ -285,7 +285,7 @@ async fn run_download(
     let part = std::env::temp_dir().join(format!("{}.part", entry.filename));
     let _ = std::fs::remove_file(&part); // 清理上次中断残留
 
-    let base = match get_stt_base_dir(&app) {
+    let base = match get_stt_base_dir(&app, &app.state::<AppState>()) {
         Ok(b) => b,
         Err(e) => {
             emit_event(&app, entry.id, "error", 0, entry.size_bytes, Some(e));

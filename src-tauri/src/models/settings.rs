@@ -422,6 +422,9 @@ pub struct SttSetting {
     pub model_id: String,
     /// Sync delay in ms (-2000 ~ +2000)
     pub sync_delay_ms: i32,
+    /// 自定义模型目录（None/空 = 默认 {app_data_dir}/models/stt）
+    #[serde(default)]
+    pub custom_model_dir: Option<String>,
 }
 
 impl Default for SttSetting {
@@ -430,6 +433,7 @@ impl Default for SttSetting {
             enabled: false,
             model_id: "large".to_string(),
             sync_delay_ms: 0,
+            custom_model_dir: None,
         }
     }
 }

@@ -425,6 +425,8 @@ export interface SttSetting {
   enabled: boolean;
   modelId: string;
   syncDelayMs: number;
+  /** 自定义模型目录（null/空 = 默认 {app_data_dir}/models/stt） */
+  customModelDir: string | null;
 }
 
 export interface SttTranscript {

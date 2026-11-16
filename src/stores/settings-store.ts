@@ -121,7 +121,8 @@ export const defaultSettings: Settings = {
   stt: {
     enabled: false,
     modelId: "large",
-    syncDelayMs: 0
+    syncDelayMs: 0,
+    customModelDir: null
   },
   filter: {
     blockedUsers: [],
