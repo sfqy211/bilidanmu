@@ -17,8 +17,10 @@ import { useSettingsStore } from "@/stores/settings-store";
 export function VideoPlayerPage() {
   const navigate = useNavigate();
   const { bvid } = useParams();
-  const { video, queue, index, pageIndex, currentTime, error, playVideo, seek } = useVideoAudioStore();
+  const { video, queue, index, pageIndex, currentTime, error, playVideo, loadVideo, seek } = useVideoAudioStore();
   const preferences = useSettingsStore((state) => state.settings.listen);
+  // 音频自动连接开关：直播弹幕窗与视频弹幕窗共用（进入弹幕小窗要不要直接播放音频）
+  const audioAutoPlay = useSettingsStore((state) => state.settings.audio.autoPlay);
   const isCurrentVideo = video?.bvid === bvid;
   const track = queue?.tracks[index];
   const coverSource = useProxyImage(isCurrentVideo ? video?.cover : undefined);
@@ -48,15 +50,20 @@ export function VideoPlayerPage() {
     // 队列当前曲目就是本路由的 bvid：说明是列表点进来/自动前进后的正常停留，
     // 只是 video 详情还没解析完，绝不能在这里重建成单视频队列（否则会把联播队列打回单曲）
     if (currentTrack?.bvid === bvid) return;
-    // 用户直接打开某个 bvid（无队列或队列不含它）：按单视频建队从 P1 播
+    // 用户直接打开某个 bvid（无队列或队列不含它）：按单视频建队。
+    // 是否立即起播由「进入弹幕小窗时自动播放音频」决定——关闭时只入队不起播，
+    // 音频流已连接、停在暂停态，等用户在播放页/mini player/弹幕窗手动播放
     let cancelled = false;
     void tauriCommands.video.getInfo(bvid)
-      .then((info) => { if (!cancelled) return playVideo(info, 0); })
+      .then((info) => {
+        if (cancelled) return;
+        return audioAutoPlay ? playVideo(info, 0) : loadVideo(info, 0);
+      })
       .catch((reason) => {
         if (!cancelled) useVideoAudioStore.setState({ error: reason instanceof Error ? reason.message : "无法读取视频信息，请稍后重试" });
       });
     return () => { cancelled = true; };
-  }, [bvid, isCurrentVideo, trackSignature, queue, index, playVideo, navigate]);
+  }, [bvid, isCurrentVideo, trackSignature, queue, index, playVideo, loadVideo, audioAutoPlay, navigate]);
 
   // 当前实际播放的 cid：perPage 队列（分P/合集展开）每个曲目自带 cid；
   // 普通队列（收藏夹/稍后再看）由 pageIndex 决定具体第几 P——

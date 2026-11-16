@@ -1,5 +1,6 @@
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
 import { tauriCommands } from "@/lib/tauri";
+import { useSettingsStore } from "@/stores/settings-store";
 import type { VideoPlaybackSnapshot } from "@/types/video-window";
 
 let revision = Date.now();
@@ -34,12 +35,15 @@ export function getVideoPlaybackSnapshot(): VideoPlaybackSnapshot {
 }
 
 /**
- * 视频列表直达弹幕模式：入队播放该视频（与列表播放按钮同一联播队列），
- * playQueue 完成时视频已解析、音频已起播，快照必有 cid，随后发布并打开独立窗口。
+ * 视频列表直达弹幕模式：入队该视频（与列表播放按钮同一联播队列）后发布快照并打开独立窗口。
+ * 是否立即起播由「进入弹幕小窗时自动播放音频」决定——与直播弹幕窗的自动连接共用同一开关；
+ * 关闭时音频流已连接、停在暂停态，在弹幕窗/mini player 手动播放即可。
  * 主窗口不导航——弹幕模式开启后主窗口本就会隐藏，退出时留在原列表由 mini player 续播。
  */
 export async function enterVideoDanmakuMode(album: PlayQueue, index: number): Promise<void> {
-  await useVideoAudioStore.getState().playQueue(album, index);
+  const player = useVideoAudioStore.getState();
+  const autoPlay = useSettingsStore.getState().settings.audio.autoPlay;
+  await (autoPlay ? player.playQueue(album, index) : player.loadQueue(album, index));
   await tauriCommands.videoWindow.publish(getVideoPlaybackSnapshot());
   await tauriCommands.videoWindow.open();
 }

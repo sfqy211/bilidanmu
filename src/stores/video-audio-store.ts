@@ -106,8 +106,12 @@ interface VideoAudioState {
 
 interface VideoAudioActions {
   playQueue: (queue: PlayQueue, index: number) => Promise<void>;
+  /** 入队但不起播：音频流已连接、停在暂停态，供「进入弹幕小窗不自动连接音频」使用 */
+  loadQueue: (queue: PlayQueue, index: number) => Promise<void>;
   /** 用单个视频建队（多分 P 展开为曲目），从指定分 P 开始播 */
   playVideo: (video: VideoInfo, pageIndex: number) => Promise<void>;
+  /** 同 playVideo 但不起播（设置未开启自动播放时播放页首次进入用） */
+  loadVideo: (video: VideoInfo, pageIndex: number) => Promise<void>;
   playTrackAt: (index: number) => Promise<void>;
   /** 在当前曲目内切到指定分 P（分 P 连播用，不改变队列位置） */
   playPage: (pageIndex: number) => Promise<void>;
@@ -273,7 +277,7 @@ function ensureAudio(get: () => VideoAudioStore, set: (partial: Partial<VideoAud
 export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
   const patch = (partial: Partial<VideoAudioStore>) => set(partial);
 
-  const playTrackAt = async (queue: PlayQueue, index: number, pageIndex = 0) => {
+  const playTrackAt = async (queue: PlayQueue, index: number, pageIndex = 0, autoPlay = true) => {
     const seq = ++loadSeq;
     const track = queue.tracks[index];
     if (!track) return;
@@ -326,7 +330,8 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
       audio.src = `${stream.url}?v=${seq}`;
       audio.load();
       audio.volume = get().volume / 100;
-      await audio.play();
+      // 不起播时停在这里：音频流已连接、进度停在 0，等用户在任意入口手动播放
+      if (autoPlay) await audio.play();
       if (seq !== loadSeq) return;
       set({ loading: false });
     } catch (e) {
@@ -351,8 +356,14 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
 
     playQueue: (queue, index) => playTrackAt(queue, index),
 
+    loadQueue: (queue, index) => playTrackAt(queue, index, 0, false),
+
     playVideo: async (video, pageIndex) => {
       await playTrackAt(videoToQueue(video), pageIndex);
+    },
+
+    loadVideo: async (video, pageIndex) => {
+      await playTrackAt(videoToQueue(video), pageIndex, 0, false);
     },
 
     playTrackAt: (index) => {
@@ -386,7 +397,13 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
 
     togglePlay: async () => {
       const audio = ensureAudio(get, patch);
-      if (!audio.src) return;
+      const { queue, index } = get();
+      // 「入队未起播」状态（autoPlay 关闭时进入播放页/弹幕小窗）：还没有音频流，
+      // 此时的"播放"含义是真正起播当前曲目，而不是对空 src 做暂停切换
+      if (!audio.src) {
+        if (queue?.tracks[index]) return playTrackAt(queue, index);
+        return;
+      }
       if (audio.paused) {
         await audio.play().catch(() => {});
       } else {
