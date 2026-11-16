@@ -90,6 +90,17 @@ body {
   margin: 0;
   font-family: var(--ui-font-family, "Segoe UI", system-ui, sans-serif);
   font-weight: 400;
+  /* 桌面应用语义：全局禁止文字选中（拖拽/双击不再出现蓝色选区）。
+     输入类控件与显式 select-text 的元素仍可正常选中复制。 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 [data-transparent],
