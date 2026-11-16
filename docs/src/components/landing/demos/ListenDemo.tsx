@@ -17,7 +17,7 @@ const scenes = [
     key: "subtitles",
     label: "同步字幕",
     title: ["喜欢的声音，", "慢慢听。"],
-    description: "纯音频播放，视频已有的字幕逐句跟随。",
+    description: "纯音频播放，字幕逐句跟随。弹幕模式可独立查看字幕与视频弹幕。",
     file: "player-current.png",
     alt: "BiliDanmu 音频播放器，显示视频标题、同步字幕、进度和播放控制",
   },

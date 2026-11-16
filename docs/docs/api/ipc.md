@@ -63,7 +63,7 @@ const settings = await tauriCommands.settings.get()
 | `get_danmaku_input_only` | — | `boolean` | 弹幕窗是否处于仅输入框模式 |
 | `set_danmaku_input_only` | `enabled` | `boolean` | 进出仅输入框模式（Rust 侧改尺寸/位置） |
 | `set_danmaku_input_only_emotes` | `open` | `boolean` | 紧凑模式下临时展开/收起表情面板 |
-| `sample_background_luminance` | — | `number \| null` | 采样弹幕窗背后屏幕平均亮度 0.0–1.0 |
+| `sample_background_luminance` | — | `number \| null` | 采样当前调用窗口四周的屏幕平均亮度 0.0–1.0，直播与视频弹幕窗口分别跟随各自位置的背景 |
 | `is_mock_enabled` | — | `boolean` | 是否启用了虚拟直播间 |
 
 ## 弹幕命令 (`danmaku`)
@@ -111,10 +111,29 @@ const settings = await tauriCommands.settings.get()
 | `list_watch_later` | — | `WatchLaterItem[]` | 稍后再看（需登录） |
 | `search_videos` | `keyword, page?` | `SearchVideoPage` | 视频关键词搜索 |
 | `get_video_subtitle` | `bvid, cid` | `SubtitleLine[]` | 视频自带字幕 |
+| `get_video_danmaku` | `cid, segment` | `VideoDanmaku[]` | 视频弹幕，6 分钟一段，`segment` 从 1 开始；条目为 `{ id: string, progress: number, content: string }`，`progress` 单位为秒 |
+| `send_video_danmaku` | `bvid, cid, message, progress` | `VideoDanmaku` | 使用发送账号向指定分 P 发送弹幕，时间单位为秒，长度 1–100 字符 |
 | `get_video_comments` | `aid, page?, sort?` | `CommentPage` | 评论列表（`sort` 1=按点赞 2=按时间） |
 | `get_comment_replies` | `oid, root, page?` | `CommentPage` | 楼中楼回复 |
 | `like_comment` | `oid, rpid, like` | `void` | 评论点赞/取消 |
 | `add_video_comment` | `oid, message, root?, parent?` | `VideoComment` | 发表评论或回复 |
+
+## 视频弹幕窗口命令 (`videoWindow`)
+
+| 命令 | 参数 | 返回 | 说明 |
+| --- | --- | --- | --- |
+| `open_video_danmaku_window` | — | `void` | 打开唯一的 `video-danmaku` 窗口，隐藏主窗口，继续使用主窗口音轨 |
+| `close_video_danmaku_window` | `restoreMain?` | `void` | 销毁视频弹幕窗口，默认显示主窗口；进入直播间时传 false |
+| `set_video_input_only` | `enabled` | `boolean` | 以底边为锚切换 48px 仅输入框形态 |
+| `publish_video_playback` | `snapshot` | `void` | 仅主窗口可发布播放快照，并定向通知视频弹幕窗口 |
+| `get_video_playback` | — | `PlaybackSnapshot \| null` | 获取最新播放快照 |
+| `control_video_playback` | `bvid, cid, control` | `void` | 向主窗口发送控制请求，匹配当前 bvid/cid 后执行。`control` 为 `{ action: 'togglePlay' }`、`{ action: 'seek' \| 'volume', value: number }` 或 `{ action: 'selectTrack', value: string }`，切换曲目的 value 使用曲目 key |
+
+`PlaybackSnapshot` 包含 `revision: number`、`bvid: string | null`、`aid: number | null`、`cid: number | null`、`title: string`、`tracks: { key: string, title: string, bvid: string }[]`、`index: number`、`playing: boolean`、`loading: boolean`、`currentTime: number`、`duration: number`、`volume: number`、`error: string | null`。时间单位为秒，音量为 0–100，曲目下标从 0 开始。`revision` 单调递增，窗口忽略过期快照。
+
+视频窗口外观通过 `load_selections` / `save_selections` 保存到 `videoDanmakuAppearance`，字段为 `opacity`、`subtitleFontSize`、`danmakuFontSize`、`autoFollow`、`showTime` 和 `subtitleRatio`。
+
+主题模式、背景亮暗跟随、强调色与标题栏按钮复用 `settings.appearance`。深浅主题预设和字体复用 `settings.visual`。视频窗口的旧外观数据缺少字号或不透明度时，从已有设置补齐默认值。
 
 ## 设置命令 (`settings`)
 

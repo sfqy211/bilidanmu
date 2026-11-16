@@ -214,6 +214,14 @@ interface SttModelDownloadEvent {
 `ai-confirm-request` 的 `id` 是关联键：Rust 侧等待用户决定，超时（55 秒）后该 id
 失效，`ai_confirm_response` 会返回 `false`。
 
+## 视频弹幕窗口事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `video-playback` | `PlaybackSnapshot`，字段见 [IPC 视频弹幕窗口命令](./ipc#视频弹幕窗口命令-videowindow) | Rust → `video-danmaku`，更新播放状态、当前分 P、进度和队列 |
+| `video-playback-control` | `{ bvid: string \| null, cid: number \| null, control: { action: 'togglePlay' } \| { action: 'seek' \| 'volume', value: number } \| { action: 'selectTrack', value: string } }` | Rust → 主窗口，主窗口核对视频身份后操作唯一音轨 |
+| `video-window-reveal` | `null` | Rust → `video-danmaku`，从托盘或视频页唤起时立即显形 |
+
 ## 事件一览
 
 | 事件 | 方向 | 来源模块 |
@@ -234,3 +242,5 @@ interface SttModelDownloadEvent {
 | `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |
 | `ai-permission-changed` | Rust → 前端 | `ai/commands.rs` |
 | `ai-navigate` | Rust → 主窗口 | `ai/tools/video.rs` |
+| `video-playback` / `video-window-reveal` | Rust → 视频弹幕窗口 | `commands/video_window.rs`、`tray.rs` |
+| `video-playback-control` | Rust → 主窗口 | `commands/video_window.rs` |
