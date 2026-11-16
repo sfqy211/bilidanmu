@@ -377,6 +377,8 @@ export interface Settings {
   closeBehavior: "ask" | "hide" | "exit";
   /** 静默启动：启动时不显示主页面，只在系统托盘常驻 */
   silentStart: boolean;
+  /** 启动时显示的窗口：danmaku（弹幕窗口）/ main（主页面）。静默启动时不弹任何窗口 */
+  startupView: "danmaku" | "main";
   /** 在直播间列表、添加主播、账号与视频评论中展示头像 */
   showAvatars: boolean;
 }

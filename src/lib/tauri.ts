@@ -82,6 +82,10 @@ export const tauriCommands = {
     getFollowLives: () => invoke<SearchRoomResult[]>("get_follow_lives"),
     getInfo: (roomId: number) => invoke<RoomInfo>("get_room_info", { roomId }),
     openDanmaku: (roomId: number) => invoke<void>("open_danmaku_window", { roomId }),
+    /** 打开「未选择直播间」的弹幕窗口默认引导页（/danmaku） */
+    openDanmakuHome: () => invoke<void>("open_danmaku_home"),
+    /** 从弹幕窗口默认页退出：销毁弹幕窗并显示主页面（不动 currentRoomId） */
+    closeDanmakuWindow: () => invoke<void>("close_danmaku_window"),
     switchRoom: (roomId: number) => invoke<void>("switch_room", { roomId }),
     exitRoom: (roomId: number) => invoke<void>("exit_room", { roomId }),
     getEmoticons: (roomId: number, force?: boolean, accountId?: string) =>

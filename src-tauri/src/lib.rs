@@ -206,22 +206,31 @@ pub fn run() {
             // 数据库就绪后按设置注册全局快捷键（未绑定的动作跳过）
             shortcuts::apply_shortcuts(app.handle());
 
-            // 静默启动：开启时只驻留托盘，不弹出主页面（设置读取失败按普通启动处理）。
+            // 静默启动：开启时只驻留托盘，不弹出任何窗口（设置读取失败按普通启动处理）。
             // 主窗口在 tauri.conf.json 里以 visible=false 创建，避免先闪一下再隐藏。
+            // 非静默时按「启动时显示」设置决定：danmaku（默认，弹幕窗口优先）或主页面。
             {
                 let state = app.state::<AppState>();
-                let silent_start = settings_store::load_settings(state.inner())
+                let settings = settings_store::load_settings(state.inner()).ok();
+                let silent_start = settings
+                    .as_ref()
                     .map(|settings| settings.silent_start)
                     .unwrap_or(false);
+                let startup_danmaku = settings
+                    .as_ref()
+                    .map(|settings| settings.startup_view.as_str() == "danmaku")
+                    .unwrap_or(true);
                 // 收起条开关的内存镜像：吸附几何与轮询要读它
-                let dock_enabled = settings_store::load_settings(state.inner())
+                let dock_enabled = settings
+                    .as_ref()
                     .map(|settings| settings.appearance.danmaku_window.dock_enabled)
                     .unwrap_or(true);
                 state
                     .dock_enabled
                     .store(dock_enabled, std::sync::atomic::Ordering::Relaxed);
                 // 背景跟随开关的内存镜像：亮度采样高频读它
-                let auto_theme = settings_store::load_settings(state.inner())
+                let auto_theme = settings
+                    .as_ref()
                     .map(|settings| settings.appearance.auto_theme_from_background)
                     .unwrap_or(false);
                 state
@@ -231,6 +240,14 @@ pub fn run() {
                     if silent_start {
                         let _ = main.hide();
                         log::info!("静默启动：主窗口仅驻留系统托盘");
+                    } else if startup_danmaku {
+                        // 主窗口保持隐藏，弹幕窗口在后台创建（窗口创建依赖异步运行时）；
+                        // 未添加直播间时 startup_open_danmaku_window 内部回退显示主窗口，
+                        // 创建失败时同样回退，避免启动后一个窗口都看不见
+                        let app_handle = app.handle().clone();
+                        tauri::async_runtime::spawn(async move {
+                            commands::room::startup_open_danmaku_window(app_handle).await;
+                        });
                     } else {
                         let _ = main.show();
                         let _ = main.set_focus();
@@ -447,6 +464,8 @@ pub fn run() {
             commands::room::remove_favorite_emoticon,
             commands::room::update_favorite_order,
             commands::room::open_danmaku_window,
+            commands::room::open_danmaku_home,
+            commands::room::close_danmaku_window,
             commands::room::switch_room,
             commands::room::get_danmaku_input_only,
             commands::room::sample_background_luminance,

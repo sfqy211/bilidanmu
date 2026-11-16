@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 const SETTINGS_CATEGORIES = [
   // resetKeys：本页「重置为默认设置」会还原的顶层字段，只影响本页
   { value: "general", label: "通用", description: "窗口行为与托盘", icon: SlidersHorizontal, component: GeneralSettings,
-    resetKeys: ["closeBehavior", "silentStart", "showAvatars"] },
+    resetKeys: ["closeBehavior", "silentStart", "startupView", "showAvatars"] },
   { value: "shortcuts", label: "快捷键", description: "全局与应用内快捷键的自定义", icon: Keyboard, component: ShortcutsSettings,
     resetKeys: ["shortcuts"] },
   { value: "appearance", label: "外观", description: "", icon: Palette, component: AppearanceSettings,

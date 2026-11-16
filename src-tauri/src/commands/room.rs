@@ -266,21 +266,27 @@ fn apply_room_switch_bookkeeping(
     Ok(true)
 }
 
+/// 创建常驻弹幕窗口。`room_id` 为 None 时打开「未选择直播间」默认引导页（/danmaku）。
 async fn create_danmaku_window(
     app: &tauri::AppHandle,
-    room_id: u64,
+    room_id: Option<u64>,
     state: &AppState,
 ) -> Result<(), String> {
-    let path = format!("/danmaku/{room_id}")
+    let path = room_id
+        .map(|id| format!("/danmaku/{id}"))
+        .unwrap_or_else(|| "/danmaku".to_string())
         .parse()
         .map_err(|error| format!("解析弹幕窗口路由失败: {error}"))?;
 
     // 恢复上次几何：尺寸为逻辑像素；位置为物理像素（坐标失效时回退系统默认定位）
-    // 仅输入框模式按紧凑尺寸与约束创建（高度锁定），其余按常态
+    // 仅输入框模式按紧凑尺寸与约束创建（高度锁定），其余按常态。
+    // 无房间默认页强制完整模式：引导页是选择直播间的取景器，紧凑栏放不下；
+    // 恢复直播间路径不受影响（保留用户的紧凑模式偏好）
     let saved = window_state::load_geometry(app);
+    let input_only = room_id.is_some() && saved.input_only;
     state
         .danmaku_input_only
-        .store(saved.input_only, std::sync::atomic::Ordering::Relaxed);
+        .store(input_only, std::sync::atomic::Ordering::Relaxed);
     // 面板展开是临时形态，不随模式持久化：重建窗口一律回到紧凑栏/完整模式
     state
         .danmaku_emote_panel
@@ -289,7 +295,7 @@ async fn create_danmaku_window(
         .danmaku_emote_saved
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
-    let (w, h, min_w, min_h, max_w, max_h) = if saved.input_only {
+    let (w, h, min_w, min_h, max_w, max_h) = if input_only {
         let width = saved
             .input_only_size
             .map(|(width, _)| width)
@@ -316,7 +322,9 @@ async fn create_danmaku_window(
         )
     };
 
-    let title = danmaku_window_title(state, room_id);
+    let title = room_id
+        .map(|id| danmaku_window_title(state, id))
+        .unwrap_or_else(|| "弹幕窗口".to_string());
 
     let builder = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
         .title(title)
@@ -691,7 +699,7 @@ pub async fn open_danmaku_window(
         return Ok(());
     }
 
-    create_danmaku_window(&app, room_id, state.inner()).await?;
+    create_danmaku_window(&app, Some(room_id), state.inner()).await?;
     hide_main_window(&app);
     Ok(())
 }
@@ -724,7 +732,7 @@ pub async fn switch_room(
     }
 
     // 常驻窗口不存在（当前停留在主窗口）：按进入直播间处理
-    create_danmaku_window(&app, room_id, state.inner()).await?;
+    create_danmaku_window(&app, Some(room_id), state.inner()).await?;
     hide_main_window(&app);
     Ok(())
 }
@@ -779,6 +787,86 @@ pub async fn exit_room(
     // 告知主窗口已离开直播间：视频保持暂停，由用户经底部播放条手动恢复
     notify_main_window(&app, "room-exited", room_id);
     Ok(())
+}
+
+/// 打开「未选择直播间」的弹幕窗口默认页（/danmaku）。
+/// 启动即弹幕窗模式与设置切换等入口共用：窗口已存在则仅显示，不重复创建。
+#[tauri::command]
+pub async fn open_danmaku_home(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
+        // 常驻窗口已存在（可能正在某个直播间里）：仅显示，不打断当前内容
+        let _ = window.unminimize();
+        let _ = window.show();
+        crate::window_stealth::force_reveal(&app, DANMAKU_WINDOW_LABEL);
+        let _ = window.set_focus();
+        hide_main_window(&app);
+        return Ok(());
+    }
+
+    create_danmaku_window(&app, None, state.inner()).await?;
+    hide_main_window(&app);
+    Ok(())
+}
+
+/// 从弹幕窗口默认页退出：销毁弹幕窗并显示主页面。
+/// 与 exit_room 不同：无直播间语义，不动 currentRoomId（下次启动仍可恢复）。
+#[tauri::command]
+pub async fn close_danmaku_window(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
+
+    window_state::save_now(&app);
+    if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
+        let _ = window.destroy();
+    }
+    show_main_window(&app);
+    Ok(())
+}
+
+/// 启动即弹幕窗流程（设置 startup_view = danmaku 且非静默启动时由 setup 调起）：
+/// 未添加任何直播间时直接显示主页面（弹幕窗口无从选择，回主页添加更顺手）；
+/// 上次观看的直播间仍保存在房间列表中则直接恢复进入，否则打开默认引导页。
+/// 创建失败时兜底显示主窗口，避免启动后一个窗口都看不见。
+pub async fn startup_open_danmaku_window(app: tauri::AppHandle) {
+    let state = app.state::<AppState>();
+
+    // 房间列表为空（新用户/全部移除）：启动直接打开主页面
+    let rooms = crate::room_store::load_rooms(state.inner()).unwrap_or_default();
+    if rooms.is_empty() {
+        show_main_window(&app);
+        return;
+    }
+
+    let last_room = crate::selections_store::load_values(state.inner(), &["currentRoomId".to_string()])
+        .ok()
+        .and_then(|mut m| m.remove("currentRoomId"))
+        .and_then(|v| v.as_u64());
+
+    let result = if let Some(room_id) = last_room {
+        // 恢复的房间必须仍在已保存列表中（可能已被移除）
+        if rooms.iter().any(|room| room.room_id == room_id) {
+            open_danmaku_window(app.clone(), room_id, state).await
+        } else {
+            open_danmaku_home(app.clone(), state).await
+        }
+    } else {
+        open_danmaku_home(app.clone(), state).await
+    };
+
+    if let Err(error) = result {
+        log::error!("启动弹幕窗口失败，回退主窗口: {error}");
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.show();
+            let _ = main.set_focus();
+        }
+    }
 }
 
 fn extract_number(input: &str, label: &str) -> Result<u64, String> {

@@ -37,6 +37,9 @@ const SettingsPage = lazy(() =>
 const DanmakuPage = lazy(() =>
   import("@/pages/DanmakuPage").then((m) => ({ default: m.DanmakuPage }))
 );
+const DanmakuDefaultPage = lazy(() =>
+  import("@/pages/DanmakuDefaultPage").then((m) => ({ default: m.DanmakuDefaultPage }))
+);
 
 /** 懒加载占位：本地资源加载通常在几十毫秒内，仅避免白屏闪烁。 */
 function RouteFallback() {
@@ -74,6 +77,8 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      // 弹幕窗口默认页：未选择直播间时的引导界面（启动即弹幕窗模式）
+      { path: "/danmaku", element: withSuspense(<DanmakuDefaultPage />) },
       { path: "/danmaku/:roomId", element: withSuspense(<DanmakuPage />) },
     ],
   },

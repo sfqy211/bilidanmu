@@ -129,6 +129,7 @@ export const defaultSettings: Settings = {
   },
   closeBehavior: "ask",
   silentStart: false,
+  startupView: "danmaku",
   showAvatars: true,
   shortcuts: {
     toggleWindow: "Ctrl+Alt+D",
