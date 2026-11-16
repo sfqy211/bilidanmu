@@ -40,6 +40,15 @@ pub struct StealthRuntime {
     pub hold: bool,
 }
 
+/// 各窗口的隐身运行时状态（label -> 状态）：直播弹幕窗与视频弹幕窗共用同一套机制，
+/// 互不串扰。清理由窗口销毁事件按 label 兜底。
+fn lock_runtimes(state: &AppState) -> MutexGuard<'_, HashMap<String, StealthRuntime>> {
+    state
+        .danmaku_stealth
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+}
+
 /// 各窗口的轮询任务停止标志（label -> stop flag）
 static POLL_TASKS: OnceLock<Mutex<HashMap<String, Arc<AtomicBool>>>> = OnceLock::new();
 
@@ -57,16 +66,9 @@ fn stop_polling(label: &str) {
     }
 }
 
-fn lock_runtime(state: &AppState) -> MutexGuard<'_, Option<StealthRuntime>> {
-    state
-        .danmaku_stealth
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-}
-
 /// 隐身模式是否开启（开启后窗口参与光标显隐判定）
-pub fn is_active(state: &AppState) -> bool {
-    lock_runtime(state).is_some()
+pub fn is_active(state: &AppState, label: &str) -> bool {
+    lock_runtimes(state).contains_key(label)
 }
 
 /// 发给前端的隐身状态事件
@@ -121,8 +123,10 @@ fn apply_visible(app: &AppHandle, window: &WebviewWindow, visible: bool) {
     let label = window.label().to_string();
     {
         let state = app.state::<AppState>();
-        let mut runtime = lock_runtime(state.inner());
-        let Some(runtime) = runtime.as_mut() else { return };
+        let mut runtimes = lock_runtimes(state.inner());
+        let Some(runtime) = runtimes.get_mut(&label) else {
+            return;
+        };
         if runtime.visible == visible {
             return;
         }
@@ -144,18 +148,22 @@ pub fn enable(app: &AppHandle, window: &WebviewWindow) -> Result<bool, String> {
 
     // 隐身态下窗口不可点击（点击穿透），无法自行拖动，与侧边吸附互斥：
     // 吸附收起态先恢复完整几何再退出，避免留下一条细条。
+    // 仅直播弹幕窗有吸附；视频弹幕窗没有 DockState，此调用是安全空操作。
     crate::window_dock::exit_dock_for_full_window(app, window);
 
     {
         let state = app.state::<AppState>();
-        let mut runtime = lock_runtime(state.inner());
-        if runtime.is_some() {
+        let mut runtimes = lock_runtimes(state.inner());
+        if runtimes.contains_key(&label) {
             return Ok(true);
         }
-        *runtime = Some(StealthRuntime {
-            visible: true,
-            hold: false,
-        });
+        runtimes.insert(
+            label.clone(),
+            StealthRuntime {
+                visible: true,
+                hold: false,
+            },
+        );
     }
 
     // 不写穿透标志：显态下是否穿透由前端统一裁决（透传开关 + 光标命中测试），
@@ -170,8 +178,8 @@ pub fn disable(app: &AppHandle, window: &WebviewWindow) -> Result<bool, String> 
     let label = window.label().to_string();
     {
         let state = app.state::<AppState>();
-        let mut runtime = lock_runtime(state.inner());
-        if runtime.take().is_none() {
+        let mut runtimes = lock_runtimes(state.inner());
+        if runtimes.remove(&label).is_none() {
             return Ok(false);
         }
     }
@@ -191,7 +199,7 @@ pub fn set_enabled(app: &AppHandle, window: &WebviewWindow, enabled: bool) -> Re
     }
 }
 
-/// 手动唤起（托盘显示/进入直播间/切换房间）：隐身态下立即显形并保持，
+/// 手动唤起（托盘显示/进入直播间/打开视频弹幕窗）：隐身态下立即显形并保持，
 /// 直到光标进入窗口一次后再恢复正常的"离开即隐身"。
 /// 窗口未开启隐身或本来就可见时为空操作。
 pub fn force_reveal(app: &AppHandle, label: &str) {
@@ -206,8 +214,8 @@ pub fn force_reveal(app: &AppHandle, label: &str) {
 
     let state = app.state::<AppState>();
     let was_hidden = {
-        let mut runtime = lock_runtime(state.inner());
-        match runtime.as_mut() {
+        let mut runtimes = lock_runtimes(state.inner());
+        match runtimes.get_mut(label) {
             Some(runtime) => {
                 let was_hidden = !runtime.visible;
                 runtime.visible = true;
@@ -228,12 +236,8 @@ pub fn force_reveal(app: &AppHandle, label: &str) {
 /// 窗口销毁时清理隐身残留（状态 + 轮询任务），
 /// 避免同 label 重建后被上一世的状态劫持。
 pub fn cleanup(label: &str, app: &AppHandle) {
-    // 隐身状态只属于常驻弹幕窗口：主页面等其它窗口销毁时不能清掉它
-    if label != crate::commands::room::DANMAKU_WINDOW_LABEL {
-        return;
-    }
     let state = app.state::<AppState>();
-    let existed = lock_runtime(state.inner()).take().is_some();
+    let existed = lock_runtimes(state.inner()).remove(label).is_some();
     stop_polling(label);
     if existed {
         // 窗口即将销毁，穿透标记无需恢复；仅保证前端状态归位
@@ -275,7 +279,7 @@ fn start_polling(app: &AppHandle, label: &str) {
             }
 
             let state = app_handle.state::<AppState>();
-            let runtime = *lock_runtime(state.inner());
+            let runtime = lock_runtimes(state.inner()).get(&label).copied();
             let Some(runtime) = runtime else { break };
 
             let Some((cx, cy, left, top, right, bottom, ring)) =
@@ -295,8 +299,8 @@ fn start_polling(app: &AppHandle, label: &str) {
                 if runtime.hold {
                     // 手动唤起的保持态：光标进入窗口后解除，之后按正常规则隐身
                     if inside_window {
-                        let mut current = lock_runtime(state.inner());
-                        if let Some(current) = current.as_mut() {
+                        let mut current = lock_runtimes(state.inner());
+                        if let Some(current) = current.get_mut(&label) {
                             current.hold = false;
                         }
                     }
@@ -327,12 +331,14 @@ fn start_polling(app: &AppHandle, label: &str) {
 
 // ── Tauri 命令 ──
 
-/// 开启/关闭弹幕窗口隐身模式，返回切换后的开启状态。
+/// 开关隐身模式，返回切换后的开启状态。作用于发起调用的窗口
+/// （直播弹幕窗与视频弹幕窗共用同一命令，互不串扰）。
 #[tauri::command]
-pub fn set_danmaku_stealth(app: AppHandle, enabled: bool) -> Result<bool, String> {
-    let window = app
-        .get_webview_window(crate::commands::room::DANMAKU_WINDOW_LABEL)
-        .ok_or_else(|| "弹幕窗口不存在".to_string())?;
+pub fn set_danmaku_stealth(
+    app: AppHandle,
+    window: WebviewWindow,
+    enabled: bool,
+) -> Result<bool, String> {
     set_enabled(&app, &window, enabled)
 }
 
@@ -345,10 +351,13 @@ pub struct StealthSnapshot {
     pub visible: bool,
 }
 
-/// 查询弹幕窗口隐身状态（窗口重建/前端重挂载时同步初始状态）。
+/// 查询调用方窗口的隐身状态（窗口重建/前端重挂载时同步初始状态）。
 #[tauri::command]
-pub fn get_danmaku_stealth(state: tauri::State<'_, AppState>) -> StealthSnapshot {
-    match *lock_runtime(state.inner()) {
+pub fn get_danmaku_stealth(
+    window: WebviewWindow,
+    state: tauri::State<'_, AppState>,
+) -> StealthSnapshot {
+    match lock_runtimes(state.inner()).get(window.label()).copied() {
         Some(runtime) => StealthSnapshot {
             enabled: true,
             visible: runtime.visible,

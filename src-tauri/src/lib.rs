@@ -68,6 +68,8 @@ pub struct AppState {
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
     /// 弹幕窗口是否处于「仅输入框」紧凑模式（true = 高度锁定输入栏、不参与吸附）
     pub danmaku_input_only: std::sync::atomic::AtomicBool,
+    /// 视频弹幕窗是否处于「仅输入框」紧凑模式（与直播弹幕窗同一套几何/持久化机制）
+    pub video_input_only: std::sync::atomic::AtomicBool,
     /// 收起条开关的内存镜像（false = 收缩态不可见，命中区铺满原窗口跨度）。
     /// 由 update_settings 同步，供 50ms 光标轮询与几何计算读取——不能每次读库
     pub dock_enabled: std::sync::atomic::AtomicBool,
@@ -78,9 +80,9 @@ pub struct AppState {
     pub danmaku_emote_panel: std::sync::atomic::AtomicBool,
     /// 展开面板前保存的紧凑栏几何（收起时恢复）
     pub danmaku_emote_saved: std::sync::Mutex<Option<EmotePanelSaved>>,
-    /// 弹幕窗口隐身模式运行时状态（None = 未开启）。开启后窗口内容按光标位置
-    /// 自动隐显，隐态下点击穿透（见 window_stealth）。
-    pub danmaku_stealth: std::sync::Mutex<Option<window_stealth::StealthRuntime>>,
+    /// 各弹幕小窗的隐身模式运行时状态（label -> 状态；无条目 = 未开启）。
+    /// 开启后窗口内容按光标位置自动隐显，隐态下点击穿透（见 window_stealth）。
+    pub danmaku_stealth: std::sync::Mutex<HashMap<String, window_stealth::StealthRuntime>>,
     /// 最近一次全局快捷键注册的失败清单（设置页展示；空 = 全部成功）
     pub shortcut_errors: std::sync::Mutex<Vec<String>>,
     /// 已保存房间的开播状态缓存（None = 尚未成功拉取，托盘退回显示全部房间）
@@ -174,11 +176,12 @@ pub fn run() {
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
+            video_input_only: std::sync::atomic::AtomicBool::new(false),
             dock_enabled: std::sync::atomic::AtomicBool::new(true),
             auto_theme_from_background: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_panel: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_saved: std::sync::Mutex::new(None),
-            danmaku_stealth: std::sync::Mutex::new(None),
+            danmaku_stealth: std::sync::Mutex::new(HashMap::new()),
             shortcut_errors: std::sync::Mutex::new(Vec::new()),
             live_status: std::sync::Mutex::new(None),
             live_context: std::sync::Mutex::new(ai::context::LiveContext::new()),
@@ -385,23 +388,20 @@ pub fn run() {
                         let _ = window.hide();
                     }
                 }
-                // 弹幕窗口几何持久化：Resized/Moved 事件防抖落盘（吸附态由 window_state
-                // 自行取吸附前几何；位置为物理像素，尺寸换算为逻辑像素）
+                // 弹幕小窗（直播 + 视频）几何持久化：Resized/Moved 事件防抖落盘
+                // （吸附态由 window_state 自行取吸附前几何；位置为物理像素，尺寸换算为逻辑像素）
                 WindowEvent::Resized(_) => {
-                    if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
-                        window_state::on_geometry_changed(window.app_handle());
+                    if window_state::is_persisted_window(window.label()) {
+                        window_state::on_geometry_changed(window.app_handle(), window.label());
                     }
                 }
                 WindowEvent::Moved(_) => {
-                    if window.label() == commands::room::DANMAKU_WINDOW_LABEL {
-                        window_state::on_geometry_changed(window.app_handle());
+                    if window_state::is_persisted_window(window.label()) {
+                        window_state::on_geometry_changed(window.app_handle(), window.label());
                         // 仅输入框模式没有标题栏、也没有可抓的空白区，拖出屏幕就再也拿不回来：
                         // 拖动停稳后把窗口夹回工作区（拖动过程中不动，避免和用户的手抢位置）
                         let state = window.app_handle().state::<AppState>();
-                        if state
-                            .danmaku_input_only
-                            .load(std::sync::atomic::Ordering::Relaxed)
-                        {
+                        if window_state::input_only_active(state.inner(), window.label()) {
                             window_state::schedule_clamp_into_work_area(
                                 window.app_handle(),
                                 window.label(),
@@ -439,6 +439,7 @@ pub fn run() {
             commands::video_window::open_video_danmaku_window,
             commands::video_window::close_video_danmaku_window,
             commands::video_window::set_video_input_only,
+            commands::video_window::get_video_input_only,
             commands::video_window::publish_video_playback,
             commands::video_window::get_video_playback,
             commands::video_window::control_video_playback,

@@ -679,7 +679,7 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
                     }
                     // 隐身模式不参与吸附：开启时会主动退出吸附，这里兜底防止
                     // 隐身期间窗口点击穿透、吸附交互全部失效
-                    if crate::window_stealth::is_active(state.inner()) {
+                    if crate::window_stealth::is_active(state.inner(), &label) {
                         outside_since = None;
                         continue;
                     }

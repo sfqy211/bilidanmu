@@ -1,4 +1,6 @@
-//! 弹幕窗口几何（位置 + 尺寸）持久化：在 Rust 侧统一保存/恢复，取代早期前端 localStorage 方案。
+//! 弹幕小窗几何（位置 + 尺寸）持久化：在 Rust 侧统一保存/恢复，取代早期前端 localStorage 方案。
+//! 直播弹幕窗与视频弹幕窗共用同一份记录（同一「弹幕小窗」的两种内容形态），
+//! 输入模式等运行时标志仍按窗口各自读取。
 //!
 //! 单位口径：
 //! - 尺寸持久化为逻辑像素。物理像素只存在于事件与外框查询的瞬间，落盘前换算
@@ -12,14 +14,19 @@
 //!
 //! 保存时机：全局 on_window_event 的 Resized/Moved 事件，防抖后取停稳几何；
 //! 吸附各态（细条/展开预览）的几何不是用户摆放结果，改存 DockState 记录的吸附前几何；
-//! 窗口销毁路径（exit_room / 托盘退出）在 destroy 前同步 flush。
+//! 窗口销毁路径（exit_room / 关闭视频弹幕窗 / 托盘退出）在 destroy 前同步 flush。
 //! 越界尺寸（瞬态占位/销毁瞬间的异常几何）不落盘；尺寸恢复时整对校验，
 //! 仅输入框模式下额外做一次「拖出屏幕就夹回来」的兜底（见 schedule_clamp_into_work_area）。
 //! 任一维越界整组弃用，杜绝「宽回退默认、高保留脏值」的细长条。
 
-use crate::{commands::room::DANMAKU_WINDOW_LABEL, selections_store, window_dock, AppState};
+use crate::{
+    commands::{room::DANMAKU_WINDOW_LABEL, video_window},
+    selections_store, window_dock, AppState,
+};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::collections::HashMap;
+use std::sync::atomic::Ordering;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
@@ -39,10 +46,38 @@ pub const INPUT_ONLY_DEFAULT_W: f64 = 360.0;
 pub const INPUT_ONLY_EMOTE_W: f64 = 360.0;
 pub const INPUT_ONLY_EMOTE_H: f64 = 400.0;
 
-/// 几何在 app_metadata 表中的键
+/// 视频弹幕窗正常态默认尺寸（逻辑像素）：无保存值时使用（内容比直播窗高：双时间线+底栏）
+pub const VIDEO_DEFAULT_W: f64 = 440.0;
+pub const VIDEO_DEFAULT_H: f64 = 680.0;
+
+/// 几何在 app_metadata 表中的键：直播弹幕窗与视频弹幕窗共用同一份——
+/// 两个小窗是同一「弹幕小窗」的两种内容形态，大小/位置/紧凑模式互相同步，
+/// 谁后落盘谁生效（读-改-写保留另一模式的尺寸字段）。
 const GEOMETRY_KEY: &str = "danmaku_window_geometry";
 /// Resized/Moved 事件防抖：拖拽/DPI 切换/吸附动画期间事件密集，只认停稳后的最后一次
 const DEBOUNCE_MS: u64 = 300;
+
+/// 参与几何持久化的弹幕小窗；未知窗口不落盘
+fn geometry_key(label: &str) -> Option<&'static str> {
+    match label {
+        DANMAKU_WINDOW_LABEL | video_window::LABEL => Some(GEOMETRY_KEY),
+        _ => None,
+    }
+}
+
+/// 是否参与几何持久化（lib.rs 全局事件分流用）
+pub fn is_persisted_window(label: &str) -> bool {
+    geometry_key(label).is_some()
+}
+
+/// 查询某弹幕小窗是否处于「仅输入框」紧凑模式（落盘分流与事件兜底共用）
+pub fn input_only_active(state: &AppState, label: &str) -> bool {
+    match label {
+        DANMAKU_WINDOW_LABEL => state.danmaku_input_only.load(Ordering::Relaxed),
+        video_window::LABEL => state.video_input_only.load(Ordering::Relaxed),
+        _ => false,
+    }
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 struct SavedGeometry {
@@ -73,43 +108,59 @@ pub struct RestoredGeometry {
     pub input_only_size: Option<(f64, f64)>,
 }
 
-/// 防抖序号：每次几何事件递增，落盘任务醒来时序号已被超越则说明有更新事件接棒
-static GEOMETRY_SEQ: AtomicU64 = AtomicU64::new(0);
+/// 各窗口的防抖序号（label -> seq）：每次几何事件递增，落盘任务醒来时序号已被超越
+/// 则说明有更新事件接棒。按窗口分桶——两个弹幕小窗的几何变化互不挤掉对方的落盘。
+static GEOMETRY_SEQ: std::sync::LazyLock<Mutex<HashMap<String, u64>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Resized/Moved 事件入口（lib.rs 全局 on_window_event 调用，仅弹幕窗口）。
-pub fn on_geometry_changed(app: &AppHandle) {
-    let seq = GEOMETRY_SEQ.fetch_add(1, Ordering::Relaxed) + 1;
+/// Resized/Moved 事件入口（lib.rs 全局 on_window_event 调用，仅弹幕小窗）。
+pub fn on_geometry_changed(app: &AppHandle, label: &str) {
+    let seq = {
+        let mut seqs = GEOMETRY_SEQ.lock().unwrap_or_else(|e| e.into_inner());
+        let entry = seqs.entry(label.to_string()).or_insert(0);
+        *entry += 1;
+        *entry
+    };
     let app = app.clone();
+    let label = label.to_string();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_millis(DEBOUNCE_MS)).await;
-        if GEOMETRY_SEQ.load(Ordering::Relaxed) == seq {
-            save_normal_geometry(&app);
+        let latest = {
+            let seqs = GEOMETRY_SEQ.lock().unwrap_or_else(|e| e.into_inner());
+            seqs.get(&label).copied().unwrap_or(0)
+        };
+        if latest == seq {
+            save_normal_geometry(&app, &label);
         }
     });
 }
 
-/// 同步落盘当前正常几何。窗口销毁路径（exit_room / 托盘退出）在 destroy 前调用，
+/// 同步落盘当前正常几何。窗口销毁路径（exit_room / 关闭视频弹幕窗 / 托盘退出）在 destroy 前调用，
 /// 兜底「调整后 300ms 内就退出」导致防抖任务来不及写库的情况。
-pub fn save_now(app: &AppHandle) {
-    save_normal_geometry(app);
+pub fn save_now(app: &AppHandle, label: &str) {
+    save_normal_geometry(app, label);
 }
 
 /// 读取保存的几何。尺寸整对校验：任一维越界即整组弃用（回退默认尺寸），
 /// 杜绝单维度回退拼出细长条；位置独立校验（见 position_on_screen）。
-pub fn load_geometry(app: &AppHandle) -> RestoredGeometry {
-    let state = app.state::<AppState>();
-    let saved = selections_store::load_values(state.inner(), &[GEOMETRY_KEY.to_string()])
-        .ok()
-        .and_then(|values| values.get(GEOMETRY_KEY).cloned())
-        .and_then(|value| serde_json::from_value::<SavedGeometry>(value).ok());
-
+/// 未知窗口返回空视图（调用方回退各自默认值）。
+pub fn load_geometry(app: &AppHandle, label: &str) -> RestoredGeometry {
     let mut restored = RestoredGeometry {
         size: None,
         position: None,
         input_only: false,
         input_only_size: None,
     };
+    let Some(key) = geometry_key(label) else {
+        return restored;
+    };
+    let state = app.state::<AppState>();
+    let saved = selections_store::load_values(state.inner(), &[key.to_string()])
+        .ok()
+        .and_then(|values| values.get(key).cloned())
+        .and_then(|value| serde_json::from_value::<SavedGeometry>(value).ok());
     if let Some(saved) = saved {
+        log::info!("弹幕小窗几何恢复 [{label}]: {saved:?}");
         // 尺寸整对校验：任一维越界即整组弃用（回退默认尺寸），杜绝单维度回退拼出细长条
         if let (Some(width), Some(height)) = (saved.width, saved.height) {
             if size_in_constraints(width, height) {
@@ -152,24 +203,26 @@ fn size_in_constraints(width: f64, height: f64) -> bool {
         && (DANMAKU_MIN_H..=DANMAKU_MAX_H).contains(&height)
 }
 
-/// 保存弹幕窗口几何：按 AppState 的当前模式分流——完整模式存位置+宽高，
+/// 保存弹幕小窗几何：按窗口的当前模式分流——完整模式存位置+宽高，
 /// 仅输入框存位置+紧凑宽（读-改-写保留另一模式的尺寸字段）。
 /// 吸附态的几何不是用户摆放结果，仍由 window_dock::normal_geometry 提供吸附前值。
-fn save_normal_geometry(app: &AppHandle) {
-    let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) else {
+fn save_normal_geometry(app: &AppHandle, label: &str) {
+    let Some(key) = geometry_key(label) else {
+        return;
+    };
+    let Some(window) = app.get_webview_window(label) else {
         return;
     };
     let state = app.state::<AppState>();
-    // 表情面板展开中的几何是临时形态，不落盘
-    if state
-        .danmaku_emote_panel
-        .load(Ordering::Relaxed)
+    // 表情面板展开中的几何是临时形态，不落盘（仅直播弹幕窗有该形态）
+    if label == DANMAKU_WINDOW_LABEL
+        && state
+            .danmaku_emote_panel
+            .load(Ordering::Relaxed)
     {
         return;
     }
-    let input_only = state
-        .danmaku_input_only
-        .load(Ordering::Relaxed);
+    let input_only = input_only_active(state.inner(), label);
     let Some((pos, physical)) = window_dock::normal_geometry(&window, app) else {
         return;
     };
@@ -179,9 +232,9 @@ fn save_normal_geometry(app: &AppHandle) {
 
     let state = app.state::<AppState>();
     // 读旧记录，保留另一模式的尺寸字段
-    let mut saved = selections_store::load_values(state.inner(), &[GEOMETRY_KEY.to_string()])
+    let mut saved = selections_store::load_values(state.inner(), &[key.to_string()])
         .ok()
-        .and_then(|values| values.get(GEOMETRY_KEY).cloned())
+        .and_then(|values| values.get(key).cloned())
         .and_then(|value| serde_json::from_value::<SavedGeometry>(value).ok())
         .unwrap_or(SavedGeometry {
             position: None,
@@ -212,11 +265,13 @@ fn save_normal_geometry(app: &AppHandle) {
 
     let mut entries = serde_json::Map::new();
     entries.insert(
-        GEOMETRY_KEY.to_string(),
+        key.to_string(),
         serde_json::to_value(saved).unwrap_or_default(),
     );
     if let Err(e) = selections_store::save_values(state.inner(), &entries) {
-        log::warn!("保存弹幕窗口几何失败: {e}");
+        log::warn!("保存弹幕小窗几何失败: {e}");
+    } else {
+        log::info!("弹幕小窗几何已落盘 [{label}]: {saved:?}");
     }
 }
 

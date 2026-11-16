@@ -283,7 +283,7 @@ async fn create_danmaku_window(
     // 仅输入框模式按紧凑尺寸与约束创建（高度锁定），其余按常态。
     // 无房间默认页强制完整模式：引导页是选择直播间的取景器，紧凑栏放不下；
     // 恢复直播间路径不受影响（保留用户的紧凑模式偏好）
-    let saved = window_state::load_geometry(app);
+    let saved = window_state::load_geometry(app, DANMAKU_WINDOW_LABEL);
     let input_only = room_id.is_some() && saved.input_only;
     state
         .danmaku_input_only
@@ -513,7 +513,7 @@ pub fn apply_input_only(
         )
     } else {
         // 恢复完整模式：回到上次保存的常规几何（无保存值用默认）
-        let saved = window_state::load_geometry(&app);
+        let saved = window_state::load_geometry(&app, DANMAKU_WINDOW_LABEL);
         let (w, h) = saved
             .size
             .unwrap_or((window_state::DANMAKU_MIN_W, window_state::DANMAKU_MIN_H));
@@ -553,7 +553,7 @@ pub fn apply_input_only(
     // 用户看不到窗口已经变形（全局快捷键可在光标不在窗口上时触发）
     crate::window_stealth::force_reveal(app, DANMAKU_WINDOW_LABEL);
     // 模式与几何立即落盘，不等防抖
-    window_state::save_now(&app);
+    window_state::save_now(&app, DANMAKU_WINDOW_LABEL);
     Ok(enabled)
 }
 
@@ -650,7 +650,7 @@ pub fn apply_input_only_emotes(
                 .set_position(tauri::PhysicalPosition::new(tx, ty))
                 .map_err(|e| e.to_string())?;
         }
-        window_state::save_now(app);
+        window_state::save_now(app, DANMAKU_WINDOW_LABEL);
     }
 
     {
@@ -779,7 +779,7 @@ pub async fn exit_room(
     let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
 
     // 销毁前把当前正常尺寸落盘（Resized 防抖可能尚未写库）
-    window_state::save_now(&app);
+    window_state::save_now(&app, DANMAKU_WINDOW_LABEL);
 
     // 销毁常驻弹幕窗口与该房间的抽屉窗口
     let drawer_prefix = format!("drawer-{room_id}-");
@@ -829,7 +829,7 @@ pub async fn close_danmaku_window(
 ) -> Result<(), String> {
     let _danmaku_window_guard = state.danmaku_window_lock.lock().await;
 
-    window_state::save_now(&app);
+    window_state::save_now(&app, DANMAKU_WINDOW_LABEL);
     if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
         let _ = window.destroy();
     }

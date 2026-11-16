@@ -32,7 +32,7 @@ pub fn quit_app(app: &AppHandle) {
             }
         }
         // 退出前把弹幕窗口当前正常尺寸落盘（Resized 防抖可能尚未写库）
-        crate::window_state::save_now(&app_clone);
+        crate::window_state::save_now(&app_clone, crate::commands::room::DANMAKU_WINDOW_LABEL);
         for (_, window) in app_clone.webview_windows() {
             let _ = window.destroy();
         }
@@ -143,12 +143,10 @@ fn show_window(window: &tauri::WebviewWindow) {
     }
     let _ = window.unminimize();
     let _ = window.show();
-    if window.label() == crate::commands::video_window::LABEL {
-        let _ = window.emit("video-window-reveal", ());
-    }
     // 若窗口处于侧边吸附态，show 后恢复收缩几何以保持吸附
     crate::window_dock::restore_if_docked(window, window.app_handle());
     // 隐身态下手动唤起必须显形，否则用户看不出窗口已被唤出
+    // （直播弹幕窗与视频弹幕窗共用，window_stealth 按 label 分别判定）
     crate::window_stealth::force_reveal(window.app_handle(), window.label());
     let _ = window.set_focus();
 }
