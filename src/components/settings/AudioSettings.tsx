@@ -1,11 +1,28 @@
 import { useEffect, useState } from "react";
-import { Download, FolderOpen, RefreshCw } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
-import { SttModelDownloadDialog } from "./SttModelDownloadDialog";
-import { SettingsChoice, SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
+import { SttModelManagerPage } from "./SttModelManagerPage";
+import { SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 
 export function AudioSettings({ settings, patchSettings }: SettingsPanelProps) {
+  // 「识别模型管理」二级页面：模型名较长，收在 190px 宽的下拉框里完全看不清选了什么；
+  // 切换/下载/刷新/打开目录统一收进独立页面，按友好名称 + 大小完整展示
+  const [modelPage, setModelPage] = useState(false);
+  const available = useSettingsStore((state) => state.sttAvailable);
+  const sttModels = useSttModels(available);
+
+  if (modelPage) {
+    return (
+      <SttModelManagerPage
+        settings={settings}
+        patchSettings={patchSettings}
+        sttModels={sttModels}
+        onBack={() => setModelPage(false)}
+      />
+    );
+  }
+
   return (
     <>
       <SettingsGroup title="直播音频">
@@ -18,19 +35,19 @@ export function AudioSettings({ settings, patchSettings }: SettingsPanelProps) {
         <SettingsToggle title="进入直播间时自动播放音频" checked={settings.audio.autoPlay}
           onChange={(autoPlay) => patchSettings({ audio: { ...settings.audio, autoPlay } })} />
       </SettingsGroup>
-      <SpeechSettings settings={settings} patchSettings={patchSettings} />
+      <SpeechSettings settings={settings} patchSettings={patchSettings} sttModels={sttModels}
+        onOpenModelPage={() => setModelPage(true)} />
     </>
   );
 }
 
-function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
-  const available = useSettingsStore((state) => state.sttAvailable);
+/** 拉取模型目录与已安装模型清单（主页面与二级管理页共用） */
+function useSttModels(available: boolean) {
   const [modelDir, setModelDir] = useState<string | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
 
   useEffect(() => {
     if (!available) { setLoading(false); return; }
@@ -44,13 +61,34 @@ function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
     return () => { cancelled = true; };
   }, [available, refreshKey]);
 
-  const modelFound = models.includes(settings.stt.modelId);
-  const options = models.map((value) => ({ value, label: value }));
-  if (settings.stt.modelId && !modelFound) options.unshift({ value: settings.stt.modelId, label: `${settings.stt.modelId}（未找到）` });
-  const openDirectory = async () => {
-    try { await tauriCommands.stt.openModelDir(); }
-    catch (reason) { setError(`打开模型目录失败：${String(reason)}`); }
+  return {
+    modelDir,
+    models,
+    loading,
+    error,
+    setError,
+    /** 重新扫描模型目录（下载完成/手动刷新共用） */
+    refresh: () => { setError(null); setRefreshKey((key) => key + 1); },
   };
+}
+
+export type SttModelsState = ReturnType<typeof useSttModels>;
+
+function SpeechSettings({ settings, patchSettings, sttModels, onOpenModelPage }: SettingsPanelProps & {
+  sttModels: SttModelsState;
+  onOpenModelPage: () => void;
+}) {
+  const available = useSettingsStore((state) => state.sttAvailable);
+  const { models, loading } = sttModels;
+  const modelFound = models.includes(settings.stt.modelId);
+
+  // 当前模型的完整名称：主页面不再用下拉框（190px 控制列放不下长模型名），
+  // 完整名称放在左侧说明区 break-all 展示，切换入口进二级管理页
+  const currentModelLabel = loading
+    ? "正在读取模型…"
+    : settings.stt.modelId
+      ? `${settings.stt.modelId}${modelFound ? "" : "（未找到）"}`
+      : "未检测到模型";
 
   return (
     <SettingsGroup title="实时字幕" description="将直播音频转为字幕，需要先播放音频并安装本地识别模型。">
@@ -58,40 +96,19 @@ function SpeechSettings({ settings, patchSettings }: SettingsPanelProps) {
         disabled={!available || loading || (!modelFound && !settings.stt.enabled)}
         description={!available ? "语音识别当前不可用。" : !modelFound && !loading ? "请先安装并选择可用的识别模型。" : undefined}
         onChange={(enabled) => patchSettings({ stt: { ...settings.stt, enabled } })} />
-      <SettingsChoice title="识别模型" value={settings.stt.modelId} options={options}
-        disabled={!available || loading || models.length === 0} placeholder={loading ? "正在读取模型…" : "未检测到模型"}
-        onChange={(modelId) => patchSettings({ stt: { ...settings.stt, modelId } })} />
+      <div className="settings-row">
+        <div className="min-w-0">
+          <p className="text-[13px] text-ink">识别模型</p>
+          <p className="mt-1 break-all text-xs text-ink-muted" role="status">{currentModelLabel}</p>
+        </div>
+        <div className="settings-row-control">
+          <button type="button" className="settings-action" disabled={!available || loading} onClick={onOpenModelPage}>
+            管理模型 <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
       <SettingsRange title="字幕同步偏移" description="字幕已按播放进度自动对齐，一般无需调整；仅在实测仍有固定偏移时微调（负值提前，正值延迟）。" value={settings.stt.syncDelayMs} min={-2000} max={2000} step={100} unit="ms"
         disabled={!available} onChange={(syncDelayMs) => patchSettings({ stt: { ...settings.stt, syncDelayMs } })} />
-      <div className="settings-row-block">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[13px] text-ink">模型文件</p>
-          <div className="flex gap-2">
-            <button type="button" className="settings-action" disabled={!available} onClick={() => setShowDownloadDialog(true)}>
-              <Download className="h-3.5 w-3.5" /> 下载模型
-            </button>
-            <button type="button" className="settings-action" disabled={!available || loading} onClick={() => setRefreshKey((key) => key + 1)}>
-              <RefreshCw className="h-3.5 w-3.5" /> 刷新模型
-            </button>
-            <button type="button" className="settings-action" disabled={!available} onClick={() => void openDirectory()}>
-              <FolderOpen className="h-3.5 w-3.5" /> 打开目录
-            </button>
-          </div>
-        </div>
-        {modelDir && <p title={modelDir} className="mt-2 break-all select-text text-xs text-ink-muted">{modelDir}</p>}
-        {loading && <p className="mt-2 text-xs text-ink-muted" role="status">正在读取模型…</p>}
-        {error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">{error}</p>}
-        <details className="mt-2 text-xs leading-relaxed text-ink-muted">
-          <summary className="cursor-pointer py-1">如何安装模型</summary>
-          <p className="mt-1">点击「下载模型」即可在线安装精选模型（自动下载、解压并放入模型目录）。也可将模型手动放入此目录：每个模型使用独立子文件夹，包含 encoder、decoder、joiner 的 ONNX 文件及 tokens.txt，放好后点击“刷新模型”。</p>
-        </details>
-      </div>
-      <SttModelDownloadDialog
-        open={showDownloadDialog}
-        onClose={() => setShowDownloadDialog(false)}
-        onInstalled={() => setRefreshKey((key) => key + 1)}
-        installedModels={models}
-      />
     </SettingsGroup>
   );
 }
