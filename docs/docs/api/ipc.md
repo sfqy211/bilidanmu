@@ -122,16 +122,17 @@ const settings = await tauriCommands.settings.get()
 
 | 命令 | 参数 | 返回 | 说明 |
 | --- | --- | --- | --- |
-| `open_video_danmaku_window` | — | `void` | 打开唯一的 `video-danmaku` 窗口，隐藏主窗口，继续使用主窗口音轨 |
-| `close_video_danmaku_window` | `restoreMain?` | `void` | 销毁视频弹幕窗口，默认显示主窗口；进入直播间时传 false |
-| `set_video_input_only` | `enabled` | `boolean` | 以底边为锚切换 48px 仅输入框形态 |
+| `open_video_danmaku_window` | — | `void` | 打开唯一的 `video-danmaku` 窗口，隐藏主窗口，继续使用主窗口音轨。窗口按上次落盘的几何恢复尺寸与位置（无保存值用 440×680 默认），并恢复上次的仅输入框模式；几何与直播弹幕窗共用同一份记录，互相继承对方上次调整的结果 |
+| `close_video_danmaku_window` | `restoreMain?` | `void` | 销毁视频弹幕窗口（销毁前落盘当前几何），默认显示主窗口；进入直播间时传 false |
+| `set_video_input_only` | `enabled` | `boolean` | 以底边为锚切换 48px 仅输入框形态，约束常量与几何持久化与直播弹幕窗共用同一套 |
+| `get_video_input_only` | — | `boolean` | 查询视频弹幕窗是否处于仅输入框模式（前端挂载同步用） |
 | `publish_video_playback` | `snapshot` | `void` | 仅主窗口可发布播放快照，并定向通知视频弹幕窗口 |
 | `get_video_playback` | — | `PlaybackSnapshot \| null` | 获取最新播放快照 |
 | `control_video_playback` | `bvid, cid, control` | `void` | 向主窗口发送控制请求，匹配当前 bvid/cid 后执行。`control` 为 `{ action: 'togglePlay' }`、`{ action: 'seek' \| 'volume', value: number }` 或 `{ action: 'selectTrack', value: string }`，切换曲目的 value 使用曲目 key |
 
 `PlaybackSnapshot` 包含 `revision: number`、`bvid: string | null`、`aid: number | null`、`cid: number | null`、`title: string`、`tracks: { key: string, title: string, bvid: string }[]`、`index: number`、`playing: boolean`、`loading: boolean`、`currentTime: number`、`duration: number`、`volume: number`、`error: string | null`。时间单位为秒，音量为 0–100，曲目下标从 0 开始。`revision` 单调递增，窗口忽略过期快照。
 
-视频窗口外观通过 `load_selections` / `save_selections` 保存到 `videoDanmakuAppearance`，字段为 `opacity`、`subtitleFontSize`、`danmakuFontSize`、`autoFollow`、`showTime` 和 `subtitleRatio`。
+视频窗口仅特有外观（字幕区域比例、自动跟随、行内时间）通过 `load_selections` / `save_selections` 保存到 `videoDanmakuAppearance`；背景不透明度（`appearance.opacity`）、弹幕字号（`appearance.fontSize`）与字幕字号（`listen.subtitleFontSize`）与直播弹幕窗、听视频页共用全局设置，不单独存储。
 
 主题模式、背景亮暗跟随、强调色与标题栏按钮复用 `settings.appearance`。深浅主题预设和字体复用 `settings.visual`。视频窗口的旧外观数据缺少字号或不透明度时，从已有设置补齐默认值。
 
@@ -171,8 +172,8 @@ const settings = await tauriCommands.settings.get()
 
 | 命令 | 参数 | 返回 | 说明 |
 | --- | --- | --- | --- |
-| `set_danmaku_stealth` | `enabled` | `boolean` | 开关弹幕窗隐身模式 |
-| `get_danmaku_stealth` | — | `{ enabled, visible }` | 查询隐身状态 |
+| `set_danmaku_stealth` | `enabled` | `boolean` | 开关发起调用窗口的隐身模式（直播弹幕窗与视频弹幕窗共用，按窗口分别判定互不串扰） |
+| `get_danmaku_stealth` | — | `{ enabled, visible }` | 查询发起调用窗口的隐身状态 |
 
 ## 代理命令 (`proxy`)
 

@@ -220,7 +220,6 @@ interface SttModelDownloadEvent {
 | --- | --- | --- |
 | `video-playback` | `PlaybackSnapshot`，字段见 [IPC 视频弹幕窗口命令](./ipc#视频弹幕窗口命令-videowindow) | Rust → `video-danmaku`，更新播放状态、当前分 P、进度和队列 |
 | `video-playback-control` | `{ bvid: string \| null, cid: number \| null, control: { action: 'togglePlay' } \| { action: 'seek' \| 'volume', value: number } \| { action: 'selectTrack', value: string } }` | Rust → 主窗口，主窗口核对视频身份后操作唯一音轨 |
-| `video-window-reveal` | `null` | Rust → `video-danmaku`，从托盘或视频页唤起时立即显形 |
 
 ## 事件一览
 
@@ -233,7 +232,7 @@ interface SttModelDownloadEvent {
 | `room-switched` / `rooms-updated` / `danmaku-input-only` / `danmaku-input-only-emotes` | Rust → 前端 | `commands/room.rs` |
 | `danmaku-entered` / `room-exited` | Rust → 主窗口 | `commands/room.rs`、`lib.rs` |
 | `dock-changed` | Rust → 前端 | `window_dock.rs` |
-| `danmaku-stealth` | Rust → 前端 | `window_stealth.rs` |
+| `danmaku-stealth`（载荷带 `label`，直播与视频弹幕窗共用） | Rust → 前端 | `window_stealth.rs` |
 | `account-switched` / `account-switch-error` | Rust → 前端 | `commands/auth.rs`、`tray.rs` |
 | `global-shortcut-action` | Rust → 前端 | `shortcuts.rs` |
 | `stt-transcript` | Rust → 前端 | `stt/mod.rs` |
@@ -242,5 +241,5 @@ interface SttModelDownloadEvent {
 | `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |
 | `ai-permission-changed` | Rust → 前端 | `ai/commands.rs` |
 | `ai-navigate` | Rust → 主窗口 | `ai/tools/video.rs` |
-| `video-playback` / `video-window-reveal` | Rust → 视频弹幕窗口 | `commands/video_window.rs`、`tray.rs` |
+| `video-playback` | Rust → 视频弹幕窗口 | `commands/video_window.rs` |
 | `video-playback-control` | Rust → 主窗口 | `commands/video_window.rs` |
