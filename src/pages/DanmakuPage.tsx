@@ -285,6 +285,15 @@ export function DanmakuPage() {
   const isAnonymous = useAuthStore((state) => state.isAnonymous);
   const currentRoom = rooms.find((r) => r.roomId === roomId);
 
+  // 进入直播间上报（可选）：观看时长/粉丝团亲密度等以 B 站收到 room_entry_action 为准。
+  // 匿名模式无凭据、房间号 0 是虚拟直播间，均跳过；失败静默（不阻塞进入流程）。
+  const entryActionEnabled = useSettingsStore((state) => state.settings.receive?.entryAction ?? false);
+  useEffect(() => {
+    if (!entryActionEnabled || roomId === null || roomId <= 0) return;
+    if (!activeAccountId || isAnonymous) return;
+    tauriCommands.room.entryAction(roomId).catch(() => {});
+  }, [entryActionEnabled, roomId, activeAccountId, isAnonymous]);
+
   // 匿名模式下，房间可能不在 room store 中，需要从 API 获取房间信息
   const [fetchedRoomInfo, setFetchedRoomInfo] = useState<{ uname: string; title: string } | null>(null);
   useEffect(() => {

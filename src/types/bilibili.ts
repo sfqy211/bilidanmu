@@ -314,6 +314,8 @@ export interface Settings {
     autoReconnect: boolean;
     reconnectInterval: number;
     maxReconnectInterval: number;
+    /** 进入直播间上报（room_entry_action）：观看时长/粉丝团亲密度等统计以此为准 */
+    entryAction: boolean;
   };
   appearance: {
     theme: "light" | "dark" | "system";

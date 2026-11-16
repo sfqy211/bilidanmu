@@ -1227,6 +1227,49 @@ impl BiliApiClient {
     const LIKE_INFO_V3_REPORT_URL: &str =
         "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3";
 
+    /// 进入直播间上报 API（web 端进入直播间时调用；观看时长/粉丝团亲密度等统计以此为准）
+    const ROOM_ENTRY_ACTION_URL: &str =
+        "https://api.live.bilibili.com/room/v1/Room/room_entry_action";
+
+    /// 进入直播间上报（可选功能，设置 receive.entryAction 开启后由弹幕窗在进入直播间时调用）。
+    /// 仅登录账号生效；失败由调用方决定是否提示，不阻塞进入流程。
+    pub async fn room_entry_action(&self, room_id: u64) -> Result<BiliResponse, String> {
+        let credential = self
+            .credential
+            .as_ref()
+            .ok_or_else(|| "未登录，无法上报进入直播间".to_string())?;
+        let csrf = credential
+            .csrf()
+            .ok_or_else(|| "Cookie 缺少 bili_jct".to_string())?;
+
+        let form = BTreeMap::from([
+            ("room_id".to_string(), room_id.to_string()),
+            ("platform".to_string(), "pc".to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+            ("csrf_token".to_string(), csrf.to_string()),
+        ]);
+
+        let response = self.post_form(Self::ROOM_ENTRY_ACTION_URL, &form).await?;
+
+        let code = response.get("code").and_then(Value::as_i64).unwrap_or(-1) as i32;
+        let message = response
+            .get("message")
+            .or_else(|| response.get("msg"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+
+        if code == 0 {
+            Ok(BiliResponse { code, message })
+        } else {
+            Err(if message.is_empty() {
+                format!("进入直播间上报失败，错误码 {code}")
+            } else {
+                format!("{message}（错误码 {code}）")
+            })
+        }
+    }
+
     /// 发送点赞
     ///
     /// 当前使用 csrf+cookie 认证，结构已预留 WBI 扩展。

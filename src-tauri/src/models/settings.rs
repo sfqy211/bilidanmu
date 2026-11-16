@@ -28,6 +28,9 @@ pub struct ReceiveSetting {
     pub auto_reconnect: bool,
     pub reconnect_interval: u32,
     pub max_reconnect_interval: u32,
+    /// 进入直播间上报（room_entry_action）：观看时长/粉丝团亲密度等统计以此为准
+    #[serde(default)]
+    pub entry_action: bool,
 }
 
 /// 活动栏（进场/点赞）显示模式：hidden / latest / scroll
@@ -596,6 +599,7 @@ impl Default for Settings {
                 auto_reconnect: true,
                 reconnect_interval: 5,
                 max_reconnect_interval: 60,
+                entry_action: false,
             },
             appearance: AppearanceSetting {
                 theme: "system".into(),

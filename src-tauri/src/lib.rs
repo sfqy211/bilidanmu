@@ -467,6 +467,7 @@ pub fn run() {
             commands::room::open_danmaku_window,
             commands::room::open_danmaku_home,
             commands::room::close_danmaku_window,
+            commands::room::room_entry_action,
             commands::room::switch_room,
             commands::room::get_danmaku_input_only,
             commands::room::sample_background_luminance,

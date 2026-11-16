@@ -3,6 +3,7 @@ use crate::commands::{build_api_client, get_sending_credential};
 use crate::models::room::{Emoticon, EmoticonPackage, Room, RoomInfo, SearchRoomResult};
 use crate::models::stream::StreamInfo;
 use crate::room_store;
+use crate::settings_store;
 use crate::tray;
 use crate::window_state;
 use crate::AppState;
@@ -880,6 +881,37 @@ fn extract_number(input: &str, label: &str) -> Result<u64, String> {
 
 fn extract_room_id(input: &str) -> Result<u64, String> {
     extract_number(input, "房间号")
+}
+
+/// 进入直播间上报（设置 receive.entryAction 开启时由弹幕窗前端在进入直播间时调用）。
+/// 观看时长/粉丝团亲密度等统计以 B 站服务端收到该上报为准；失败不阻塞进入流程。
+#[tauri::command]
+pub async fn room_entry_action(
+    state: State<'_, AppState>,
+    room_id: u64,
+) -> Result<(), String> {
+    // 开关关闭时直接跳过（前端每次进入都调用，这里保持幂等）
+    let enabled = settings_store::load_settings(state.inner())
+        .map(|settings| settings.receive.entry_action)
+        .unwrap_or(false);
+    if !enabled {
+        return Ok(());
+    }
+
+    // 虚拟直播间（房间号 0）不触碰真实接口
+    if room_id == 0 {
+        return Ok(());
+    }
+
+    let credential = state.credential.lock().await.clone();
+    let api = build_api_client(credential, &state);
+    match api.room_entry_action(room_id).await {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            log::warn!("进入直播间上报失败（房间 {room_id}）: {error}");
+            Err(error)
+        }
+    }
 }
 
 #[tauri::command]

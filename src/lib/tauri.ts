@@ -86,6 +86,8 @@ export const tauriCommands = {
     openDanmakuHome: () => invoke<void>("open_danmaku_home"),
     /** 从弹幕窗口默认页退出：销毁弹幕窗并显示主页面（不动 currentRoomId） */
     closeDanmakuWindow: () => invoke<void>("close_danmaku_window"),
+    /** 进入直播间上报（设置 receive.entryAction 开启时生效；虚拟直播间与匿名模式在 Rust/前端侧跳过） */
+    entryAction: (roomId: number) => invoke<void>("room_entry_action", { roomId }),
     switchRoom: (roomId: number) => invoke<void>("switch_room", { roomId }),
     exitRoom: (roomId: number) => invoke<void>("exit_room", { roomId }),
     getEmoticons: (roomId: number, force?: boolean, accountId?: string) =>

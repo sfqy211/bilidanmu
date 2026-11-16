@@ -55,7 +55,8 @@ export const defaultSettings: Settings = {
     autoConnect: true,
     autoReconnect: true,
     reconnectInterval: 5,
-    maxReconnectInterval: 60
+    maxReconnectInterval: 60,
+    entryAction: false
   },
   appearance: {
     theme: "system",

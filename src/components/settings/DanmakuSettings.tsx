@@ -133,6 +133,12 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
           disabled={appearance.activityBarMode === "hidden"} description={appearance.activityBarMode === "hidden" ? "先启用活动栏，再选择显示内容。" : undefined}
           onChange={(activityFilter) => update({ activityFilter: activityFilter as Settings["appearance"]["activityFilter"] })} />
       </SettingsGroup>
+      <SettingsGroup title="直播互动" description="与 B 站服务端的互动上报。">
+        <SettingsToggle title="进入直播间上报"
+          description="进入直播间时向 B 站发送进入动作。观看时长、粉丝团亲密度等以服务端收到该上报为准；仅登录账号生效，匿名模式下不会发送。"
+          checked={settings.receive?.entryAction ?? false}
+          onChange={(entryAction) => patchSettings({ receive: { ...settings.receive, entryAction } })} />
+      </SettingsGroup>
       <BlockSettings settings={settings} patchSettings={patchSettings} />
     </>
   );
