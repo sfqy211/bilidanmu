@@ -386,16 +386,23 @@ pub fn get_danmaku_input_only(state: State<'_, AppState>) -> bool {
 /// 这样采到的就是真正的桌面/其它程序，而不是弹幕窗自己。
 /// 未开启该功能、窗口不可见或采样失败返回 None（前端保持当前主题）。
 #[tauri::command]
-pub async fn sample_background_luminance(app: tauri::AppHandle) -> Option<f32> {
+pub async fn sample_background_luminance(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Option<f32> {
+    // 使用 Tauri 注入的调用窗口，直播与视频弹幕窗分别采样各自所在位置。
     // GDI 截屏是同步阻塞调用（约 7ms）：放到阻塞线程池，避免占住 IPC/异步运行时，
     // 否则高频采样会拖慢其它命令响应，整体手感反而更迟钝
-    tauri::async_runtime::spawn_blocking(move || sample_background_luminance_sync(&app))
+    tauri::async_runtime::spawn_blocking(move || sample_background_luminance_sync(&app, &window))
         .await
         .ok()
         .flatten()
 }
 
-fn sample_background_luminance_sync(app: &tauri::AppHandle) -> Option<f32> {
+fn sample_background_luminance_sync(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+) -> Option<f32> {
     use tauri::Manager;
 
     // 关闭时直接返回。用内存镜像而非读库：该方法约 120ms 调一次，
@@ -408,7 +415,6 @@ fn sample_background_luminance_sync(app: &tauri::AppHandle) -> Option<f32> {
         return None;
     }
 
-    let window = app.get_webview_window(DANMAKU_WINDOW_LABEL)?;
     if !window.is_visible().unwrap_or(false) {
         return None;
     }

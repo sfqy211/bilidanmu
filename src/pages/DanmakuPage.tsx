@@ -10,10 +10,9 @@ import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
-import { ChevronDown, ClipboardList, Clock, Expand, Eye, Ghost, Gift, Lock, LogOut, MessageSquare, MousePointerClick, Pause, Pin, PinOff, Play, Plus, Send, Settings, ShieldBan, Smile, TextCursorInput, ThumbsUp, Unlock, Users, Volume2, VolumeX, Wand2, X, Zap } from "lucide-react";
+import { ChevronDown, ClipboardList, Clock, Expand, Eye, Gift, MessageSquare, Plus, Send, Settings, ShieldBan, Smile, ThumbsUp, Users, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
-import { contrastFor, hexToRgbTriplet } from "@/lib/brand-theme";
 import { RoomSwitcher } from "@/components/danmaku/RoomSwitcher";
 import { AutoSendPanel } from "@/components/danmaku/AutoSendPanel";
 import { InlineMessage } from "@/components/ui/InlineMessage";
@@ -22,7 +21,6 @@ import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
 import { GiftPanel } from "@/components/danmaku/GiftPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { FilterPanel } from "@/components/danmaku/FilterPanel";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { useDanmaku } from "@/hooks/useDanmaku";
@@ -32,7 +30,10 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
-import { useBackgroundTheme } from "@/hooks/useBackgroundTheme";
+import { useDanmakuWindowAppearance } from "@/hooks/useDanmakuWindowAppearance";
+import { DanmakuInput } from "@/components/danmaku/DanmakuInput";
+import { DanmakuWindow } from "@/components/danmaku/DanmakuWindow";
+import { DanmakuWindowAppearanceSettings } from "@/components/danmaku/DanmakuWindowAppearanceSettings";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
@@ -139,9 +140,6 @@ export function DanmakuPage() {
   }, [roomIdParam]);
   const [message, setMessage] = useState("");
   const inputBarRef = useRef<HTMLDivElement | null>(null);
-  const composingRef = useRef(false);
-  /** 输入法组合结束时刻：部分输入法选词回车先于 compositionend 到达，结束后 80ms 内不触发发送 */
-  const composingEndedAtRef = useRef(0);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const togglePanel = useCallback((name: string) => {
     setActivePanel((prev) => (prev === name ? null : name));
@@ -167,7 +165,6 @@ export function DanmakuPage() {
   const settingsOpen = activePanel === PANEL.SETTINGS;
   const filterOpen = activePanel === PANEL.FILTER;
   const clipboardOpen = activePanel === PANEL.CLIPBOARD;
-  const [volPopup, setVolPopup] = useState(false);
   const [pinned, setPinned] = useState(true);
   const [locked, setLocked] = useState(false);
   // 仅输入框紧凑模式：Rust 侧管窗口尺寸/约束/吸附互斥，前端只切渲染形态
@@ -438,29 +435,11 @@ export function DanmakuPage() {
   // 显示比隐藏快一点：悬停要跟手，离开后渐隐不突兀
   const stealthFadeMs = useReducedMotion() ? 0 : stealthVisible ? 120 : 200;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
-  // 开启后弹幕窗主题由背景亮度采样决定，此处的主题选择器应锁定不可改
-  const autoThemeFromBackground = useSettingsStore(
-    (s) => s.settings.appearance.autoThemeFromBackground ?? false
-  );
-  // 标题栏按钮显隐（旧数据缺字段时按显示处理）
-  const titleBarButtons = useSettingsStore((s) => s.settings.appearance.titleBarButtons);
-  const showBtn = (key: keyof NonNullable<typeof titleBarButtons>) => titleBarButtons?.[key] ?? true;
   // 弹幕窗外观：功能栏形态与收起条样式（旧数据缺字段时按默认）
   const danmakuWindow = useSettingsStore((s) => s.settings.appearance.danmakuWindow);
   const compactBar = (danmakuWindow?.functionBar ?? "pinned") === "compact";
   const [barMenuOpen, setBarMenuOpen] = useState(false);
   useEffect(() => { setBarMenuOpen(false); }, [roomId]);
-  // 强调色注入：follow 用全局主题色，custom 用独立色覆写 --brand-rgb（仅弹幕窗 DOM）
-  useEffect(() => {
-    const root = document.documentElement;
-    const custom = danmakuWindow?.accentMode === "custom" ? danmakuWindow.accentColor : null;
-    if (custom && /^#[\da-fA-F]{6}$/.test(custom)) {
-      root.style.setProperty("--brand-rgb-light", hexToRgbTriplet(custom));
-      root.style.setProperty("--brand-rgb-dark", hexToRgbTriplet(custom));
-      root.style.setProperty("--brand-contrast-light", contrastFor(custom));
-      root.style.setProperty("--brand-contrast-dark", contrastFor(custom));
-    }
-  }, [danmakuWindow?.accentMode, danmakuWindow?.accentColor]);
   const sttAvailable = useSettingsStore((s) => s.sttAvailable);
   const patchSettings = useSettingsStore((s) => s.patchSettings);
   const settings = useSettingsStore((s) => s.settings);
@@ -502,7 +481,7 @@ export function DanmakuPage() {
     getAudioCurrentTime
   );
   // 跟随屏幕背景亮暗自动切主题（仅弹幕窗启用，采样在 Rust 侧）
-  useBackgroundTheme();
+  const appearanceStyle = useDanmakuWindowAppearance();
 
   // 自动播放音频
   useEffect(() => {
@@ -1046,12 +1025,6 @@ export function DanmakuPage() {
   // 越低（越透）描边越深。紧凑栏本身没有底色，描边是唯一的视觉边界，所以留 0.15 作为下限
   const inputOnlyRingAlpha = Math.round((0.15 + (1 - bgAlpha) * 0.3) * 100) / 100;
 
-  const handleTitleBarMouseDown = useCallback((e: React.MouseEvent) => {
-    if (locked) return;
-    if ((e.target as HTMLElement).closest("button")) return;
-    if (e.button === 0) void appWindow.startDragging();
-  }, [locked]);
-
   // 空白区域拖动页面：仅当左键直接点在容器自身空白（非子元素、非滚动条）时才拖动。
   // 滚动条不属于任何子元素，e.target 也是容器本身，因此必须额外排除落在滚动条上的点击，
   // 否则拖动滚动条会被误判为拖动页面。
@@ -1207,31 +1180,12 @@ export function DanmakuPage() {
       <div
         data-interactive=""
         className="danmaku-bg-bar window-rounded flex h-full w-full items-center gap-1 px-2 select-none"
+        style={appearanceStyle}
       >
         {/* 紧凑栏没有底色，输入框只靠一圈中性浅灰描边划出边界；描边深浅由 --field-ring-a
             跟着「不透明度」设置走：设置越高（窗口越实）描边越浅，越低（越透）描边越深 */}
-        <input
-          value={message}
-          disabled={isAnonymous}
-          onCompositionStart={() => { composingRef.current = true; }}
-          onCompositionEnd={(event) => {
-            composingRef.current = false;
-            composingEndedAtRef.current = Date.now();
-            setMessage(event.currentTarget.value.slice(0, 40));
-          }}
-          onChange={(event) => {
-            if (isAnonymous) return;
-            // 拼音输入中允许超出，结束后截断
-            setMessage(composingRef.current ? event.target.value : event.target.value.slice(0, 40));
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" || event.shiftKey || event.repeat) return;
-            // 输入法组合中的回车是选词/上屏，不是发送（isComposing 与 keyCode 229 双保险）
-            if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-            if (Date.now() - composingEndedAtRef.current < 80) return;
-            event.preventDefault();
-            void handleSend();
-          }}
+        <DanmakuInput value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
+          aria-label="发送直播弹幕" disabled={isAnonymous}
           style={{ "--field-ring-a": inputOnlyRingAlpha } as React.CSSProperties}
           className="min-w-0 flex-1 rounded bg-transparent px-2 py-1.5 text-sm outline-none ring-1 ring-inset ring-[rgb(148_163_184_/_var(--field-ring-a))] focus:ring-brand/70"
         />
@@ -1251,97 +1205,22 @@ export function DanmakuPage() {
     ) : dockPhase === "collapsed" ? (
       <DockCollapsedBar side={dockSide} onExpand={dockExpand} />
     ) : (
-    <main
-      className={`danmaku-bg-main window-rounded flex h-full flex-col overflow-hidden select-none text-ink transition-transform ${slideClass}`}
-      style={{ "--bg-a": bgAlpha, transitionDuration: `${dockAnimMs}ms` } as React.CSSProperties}
+    <DanmakuWindow
+      className={`danmaku-bg-main select-none transition-transform ${slideClass}`}
+      style={{ ...appearanceStyle, "--bg-a": bgAlpha, transitionDuration: `${dockAnimMs}ms` } as React.CSSProperties}
       onTransitionEnd={slideOut ? handleSlideOutEnd : undefined}
-    >
-      {/* 标题栏 */}
-      <div
-        data-interactive=""
-        className="danmaku-bg-bar flex select-none items-center pl-3"
-        onMouseDown={handleTitleBarMouseDown}
-      >
-        <span className="flex-1 truncate text-sm text-ink-muted dark:text-ink-muted">
-          {displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
-        </span>
-        {showBtn("pin") && (
-<button
-          type="button"
-          onClick={() => {
-            const next = !pinned;
-            setPinned(next);
-            void appWindow.setAlwaysOnTop(next);
-          }}
-          className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          title={pinned ? "取消置顶" : "置顶"}
-        >
-          {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
-        </button>
-)}
-        {showBtn("lock") && (
-<button
-          type="button"
-          onClick={() => setLocked((v) => !v)}
-          className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          title={locked ? "解锁位置" : "锁定位置"}
-        >
-          {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-        </button>
-)}
-        {showBtn("inputOnly") && (
-<button
-          type="button"
-          onClick={toggleInputOnly}
-          className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          title="仅输入框模式"
-        >
-          <TextCursorInput className="h-3.5 w-3.5" />
-        </button>
-)}
-        {showBtn("passthrough") && (
-<button
-          type="button"
-          onClick={togglePassthrough}
-          className={`flex h-6 w-6 items-center justify-center transition ${
-            passthroughEnabled
-              ? "text-brand hover:bg-brand/10"
-              : "text-ink-muted hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          }`}
-          title={passthroughEnabled ? "关闭窗口透传" : "开启窗口透传"}
-        >
-          <MousePointerClick className="h-3.5 w-3.5" />
-        </button>
-)}
-        {showBtn("stealth") && (
-<button
-          type="button"
-          onClick={toggleStealth}
-          className={`flex h-6 w-6 items-center justify-center transition ${
-            stealthEnabled
-              ? "text-brand hover:bg-brand/10"
-              : "text-ink-muted hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          }`}
-          title={stealthEnabled ? "关闭隐身（当前鼠标离开即隐藏）" : "开启隐身（鼠标离开自动隐藏）"}
-        >
-          <Ghost className="h-3.5 w-3.5" />
-        </button>
-)}
-        {showBtn("close") && (
-<button
-          type="button"
-          onClick={() => appWindow.close()}
-          className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] text-ink-muted dark:hover:bg-white/[0.06]"
-          title="隐藏到托盘"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-)}
-        {showBtn("roomSwitcher") && <RoomSwitcher roomId={roomId} />}
-        {/* 退出直播间必须保留：唯一可靠的断开入口，不开放隐藏 */}
-        <button
-          type="button"
-          onClick={async () => {
+      title={displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
+      controls={{
+        pinned, locked, passthrough: passthroughEnabled, stealth: stealthEnabled,
+        onTogglePin: () => { const next = !pinned; setPinned(next); void appWindow.setAlwaysOnTop(next); },
+        onToggleLock: () => setLocked((value) => !value),
+        onToggleInputOnly: toggleInputOnly,
+        onTogglePassthrough: togglePassthrough,
+        onToggleStealth: toggleStealth,
+        onHide: () => { void appWindow.close(); },
+        onDrag: () => { void appWindow.startDragging(); },
+        exitLabel: "退出直播间",
+        onExit: async () => {
             // 断开连接，最多等 1 秒
             const timeout = new Promise((r) => setTimeout(r, 1000));
             await Promise.race([
@@ -1360,81 +1239,21 @@ export function DanmakuPage() {
             } else {
               void appWindow.destroy();
             }
-          }}
-          className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-rose-500 hover:text-white text-ink-muted dark:hover:bg-rose-500"
-          title="退出直播间"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {/* 控制栏 */}
-      <div data-interactive="" className="danmaku-bg-panel flex items-center gap-2 px-3 py-1">
-        <button
-          type="button"
-          onClick={() => void (audioPlaying ? handleAudioStop() : handleAudioPlay())}
-          disabled={!roomId || audioConnecting}
-          className={`flex h-6 w-6 items-center justify-center transition ${
-            audioPlaying
-              ? "text-brand hover:text-brand/80"
-              : "text-ink-muted hover:text-ink"
-          } disabled:cursor-not-allowed disabled:opacity-50`}
-          title={audioError ?? (audioPlaying ? "停止音频" : "播放音频")}
-        >
-          {audioConnecting ? (
-            <span className="block h-3 w-3 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-          ) : audioPlaying ? (
-            <Pause className="h-3.5 w-3.5" />
-          ) : (
-            <Play className="h-3.5 w-3.5" />
-          )}
-        </button>
-
-        <div
-          className="relative flex items-center"
-          onMouseEnter={() => setVolPopup(true)}
-          onMouseLeave={() => setVolPopup(false)}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              if (audioMuted) {
-                audioToggleMute();
-              } else if (audioVolume === 0) {
-                // 音量为 0 时点图标视为恢复全局音量，而非进入静音
-                audioSetVolume(audioSettings.defaultVolume / 100);
-              } else {
-                audioToggleMute();
-              }
-            }}
-            className="text-ink-muted hover:text-ink"
-          >
-            {audioMuted || audioVolume === 0 ? (
-              <VolumeX className="h-3.5 w-3.5" />
-            ) : (
-              <Volume2 className="h-3.5 w-3.5" />
-            )}
-          </button>
-          {volPopup && (
-            <div className="danmaku-bg-panel absolute top-full left-1/2 z-30 -translate-x-1/2 rounded px-2 py-2" style={{ marginTop: "-2px" }}>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round((audioMuted ? 0 : audioVolume) * 100)}
-                onChange={(e) => {
-                  // 静音中拖动音量条视为解除静音，避免"调了没反应"的困惑
-                  if (audioMuted) audioToggleMute();
-                  audioSetVolume(Number(e.target.value) / 100);
-                }}
-                className="h-20 w-1 cursor-pointer accent-brand"
-                style={{ writingMode: "vertical-lr", direction: "rtl" }}
-              />
-            </div>
-          )}
-        </div>
-
-        <span className="ml-auto flex items-center gap-3 text-[11px] text-ink-muted">
+          },
+      }}
+      switcher={<RoomSwitcher roomId={roomId} />}
+      audio={{
+        playing: audioPlaying, loading: audioConnecting, disabled: !roomId, error: audioError,
+        volume: audioVolume * 100, muted: audioMuted,
+        playLabel: "播放音频", pauseLabel: "停止音频",
+        onTogglePlay: () => { void (audioPlaying ? handleAudioStop() : handleAudioPlay()); },
+        onToggleMute: () => {
+          if (audioMuted) audioToggleMute();
+          else if (audioVolume === 0) audioSetVolume(audioSettings.defaultVolume / 100);
+          else audioToggleMute();
+        },
+        onVolumeChange: (volume) => { if (audioMuted) audioToggleMute(); audioSetVolume(volume / 100); },
+        status: (<span className="ml-auto flex items-center gap-3 text-[11px] text-ink-muted">
           {danmakuCount > 0 && (
             <span className="flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
@@ -1489,9 +1308,169 @@ export function DanmakuPage() {
                   : String(totalLikeCount)}
             </span>
           )}
-        </span>
-      </div>
+        </span>),
+      }}
+      footer={
+        /* 发送栏 */
+        <div data-interactive="" className="danmaku-bg-panel relative px-3 py-2">
+          {sendError && (
+            <InlineMessage key={sendErrorKey} type="error" className="mb-2">{sendError}</InlineMessage>
+          )}
 
+          {/* 功能按钮行（compact 模式收纳进输入行左侧的 + 菜单） */}
+          <div ref={inputBarRef} className={`${compactBar ? "hidden" : "mb-2 flex"} items-center gap-2`}>
+            <button
+              type="button"
+              onClick={() => { if (!isAnonymous) togglePanel(PANEL.AUTO_SEND); }}
+              disabled={isAnonymous}
+              title={isAnonymous ? "匿名模式下不可用" : "自动发送"}
+              className={`rounded inline-flex items-center p-1.5 text-xs transition ${
+                isAnonymous ? "cursor-not-allowed opacity-40"
+                  : autoSendRunning ? "danmaku-btn-active text-brand"
+                  : activePanel === PANEL.AUTO_SEND ? "bg-brand/10 text-brand"
+                  : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <Zap className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (!isAnonymous) void handleToggleEmoticonPicker(); }}
+              disabled={isAnonymous}
+              title={isAnonymous ? "匿名模式下不可用" : "表情"}
+              className={`rounded inline-flex items-center p-1.5 text-xs transition ${
+                isAnonymous ? "cursor-not-allowed opacity-40"
+                  : activePanel === PANEL.EMOTICON ? "bg-brand/10 text-brand"
+                  : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <Smile className="h-3.5 w-3.5" />
+            </button>
+            {giftSendEnabled && (
+              <button
+                type="button"
+                onClick={() => { if (!isAnonymous) togglePanel(PANEL.GIFT); }}
+                disabled={isAnonymous}
+                title={isAnonymous ? "匿名模式下不可用" : "礼物打赏"}
+                className={`rounded inline-flex items-center p-1.5 text-xs transition ${
+                  isAnonymous ? "cursor-not-allowed opacity-40"
+                    : activePanel === PANEL.GIFT ? "bg-brand/10 text-brand"
+                    : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+                }`}
+              >
+                <Gift className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <AccountSwitcher viewingAccountId={activeAccountId} />
+            <button
+              type="button"
+              onClick={() => togglePanel(PANEL.FILTER)}
+              title="屏蔽管理"
+              className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
+                activePanel === PANEL.FILTER ? "bg-brand/10 text-brand"
+                  : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <ShieldBan className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => togglePanel(PANEL.SETTINGS)}
+              title="设置"
+              className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
+                activePanel === PANEL.SETTINGS ? "bg-brand/10 text-brand"
+                  : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => togglePanel(PANEL.CLIPBOARD)}
+              title="快捷消息"
+              className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
+                activePanel === PANEL.CLIPBOARD ? "bg-brand/10 text-brand"
+                  : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* 弹幕输入行 */}
+          <div className="danmaku-bg-bar rounded flex items-center pr-1">
+            {compactBar && (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setBarMenuOpen((v) => !v)}
+                  title="更多功能"
+                  aria-expanded={barMenuOpen}
+                  className={`ml-1 flex h-7 w-7 items-center justify-center rounded transition ${
+                    barMenuOpen ? "bg-brand/10 text-brand" : "text-ink-muted hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <Plus className={`h-4 w-4 transition-transform ${barMenuOpen ? "rotate-45" : ""}`} />
+                </button>
+                {barMenuOpen && (
+                  <div className="danmaku-floating absolute bottom-full left-0 z-30 mb-1 flex items-center gap-1 rounded-lg p-1">
+                    {[
+                      { key: PANEL.AUTO_SEND, label: "自动发送", Icon: Zap, disabled: isAnonymous },
+                      { key: PANEL.EMOTICON, label: "表情", Icon: Smile, disabled: isAnonymous },
+                      ...(giftSendEnabled
+                        ? [{ key: PANEL.GIFT, label: "礼物", Icon: Gift, disabled: isAnonymous }]
+                        : []),
+                      { key: PANEL.FILTER, label: "屏蔽管理", Icon: ShieldBan, disabled: false },
+                      { key: PANEL.SETTINGS, label: "设置", Icon: Settings, disabled: false },
+                      { key: PANEL.CLIPBOARD, label: "快捷消息", Icon: ClipboardList, disabled: false },
+                    ].map(({ key, label, Icon, disabled }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={disabled}
+                        title={label}
+                        onClick={() => {
+                          if (key === PANEL.EMOTICON) void handleToggleEmoticonPicker();
+                          else togglePanel(key);
+                          setBarMenuOpen(false);
+                        }}
+                        className={`flex h-8 w-8 items-center justify-center rounded transition ${
+                          disabled ? "cursor-not-allowed opacity-40"
+                            : activePanel === key ? "bg-brand/10 text-brand"
+                            : "text-ink-muted hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <DanmakuInput multiline value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
+              aria-label="发送直播弹幕" disabled={isAnonymous}
+              placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "请输入文字"}
+              className={`min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm outline-none ${
+                isAnonymous ? "cursor-not-allowed text-ink-muted placeholder:text-ink-muted" : "text-ink placeholder:text-ink-muted"
+              }`}
+              style={{ maxHeight: "120px" }}
+            />
+              <button
+                onClick={() => void handleSend()}
+                disabled={!roomId || !message.trim() || sending || isAnonymous}
+                className={`m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded transition ${
+                  isAnonymous
+                    ? "cursor-not-allowed text-ink-muted opacity-40"
+                    : "text-brand hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-brand/10"
+                }`}
+                title={isAnonymous ? "匿名模式下不可用" : sending ? "发送中" : "发送"}
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+      }
+    >
       {/* 上方区域：礼物 + 分割栏 + 弹幕 — 始终渲染三栏，折叠时 flex=0 但分割栏仍可拖拽恢复 */}
       <div className="relative flex min-h-0 flex-1 flex-col">
       <div ref={splitContainerRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1845,135 +1824,75 @@ export function DanmakuPage() {
       <div className="absolute inset-x-0 bottom-0 z-20">
         {settingsOpen && (
           <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
-            <div className="space-y-3">
-              {/* 主题：开启「跟随屏幕背景亮暗」后锁定为随背景变化，不允许在此切换 */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-ink-muted dark:text-ink-muted">主题</span>
-                {autoThemeFromBackground ? (
-                  <span
-                    className="flex h-7 items-center gap-1.5 rounded border border-brand/30 bg-brand/10 px-2 text-xs text-brand"
-                    title="已开启「跟随屏幕背景亮暗」，主题随弹幕窗背后的画面自动切换。可在 设置 → 弹幕窗口 中关闭。"
-                  >
-                    <Wand2 className="h-3.5 w-3.5" />
-                    跟随背景
-                  </span>
-                ) : (
-                  <div className="danmaku-theme-select">
-                    <Select
-                      value={settings.appearance.theme}
-                      onValueChange={(next) =>
-                        commitSettings({
-                          appearance: { ...settings.appearance, theme: next as "light" | "dark" | "system" }
-                        })
-                      }
-                    >
-                      <SelectTrigger aria-label="主题" className="danmaku-theme-select-trigger" />
-                      <SelectContent>
-                        <SelectItem value="light">浅色</SelectItem>
-                        <SelectItem value="dark">深色</SelectItem>
-                        <SelectItem value="system">跟随系统</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              <OpacitySlider
-                value={opacity}
-                onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
-              />
-
-              {/* 字体大小 */}
-              <div className="flex items-center gap-2">
-                <span className="shrink-0 text-xs text-ink-muted dark:text-ink-muted">字体大小</span>
-                <input
-                  type="range"
-                  min={10}
-                  max={32}
-                  step={1}
-                  value={fontSize}
-                  onChange={(e) => commitSettings({ appearance: { fontSize: Number(e.target.value) } } as Partial<SettingsType>)}
-                  className="h-1 min-w-0 flex-1 cursor-pointer accent-brand"
+            <DanmakuWindowAppearanceSettings>
+              <div className="space-y-3">
+                <OpacitySlider
+                  value={opacity}
+                  onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
                 />
-                <span className="w-9 shrink-0 text-right text-xs text-ink-muted dark:text-ink-muted">{fontSize}px</span>
-              </div>
 
-              {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
-                  放在这里是为了看直播时不用为了关字幕跑回主窗口 */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-ink-muted dark:text-ink-muted">实时字幕</span>
-                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                  {([true, false] as const).map((value) => (
-                    <button
-                      key={String(value)}
-                      type="button"
-                      // 只在「打开」时要求可用，避免模型缺失时连关都关不掉
-                      disabled={value && (!sttAvailable || subtitleModelReady === false)}
-                      title={subtitleHint}
-                      onClick={() => commitSettings({ stt: { ...settings.stt, enabled: value } })}
-                      className={`px-2.5 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                        settings.stt.enabled === value
-                          ? "bg-brand text-white"
-                          : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
-                    >
-                      {value ? "开启" : "关闭"}
-                    </button>
-                  ))}
+                {/* 字体大小 */}
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-ink-muted dark:text-ink-muted">字体大小</span>
+                  <input
+                    type="range"
+                    min={10}
+                    max={32}
+                    step={1}
+                    value={fontSize}
+                    onChange={(e) => commitSettings({ appearance: { fontSize: Number(e.target.value) } } as Partial<SettingsType>)}
+                    className="h-1 min-w-0 flex-1 cursor-pointer accent-brand"
+                  />
+                  <span className="w-9 shrink-0 text-right text-xs text-ink-muted dark:text-ink-muted">{fontSize}px</span>
                 </div>
-              </div>
-              {subtitleHint && (
-                <p className="-mt-1 text-[11px] text-ink-muted dark:text-ink-muted">{subtitleHint}</p>
-              )}
 
-              {/* 表情样式 */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-ink-muted dark:text-ink-muted">表情样式</span>
-                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                  {([
-                    { value: "hidden", label: "不显示" },
-                    { value: "text", label: "文字" },
-                    { value: "image", label: "图片" },
-                  ] as const).map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() =>
-                        commitSettings({
-                          appearance: { ...settings.appearance, emoticonStyle: value }
-                        })
-                      }
-                      className={`px-2.5 py-1 text-xs transition ${
-                        settings.appearance.emoticonStyle === value
-                          ? "bg-brand text-white"
-                          : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 礼物图标：仅礼物打赏功能启用（gift-send 构建）时显示 */}
-              {giftSendEnabled && (
+                {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
+                    放在这里是为了看直播时不用为了关字幕跑回主窗口 */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-ink-muted dark:text-ink-muted">礼物图标</span>
+                  <span className="text-xs text-ink-muted dark:text-ink-muted">实时字幕</span>
                   <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                    {([
-                      { value: true, label: "显示" },
-                      { value: false, label: "不显示" },
-                    ] as const).map(({ value, label }) => (
+                    {([true, false] as const).map((value) => (
                       <button
                         key={String(value)}
                         type="button"
+                        // 只在「打开」时要求可用，避免模型缺失时连关都关不掉
+                        disabled={value && (!sttAvailable || subtitleModelReady === false)}
+                        title={subtitleHint}
+                        onClick={() => commitSettings({ stt: { ...settings.stt, enabled: value } })}
+                        className={`px-2.5 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                          settings.stt.enabled === value
+                            ? "bg-brand text-white"
+                            : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {value ? "开启" : "关闭"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {subtitleHint && (
+                  <p className="-mt-1 text-[11px] text-ink-muted dark:text-ink-muted">{subtitleHint}</p>
+                )}
+
+                {/* 表情样式 */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink-muted dark:text-ink-muted">表情样式</span>
+                  <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                    {([
+                      { value: "hidden", label: "不显示" },
+                      { value: "text", label: "文字" },
+                      { value: "image", label: "图片" },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
                         onClick={() =>
                           commitSettings({
-                            appearance: { ...settings.appearance, showGiftIcons: value }
+                            appearance: { ...settings.appearance, emoticonStyle: value }
                           })
                         }
                         className={`px-2.5 py-1 text-xs transition ${
-                          (settings.appearance.showGiftIcons ?? true) === value
+                          settings.appearance.emoticonStyle === value
                             ? "bg-brand text-white"
                             : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
                         }`}
@@ -1983,107 +1902,119 @@ export function DanmakuPage() {
                     ))}
                   </div>
                 </div>
-              )}
 
-              {/* 侧边吸附动画速度 */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-ink-muted dark:text-ink-muted">吸附动画</span>
-                <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                  {([
-                    { value: 350, label: "慢" },
-                    { value: 220, label: "标准" },
-                    { value: 120, label: "快" },
-                    { value: 0, label: "关" },
-                  ] as const).map(({ value, label }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => commitSettings({ appearance: { dockAnimMs: value } } as Partial<SettingsType>)}
-                      className={`px-2.5 py-1 text-xs transition ${
-                        settings.appearance.dockAnimMs === value
-                          ? "bg-brand text-white"
-                          : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                {/* 礼物图标：仅礼物打赏功能启用（gift-send 构建）时显示 */}
+                {giftSendEnabled && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-ink-muted dark:text-ink-muted">礼物图标</span>
+                    <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                      {([
+                        { value: true, label: "显示" },
+                        { value: false, label: "不显示" },
+                      ] as const).map(({ value, label }) => (
+                        <button
+                          key={String(value)}
+                          type="button"
+                          onClick={() =>
+                            commitSettings({
+                              appearance: { ...settings.appearance, showGiftIcons: value }
+                            })
+                          }
+                          className={`px-2.5 py-1 text-xs transition ${
+                            (settings.appearance.showGiftIcons ?? true) === value
+                              ? "bg-brand text-white"
+                              : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 侧边吸附动画速度 */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink-muted dark:text-ink-muted">吸附动画</span>
+                  <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
+                    {([
+                      { value: 350, label: "慢" },
+                      { value: 220, label: "标准" },
+                      { value: 120, label: "快" },
+                      { value: 0, label: "关" },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => commitSettings({ appearance: { dockAnimMs: value } } as Partial<SettingsType>)}
+                        className={`px-2.5 py-1 text-xs transition ${
+                          settings.appearance.dockAnimMs === value
+                            ? "bg-brand text-white"
+                            : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* 隐藏元素 */}
-              <div>
-                <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">隐藏元素</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
+                {/* 隐藏元素 */}
+                <div>
+                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">隐藏元素</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          commitSettings({
+                            appearance: { ...settings.appearance, [key]: !settings.appearance[key] }
+                          })
+                        }
+                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                          settings.appearance[key]
+                            ? "border-brand/40 bg-brand/10 text-brand"
+                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    {/* 气泡背景默认显示，所以这里的按钮语义是「取消气泡背景」，
+                        与上面那排「命中即隐藏」的字段反向 */}
                     <button
-                      key={key}
                       type="button"
                       onClick={() =>
                         commitSettings({
-                          appearance: { ...settings.appearance, [key]: !settings.appearance[key] }
+                          appearance: {
+                            ...settings.appearance,
+                            hideBubbleColor: !settings.appearance.hideBubbleColor,
+                          },
                         })
                       }
                       className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                        settings.appearance[key]
+                        settings.appearance.hideBubbleColor
                           ? "border-brand/40 bg-brand/10 text-brand"
                           : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
                       }`}
                     >
-                      {label}
+                      气泡背景
                     </button>
-                  ))}
-                  {/* 气泡背景默认显示，所以这里的按钮语义是「取消气泡背景」，
-                      与上面那排「命中即隐藏」的字段反向 */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      commitSettings({
-                        appearance: {
-                          ...settings.appearance,
-                          hideBubbleColor: !settings.appearance.hideBubbleColor,
-                        },
-                      })
-                    }
-                    className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                      settings.appearance.hideBubbleColor
-                        ? "border-brand/40 bg-brand/10 text-brand"
-                        : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                    }`}
-                  >
-                    气泡背景
-                  </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* 活动栏（进场/点赞） */}
-              <div>
-                <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">活动栏</p>
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => commitSettings({ appearance: { ...settings.appearance, activityBarMode: value } })}
-                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                        settings.appearance.activityBarMode === value
-                          ? "border-brand/40 bg-brand/10 text-brand"
-                          : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {settings.appearance.activityBarMode === "scroll" && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => (
+                {/* 活动栏（进场/点赞） */}
+                <div>
+                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">活动栏</p>
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => (
                       <button
                         key={value}
                         type="button"
-                        onClick={() => commitSettings({ appearance: { ...settings.appearance, activityFilter: value } })}
+                        onClick={() => commitSettings({ appearance: { ...settings.appearance, activityBarMode: value } })}
                         className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                          settings.appearance.activityFilter === value
+                          settings.appearance.activityBarMode === value
                             ? "border-brand/40 bg-brand/10 text-brand"
                             : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
                         }`}
@@ -2092,64 +2023,82 @@ export function DanmakuPage() {
                       </button>
                     ))}
                   </div>
-                )}
-              </div>
+                  {settings.appearance.activityBarMode === "scroll" && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => commitSettings({ appearance: { ...settings.appearance, activityFilter: value } })}
+                          className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                            settings.appearance.activityFilter === value
+                              ? "border-brand/40 bg-brand/10 text-brand"
+                              : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-              {/* 简化醒目留言 */}
-              <div>
-                <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">弹幕栏简化醒目留言</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {([
-                    { value: false, label: "不显示" },
-                    { value: true, label: "显示" },
-                  ] as const).map(({ value, label }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => commitSettings({ appearance: { ...settings.appearance, scInDanmaku: value } })}
-                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                        settings.appearance.scInDanmaku === value
-                          ? "border-brand/40 bg-brand/10 text-brand"
-                          : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                {/* 简化醒目留言 */}
+                <div>
+                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">弹幕栏简化醒目留言</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { value: false, label: "不显示" },
+                      { value: true, label: "显示" },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => commitSettings({ appearance: { ...settings.appearance, scInDanmaku: value } })}
+                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                          settings.appearance.scInDanmaku === value
+                            ? "border-brand/40 bg-brand/10 text-brand"
+                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 金额着色：关闭后 SC/礼物/舰长与普通弹幕一样，只剩纯文字金额 */}
+                <div>
+                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">金额着色</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { value: false, label: "彩色" },
+                      { value: true, label: "与普通弹幕一致" },
+                    ] as const).map(({ value, label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() =>
+                          commitSettings({
+                            appearance: { ...settings.appearance, plainPriceMessages: value }
+                          })
+                        }
+                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                          (settings.appearance.plainPriceMessages ?? false) === value
+                            ? "border-brand/40 bg-brand/10 text-brand"
+                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-muted dark:text-ink-muted">
+                    各金额档位的具体颜色在「设置 → 外观 → 金额档位配色」里调整。
+                  </p>
                 </div>
               </div>
-
-              {/* 金额着色：关闭后 SC/礼物/舰长与普通弹幕一样，只剩纯文字金额 */}
-              <div>
-                <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">金额着色</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {([
-                    { value: false, label: "彩色" },
-                    { value: true, label: "与普通弹幕一致" },
-                  ] as const).map(({ value, label }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() =>
-                        commitSettings({
-                          appearance: { ...settings.appearance, plainPriceMessages: value }
-                        })
-                      }
-                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                        (settings.appearance.plainPriceMessages ?? false) === value
-                          ? "border-brand/40 bg-brand/10 text-brand"
-                          : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-1 text-[11px] leading-relaxed text-ink-muted dark:text-ink-muted">
-                  各金额档位的具体颜色在「设置 → 外观 → 金额档位配色」里调整。
-                </p>
-              </div>
-            </div>
+            </DanmakuWindowAppearanceSettings>
           </FloatingPanel>
         )}
 
@@ -2224,198 +2173,7 @@ export function DanmakuPage() {
       )}
       </div>
 
-      {/* 发送栏 */}
-      <div data-interactive="" className="danmaku-bg-panel relative px-3 py-2">
-        {sendError && (
-          <InlineMessage key={sendErrorKey} type="error" className="mb-2">{sendError}</InlineMessage>
-        )}
-
-        {/* 功能按钮行（compact 模式收纳进输入行左侧的 + 菜单） */}
-        <div ref={inputBarRef} className={`${compactBar ? "hidden" : "mb-2 flex"} items-center gap-2`}>
-          <button
-            type="button"
-            onClick={() => { if (!isAnonymous) togglePanel(PANEL.AUTO_SEND); }}
-            disabled={isAnonymous}
-            title={isAnonymous ? "匿名模式下不可用" : "自动发送"}
-            className={`rounded inline-flex items-center p-1.5 text-xs transition ${
-              isAnonymous ? "cursor-not-allowed opacity-40"
-                : autoSendRunning ? "danmaku-btn-active text-brand"
-                : activePanel === PANEL.AUTO_SEND ? "bg-brand/10 text-brand"
-                : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
-            }`}
-          >
-            <Zap className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => { if (!isAnonymous) void handleToggleEmoticonPicker(); }}
-            disabled={isAnonymous}
-            title={isAnonymous ? "匿名模式下不可用" : "表情"}
-            className={`rounded inline-flex items-center p-1.5 text-xs transition ${
-              isAnonymous ? "cursor-not-allowed opacity-40"
-                : activePanel === PANEL.EMOTICON ? "bg-brand/10 text-brand"
-                : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
-            }`}
-          >
-            <Smile className="h-3.5 w-3.5" />
-          </button>
-          {giftSendEnabled && (
-            <button
-              type="button"
-              onClick={() => { if (!isAnonymous) togglePanel(PANEL.GIFT); }}
-              disabled={isAnonymous}
-              title={isAnonymous ? "匿名模式下不可用" : "礼物打赏"}
-              className={`rounded inline-flex items-center p-1.5 text-xs transition ${
-                isAnonymous ? "cursor-not-allowed opacity-40"
-                  : activePanel === PANEL.GIFT ? "bg-brand/10 text-brand"
-                  : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
-              }`}
-            >
-              <Gift className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <AccountSwitcher viewingAccountId={activeAccountId} />
-          <button
-            type="button"
-            onClick={() => togglePanel(PANEL.FILTER)}
-            title="屏蔽管理"
-            className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
-              activePanel === PANEL.FILTER ? "bg-brand/10 text-brand"
-                : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
-            }`}
-          >
-            <ShieldBan className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => togglePanel(PANEL.SETTINGS)}
-            title="设置"
-            className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
-              activePanel === PANEL.SETTINGS ? "bg-brand/10 text-brand"
-                : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
-            }`}
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => togglePanel(PANEL.CLIPBOARD)}
-            title="快捷消息"
-            className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
-              activePanel === PANEL.CLIPBOARD ? "bg-brand/10 text-brand"
-                : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
-            }`}
-          >
-            <ClipboardList className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* 弹幕输入行 */}
-        <div className="danmaku-bg-bar rounded flex items-center pr-1">
-          {compactBar && (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setBarMenuOpen((v) => !v)}
-                title="更多功能"
-                aria-expanded={barMenuOpen}
-                className={`ml-1 flex h-7 w-7 items-center justify-center rounded transition ${
-                  barMenuOpen ? "bg-brand/10 text-brand" : "text-ink-muted hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                <Plus className={`h-4 w-4 transition-transform ${barMenuOpen ? "rotate-45" : ""}`} />
-              </button>
-              {barMenuOpen && (
-                <div className="danmaku-floating absolute bottom-full left-0 z-30 mb-1 flex items-center gap-1 rounded-lg p-1">
-                  {[
-                    { key: PANEL.AUTO_SEND, label: "自动发送", Icon: Zap, disabled: isAnonymous },
-                    { key: PANEL.EMOTICON, label: "表情", Icon: Smile, disabled: isAnonymous },
-                    ...(giftSendEnabled
-                      ? [{ key: PANEL.GIFT, label: "礼物", Icon: Gift, disabled: isAnonymous }]
-                      : []),
-                    { key: PANEL.FILTER, label: "屏蔽管理", Icon: ShieldBan, disabled: false },
-                    { key: PANEL.SETTINGS, label: "设置", Icon: Settings, disabled: false },
-                    { key: PANEL.CLIPBOARD, label: "快捷消息", Icon: ClipboardList, disabled: false },
-                  ].map(({ key, label, Icon, disabled }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      disabled={disabled}
-                      title={label}
-                      onClick={() => {
-                        if (key === PANEL.EMOTICON) void handleToggleEmoticonPicker();
-                        else togglePanel(key);
-                        setBarMenuOpen(false);
-                      }}
-                      className={`flex h-8 w-8 items-center justify-center rounded transition ${
-                        disabled ? "cursor-not-allowed opacity-40"
-                          : activePanel === key ? "bg-brand/10 text-brand"
-                          : "text-ink-muted hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          <textarea
-            value={message}
-              disabled={isAnonymous}
-              onCompositionStart={() => { composingRef.current = true; }}
-              onCompositionEnd={(event) => {
-                composingRef.current = false;
-                composingEndedAtRef.current = Date.now();
-                const text = event.currentTarget.value.slice(0, 40);
-                setMessage(text);
-                event.currentTarget.style.height = "auto";
-                event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 120)}px`;
-              }}
-              onChange={(event) => {
-                if (isAnonymous) return;
-                const val = event.target.value;
-                // 拼音输入中允许超出，结束后截断
-                if (composingRef.current) {
-                  setMessage(val);
-                } else {
-                  setMessage(val.slice(0, 40));
-                }
-                event.target.style.height = "auto";
-                event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`;
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" || event.shiftKey || event.repeat) return;
-                // 输入法组合中的回车是选词/上屏，不是发送（isComposing 与 keyCode 229 双保险）
-                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-                if (Date.now() - composingEndedAtRef.current < 80) return;
-                event.preventDefault();
-                void handleSend();
-              }}
-              placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "请输入文字"}
-              rows={1}
-              className={`min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm outline-none ${
-                isAnonymous
-                  ? "cursor-not-allowed text-ink-muted placeholder:text-ink-muted text-ink-muted dark:placeholder:text-ink-muted"
-                  : "text-ink placeholder:text-ink-muted"
-              }`}
-              style={{ maxHeight: "120px" }}
-            />
-            <button
-              onClick={() => void handleSend()}
-              disabled={!roomId || !message.trim() || sending || isAnonymous}
-              className={`m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded transition ${
-                isAnonymous
-                  ? "cursor-not-allowed text-ink-muted opacity-40"
-                  : "text-brand hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-brand/10"
-              }`}
-              title={isAnonymous ? "匿名模式下不可用" : sending ? "发送中" : "发送"}
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-    </main>
+    </DanmakuWindow>
     )}
     </div>
     </>

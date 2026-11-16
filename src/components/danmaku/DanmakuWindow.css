@@ -1,0 +1,176 @@
+.danmaku-window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  color: var(--ink);
+  font-family: var(--ui-font-family, inherit);
+  font-size: var(--ui-font-size, 14px);
+}
+.danmaku-window-titlebar {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-left: 12px;
+  user-select: none;
+}
+.danmaku-window-titlebar > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.danmaku-window-icon {
+  display: inline-flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  color: var(--ink-muted);
+}
+.danmaku-window-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.danmaku-window-icon:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.danmaku-window-icon.is-active {
+  color: rgb(var(--brand-rgb));
+}
+.danmaku-window-icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.danmaku-window-icon:focus-visible {
+  outline: 2px solid rgb(var(--brand-rgb));
+  outline-offset: -2px;
+}
+.danmaku-window-exit:hover {
+  @apply bg-rose-500 text-white;
+}
+.danmaku-window-audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+}
+.danmaku-window-audio > .numeric {
+  margin-left: auto;
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+.danmaku-window-volume {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.danmaku-window-volume-popup {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 30;
+  display: none;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--app-surface);
+  transform: translateX(-50%);
+}
+.danmaku-window-volume-popup.is-open,
+.danmaku-window-volume:focus-within .danmaku-window-volume-popup {
+  display: block;
+}
+.danmaku-window-volume-popup input {
+  width: 12px;
+  height: 80px;
+  accent-color: rgb(var(--brand-rgb));
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+.danmaku-window .content-typography {
+  font-family: var(--content-font-family, inherit);
+}
+.danmaku-window-appearance {
+  font-size: 12px;
+}
+.danmaku-window-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 7px;
+}
+.danmaku-window-check input {
+  accent-color: rgb(var(--brand-rgb));
+}
+.danmaku-window-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 6px;
+}
+.danmaku-window-select {
+  position: relative;
+  width: 150px;
+  max-width: 60%;
+}
+.danmaku-window-select button {
+  font-size: 12px;
+}
+.danmaku-window-select .select-popover {
+  max-height: 150px;
+  overflow-y: auto;
+}
+.danmaku-window-appearance input[type="color"] {
+  width: 34px;
+  height: 24px;
+  padding: 1px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: transparent;
+}
+.danmaku-window-appearance-details {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.danmaku-window-appearance-details summary {
+  color: var(--ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.danmaku-window-title-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-block: 10px 2px;
+}
+.danmaku-window-title-options button {
+  padding: 4px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.danmaku-window-title-options button[aria-pressed="true"] {
+  color: rgb(var(--brand-rgb));
+  border-color: rgb(var(--brand-rgb) / 0.4);
+  background: rgb(var(--brand-rgb) / 0.08);
+}
+.danmaku-window-settings-note {
+  margin-block: 10px 2px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
