@@ -21,7 +21,7 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
       <input type="range" aria-label={label} min={min} max={max} value={preferences[key]} onChange={(event) => onChange({ ...preferences, [key]: event.target.valueAsNumber })} />
     </label>)}
     <label className="video-window-setting"><span>字幕区域比例<span className="numeric">{Math.round(preferences.subtitleRatio * 100)}%</span></span>
-      <input type="range" min={20} max={80} value={Math.round(preferences.subtitleRatio * 100)} onChange={(event) => onChange({ ...preferences, subtitleRatio: event.target.valueAsNumber / 100 })} />
+      <input type="range" aria-label="字幕区域比例" min={0} max={100} value={Math.round(preferences.subtitleRatio * 100)} onChange={(event) => onChange({ ...preferences, subtitleRatio: event.target.valueAsNumber / 100 })} />
     </label>
     <label className="video-window-check"><span>字幕与弹幕自动跟随</span><input type="checkbox" aria-label="字幕与弹幕自动跟随" checked={preferences.autoFollow} onChange={(event) => onChange({ ...preferences, autoFollow: event.target.checked })} /></label>
     <label className="video-window-check"><span>显示行内时间</span><input type="checkbox" aria-label="显示行内时间" checked={preferences.showTime} onChange={(event) => onChange({ ...preferences, showTime: event.target.checked })} /></label>

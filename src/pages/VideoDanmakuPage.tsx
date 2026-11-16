@@ -142,24 +142,41 @@ export function VideoDanmakuPage() {
       </div>}
       <div className="video-window-timelines" ref={contentRef} style={{ gridTemplateRows: `minmax(0, ${preferences.subtitleRatio}fr) 5px minmax(0, ${1 - preferences.subtitleRatio}fr)` }}>
         <VideoTimelinePane key={`subtitles-${identity}`} title="字幕" items={subtitleItems} currentTime={currentTime}
+          collapsed={preferences.subtitleRatio === 0}
           loading={subtitles.isPending} error={subtitles.error ? String(subtitles.error) : null} empty="这个视频还没有字幕，可继续听音频和查看弹幕"
           fontSize={preferences.subtitleFontSize} showTime={preferences.showTime} autoFollow={preferences.autoFollow} followKey={followKey}
           onSeek={seek} onRetry={() => void subtitles.refetch()} />
         <div className="video-window-divider" data-interactive role="separator" aria-label="调整字幕与弹幕区域比例" aria-orientation="horizontal"
-          tabIndex={0} aria-valuemin={20} aria-valuemax={80} aria-valuenow={Math.round(preferences.subtitleRatio * 100)}
+          tabIndex={0} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(preferences.subtitleRatio * 100)}
           onDoubleClick={() => setPreferences({ ...preferences, subtitleRatio: 0.5 })}
           onKeyDown={(event) => {
-            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            const ratios: Record<string, number> = {
+              ArrowUp: preferences.subtitleRatio - 0.05,
+              ArrowDown: preferences.subtitleRatio + 0.05,
+              Home: 0,
+              End: 1,
+            };
+            const nextRatio = ratios[event.key];
+            if (!ready || nextRatio === undefined) return;
             event.preventDefault();
-            setPreferences({ ...preferences, subtitleRatio: Math.max(0.2, Math.min(0.8, preferences.subtitleRatio + (event.key === "ArrowDown" ? 0.05 : -0.05))) });
-          }} onPointerDown={(event) => { if (ready) event.currentTarget.setPointerCapture(event.pointerId); }}
+            setPreferences({ ...preferences, subtitleRatio: Math.max(0, Math.min(1, nextRatio)) });
+          }} onPointerDown={(event) => {
+            if (!ready || event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
           onPointerMove={(event) => {
             if (!event.currentTarget.hasPointerCapture(event.pointerId) || !contentRef.current) return;
             const rect = contentRef.current.getBoundingClientRect();
-            setPreferences({ ...preferences, subtitleRatio: Math.max(0.2, Math.min(0.8, (event.clientY - rect.top) / rect.height)) });
+            const dividerHeight = event.currentTarget.getBoundingClientRect().height;
+            const availableHeight = rect.height - dividerHeight;
+            if (availableHeight <= 0) return;
+            const nextRatio = (event.clientY - rect.top - dividerHeight / 2) / availableHeight;
+            setPreferences({ ...preferences, subtitleRatio: Math.max(0, Math.min(1, nextRatio)) });
           }} onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
           onPointerCancel={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} />
         <VideoTimelinePane key={`danmaku-${identity}`} title="弹幕" items={danmakuItems} currentTime={currentTime}
+          collapsed={preferences.subtitleRatio === 1}
           loading={danmaku.loading} error={danmaku.error} empty="当前时段还没有弹幕"
           fontSize={preferences.danmakuFontSize} showTime={preferences.showTime} autoFollow={preferences.autoFollow} followKey={followKey}
           onSeek={seek} onRetry={() => void queryClient.invalidateQueries({ queryKey: ["video-danmaku", cid] })} />

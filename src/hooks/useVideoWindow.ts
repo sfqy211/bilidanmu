@@ -45,7 +45,7 @@ function normalizePreferences(value: unknown): VideoWindowPreferences {
     opacity: number(source.opacity, 10, 100, defaults.opacity),
     subtitleFontSize: number(source.subtitleFontSize, 10, 32, defaults.subtitleFontSize),
     danmakuFontSize: number(source.danmakuFontSize, 10, 32, defaults.danmakuFontSize),
-    subtitleRatio: number(source.subtitleRatio, 0.2, 0.8, defaults.subtitleRatio),
+    subtitleRatio: number(source.subtitleRatio, 0, 1, defaults.subtitleRatio),
     autoFollow: typeof source.autoFollow === "boolean" ? source.autoFollow : defaults.autoFollow,
     showTime: typeof source.showTime === "boolean" ? source.showTime : defaults.showTime,
   };

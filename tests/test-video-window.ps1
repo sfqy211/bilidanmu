@@ -20,6 +20,103 @@ function Assert-Page([string]$Code) {
     if ($LASTEXITCODE -ne 0) { throw '视频弹幕页面断言失败' }
 }
 
+function Test-TimelineDivider {
+    $json = & agent-browser --session $session eval "(() => { const container = document.querySelector('.video-window-timelines').getBoundingClientRect(); const divider = document.querySelector('.video-window-divider').getBoundingClientRect(); return {x: divider.x + divider.width / 2, top: container.top + divider.height / 2, bottom: container.bottom - divider.height / 2, middle: container.top + container.height / 2}; })()"
+    $layout = ($json -join "`n") | ConvertFrom-Json
+    $x = [int]$layout.x
+    $middle = [int]$layout.middle
+    $top = [int][Math]::Floor($layout.top)
+    $bottom = [int][Math]::Ceiling($layout.bottom)
+
+    Invoke-Browser mouse move $x $middle
+    Invoke-Browser mouse down
+    Invoke-Browser mouse move $x $top
+    Invoke-Browser mouse up
+    Assert-Page @'
+await settle();
+const container = document.querySelector('.video-window-timelines').getBoundingClientRect();
+const divider = document.querySelector('.video-window-divider');
+const subtitle = document.querySelector('.video-timeline-pane[aria-label="字幕"]');
+assert(divider.getAttribute('aria-valuenow') === '0', '拖动可到 0%');
+assert(subtitle.getBoundingClientRect().height < 1 && subtitle.inert, '字幕完全折叠并退出键盘导航');
+assert(Math.abs(divider.getBoundingClientRect().top - container.top) < 1, '分割栏抵达内容区顶端');
+'@
+    Invoke-Browser mouse move $x $top
+    Invoke-Browser mouse down
+    Invoke-Browser mouse move $x $middle
+    Invoke-Browser mouse up
+    Assert-Page @'
+await settle();
+assert(Math.abs(Number(document.querySelector('.video-window-divider').getAttribute('aria-valuenow')) - 50) <= 1, '顶部折叠后可重新拖开');
+assert(!document.querySelector('.video-timeline-pane[aria-label="字幕"]').inert, '展开后恢复字幕交互');
+'@
+    Invoke-Browser mouse move $x $middle
+    Invoke-Browser mouse down
+    Invoke-Browser mouse move $x $bottom
+    Invoke-Browser mouse up
+    Assert-Page @'
+await settle();
+const container = document.querySelector('.video-window-timelines').getBoundingClientRect();
+const divider = document.querySelector('.video-window-divider');
+const danmaku = document.querySelector('.video-timeline-pane[aria-label="弹幕"]');
+assert(divider.getAttribute('aria-valuenow') === '100', '拖动可到 100%');
+assert(danmaku.getBoundingClientRect().height < 1 && danmaku.inert, '弹幕完全折叠并退出键盘导航');
+assert(Math.abs(divider.getBoundingClientRect().bottom - container.bottom) < 1, '分割栏抵达内容区底部');
+await new Promise((resolve) => setTimeout(resolve, 350));
+assert(videoTest.saved.videoDanmakuAppearance.subtitleRatio === 1, '端点比例正常保存');
+'@
+    Invoke-Browser mouse move $x $bottom
+    Invoke-Browser mouse down
+    Invoke-Browser mouse move $x $middle
+    Invoke-Browser mouse up
+    Assert-Page @'
+await settle();
+assert(Math.abs(Number(document.querySelector('.video-window-divider').getAttribute('aria-valuenow')) - 50) <= 1, '底部折叠后可重新拖开');
+assert(!document.querySelector('.video-timeline-pane[aria-label="弹幕"]').inert, '展开后恢复弹幕交互');
+'@
+    Invoke-Browser focus '.video-window-divider'
+    Invoke-Browser press Home
+    Assert-Page @'
+assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '0', 'Home 可折叠字幕');
+'@
+    Invoke-Browser press End
+    Invoke-Browser press ArrowUp
+    Assert-Page @'
+assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '95', '键盘可调整超过原 80% 上限');
+'@
+    Invoke-Browser press ArrowDown
+    Assert-Page @'
+assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '100', '方向键可到达底部');
+button('窗口设置').click(); await settle();
+'@
+    Invoke-Browser scrollintoview 'input[aria-label="字幕区域比例"]'
+    Invoke-Browser focus 'input[aria-label="字幕区域比例"]'
+    Invoke-Browser press Home
+    Assert-Page @'
+assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '0', '设置滑块可到 0%');
+'@
+    Invoke-Browser press End
+    Assert-Page @'
+assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '100', '设置滑块可到 100%');
+button('关闭设置').click();
+'@
+    Invoke-Browser dblclick '.video-window-divider'
+    Assert-Page @'
+assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '50', '双击恢复均分');
+'@
+    foreach ($ratio in @(0, 1)) {
+        Invoke-Browser open "$fixtureUrl`?subtitleRatio=$ratio"
+        Invoke-Browser wait 'main.video-danmaku-window'
+        Assert-Page @'
+await settle();
+const ratio = Number(new URLSearchParams(location.search).get('subtitleRatio'));
+assert(Number(document.querySelector('.video-window-divider').getAttribute('aria-valuenow')) === ratio * 100, '重新打开保留端点比例');
+'@
+    }
+    Invoke-Browser open $fixtureUrl
+    Invoke-Browser wait 'main.video-danmaku-window'
+}
+
 function Test-PrecisionSeek {
     $json = & agent-browser --session $session eval "document.querySelector('input[aria-label=视频播放进度]').getBoundingClientRect().toJSON()"
     $rect = ($json -join "`n") | ConvertFrom-Json
@@ -216,6 +313,7 @@ try {
     Invoke-Browser wait 'main.video-danmaku-window'
     Test-WindowAppearance
     Test-PrecisionSeek
+    Test-TimelineDivider
     Assert-Page @'
 await settle();
 assert(document.querySelectorAll('.video-timeline-pane').length === 2, '上下两个时间轴');

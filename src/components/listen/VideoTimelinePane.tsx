@@ -21,7 +21,7 @@ function activeTimelineIndex(items: VideoTimelineItem[], currentTime: number) {
   return low - 1;
 }
 
-export function VideoTimelinePane({ title, items, currentTime, loading, error, empty, fontSize, showTime, autoFollow, followKey, onSeek, onRetry }: {
+export function VideoTimelinePane({ title, items, currentTime, loading, error, empty, fontSize, showTime, autoFollow, followKey, collapsed = false, onSeek, onRetry }: {
   title: string;
   items: VideoTimelineItem[];
   currentTime: number;
@@ -32,6 +32,7 @@ export function VideoTimelinePane({ title, items, currentTime, loading, error, e
   showTime: boolean;
   autoFollow: boolean;
   followKey: number;
+  collapsed?: boolean;
   onSeek: (time: number) => void;
   onRetry: () => void;
 }) {
@@ -55,7 +56,7 @@ export function VideoTimelinePane({ title, items, currentTime, loading, error, e
   }, [active, activeOffset, autoFollow, paused, followKey, fontSize, showTime, virtualizer]);
 
   return (
-    <section className="video-timeline-pane" aria-label={title}>
+    <section className="video-timeline-pane" aria-label={title} inert={collapsed} aria-hidden={collapsed || undefined}>
       <header className="video-timeline-heading" data-interactive>
         <h2>{title}</h2>
         <span className="numeric">{items.length > 0 && `${items.length} 条`}</span>

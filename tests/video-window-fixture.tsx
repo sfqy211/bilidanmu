@@ -1,7 +1,8 @@
 // 浏览器专用 IPC 替身，所有发送与窗口操作留在本地。
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
-const surface = new URLSearchParams(location.search).get("surface") ?? "window";
+const parameters = new URLSearchParams(location.search);
+const surface = parameters.get("surface") ?? "window";
 mockWindows(surface === "main" ? "main" : surface === "live" ? "danmaku" : "video-danmaku");
 const calls: { command: string; args: any }[] = [];
 const state = {
@@ -14,7 +15,8 @@ let danmakuError = false;
 let sendError = false;
 let cursor = { x: 30, y: 20 };
 let backgroundLuminance: number | null = null;
-const saved = { videoDanmakuAppearance: { subtitleFontSize: 15 } };
+const initialRatio = parameters.get("subtitleRatio");
+const saved = { videoDanmakuAppearance: { subtitleFontSize: 15, ...(initialRatio === null ? {} : { subtitleRatio: Number(initialRatio) }) } };
 const { emit } = await import("@tauri-apps/api/event");
 const broadcast = async (patch: object) => {
   Object.assign(state, patch, { revision: state.revision + 1 });
