@@ -10,7 +10,7 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
 }) {
   const ranges = [
     { key: "opacity", label: "背景不透明度", min: 10, max: 100, unit: "%" },
-    { key: "subtitleFontSize", label: "字幕字号", min: 10, max: 32, unit: "px" },
+    { key: "subtitleFontSize", label: "字幕字号", min: 14, max: 24, unit: "px" },
     { key: "danmakuFontSize", label: "弹幕字号", min: 10, max: 32, unit: "px" },
   ] as const;
   return <section className="video-window-popover video-window-settings" aria-label="视频弹幕外观设置" data-interactive>

@@ -188,6 +188,7 @@ export const tauriCommands = {
     open: () => invoke<void>("open_video_danmaku_window"),
     close: (restoreMain = true) => invoke<void>("close_video_danmaku_window", { restoreMain }),
     setInputOnly: (enabled: boolean) => invoke<boolean>("set_video_input_only", { enabled }),
+    getInputOnly: () => invoke<boolean>("get_video_input_only"),
     publish: (snapshot: VideoPlaybackSnapshot) => invoke<void>("publish_video_playback", { snapshot }),
     getPlayback: () => invoke<VideoPlaybackSnapshot | null>("get_video_playback"),
     control: (bvid: string | null, cid: number | null, control: VideoPlaybackAction) =>

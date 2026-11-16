@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
-import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useWindowDock } from "@/hooks/useWindowDock";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -35,6 +35,10 @@ import { DanmakuInput } from "@/components/danmaku/DanmakuInput";
 import { DanmakuWindow } from "@/components/danmaku/DanmakuWindow";
 import { DanmakuWindowAppearanceSettings } from "@/components/danmaku/DanmakuWindowAppearanceSettings";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
+import {
+  usePassthroughHitTest,
+  useStealthMode,
+} from "@/hooks/useDanmakuWindowModes";
 import { tauriCommands } from "@/lib/tauri";
 import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
@@ -216,37 +220,14 @@ export function DanmakuPage() {
     [appWindow, locked, toggleInputOnly],
   );
   const [passthroughEnabled, setPassthroughEnabled] = useState(false);
-  const passthroughIgnoredRef = useRef(false);
-  // 隐身模式：后端按光标位置自动显隐并切点击穿透，前端只负责渲染淡入淡出。
-  // 开启后内容隐去即整窗透明，鼠标可点到下层；显形时恢复交互。
-  const [stealthEnabled, setStealthEnabled] = useState(false);
-  const [stealthVisible, setStealthVisible] = useState(true);
-  useEffect(() => {
-    void tauriCommands.stealth.get().then((snapshot) => {
-      setStealthEnabled(snapshot.enabled);
-      setStealthVisible(snapshot.visible);
-    }).catch(() => {});
-  }, []);
-  useTauriEvent<{ label: string; visible: boolean; enabled: boolean }>("danmaku-stealth", (payload) => {
-    if (payload.label !== appWindow.label) return;
-    setStealthEnabled(payload.enabled);
-    setStealthVisible(payload.visible);
-  });
-  // 隐身后窗口不可点击，焦点若还留在输入框里会继续吞键盘输入，先主动释放
-  useEffect(() => {
-    if (stealthVisible) return;
-    const active = document.activeElement;
-    if (active instanceof HTMLElement) active.blur();
-  }, [stealthVisible]);
+  // 隐身与透传与视频弹幕窗共用同一套 hook（useDanmakuWindowModes）：
+  // 隐身由后端按光标位置自动显隐，透传按 DOM 命中测试轮询
+  const stealth = useStealthMode();
+  usePassthroughHitTest(passthroughEnabled, stealth.enabled, stealth.visible);
   const toggleStealth = useCallback(() => {
-    // 隐身隐态由 Rust 独占整窗穿透，显形后交还透传轮询，两者可同时开启。
-    // 用命令返回值矫正本地状态，事件丢失时也不会错位。
     setActivePanel(null);
-    void tauriCommands.stealth
-      .set(!stealthEnabled)
-      .then((enabled) => setStealthEnabled(enabled))
-      .catch(() => {});
-  }, [stealthEnabled]);
+    stealth.toggle();
+  }, [stealth.toggle]);
   const togglePassthrough = useCallback(() => {
     setPassthroughEnabled((v) => !v);
   }, []);
@@ -433,7 +414,7 @@ export function DanmakuPage() {
   const dockAnimMs = useReducedMotion() ? 0 : preferredDockAnimMs;
   // 隐身淡出：窗口本身是真透明，内容整体淡出即为"隐身"。
   // 显示比隐藏快一点：悬停要跟手，离开后渐隐不突兀
-  const stealthFadeMs = useReducedMotion() ? 0 : stealthVisible ? 120 : 200;
+  const stealthFadeMs = useReducedMotion() ? 0 : stealth.visible ? 120 : 200;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   // 弹幕窗外观：功能栏形态与收起条样式（旧数据缺字段时按默认）
   const danmakuWindow = useSettingsStore((s) => s.settings.appearance.danmakuWindow);
@@ -813,83 +794,7 @@ export function DanmakuPage() {
     };
   }, []);
 
-  // ── 窗口透传：单窗口动态命中测试 ──
-  // 与隐身模式共用同一个点击穿透标志：隐身隐态由 Rust 整窗穿透、本轮询暂停；
-  // 显形后透传按 DOM 命中测试接管，因此两者可同时开启。
-  useEffect(() => {
-    let checking = false;
-
-    const setIgnored = (ignored: boolean) => {
-      if (passthroughIgnoredRef.current === ignored) return;
-      const previous = passthroughIgnoredRef.current;
-      passthroughIgnoredRef.current = ignored;
-      void appWindow.setIgnoreCursorEvents(ignored).catch(() => {
-        if (passthroughIgnoredRef.current === ignored) {
-          passthroughIgnoredRef.current = previous;
-        }
-      });
-    };
-
-    // 穿透标志的唯一裁决者。优先级：隐身隐态（整窗穿透）> 透传开关 > 正常交互。
-    // 顺序不能颠倒：隐态必须先于「透传关闭」判断，否则只开隐身不开透传时
-    // 会被下面的 setIgnored(false) 覆盖掉，隐身状态下手照样能点到窗口。
-    if (stealthEnabled && !stealthVisible) {
-      setIgnored(true);
-      return;
-    }
-    if (!passthroughEnabled) {
-      setIgnored(false);
-      return;
-    }
-
-    const shouldPassThrough = (x: number, y: number) => {
-      // elementFromPoint is a DOM hit-test and should remain valid while the OS
-      // ignores cursor events for this window; the polling loop depends on that.
-      const element = document.elementFromPoint(x, y);
-      if (!element) return true;
-      return !element.closest("[data-interactive]");
-    };
-
-    const checkCursorPosition = () => {
-      if (checking) return;
-      checking = true;
-      void (async () => {
-        // 弹幕窗口创建时 decorations=false，因此 inner 坐标就是 WebView client area。
-        const [cursor, windowPosition, windowSize, scaleFactor] = await Promise.all([
-          cursorPosition(),
-          appWindow.innerPosition(),
-          appWindow.innerSize(),
-          appWindow.scaleFactor(),
-        ]);
-
-        const insideWindow =
-          cursor.x >= windowPosition.x &&
-          cursor.y >= windowPosition.y &&
-          cursor.x < windowPosition.x + windowSize.width &&
-          cursor.y < windowPosition.y + windowSize.height;
-
-        if (!insideWindow) {
-          setIgnored(false);
-          return;
-        }
-
-        const clientX = (cursor.x - windowPosition.x) / scaleFactor;
-        const clientY = (cursor.y - windowPosition.y) / scaleFactor;
-        setIgnored(shouldPassThrough(clientX, clientY));
-      })().finally(() => {
-        checking = false;
-      });
-    };
-
-    const poll = window.setInterval(checkCursorPosition, 50);
-    checkCursorPosition();
-
-    // 不在这里恢复交互：隐身隐态转交时 Rust 已接管穿透标志，
-    // 其余停止路径（关透传/关隐身）由下一次 effect 运行的分支负责对齐
-    return () => {
-      window.clearInterval(poll);
-    };
-  }, [passthroughEnabled, stealthEnabled, stealthVisible]);
+  // ── 窗口透传：见 useDanmakuWindowModes 的 usePassthroughHitTest（两窗共用） ──
 
   const loadEmoticons = useCallback(async (forceAccountId?: string) => {
     if (!roomId) return;
@@ -1171,9 +1076,9 @@ export function DanmakuPage() {
     <div
       className="h-full w-full transition-opacity"
       style={{
-        opacity: stealthVisible ? 1 : 0,
+        opacity: stealth.visible ? 1 : 0,
         transitionDuration: `${stealthFadeMs}ms`,
-        pointerEvents: stealthVisible ? undefined : "none",
+        pointerEvents: stealth.visible ? undefined : "none",
       }}
     >
     {inputOnly ? (
@@ -1211,7 +1116,7 @@ export function DanmakuPage() {
       onTransitionEnd={slideOut ? handleSlideOutEnd : undefined}
       title={displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
       controls={{
-        pinned, locked, passthrough: passthroughEnabled, stealth: stealthEnabled,
+        pinned, locked, passthrough: passthroughEnabled, stealth: stealth.enabled,
         onTogglePin: () => { const next = !pinned; setPinned(next); void appWindow.setAlwaysOnTop(next); },
         onToggleLock: () => setLocked((value) => !value),
         onToggleInputOnly: toggleInputOnly,

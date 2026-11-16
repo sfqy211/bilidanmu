@@ -101,7 +101,7 @@ export function VideoDanmakuPage() {
       onToggleLock: () => modes.setLocked((value) => !value),
       onToggleInputOnly: () => { setPanel(null); void modes.toggleInputOnly(); },
       onTogglePassthrough: () => modes.setPassthrough((value) => !value),
-      onToggleStealth: () => modes.setStealth((value) => !value),
+      onToggleStealth: () => { setPanel(null); modes.toggleStealth(); },
       onHide: () => { void getCurrentWindow().close().catch((reason) => toast.error(String(reason))); },
       onExit: () => { void tauriCommands.videoWindow.close().catch((reason) => toast.error(String(reason))); },
       onDrag: modes.startDragging, exitLabel: "退出弹幕模式，返回视频页",
