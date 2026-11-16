@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, ListMusic, Loader2, Pause, Play, RefreshCw } from "lucide-react";
+import { ArrowLeft, ListMusic, Loader2, PanelsTopLeft, Pause, Play, RefreshCw } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -24,7 +24,7 @@ export interface CollectionVideo {
 export function VideoCollectionPage({
   title, items, total, loading, error, errorKey, playingBvid, onPlay, onRefresh,
   emptyText, emptyIcon: EmptyIcon, backTo = "/listen", backLabel = "返回听视频", footer,
-  onPlayAll, playingAll, currentBvid, isPlaying,
+  onPlayAll, playingAll, currentBvid, isPlaying, onDanmaku, openingDanmakuBvid,
 }: {
   title: string;
   items: CollectionVideo[];
@@ -48,6 +48,10 @@ export function VideoCollectionPage({
   currentBvid?: string | null;
   /** 当前是否真的在播（false 时标记为暂停态） */
   isPlaying?: boolean;
+  /** 行内「弹幕模式」直达按钮（不传则不显示）：入队播放该视频并打开独立窗口 */
+  onDanmaku?: (item: CollectionVideo, index: number) => void;
+  /** 本次点击正在打开弹幕窗口的那一行 */
+  openingDanmakuBvid?: string | null;
 }) {
   const navigate = useNavigate();
   const showCovers = useSettingsStore((state) => state.settings.listen.showCovers);
@@ -109,14 +113,24 @@ export function VideoCollectionPage({
                 {items.map((item, index) => {
                   const isCurrent = currentBvid != null && item.bvid === currentBvid;
                   const isRowLoading = playingBvid === item.bvid && playingBvid != null;
+                  const rowBusy = playingBvid != null;
+                  // 行内还有独立的「弹幕模式」按钮，行容器不能再用 <button>（按钮不可嵌套），
+                  // 改为 div[role=button] 自带键盘激活；行内按钮 stopPropagation 避免触发播放
                   return (
-                  <button
+                  <div
                     key={`${item.bvid}-${index}`}
-                    onClick={() => onPlay(item, index)}
-                    disabled={playingBvid != null}
-                    className={`list-card-row group disabled:cursor-not-allowed ${
+                    role="button"
+                    tabIndex={rowBusy ? -1 : 0}
+                    aria-disabled={rowBusy || undefined}
+                    onClick={() => { if (!rowBusy) onPlay(item, index); }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      if (!rowBusy) onPlay(item, index);
+                    }}
+                    className={`list-card-row group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${
                       isCurrent ? "list-card-row-current" : ""
-                    }`}
+                    } ${rowBusy ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     {showCovers && (item.cover ? (
                       <ProxiedImage src={item.cover} alt="" className="h-11 w-[72px] shrink-0 rounded object-cover" />
@@ -130,6 +144,22 @@ export function VideoCollectionPage({
                       <p className="mt-0.5 truncate text-xs text-ink-muted">{item.author}</p>
                     </div>
                     <span className="numeric shrink-0 text-xs text-ink-muted">{formatClock(item.duration)}</span>
+                    {onDanmaku && (
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); onDanmaku(item, index); }}
+                        disabled={rowBusy}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-brand/10 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+                        title="播放该视频并进入弹幕模式"
+                        aria-label={`播放 ${item.title} 并进入弹幕模式`}
+                      >
+                        {openingDanmakuBvid === item.bvid ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <PanelsTopLeft className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
                       {isRowLoading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -139,7 +169,7 @@ export function VideoCollectionPage({
                         <Play className="h-3.5 w-3.5" />
                       )}
                     </span>
-                  </button>
+                  </div>
                   );
                 })}
               </div>

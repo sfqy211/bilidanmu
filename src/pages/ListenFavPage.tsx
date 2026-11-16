@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Disc3, Loader2 } from "lucide-react";
 import { VideoCollectionPage, type CollectionVideo } from "@/components/listen/VideoCollectionPage";
+import { enterVideoDanmakuMode } from "@/lib/video-playback";
 import { tauriCommands } from "@/lib/tauri";
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -28,6 +29,7 @@ export function ListenFavPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [playingBvid, setPlayingBvid] = useState<string | null>(null);
+  const [openingDanmakuBvid, setOpeningDanmakuBvid] = useState<string | null>(null);
   const [playingAll, setPlayingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msgKey, setMsgKey] = useState(0);
@@ -88,6 +90,25 @@ export function ListenFavPage() {
     }
   };
 
+  /** 行内直达：入队播放该视频并直接打开弹幕窗口（不导航，退出弹幕模式时留在列表） */
+  const handleDanmaku = async (video: CollectionVideo, index: number) => {
+    if (openingDanmakuBvid) return;
+    setOpeningDanmakuBvid(video.bvid);
+    try {
+      const album: PlayQueue = {
+        key: `fav-${folderId}`,
+        title: "收藏夹",
+        tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
+      };
+      await enterVideoDanmakuMode(album, index);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "打开弹幕模式失败");
+      setMsgKey((key) => key + 1);
+    } finally {
+      setOpeningDanmakuBvid(null);
+    }
+  };
+
   /** 播放全部：先把整个收藏夹拉全（列表可能只滚动加载了一部分），再从第一首播 */
   const handlePlayAll = async () => {
     if (playingAll || playingBvid) return;
@@ -142,6 +163,8 @@ export function ListenFavPage() {
       currentBvid={isThisQueue ? currentTrack?.bvid ?? null : null}
       isPlaying={isPlaying}
       onRefresh={() => void load(1, false)}
+      onDanmaku={(video, index) => void handleDanmaku(video, index)}
+      openingDanmakuBvid={openingDanmakuBvid}
       emptyText="收藏夹是空的"
       emptyIcon={Disc3}
       footer={hasMore ? <div ref={loadMoreRef} className="flex justify-center py-3">

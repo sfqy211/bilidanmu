@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock } from "lucide-react";
 import { VideoCollectionPage, type CollectionVideo } from "@/components/listen/VideoCollectionPage";
+import { enterVideoDanmakuMode } from "@/lib/video-playback";
 import { tauriCommands } from "@/lib/tauri";
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
 import type { WatchLaterItem } from "@/types/bilibili";
@@ -16,6 +17,7 @@ export function WatchLaterPage() {
   const [items, setItems] = useState<WatchLaterItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingBvid, setPlayingBvid] = useState<string | null>(null);
+  const [openingDanmakuBvid, setOpeningDanmakuBvid] = useState<string | null>(null);
   const [playingAll, setPlayingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msgKey, setMsgKey] = useState(0);
@@ -45,16 +47,18 @@ export function WatchLaterPage() {
     cid: item.cid || null
   }));
 
+  /** 稍后再看是一次性全量返回的，三种播法共用同一张联播专辑 */
+  const buildAlbum = (): PlayQueue => ({
+    key: "toview",
+    title: "稍后再看",
+    tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
+  });
+
   const handlePlay = async (video: CollectionVideo, index: number) => {
     if (playingBvid) return;
     setPlayingBvid(video.bvid);
     try {
-      const album: PlayQueue = {
-        key: "toview",
-        title: "稍后再看",
-        tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
-      };
-      await playQueue(album, index);
+      await playQueue(buildAlbum(), index);
       navigate(`/listen/video/${video.bvid}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "播放失败");
@@ -64,17 +68,26 @@ export function WatchLaterPage() {
     }
   };
 
+  /** 行内直达：入队播放该视频并直接打开弹幕窗口（不导航，退出弹幕模式时留在列表） */
+  const handleDanmaku = async (video: CollectionVideo, index: number) => {
+    if (openingDanmakuBvid) return;
+    setOpeningDanmakuBvid(video.bvid);
+    try {
+      await enterVideoDanmakuMode(buildAlbum(), index);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "打开弹幕模式失败");
+      setMsgKey((key) => key + 1);
+    } finally {
+      setOpeningDanmakuBvid(null);
+    }
+  };
+
   /** 播放全部：稍后再看是一次性全量返回的，直接整表入队从第一首播 */
   const handlePlayAll = async () => {
     if (playingAll || playingBvid || videos.length === 0) return;
     setPlayingAll(true);
     try {
-      const album: PlayQueue = {
-        key: "toview",
-        title: "稍后再看",
-        tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
-      };
-      await playQueue(album, 0);
+      await playQueue(buildAlbum(), 0);
       navigate(`/listen/video/${videos[0].bvid}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "播放全部失败");
@@ -99,6 +112,8 @@ export function WatchLaterPage() {
       currentBvid={queueKey === "toview" ? currentTrack?.bvid ?? null : null}
       isPlaying={isPlaying}
       onRefresh={() => void load()}
+      onDanmaku={(video, index) => void handleDanmaku(video, index)}
+      openingDanmakuBvid={openingDanmakuBvid}
       emptyText="稍后再看是空的"
       emptyIcon={Clock}
     />
