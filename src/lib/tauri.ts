@@ -29,6 +29,8 @@ import type {
   WalletInfo
 } from "@/types/bilibili";
 
+import type { VideoDanmaku, VideoPlaybackAction, VideoPlaybackSnapshot } from "@/types/video-window";
+
 export interface SendOptions {
   color?: number;
   mode?: number;
@@ -108,7 +110,7 @@ export const tauriCommands = {
     clearAudioStream: () =>
       invoke<void>("clear_audio_stream"),
     getInputOnly: () => invoke<boolean>("get_danmaku_input_only"),
-    /** 采样弹幕窗背后的屏幕平均亮度 0.0~1.0；未开启或失败返回 null */
+    /** 采样当前调用窗口四周的屏幕平均亮度 0.0~1.0；未开启或失败返回 null */
     sampleBackgroundLuminance: () =>
       invoke<number | null>("sample_background_luminance"),
     setInputOnly: (enabled: boolean) =>
@@ -161,6 +163,9 @@ export const tauriCommands = {
     disconnect: () => invoke<void>("disconnect_danmaku_stream")
   },
   video: {
+    getDanmaku: (cid: number, segment: number) => invoke<VideoDanmaku[]>("get_video_danmaku", { cid, segment }),
+    sendDanmaku: (bvid: string, cid: number, message: string, progress: number) =>
+      invoke<VideoDanmaku>("send_video_danmaku", { bvid, cid, message, progress }),
     getInfo: (bvid: string) => invoke<VideoInfo>("get_video_info", { bvid }),
     getAudio: (bvid: string, cid: number) => invoke<AudioStreamInfo>("get_video_audio", { bvid, cid }),
     stopAudio: () => invoke<void>("stop_video_audio"),
@@ -178,6 +183,15 @@ export const tauriCommands = {
       invoke<VideoComment>("add_video_comment", { oid, message, root: root ?? null, parent: parent ?? null }),
     getCommentReplies: (oid: number, root: number, page?: number) =>
       invoke<CommentPage>("get_comment_replies", { oid, root, page: page ?? 1 }),
+  },
+  videoWindow: {
+    open: () => invoke<void>("open_video_danmaku_window"),
+    close: (restoreMain = true) => invoke<void>("close_video_danmaku_window", { restoreMain }),
+    setInputOnly: (enabled: boolean) => invoke<boolean>("set_video_input_only", { enabled }),
+    publish: (snapshot: VideoPlaybackSnapshot) => invoke<void>("publish_video_playback", { snapshot }),
+    getPlayback: () => invoke<VideoPlaybackSnapshot | null>("get_video_playback"),
+    control: (bvid: string | null, cid: number | null, control: VideoPlaybackAction) =>
+      invoke<void>("control_video_playback", { bvid, cid, control }),
   },
   settings: {
     get: () => invoke<Settings>("get_settings"),

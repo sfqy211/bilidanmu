@@ -17,6 +17,7 @@ pub mod stt;
 pub mod stt_download;
 pub mod update;
 pub mod video;
+pub mod video_window;
 pub mod websocket;
 
 pub fn build_api_client(

@@ -418,6 +418,66 @@ impl BiliApiClient {
         })
     }
 
+    pub async fn send_video_danmaku(
+        &self,
+        bvid: &str,
+        cid: u64,
+        message: &str,
+        progress: u64,
+    ) -> Result<crate::models::video::VideoDanmaku, String> {
+        let csrf = self
+            .credential
+            .as_ref()
+            .and_then(|c| c.bili_jct.as_deref())
+            .filter(|value| !value.is_empty())
+            .ok_or("请先登录发送账号")?;
+        let keys = self.get_or_fetch_wbi_keys().await?;
+        let signed = sign_wbi(
+            BTreeMap::from([
+                ("csrf".into(), csrf.to_string()),
+                ("web_location".into(), "1315873".into()),
+            ]),
+            &keys.mixin_key(),
+        );
+        let query = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(signed)
+            .finish();
+        let form = BTreeMap::from([
+            ("type".into(), "1".into()),
+            ("oid".into(), cid.to_string()),
+            ("bvid".into(), bvid.to_string()),
+            ("msg".into(), message.to_string()),
+            ("progress".into(), progress.to_string()),
+            ("mode".into(), "1".into()),
+            ("color".into(), "16777215".into()),
+            ("fontsize".into(), "25".into()),
+            ("pool".into(), "0".into()),
+            ("csrf".into(), csrf.to_string()),
+            (
+                "rnd".into(),
+                chrono::Utc::now().timestamp_micros().to_string(),
+            ),
+        ]);
+        let response = self
+            .post_form(
+                &format!("https://api.bilibili.com/x/v2/dm/post?{query}"),
+                &form,
+            )
+            .await?;
+        ensure_success(&response)?;
+        let id = response
+            .pointer("/data/dmid_str")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .or_else(|| response.pointer("/data/dmid").map(Value::to_string))
+            .ok_or("发送响应缺少弹幕 ID")?;
+        Ok(crate::models::video::VideoDanmaku {
+            id,
+            progress: progress as f64 / 1000.0,
+            content: message.to_string(),
+        })
+    }
+
     /// 视频字幕（CC）：取第一条可用字幕轨的全文。无字幕返回空数组。
     pub async fn get_video_subtitle(&self, bvid: &str, cid: u64) -> Result<Vec<crate::models::video::SubtitleLine>, String> {
         let keys = self.get_or_fetch_wbi_keys().await?;

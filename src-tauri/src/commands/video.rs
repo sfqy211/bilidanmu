@@ -6,6 +6,42 @@ use crate::models::video::{
 use crate::AppState;
 use tauri::State;
 
+#[tauri::command]
+pub async fn get_video_danmaku(
+    cid: u64,
+    segment: u32,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::models::video::VideoDanmaku>, String> {
+    if cid == 0 || segment == 0 {
+        return Err("无效的视频弹幕分段".into());
+    }
+    let credential = state.credential.lock().await.clone();
+    build_api_client(credential, &state)
+        .get_video_danmaku(cid, segment)
+        .await
+}
+
+#[tauri::command]
+pub async fn send_video_danmaku(
+    bvid: String,
+    cid: u64,
+    message: String,
+    progress: f64,
+    state: State<'_, AppState>,
+) -> Result<crate::models::video::VideoDanmaku, String> {
+    let message = message.trim();
+    if message.is_empty() || message.chars().count() > 100 {
+        return Err("弹幕长度应为 1–100 个字符".into());
+    }
+    if cid == 0 || !progress.is_finite() || progress < 0.0 {
+        return Err("无效的视频播放位置".into());
+    }
+    let credential = crate::commands::get_sending_credential(&state).await;
+    build_api_client(credential, &state)
+        .send_video_danmaku(&bvid, cid, message, (progress * 1000.0).round() as u64)
+        .await
+}
+
 /// 视频信息（标题、UP 主、分 P 列表）
 #[tauri::command]
 pub async fn get_video_info(bvid: String, state: State<'_, AppState>) -> Result<VideoInfo, String> {

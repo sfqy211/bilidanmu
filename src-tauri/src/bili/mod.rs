@@ -6,6 +6,7 @@ pub mod mock;
 pub mod protocol;
 pub mod wbi;
 pub mod ws_client;
+pub mod video_danmaku;
 
 /// Bilibili Android app key
 pub const APPKEY: &str = "4409e2ce8ffd12b8";

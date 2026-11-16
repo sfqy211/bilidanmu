@@ -150,6 +150,7 @@ pub fn run() {
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                 .build(),
         )
+        .manage(commands::video_window::VideoWindowState::default())
         .manage({
             // 提前创建 wbi_cache，AppState 和 SendQueue 共享同一实例
             let wbi_cache = Arc::new(TokioMutex::new(WbiKeyCache::default()));
@@ -435,6 +436,14 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::video_window::open_video_danmaku_window,
+            commands::video_window::close_video_danmaku_window,
+            commands::video_window::set_video_input_only,
+            commands::video_window::publish_video_playback,
+            commands::video_window::get_video_playback,
+            commands::video_window::control_video_playback,
+            commands::video::get_video_danmaku,
+            commands::video::send_video_danmaku,
             commands::auth::login_by_qr,
             commands::auth::poll_qr,
             commands::auth::login_by_tv_qr,

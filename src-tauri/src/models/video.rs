@@ -1,6 +1,15 @@
 /// 听视频模式的数据模型：视频信息 / 分 P / 音频流 / 收藏夹
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoDanmaku {
+    pub id: String,
+    /// 视频内时间，单位为秒。
+    pub progress: f64,
+    pub content: String,
+}
+
 /// 视频的一个分 P（听视频模式里的"一首歌"）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -16,6 +16,7 @@ import { useErrorCapture } from "@/hooks/useErrorCapture";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
 import { ConfirmRequestDialog } from "@/components/ai/ConfirmRequestDialog";
+import { VideoWindowBridge } from "@/components/listen/VideoWindowBridge";
 
 /** 主窗口标记：主窗口与弹幕窗共用这份 App，跨窗口事件需按 label 过滤 */
 const isMainWindow = getCurrentWindow().label === "main";
@@ -126,6 +127,7 @@ export default function App() {
 
   // AI 工具请求主窗口跳到某个路由（如 video_play 打开视频页）
   useEffect(() => {
+    if (!isMainWindow) return;
     const unlisten = listen<{ path: string }>("ai-navigate", (event) => {
       const path = event.payload?.path;
       if (typeof path === "string" && path.startsWith("/")) {
@@ -222,6 +224,7 @@ export default function App() {
 
   return (
     <>
+      {isMainWindow && <VideoWindowBridge />}
       <ErrorBoundary>
         <Outlet />
       </ErrorBoundary>

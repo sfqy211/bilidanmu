@@ -91,6 +91,9 @@ fn handle_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
 /// 当前窗口 = 连接着直播间时的弹幕窗口，否则为主页面。
 /// 是否连接看弹幕窗口是否存在（hide 只是显示问题，窗口仍在即仍连着）。
 fn current_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    if let Some(window) = app.get_webview_window(crate::commands::video_window::LABEL) {
+        return Some(window);
+    }
     app.webview_windows()
         .into_iter()
         .find(|(label, _)| label.starts_with("danmaku"))
@@ -140,6 +143,9 @@ fn show_window(window: &tauri::WebviewWindow) {
     }
     let _ = window.unminimize();
     let _ = window.show();
+    if window.label() == crate::commands::video_window::LABEL {
+        let _ = window.emit("video-window-reveal", ());
+    }
     // 若窗口处于侧边吸附态，show 后恢复收缩几何以保持吸附
     crate::window_dock::restore_if_docked(window, window.app_handle());
     // 隐身态下手动唤起必须显形，否则用户看不出窗口已被唤出

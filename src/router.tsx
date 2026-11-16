@@ -37,6 +37,7 @@ const SettingsPage = lazy(() =>
 const DanmakuPage = lazy(() =>
   import("@/pages/DanmakuPage").then((m) => ({ default: m.DanmakuPage }))
 );
+const VideoDanmakuPage = lazy(() => import("@/pages/VideoDanmakuPage").then((m) => ({ default: m.VideoDanmakuPage })));
 const DanmakuDefaultPage = lazy(() =>
   import("@/pages/DanmakuDefaultPage").then((m) => ({ default: m.DanmakuDefaultPage }))
 );
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
       // 弹幕窗口默认页：未选择直播间时的引导界面（启动即弹幕窗模式）
       { path: "/danmaku", element: withSuspense(<DanmakuDefaultPage />) },
       { path: "/danmaku/:roomId", element: withSuspense(<DanmakuPage />) },
+      { path: "/video-danmaku", element: withSuspense(<VideoDanmakuPage />) },
     ],
   },
 ]);

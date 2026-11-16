@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ImageIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, ImageIcon, Loader2, PanelsTopLeft } from "lucide-react";
+import { toast } from "sonner";
+import { getVideoPlaybackSnapshot } from "@/lib/video-playback";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { PlayerControls } from "@/components/listen/PlayerControls";
 import { PlaylistTreePanel } from "@/components/listen/PlaylistTreePanel";
@@ -23,6 +25,7 @@ export function VideoPlayerPage() {
   const showCovers = preferences.showCovers;
   const [reloadKey, setReloadKey] = useState(0);
   const [treeOpen, setTreeOpen] = useState(false);
+  const [openingWindow, setOpeningWindow] = useState(false);
   const [subtitle, setSubtitle] = useState<{ loading: boolean; failed: boolean; lines: SubtitleLine[] }>({ loading: false, failed: false, lines: [] });
 
   // 记录挂载时 store 的曲目位置：检测「播放器自动前进」与「用户主动导航」的区别
@@ -108,10 +111,21 @@ export function VideoPlayerPage() {
               {video.cover ? <img src={coverSource} alt="" /> : <ImageIcon className="h-4 w-4" />}
             </figure>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="listen-player-title" title={track.title}>{track.title}</h2>
             <p className="listen-player-meta"><span>{track.ownerName}</span><span aria-hidden="true">·</span><span title={queue.title}>{queue.title}</span></p>
           </div>
+          <button type="button" className="workspace-button shrink-0" disabled={openingWindow || !currentCid}
+            title="在独立窗口中查看字幕与弹幕" onClick={async () => {
+              setOpeningWindow(true);
+              try {
+                await tauriCommands.videoWindow.publish(getVideoPlaybackSnapshot());
+                await tauriCommands.videoWindow.open();
+              } catch (reason) { toast.error(String(reason)); }
+              finally { setOpeningWindow(false); }
+            }}>
+            {openingWindow ? <Loader2 className="h-4 w-4 animate-spin" /> : <PanelsTopLeft className="h-4 w-4" />}弹幕模式
+          </button>
         </div>
       </header>
       <div className={treeOpen ? "listen-player-body-with-tree" : "listen-player-body"}>
