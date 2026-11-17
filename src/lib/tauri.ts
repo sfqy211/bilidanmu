@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AiPermissionMode, McpStatus } from "@/types/ai";
+import type { AiMemoryEntry, AiPermissionMode, McpStatus } from "@/types/ai";
 import type {
   AudioStreamInfo,
   CommentPage,
@@ -269,6 +269,12 @@ export const tauriCommands = {
     mcpStop: () => invoke<McpStatus>("ai_mcp_stop"),
     mcpToken: () => invoke<string>("ai_mcp_token"),
     mcpRegenerateToken: () => invoke<string>("ai_mcp_regenerate_token"),
+    memoryGet: (scope: "global" | "room", roomId?: number) =>
+      invoke<AiMemoryEntry | null>("ai_memory_get", { scope, roomId: roomId ?? null }),
+    memorySet: (scope: "global" | "room", roomId: number | undefined, content: string) =>
+      invoke<AiMemoryEntry>("ai_memory_set", { scope, roomId: roomId ?? null, content }),
+    memoryDelete: (scope: "global" | "room", roomId?: number) =>
+      invoke<boolean>("ai_memory_delete", { scope, roomId: roomId ?? null }),
   },
   app: {
     quit: () => invoke<void>("quit_app_cmd"),

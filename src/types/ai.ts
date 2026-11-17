@@ -16,6 +16,15 @@ export interface McpStatus {
   error?: string | null;
 }
 
+/** 直播记忆条目（Rust 侧 `ai/memory.rs`） */
+export interface AiMemoryEntry {
+  scope: "global" | "room";
+  roomId: number;
+  content: string;
+  updatedAt: number;
+  chars: number;
+}
+
 /** 确认弹窗收到的事件载荷 */
 export interface AiConfirmRequest {
   id: string;

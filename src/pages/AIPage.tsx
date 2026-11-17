@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Brain,
   Check,
   Clock,
   Copy,
@@ -13,6 +14,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import type { AiPermissionMode, McpStatus } from "@/types/ai";
+import type { Room } from "@/types/bilibili";
 
 const WATCH_MINUTES: Array<{ value: number; label: string }> = [
   { value: 60, label: "1 小时" },
@@ -45,6 +47,12 @@ export function AIPage() {
   const [token, setToken] = useState<string | null>(null);
   const [mode, setMode] = useState<AiPermissionMode>("autonomous");
   const [watchMinutes, setWatchMinutes] = useState(240);
+  const [memoryRooms, setMemoryRooms] = useState<Room[]>([]);
+  const [memoryScope, setMemoryScope] = useState("global");
+  const [memoryContent, setMemoryContent] = useState("");
+  const [memoryMeta, setMemoryMeta] = useState<{ chars: number; updatedAt: number } | null>(null);
+  const [memoryBusy, setMemoryBusy] = useState(false);
+  const [memorySaved, setMemorySaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -68,6 +76,71 @@ export function AIPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void tauriCommands.state.getRooms().then(setMemoryRooms).catch(() => {});
+  }, []);
+
+  const loadMemory = useCallback(async (scopeValue: string) => {
+    const global = scopeValue === "global";
+    try {
+      const entry = await tauriCommands.ai.memoryGet(
+        global ? "global" : "room",
+        global ? undefined : Number(scopeValue),
+      );
+      setMemoryContent(entry?.content ?? "");
+      setMemoryMeta(entry ? { chars: entry.chars, updatedAt: entry.updatedAt } : null);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadMemory(memoryScope);
+  }, [memoryScope, loadMemory]);
+
+  const saveMemory = async () => {
+    if (!memoryContent.trim()) {
+      setError("记忆内容不能为空；要清空请用「删除」");
+      return;
+    }
+    setMemoryBusy(true);
+    setError(null);
+    try {
+      const global = memoryScope === "global";
+      const entry = await tauriCommands.ai.memorySet(
+        global ? "global" : "room",
+        global ? undefined : Number(memoryScope),
+        memoryContent,
+      );
+      setMemoryMeta({ chars: entry.chars, updatedAt: entry.updatedAt });
+      setMemorySaved(true);
+      setTimeout(() => setMemorySaved(false), 1500);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setMemoryBusy(false);
+    }
+  };
+
+  const deleteMemory = async () => {
+    if (!window.confirm("删除这段记忆？删除后无法恢复。")) return;
+    setMemoryBusy(true);
+    setError(null);
+    try {
+      const global = memoryScope === "global";
+      await tauriCommands.ai.memoryDelete(
+        global ? "global" : "room",
+        global ? undefined : Number(memoryScope),
+      );
+      setMemoryContent("");
+      setMemoryMeta(null);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setMemoryBusy(false);
+    }
+  };
 
   useTauriEvent<AiPermissionMode>("ai-permission-changed", (next) => {
     setMode(next);
@@ -345,6 +418,66 @@ export function AIPage() {
           <p className="mt-2 text-[11px] text-ink-muted">
             单个会话的缓冲上限由 AI 调用时指定（默认 2 万条）；「不限」只表示不加时长上限，会话仍会在主播下播时结束。
           </p>
+        </section>
+
+        {/* ── 直播记忆 ───────────────────────────────────── */}
+        <section className="border-t border-subtle py-5">
+          <h3 className="flex items-center gap-2 text-[13px] font-medium text-ink">
+            <Brain className="h-4 w-4" />直播记忆
+          </h3>
+          <p className="mt-1 text-xs text-ink-muted">
+            AI 会在总结后自行维护记忆；这里可以查看和手动修改。房间记忆按房间号保存，
+            全局记忆对所有直播间生效，每个范围最多 8000 字。
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <select
+              value={memoryScope}
+              onChange={(event) => setMemoryScope(event.target.value)}
+              className="rounded-md border border-subtle bg-transparent px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-brand/50"
+            >
+              <option value="global">全局记忆</option>
+              {memoryRooms.map((room) => (
+                <option key={room.roomId} value={String(room.roomId)}>
+                  {room.roomId} · {room.uname}
+                </option>
+              ))}
+            </select>
+            {memoryMeta && (
+              <span className="text-[11px] text-ink-muted">
+                更新于 {new Date(memoryMeta.updatedAt * 1000).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <textarea
+            rows={8}
+            value={memoryContent}
+            onChange={(event) => setMemoryContent(event.target.value)}
+            placeholder={`例如：
+- 主播主要玩杀戮尖塔，观众喜欢复读「yls>塔」
+- 每周三写周表`}
+            className="mt-2 w-full resize-y rounded-md border border-subtle bg-transparent px-3 py-2 text-[12px] leading-relaxed text-ink outline-none focus:border-brand/50"
+          />
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span className="numeric text-[11px] text-ink-muted">{memoryContent.length} / 8000 字</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={memoryBusy}
+                onClick={() => void deleteMemory()}
+                className="rounded-md border border-subtle px-3 py-1.5 text-[12px] text-ink-muted hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-500/10"
+              >
+                删除
+              </button>
+              <button
+                type="button"
+                disabled={memoryBusy}
+                onClick={() => void saveMemory()}
+                className="workspace-button"
+              >
+                {memorySaved ? "已保存" : "保存"}
+              </button>
+            </div>
+          </div>
         </section>
       </div>
     </section>
