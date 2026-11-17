@@ -130,7 +130,7 @@ const settings = await tauriCommands.settings.get()
 
 `PlaybackSnapshot` 包含 `revision: number`、`bvid: string | null`、`aid: number | null`、`cid: number | null`、`title: string`、`tracks: { key: string, title: string, bvid: string }[]`、`index: number`、`playing: boolean`、`loading: boolean`、`currentTime: number`、`duration: number`、`volume: number`、`error: string | null`。时间单位为秒，音量为 0–100，曲目下标从 0 开始。`revision` 单调递增，窗口忽略过期快照。
 
-视频窗口仅特有外观（字幕区域比例、自动跟随、行内时间）通过 `load_selections` / `save_selections` 保存到 `videoDanmakuAppearance`；背景不透明度（`appearance.opacity`）、弹幕字号（`appearance.fontSize`）与字幕字号（`listen.subtitleFontSize`）与直播弹幕窗、听视频页共用全局设置，不单独存储。
+视频窗口仅特有外观（字幕区域比例、自动跟随、行内时间）通过 `load_selections` / `save_selections` 保存到 `videoDanmakuAppearance`；背景不透明度（`appearance.opacity`）与字号（`appearance.fontSize`，字幕与弹幕共用同一项，与直播弹幕窗相同）使用全局设置，不单独存储。
 
 主题模式、背景亮暗跟随、强调色与标题栏按钮复用 `settings.appearance`。深浅主题预设和字体复用 `settings.visual`。视频窗口的旧外观数据缺少字号或不透明度时，从已有设置补齐默认值。
 
