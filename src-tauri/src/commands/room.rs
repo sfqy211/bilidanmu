@@ -85,7 +85,14 @@ pub async fn refresh_all_rooms(app: tauri::AppHandle) {
         if index > 0 {
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
-        if let Ok(info) = api.get_room_info(room.room_id).await {
+        // 库里已有头像与名字时跳过主播信息补取：该接口突发会静默降级返回空 face，
+        // 既是头像被清空的来源，也是不必要的请求
+        let has_author = room
+            .avatar
+            .as_deref()
+            .is_some_and(|value| !value.is_empty())
+            && !room.uname.is_empty();
+        if let Ok(info) = api.get_room_info_ex(room.room_id, !has_author).await {
             if room_store::upsert_room(state.inner(), &info.room).is_ok() {
                 updated = true;
             }

@@ -113,6 +113,8 @@ pub struct WatchLaterItem {
     pub cid: u64,
     pub title: String,
     pub owner_name: String,
+    /// UP 主头像（owner.face）
+    pub owner_avatar: Option<String>,
     pub cover: Option<String>,
     pub duration: u64,
 }
@@ -141,6 +143,8 @@ pub struct FavResource {
     pub bvid: String,
     pub title: String,
     pub upper_name: String,
+    /// UP 主头像（upper.face）
+    pub upper_avatar: Option<String>,
     pub cover: Option<String>,
     pub duration: u64,
 }

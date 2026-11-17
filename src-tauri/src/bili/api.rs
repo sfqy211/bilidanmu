@@ -88,6 +88,17 @@ impl BiliApiClient {
     }
 
     pub async fn get_room_info(&self, room_id: u64) -> Result<RoomInfo, String> {
+        self.get_room_info_ex(room_id, true).await
+    }
+
+    /// `fetch_author=false` 时跳过"按 uid 补取主播名/头像"的额外请求：
+    /// 刷新已保存房间时，库里已有头像就不必再打状态接口，减少突发请求（该接口
+    /// 在突发时会静默降级返回空 face/uname，正是头像被清空的根因）。
+    pub async fn get_room_info_ex(
+        &self,
+        room_id: u64,
+        fetch_author: bool,
+    ) -> Result<RoomInfo, String> {
         let response = self
             .get_json(
                 "https://api.live.bilibili.com/room/v1/Room/get_info",
@@ -114,13 +125,14 @@ impl BiliApiClient {
         let mut avatar: Option<String> = None;
 
         // /room/v1/Room/get_info 不返回 uname 和头像，通过 uid 补充获取
-        if uname.is_empty() || avatar.is_none() {
+        if fetch_author && (uname.is_empty() || avatar.is_none()) {
             if let Some(uid) = uid {
                 let (fetched_name, fetched_avatar) = self.fetch_user_info(uid).await;
                 if uname.is_empty() {
                     uname = fetched_name.unwrap_or_default();
                 }
-                avatar = fetched_avatar;
+                // fetch_user_info 已把空串归一为 None；这里只接受有效值
+                avatar = fetched_avatar.filter(|s| !s.is_empty());
             }
         }
 
@@ -208,8 +220,12 @@ impl BiliApiClient {
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string(),
-            cover: entry.get("face").and_then(Value::as_str).map(ToString::to_string),
-            avatar: None,
+            cover: entry.get("cover").and_then(Value::as_str).map(ToString::to_string),
+            avatar: entry
+                .get("face")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string),
             is_live: entry.get("live_status").and_then(Value::as_u64).unwrap_or(0) == 1,
         })
     }
@@ -814,6 +830,10 @@ impl BiliApiClient {
                         .and_then(Value::as_str)
                         .unwrap_or_default()
                         .to_string(),
+                    owner_avatar: item
+                        .pointer("/owner/face")
+                        .and_then(Value::as_str)
+                        .map(String::from),
                     cover: item.get("pic").and_then(Value::as_str).map(String::from),
                     duration: item.get("duration").and_then(Value::as_u64).unwrap_or(0),
                 })
@@ -973,6 +993,10 @@ impl BiliApiClient {
                         .and_then(Value::as_str)
                         .unwrap_or_default()
                         .to_string(),
+                    upper_avatar: item
+                        .pointer("/upper/face")
+                        .and_then(Value::as_str)
+                        .map(String::from),
                     cover: item.get("cover").and_then(Value::as_str).map(String::from),
                     duration: item.get("duration").and_then(Value::as_u64).unwrap_or(0),
                 })
@@ -1112,14 +1136,18 @@ impl BiliApiClient {
             log::warn!("[room] 补全主播信息失败 uid={uid}: 接口未返回该用户（可能被限频降级）");
         }
 
+        // 限频降级时接口可能返回空串（code=0 但 uname/face 为空）：归一为 None，
+        // 避免空串参与 upsert 覆盖库里的有效值
         let uname = entry
             .and_then(|e| e.get("uname"))
             .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
             .map(ToString::to_string);
 
         let avatar = entry
             .and_then(|e| e.get("face"))
             .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
             .map(ToString::to_string);
 
         (uname, avatar)

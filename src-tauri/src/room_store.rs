@@ -55,11 +55,12 @@ pub fn upsert_room(state: &AppState, room: &Room) -> Result<(), String> {
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE((SELECT MIN(sort_order) FROM rooms), 1) - 1)
                 ON CONFLICT(room_id) DO UPDATE SET
                   uid = COALESCE(excluded.uid, rooms.uid),
-                  title = excluded.title,
-                  -- 补充接口偶发失败（限频/风控静默降级）会拿到空名，保留库内旧值，待下次成功刷新再覆盖
+                  -- 补充接口偶发失败（限频/风控静默降级）会拿到空串而非 NULL，
+                  -- 空串同样视为"没有新数据"，保留库内旧值，待下次成功刷新再覆盖
+                  title = CASE WHEN excluded.title = '' THEN rooms.title ELSE excluded.title END,
                   uname = CASE WHEN excluded.uname = '' THEN rooms.uname ELSE excluded.uname END,
-                  cover = COALESCE(excluded.cover, rooms.cover),
-                  avatar = COALESCE(excluded.avatar, rooms.avatar)
+                  cover = CASE WHEN excluded.cover IS NULL OR excluded.cover = '' THEN rooms.cover ELSE excluded.cover END,
+                  avatar = CASE WHEN excluded.avatar IS NULL OR excluded.avatar = '' THEN rooms.avatar ELSE excluded.avatar END
                 "#,
                 params![room.room_id, room.uid, room.title, room.uname, room.cover, room.avatar],
             )
