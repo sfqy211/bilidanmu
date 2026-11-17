@@ -67,8 +67,14 @@
 | 工具 | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
 | `live_get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者 |
-| `live_query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50) | 在缓冲区里按关键词检索弹幕（匹配内容或用户名） |
+| `live_query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样（不切房、不占缓冲，仅实时无历史；长采样会自动补心跳） |
 | `live_get_stats` | read | — | 只返回实时指标，不含弹幕正文 |
+| `live_watch_start` | write | `roomId`、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false) | 对任意在播房间开后台长会话：独立连接、心跳、断线重连、环形缓冲；不切换当前直播间 |
+| `live_watch_collect` | read | `sessionId`、`cursor`、`limit`(1-1000)、`types`、`keyword`、`emoticonMode`(keep/aggregate/drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取；aggregate 时相同表情合并计数，需要名单再开 `includeSenders` |
+| `live_watch_digest` | read | `sessionId`、`topN`、`includeSenders`、`senderLimit` | 只取统计：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量 |
+| `live_watch_status` | read | `sessionId` | 会话健康度：缓冲、已收/丢弃、连接、重连、结束原因 |
+| `live_watch_stop` | write | `sessionId`、`remove`(默认 false) | 停止采集；默认保留缓冲供继续 collect |
+| `live_watch_list` | read | — | 列出全部会话（含已结束、保留期内） |
 
 ### 账号
 
