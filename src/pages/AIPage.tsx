@@ -6,11 +6,19 @@ import {
   Copy,
   RefreshCw,
   RotateCcw,
+  Settings2,
   ShieldAlert,
   ShieldCheck,
   Terminal,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import type { AiPermissionMode, McpStatus } from "@/types/ai";
@@ -42,6 +50,57 @@ const MODES: Array<{ value: AiPermissionMode; label: string; description: string
   },
 ];
 
+function Modal({
+  title,
+  onClose,
+  children,
+  wide = false,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        className={`workspace-dialog flex max-h-[85vh] w-full flex-col rounded-lg bg-app-surface p-6 shadow-lg dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06] ${
+          wide ? "max-w-2xl" : "max-w-lg"
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-ink-muted transition hover:bg-ink/[0.06] hover:text-ink"
+            aria-label="关闭"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function AIPage() {
   const [status, setStatus] = useState<McpStatus | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -53,6 +112,8 @@ export function AIPage() {
   const [memoryMeta, setMemoryMeta] = useState<{ chars: number; updatedAt: number } | null>(null);
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [memorySaved, setMemorySaved] = useState(false);
+  const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -253,7 +314,7 @@ export function AIPage() {
           </p>
         )}
 
-        {/* ── MCP 服务 ─────────────────────────────────────── */}
+        {/* ── MCP 服务概览 ─────────────────────────────────── */}
         <section className="border-t border-subtle py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -268,121 +329,47 @@ export function AIPage() {
                     : "未运行"}
               </p>
             </div>
-            <button
-              type="button"
-              className="settings-action shrink-0"
-              disabled={busy}
-              onClick={() => void toggleServer(!status?.running)}
-            >
-              {status?.running ? "停止" : "启动"}
-            </button>
-          </div>
-
-          {status?.running && (
-            <div className="mt-4 space-y-3">
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-medium text-ink">访问 token</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="settings-action text-[11px]"
-                      onClick={() => void (token ? copy(token, "token") : loadToken())}
-                    >
-                      {token ? (copied === "token" ? "已复制" : "复制") : "显示"}
-                    </button>
-                    <button
-                      type="button"
-                      className="settings-action inline-flex items-center gap-1 text-[11px]"
-                      disabled={busy}
-                      onClick={() => void regenerate()}
-                    >
-                      <RotateCcw className="h-3 w-3" />重置
-                    </button>
-                  </div>
-                </div>
-                <code className="block break-all rounded-md bg-slate-100 px-2.5 py-2 font-mono text-[11px] text-ink dark:bg-white/[0.06]">
-                  {token ?? "••••••••••••••••••••••••••••••••••"}
-                </code>
-                <p className="mt-1.5 text-[11px] text-ink-muted">
-                  客户端必须带 <code className="font-mono">Authorization: Bearer &lt;token&gt;</code>。重置后旧 token 立即失效。
-                </p>
-              </div>
-
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-medium text-ink">客户端配置</span>
-                  <button
-                    type="button"
-                    className="settings-action inline-flex items-center gap-1 text-[11px]"
-                    onClick={() => void copy(clientConfig, "config")}
-                  >
-                    {copied === "config" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                    {copied === "config" ? "已复制" : "复制"}
-                  </button>
-                </div>
-                <pre className="max-h-40 overflow-auto rounded-md bg-slate-100 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-ink dark:bg-white/[0.06]">
-                  {clientConfig}
-                </pre>
-                <p className="mt-1.5 text-[11px] text-ink-muted">
-                  贴进 Claude Code / Cursor / Cline 的 MCP 配置即可（streamable HTTP）。
-                </p>
-              </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                className="settings-action inline-flex items-center gap-1.5"
+                onClick={() => setMcpDialogOpen(true)}
+              >
+                <Settings2 className="h-3.5 w-3.5" />配置
+              </button>
+              <button
+                type="button"
+                className="settings-action shrink-0"
+                disabled={busy}
+                onClick={() => void toggleServer(!status?.running)}
+              >
+                {status?.running ? "停止" : "启动"}
+              </button>
             </div>
-          )}
-
-          <p className="mt-4 text-[11px] text-ink-muted">
-            可用工具清单与每次调用记录写在 AI 专用日志 <code className="font-mono">ai.log</code>
-            （与主应用日志同目录），可在「设置 → 关于 → 日志目录」里打开查看。
-          </p>
+          </div>
         </section>
 
-        {/* ── 权限模式 ─────────────────────────────────────── */}
+        {/* ── 权限模式概览 ─────────────────────────────────── */}
         <section className="border-t border-subtle py-5">
-          <h3 className="flex items-center gap-2 text-[13px] font-medium text-ink">
-            <ShieldCheck className="h-4 w-4" />权限模式
-          </h3>
-          <p className="mt-1 text-xs text-ink-muted">
-            AI 通过 MCP 调用工具时遵守这里的规则。只读工具在任何模式下都直接放行。
-          </p>
-          <div className="mt-3 space-y-2">
-            {MODES.map((item) => {
-              const active = mode === item.value;
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void selectMode(item.value)}
-                  className={
-                    active
-                      ? "flex w-full items-start gap-3 rounded-md border border-brand/50 bg-brand/[0.06] px-3 py-2.5 text-left"
-                      : "flex w-full items-start gap-3 rounded-md border border-subtle px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.03]"
-                  }
-                >
-                  <span
-                    className={
-                      active
-                        ? "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand text-white"
-                        : "mt-0.5 h-4 w-4 shrink-0 rounded-full border border-slate-300 dark:border-white/20"
-                    }
-                  >
-                    {active && <Check className="h-2.5 w-2.5" />}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-ink">{item.label}</span>
-                    <span className="mt-0.5 block text-[11px] text-ink-muted">{item.description}</span>
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-2 text-[13px] font-medium text-ink">
+                <ShieldCheck className="h-4 w-4" />权限模式
+              </h3>
+              <p className="mt-1 text-xs text-ink-muted">
+                当前：{MODES.find((item) => item.value === mode)?.label ?? mode}
+                {" · "}
+                {MODES.find((item) => item.value === mode)?.description}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="settings-action inline-flex shrink-0 items-center gap-1.5"
+              onClick={() => setPermissionDialogOpen(true)}
+            >
+              <Settings2 className="h-3.5 w-3.5" />修改
+            </button>
           </div>
-          {mode === "full" && (
-            <p className="mt-2 flex items-start gap-1.5 rounded-md bg-rose-50 px-2.5 py-2 text-[11px] text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
-              <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0" />
-              完全访问下送礼等真实扣费操作不会询问，请确认来源可信。
-            </p>
-          )}
         </section>
 
         {/* ── 长会话 ─────────────────────────────────────── */}
@@ -430,18 +417,19 @@ export function AIPage() {
             全局记忆对所有直播间生效，每个范围最多 8000 字。
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <select
-              value={memoryScope}
-              onChange={(event) => setMemoryScope(event.target.value)}
-              className="rounded-md border border-subtle bg-transparent px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-brand/50"
-            >
-              <option value="global">全局记忆</option>
-              {memoryRooms.map((room) => (
-                <option key={room.roomId} value={String(room.roomId)}>
-                  {room.roomId} · {room.uname}
-                </option>
-              ))}
-            </select>
+            <div className="settings-select-wrap" style={{ width: 240 }}>
+              <Select value={memoryScope} onValueChange={setMemoryScope}>
+                <SelectTrigger aria-label="记忆范围" className="settings-select-trigger" />
+                <SelectContent>
+                  <SelectItem value="global">全局记忆</SelectItem>
+                  {memoryRooms.map((room) => (
+                    <SelectItem key={room.roomId} value={String(room.roomId)}>
+                      {room.roomId} · {room.uname}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {memoryMeta && (
               <span className="text-[11px] text-ink-muted">
                 更新于 {new Date(memoryMeta.updatedAt * 1000).toLocaleString()}
@@ -453,8 +441,9 @@ export function AIPage() {
             value={memoryContent}
             onChange={(event) => setMemoryContent(event.target.value)}
             placeholder={`例如：
-- 主播主要玩杀戮尖塔，观众喜欢复读「yls>塔」
-- 每周三写周表`}
+- 直播风格与常聊话题
+- 观众称呼、常用梗与需要注意的雷点
+- 值得长期记住的约定或偏好`}
             className="mt-2 w-full resize-y rounded-md border border-subtle bg-transparent px-3 py-2 text-[12px] leading-relaxed text-ink outline-none focus:border-brand/50"
           />
           <div className="mt-2 flex items-center justify-between gap-3">
@@ -480,6 +469,139 @@ export function AIPage() {
           </div>
         </section>
       </div>
+
+      {mcpDialogOpen && (
+        <Modal title="MCP 配置" onClose={() => setMcpDialogOpen(false)} wide>
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs text-ink-muted">
+                  {status?.running
+                    ? `运行中 · ${status.endpoint}`
+                    : status?.error
+                      ? status.error
+                      : "未运行"}
+                </p>
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  streamable HTTP，本机固定端口 23332；启动后会生成访问 token。
+                </p>
+              </div>
+              <button
+                type="button"
+                className="settings-action shrink-0"
+                disabled={busy}
+                onClick={() => void toggleServer(!status?.running)}
+              >
+                {status?.running ? "停止" : "启动"}
+              </button>
+            </div>
+
+            {status?.running && (
+              <>
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-xs font-medium text-ink">访问 token</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="settings-action text-[11px]"
+                        onClick={() => void (token ? copy(token, "token") : loadToken())}
+                      >
+                        {token ? (copied === "token" ? "已复制" : "复制") : "显示"}
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-action inline-flex items-center gap-1 text-[11px]"
+                        disabled={busy}
+                        onClick={() => void regenerate()}
+                      >
+                        <RotateCcw className="h-3 w-3" />重置
+                      </button>
+                    </div>
+                  </div>
+                  <code className="block break-all rounded-md bg-slate-100 px-2.5 py-2 font-mono text-[11px] text-ink dark:bg-white/[0.06]">
+                    {token ?? "••••••••••••••••••••••••••••••••••"}
+                  </code>
+                  <p className="mt-1.5 text-[11px] text-ink-muted">
+                    客户端必须带 <code className="font-mono">Authorization: Bearer &lt;token&gt;</code>。重置后旧 token 立即失效。
+                  </p>
+                </div>
+
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-xs font-medium text-ink">客户端配置</span>
+                    <button
+                      type="button"
+                      className="settings-action inline-flex items-center gap-1 text-[11px]"
+                      onClick={() => void copy(clientConfig, "config")}
+                    >
+                      {copied === "config" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {copied === "config" ? "已复制" : "复制"}
+                    </button>
+                  </div>
+                  <pre className="max-h-56 overflow-auto rounded-md bg-slate-100 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-ink dark:bg-white/[0.06]">
+                    {clientConfig}
+                  </pre>
+                  <p className="mt-1.5 text-[11px] text-ink-muted">
+                    贴进 Claude Code / Cursor / Cline 的 MCP 配置即可（streamable HTTP）。
+                  </p>
+                </div>
+              </>
+            )}
+
+            <p className="text-[11px] text-ink-muted">
+              可用工具清单与每次调用记录写在 AI 专用日志 <code className="font-mono">ai.log</code>
+              （与主应用日志同目录），可在「设置 → 关于 → 日志目录」里打开查看。
+            </p>
+          </div>
+        </Modal>
+      )}
+
+      {permissionDialogOpen && (
+        <Modal title="权限模式" onClose={() => setPermissionDialogOpen(false)}>
+          <p className="text-xs text-ink-muted">
+            AI 通过 MCP 调用工具时遵守这里的规则。只读工具在任何模式下都直接放行。
+          </p>
+          <div className="mt-3 space-y-2">
+            {MODES.map((item) => {
+              const active = mode === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void selectMode(item.value)}
+                  className={
+                    active
+                      ? "flex w-full items-start gap-3 rounded-md border border-brand/50 bg-brand/[0.06] px-3 py-2.5 text-left"
+                      : "flex w-full items-start gap-3 rounded-md border border-subtle px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.03]"
+                  }
+                >
+                  <span
+                    className={
+                      active
+                        ? "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand text-white"
+                        : "mt-0.5 h-4 w-4 shrink-0 rounded-full border border-slate-300 dark:border-white/20"
+                    }
+                  >
+                    {active && <Check className="h-2.5 w-2.5" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-medium text-ink">{item.label}</span>
+                    <span className="mt-0.5 block text-[11px] text-ink-muted">{item.description}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {mode === "full" && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-md bg-rose-50 px-2.5 py-2 text-[11px] text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+              <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0" />
+              完全访问下送礼等真实扣费操作不会询问，请确认来源可信。
+            </p>
+          )}
+        </Modal>
+      )}
     </section>
   );
 }
