@@ -52,7 +52,6 @@ function normalizeLocal(value: unknown): VideoWindowLocalPreferences {
 export function useVideoWindowPreferences() {
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   const danmakuFontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
-  const subtitleFontSize = useSettingsStore((s) => s.settings.listen.subtitleFontSize);
   const [local, setLocal] = useState<VideoWindowLocalPreferences>(() => DEFAULT_VIDEO_WINDOW_LOCAL);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -71,7 +70,7 @@ export function useVideoWindowPreferences() {
     return () => window.clearTimeout(timer);
   }, [local, ready]);
 
-  const preferences: VideoWindowPreferences = { opacity, subtitleFontSize, danmakuFontSize, ...local };
+  const preferences: VideoWindowPreferences = { opacity, danmakuFontSize, ...local };
   const setPreferences = useCallback((next: VideoWindowPreferences) => {
     // 共用项写回全局设置（与直播弹幕窗 commitSettings 同一条保存路径），特有项留在本地状态
     const { patchSettings, saveSettings } = useSettingsStore.getState();
@@ -81,8 +80,7 @@ export function useVideoWindowPreferences() {
     };
     if (next.opacity !== opacity) commit({ appearance: { opacity: next.opacity } } as Partial<Settings>);
     if (next.danmakuFontSize !== danmakuFontSize) commit({ appearance: { fontSize: next.danmakuFontSize } } as Partial<Settings>);
-    if (next.subtitleFontSize !== subtitleFontSize) commit({ listen: { subtitleFontSize: next.subtitleFontSize } } as Partial<Settings>);
     setLocal({ subtitleRatio: next.subtitleRatio, autoFollow: next.autoFollow, showTime: next.showTime });
-  }, [opacity, danmakuFontSize, subtitleFontSize]);
+  }, [opacity, danmakuFontSize]);
   return { preferences, setPreferences, ready };
 }

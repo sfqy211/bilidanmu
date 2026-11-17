@@ -29,7 +29,7 @@ export type VideoPlaybackAction =
 
 /**
  * 视频弹幕窗特有偏好。不透明度、弹幕字号、字幕字号是全局设置的共用项
- * （appearance.opacity / appearance.fontSize / listen.subtitleFontSize），不在此存储。
+ * （appearance.opacity / appearance.fontSize），不在此存储；视频窗内字幕与弹幕共用同一个字号。
  */
 export interface VideoWindowLocalPreferences {
   subtitleRatio: number;
@@ -46,6 +46,6 @@ export const DEFAULT_VIDEO_WINDOW_LOCAL: VideoWindowLocalPreferences = {
 /** 渲染层消费的完整偏好视图：共用项来自 settings store，特有项来自本地持久化 */
 export type VideoWindowPreferences = {
   opacity: number;
-  subtitleFontSize: number;
+  /** 字幕与弹幕共用的全局字号（appearance.fontSize，与直播弹幕窗同一项） */
   danmakuFontSize: number;
 } & VideoWindowLocalPreferences;

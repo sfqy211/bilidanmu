@@ -10,8 +10,8 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
 }) {
   const ranges = [
     { key: "opacity", label: "背景不透明度", min: 10, max: 100, unit: "%" },
-    { key: "subtitleFontSize", label: "字幕字号", min: 14, max: 24, unit: "px" },
-    { key: "danmakuFontSize", label: "弹幕字号", min: 10, max: 32, unit: "px" },
+    // 字幕与弹幕共用同一个字号（与直播弹幕窗同一项全局设置）
+    { key: "danmakuFontSize", label: "字幕与弹幕字号", min: 10, max: 32, unit: "px" },
   ] as const;
   return <section className="video-window-popover video-window-settings" aria-label="视频弹幕外观设置" data-interactive>
     <header><h2>窗口设置</h2><DanmakuWindowButton title="关闭设置" onClick={onClose}><X /></DanmakuWindowButton></header>

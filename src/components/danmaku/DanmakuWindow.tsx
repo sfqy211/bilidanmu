@@ -28,6 +28,7 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { tauriCommands } from "@/lib/tauri";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useZoom } from "@/hooks/useZoom";
 import { useWindowDock, type DockSide } from "@/hooks/useWindowDock";
 import {
   usePassthroughHitTest,
@@ -305,7 +306,9 @@ export function DanmakuWindow({
   /** 仅输入框能力（可选）：不传时标题栏不出现该按钮 */
   inputOnly?: DanmakuWindowInputOnly;
 }) {
-  // ── 窗口级状态：置顶/锁定、隐身、透传 ──
+  // ── 窗口级状态：置顶/锁定、隐身、透传、字号缩放 ──
+  // Ctrl+滚轮调弹幕字号：直播与视频两种内容形态共用同一套外观设置（appearance.fontSize）
+  useZoom();
   const { pinned, locked, setLocked, togglePin, startDragging } = useWindowPinnedLocked();
   const stealth = useStealthMode();
   const [passthrough, setPassthrough] = useState(false);

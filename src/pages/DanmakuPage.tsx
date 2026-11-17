@@ -6,7 +6,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useWindowDock } from "@/hooks/useWindowDock";
 
 const appWindow = getCurrentWindow();
-import { useZoom } from "@/hooks/useZoom";
 import { ChevronDown, ClipboardList, Clock, Expand, Eye, Gift, MessageSquare, Plus, Send, Settings, ShieldBan, Smile, ThumbsUp, Users, Zap } from "lucide-react";
 import { AccountSwitcher } from "@/components/danmaku/AccountSwitcher";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
@@ -522,7 +521,6 @@ export function DanmakuPage() {
     localStorage.removeItem("danmaku-window-width");
     localStorage.removeItem("danmaku-window-height");
   }, []);
-  useZoom();
 
   const {
     isRunning: autoSendRunning,

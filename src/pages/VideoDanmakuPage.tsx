@@ -126,7 +126,7 @@ export function VideoDanmakuPage() {
         <VideoTimelinePane key={`subtitles-${identity}`} title="字幕" items={subtitleItems} currentTime={currentTime}
           collapsed={preferences.subtitleRatio === 0}
           loading={subtitles.isPending} error={subtitles.error ? String(subtitles.error) : null} empty="这个视频还没有字幕，可继续听音频和查看弹幕"
-          fontSize={preferences.subtitleFontSize} showTime={preferences.showTime} autoFollow={preferences.autoFollow} followKey={followKey}
+          fontSize={preferences.danmakuFontSize} showTime={preferences.showTime} autoFollow={preferences.autoFollow} followKey={followKey}
           onSeek={seek} onRetry={() => void subtitles.refetch()} />
         <WindowSplitter ratio={preferences.subtitleRatio} resetRatio={0.5} disabled={!ready}
           onChange={(subtitleRatio) => setPreferences({ ...preferences, subtitleRatio })} />
