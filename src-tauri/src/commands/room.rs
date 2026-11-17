@@ -348,6 +348,7 @@ async fn create_danmaku_window(
         .visible(false)
         .build()
         .map_err(|error| error.to_string())?;
+    crate::brand_icon::apply_to_window(app, &window);
 
     // 弹幕窗口挂接侧边吸附
     crate::window_dock::attach(&window, app);

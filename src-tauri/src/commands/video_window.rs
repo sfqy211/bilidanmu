@@ -155,6 +155,7 @@ pub async fn open_video_danmaku_window(
         .max_inner_size(ws::DANMAKU_MAX_W, ws::DANMAKU_MAX_H)
         .visible(false);
         let window = builder.build().map_err(|e| e.to_string())?;
+        crate::brand_icon::apply_to_window(&app, &window);
         // 与直播弹幕窗同一套侧边吸附：贴边收缩、悬停展开、拖离退出
         crate::window_dock::attach(&window, &app);
         // 先隐藏创建并按保存值定位，再显示：不显式定位时 Windows 按级联规则摆放

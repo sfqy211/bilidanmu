@@ -84,11 +84,6 @@ pub fn is_emoji_only(text: &str) -> bool {
     saw_emoji
 }
 
-/// 表情类弹幕（含带表情的文字），用于旧逻辑兜底。
-pub fn is_emoticon_like(event: &DanmakuEvent) -> bool {
-    emoticon_meta(event).is_some() || is_emoji_only(&event.content)
-}
-
 /// 纯表情消息：整条就是大表情（dm_type=1）或纯 emoji 文本。
 /// 这类默认不返回；带表情的文字（dm_type=0 + emots）不算。
 pub fn is_pure_emoticon(event: &DanmakuEvent) -> bool {

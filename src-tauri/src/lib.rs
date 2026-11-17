@@ -1,4 +1,5 @@
 mod ai;
+mod brand_icon;
 mod bili;
 mod commands;
 mod credential_store;
@@ -97,6 +98,8 @@ pub struct AppState {
     pub live_watch: ai::watch::WatchManager,
     /// 当前房间的 STT 定稿片段广播（长会话据此写入字幕事件）
     pub transcript_bus: tokio::sync::broadcast::Sender<stt::SttTranscript>,
+    /// 当前主题强调色（托盘/窗口图标着色用；新窗口创建时继承）
+    pub brand_accent: std::sync::Mutex<Option<(u8, u8, u8)>>,
 }
 
 /// 「仅输入框」模式展开表情面板前保存的紧凑栏几何
@@ -194,6 +197,7 @@ pub fn run() {
                 let (sender, _receiver) = tokio::sync::broadcast::channel(256);
                 sender
             },
+            brand_accent: std::sync::Mutex::new(None),
         }
         })
         .setup(|app| {
@@ -564,6 +568,7 @@ pub fn run() {
             commands::log::open_log_dir,
             ai::commands::ai_get_permission_mode,
             ai::commands::ai_get_watch_max_minutes,
+            brand_icon::set_brand_accent,
             ai::commands::ai_memory_get,
             ai::commands::ai_memory_set,
             ai::commands::ai_memory_delete,
