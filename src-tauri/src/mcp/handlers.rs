@@ -43,9 +43,10 @@ pub async fn handle_message(
                     "version": env!("CARGO_PKG_VERSION"),
                 },
                 "instructions": "BiliDanmu 是一个 B 站直播间弹幕客户端。\
-本服务把它的能力暴露为工具：读取直播间上下文与弹幕、发送弹幕与点赞、查询视频与评论、读写设置。\
-开始任何任务前先调 app_get_status 了解登录态与当前房间；\
-理解直播间用 live_get_context；写操作会被应用的权限模式约束，可能需要用户确认。",
+能力折叠成 8 个域工具：app / live / room / danmaku / gift / video / account / settings，\
+统一用 { action, params } 调用；参数不确定时先调 mcp_describe(domain, action) 查完整 schema。\
+开始任务前先 app{action:status} 了解登录态与当前房间；理解直播间用 live{action:get_context}；\
+写操作会被应用的权限模式约束，可能需要用户确认。",
             }),
         ),
         // 客户端在 initialize 之后会发这条通知，无需响应
@@ -56,21 +57,9 @@ pub async fn handle_message(
         }
         "ping" => OutgoingResponse::ok(id, serde_json::json!({})),
         "tools/list" => {
-            let tools: Vec<serde_json::Value> = registry::all_specs()
-                .into_iter()
-                .map(|spec| {
-                    serde_json::json!({
-                        "name": spec.name,
-                        "title": spec.title,
-                        "description": spec.description,
-                        "inputSchema": spec.input_schema,
-                        "annotations": {
-                            "readOnlyHint": spec.risk == crate::ai::spec::Risk::Read,
-                            "destructiveHint": spec.risk == crate::ai::spec::Risk::Destructive,
-                        },
-                    })
-                })
-                .collect();
+            // 只返回 8 个域 + mcp_describe：完整 action 参数按需通过 mcp_describe 取，
+            // 避免每次会话把所有内部工具的 schema 全塞进上下文。
+            let tools = registry::exposed_tools();
             OutgoingResponse::ok(id, serde_json::json!({ "tools": tools }))
         }
         "tools/call" => handle_tools_call(app, id, message.params).await,

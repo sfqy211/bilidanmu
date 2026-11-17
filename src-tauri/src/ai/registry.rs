@@ -898,6 +898,284 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
     ]
 }
 
+/// 对外暴露的域工具：57 个内部工具折叠成 8 个域 + mcp_describe。
+///
+/// 内部规格仍是单一真源；这里只决定“模型看到什么”。调用时代理层会把
+/// `{action, params}` 还原成内部工具名，权限、审计与确认流程仍按真实 action 走。
+pub struct DomainSpec {
+    pub name: &'static str,
+    pub title: &'static str,
+    pub description: &'static str,
+    /// (对外的 action 名, 内部工具名)
+    pub actions: &'static [(&'static str, &'static str)],
+}
+
+pub const DOMAINS: &[DomainSpec] = &[
+    DomainSpec {
+        name: "app",
+        title: "应用与窗口",
+        description: "应用状态与窗口控制。action: status（登录态/当前房间/权限/MCP/礼物可用性）、refresh_rooms、reveal_window、permission（读取 AI 权限模式）。参数放 params。",
+        actions: &[
+            ("status", "app_get_status"),
+            ("refresh_rooms", "app_refresh_rooms"),
+            ("reveal_window", "app_reveal_window"),
+            ("permission", "app_get_permission"),
+        ],
+    },
+    DomainSpec {
+        name: "live",
+        title: "直播间",
+        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、get_stats、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list（后台长会话）。",
+        actions: &[
+            ("get_context", "live_get_context"),
+            ("query_danmaku", "live_query_danmaku"),
+            ("get_stats", "live_get_stats"),
+            ("watch_start", "live_watch_start"),
+            ("watch_collect", "live_watch_collect"),
+            ("watch_digest", "live_watch_digest"),
+            ("watch_status", "live_watch_status"),
+            ("watch_stop", "live_watch_stop"),
+            ("watch_list", "live_watch_list"),
+        ],
+    },
+    DomainSpec {
+        name: "room",
+        title: "房间管理",
+        description: "已保存房间与目标房间操作。action: list、search、get、live_status、follow_lives、join、leave。",
+        actions: &[
+            ("list", "room_list"),
+            ("search", "room_search"),
+            ("get", "room_get"),
+            ("live_status", "room_live_status"),
+            ("follow_lives", "room_follow_lives"),
+            ("join", "room_join"),
+            ("leave", "room_leave"),
+        ],
+    },
+    DomainSpec {
+        name: "danmaku",
+        title: "弹幕与自动化",
+        description: "发送、点赞、自动发送与模板。action: get_emoticons、send、send_emoticon、like、auto_send_start、auto_send_stop、auto_like_start、auto_like_stop、auto_status、template_list、template_save、template_delete。",
+        actions: &[
+            ("get_emoticons", "danmaku_get_emoticons"),
+            ("send", "danmaku_send"),
+            ("send_emoticon", "danmaku_send_emoticon"),
+            ("like", "danmaku_like"),
+            ("auto_send_start", "auto_send_start"),
+            ("auto_send_stop", "auto_send_stop"),
+            ("auto_like_start", "auto_like_start"),
+            ("auto_like_stop", "auto_like_stop"),
+            ("auto_status", "auto_status"),
+            ("template_list", "template_list"),
+            ("template_save", "template_save"),
+            ("template_delete", "template_delete"),
+        ],
+    },
+    DomainSpec {
+        name: "gift",
+        title: "礼物",
+        description: "礼物面板、背包与赠送。action: list、bag、send（真实扣费，需确认）。",
+        actions: &[
+            ("list", "gift_list"),
+            ("bag", "gift_bag"),
+            ("send", "gift_send"),
+        ],
+    },
+    DomainSpec {
+        name: "video",
+        title: "视频",
+        description: "视频查询、播放、评论、收藏夹与稍后再看。action: search、get_info、get_subtitle、get_danmaku、danmaku_send、get_comments、get_replies、fav_folders、fav_list、watch_later、watch_later_remove、play、stop、comment_like、comment_post。",
+        actions: &[
+            ("search", "video_search"),
+            ("get_info", "video_get_info"),
+            ("get_subtitle", "video_get_subtitle"),
+            ("get_danmaku", "video_get_danmaku"),
+            ("danmaku_send", "video_danmaku_send"),
+            ("get_comments", "video_get_comments"),
+            ("get_replies", "video_get_replies"),
+            ("fav_folders", "video_fav_folders"),
+            ("fav_list", "video_fav_list"),
+            ("watch_later", "video_watch_later"),
+            ("watch_later_remove", "video_watch_later_remove"),
+            ("play", "video_play"),
+            ("stop", "video_stop"),
+            ("comment_like", "video_comment_like"),
+            ("comment_post", "video_comment_post"),
+        ],
+    },
+    DomainSpec {
+        name: "account",
+        title: "账号",
+        description: "账号列表、当前登录态与钱包。action: list、get_current、get_wallet、switch、remove（删除本地凭据，不可逆）。",
+        actions: &[
+            ("list", "account_list"),
+            ("get_current", "account_get_current"),
+            ("get_wallet", "account_get_wallet"),
+            ("switch", "account_switch"),
+            ("remove", "account_remove"),
+        ],
+    },
+    DomainSpec {
+        name: "settings",
+        title: "设置",
+        description: "读取与按白名单修改设置。action: get、patch。",
+        actions: &[
+            ("get", "settings_get"),
+            ("patch", "settings_patch"),
+        ],
+    },
+];
+
+/// 按名字查域
+pub fn find_domain(name: &str) -> Option<&'static DomainSpec> {
+    DOMAINS.iter().find(|domain| domain.name == name)
+}
+
+/// 域内 action → 内部工具名
+pub fn resolve_action(domain: &str, action: &str) -> Option<&'static str> {
+    find_domain(domain)?
+        .actions
+        .iter()
+        .find(|(candidate, _)| *candidate == action)
+        .map(|(_, tool)| *tool)
+}
+
+/// 把一次对外调用还原成内部工具名 + 参数。
+///
+/// 非域工具原样返回；域工具取 `action` 与 `params`。
+pub fn resolve_call(
+    name: &str,
+    args: &serde_json::Value,
+) -> Result<(String, serde_json::Value, String), ToolError> {
+    let Some(domain) = find_domain(name) else {
+        return Ok((name.to_string(), args.clone(), name.to_string()));
+    };
+    let action = args
+        .get("action")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            ToolError::invalid_args(format!("{name} 缺少 action"))
+                .with_hint(format!("调 mcp_describe(domain=\"{name}\") 查看可用 action"))
+        })?;
+    let tool = resolve_action(domain.name, action).ok_or_else(|| {
+        ToolError::invalid_args(format!("{name} 没有 action \"{action}\""))
+            .with_hint(format!("调 mcp_describe(domain=\"{name}\") 查看可用 action"))
+    })?;
+    let params = match args.get("params") {
+        None | Some(serde_json::Value::Null) => json!({}),
+        Some(serde_json::Value::Object(_)) => args["params"].clone(),
+        Some(_) => return Err(ToolError::invalid_args("params 需要是对象")),
+    };
+    Ok((
+        tool.to_string(),
+        params,
+        format!("{}.{}", domain.name, action),
+    ))
+}
+
+/// 目录查询（mcp_describe）。
+///
+/// - 无 domain：返回域与 action 索引
+/// - 有 domain：返回该域所有 action 的说明与参数 schema
+/// - domain + action：只返回这一个
+pub fn describe(domain: Option<&str>, action: Option<&str>) -> Result<serde_json::Value, ToolError> {
+    let Some(domain_name) = domain else {
+        let domains: Vec<serde_json::Value> = DOMAINS
+            .iter()
+            .map(|domain| {
+                json!({
+                    "domain": domain.name,
+                    "title": domain.title,
+                    "actions": domain.actions.iter().map(|(action, _)| *action).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        return Ok(json!({
+            "domains": domains,
+            "hint": "调 mcp_describe(domain=\"video\") 查看参数；不确定参数时先查再调"
+        }));
+    };
+
+    let spec = find_domain(domain_name).ok_or_else(|| {
+        ToolError::invalid_args(format!("未知域 {domain_name}")).with_hint("不传 domain 可看全部域")
+    })?;
+
+    let to_entry = |action_name: &str, tool: &str| -> serde_json::Value {
+        match find_spec(tool) {
+            Some(spec) => json!({
+                "action": action_name,
+                "title": spec.title,
+                "description": spec.description,
+                "risk": spec.risk.as_str(),
+                "parameters": spec.input_schema,
+            }),
+            None => json!({ "action": action_name }),
+        }
+    };
+
+    if let Some(action_name) = action {
+        let tool = resolve_action(domain_name, action_name).ok_or_else(|| {
+            ToolError::invalid_args(format!("{domain_name} 没有 action \"{action_name}\""))
+                .with_hint(format!("调 mcp_describe(domain=\"{domain_name}\") 查看可用 action"))
+        })?;
+        return Ok(json!({
+            "domain": domain_name,
+            "action": to_entry(action_name, tool),
+        }));
+    }
+
+    let actions: Vec<serde_json::Value> = spec
+        .actions
+        .iter()
+        .map(|(action_name, tool)| to_entry(action_name, tool))
+        .collect();
+    Ok(json!({ "domain": domain_name, "title": spec.title, "actions": actions }))
+}
+
+/// MCP `tools/list` 的返回：8 个域 + mcp_describe。
+pub fn exposed_tools() -> Vec<serde_json::Value> {
+    let mut tools: Vec<serde_json::Value> = DOMAINS
+        .iter()
+        .map(|domain| {
+            let actions: Vec<&str> = domain
+                .actions
+                .iter()
+                .map(|(action, _)| *action)
+                .collect();
+            json!({
+                "name": domain.name,
+                "title": domain.title,
+                "description": domain.description,
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "action": { "type": "string", "enum": actions },
+                        "params": { "type": "object", "description": "该 action 的参数对象；不确定字段时先调 mcp_describe", "additionalProperties": true }
+                    },
+                    "required": ["action"],
+                    "additionalProperties": false
+                },
+                "annotations": { "readOnlyHint": false, "destructiveHint": false }
+            })
+        })
+        .collect();
+    tools.push(json!({
+        "name": "mcp_describe",
+        "title": "查询工具参数",
+        "description": "按域/action 返回完整参数 schema 与风险等级；不带参数返回全部域与 action 索引。参数不确定时先查它，避免猜错字段。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "domain": { "type": "string", "enum": DOMAINS.iter().map(|domain| domain.name).collect::<Vec<_>>() },
+                "action": { "type": "string", "description": "域内 action 名，省略返回整个域" }
+            },
+            "additionalProperties": false
+        },
+        "annotations": { "readOnlyHint": true, "destructiveHint": false }
+    }));
+    tools
+}
+
 /// 按名字查规格（供 dispatch 做权限判断）
 pub fn find_spec(name: &str) -> Option<ToolSpec> {
     all_specs().into_iter().find(|spec| spec.name == name)
@@ -905,4 +1183,74 @@ pub fn find_spec(name: &str) -> Option<ToolSpec> {
 
 fn schema(value: serde_json::Value) -> serde_json::Value {
     value
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn every_internal_tool_is_exposed_exactly_once() {
+        let specs = all_specs();
+        let internals: HashSet<&'static str> = specs.iter().map(|spec| spec.name).collect();
+        let mut exposed: HashSet<&'static str> = HashSet::new();
+        for domain in DOMAINS {
+            for (action, tool) in domain.actions {
+                assert!(
+                    internals.contains(tool),
+                    "域 {} 的 action {} 指向不存在的工具 {}",
+                    domain.name,
+                    action,
+                    tool
+                );
+                assert!(exposed.insert(*tool), "工具 {tool} 被重复暴露");
+            }
+        }
+        assert_eq!(exposed, internals, "存在内部工具没有挂到任何域");
+    }
+
+    #[test]
+    fn action_names_resolve_uniquely() {
+        for domain in DOMAINS {
+            let mut seen = HashSet::new();
+            for (action, tool) in domain.actions {
+                assert!(seen.insert(*action), "域 {} 的 action {} 重复", domain.name, action);
+                assert_eq!(resolve_action(domain.name, action), Some(*tool));
+            }
+        }
+        assert!(resolve_action("live", "not_exists").is_none());
+        assert!(find_domain("nope").is_none());
+    }
+
+    #[test]
+    fn exposed_catalog_stays_small() {
+        let tools = exposed_tools();
+        assert_eq!(tools.len(), DOMAINS.len() + 1);
+        let chars: usize = tools.iter().map(|tool| tool.to_string().chars().count()).sum();
+        assert!(chars < 6000, "工具目录过大：{chars} 字符");
+    }
+
+    #[test]
+    fn describe_returns_full_spec_on_demand() {
+        let domain = describe(Some("video"), None).expect("describe domain");
+        let actions = domain["actions"].as_array().expect("actions");
+        let subtitle = actions
+            .iter()
+            .find(|entry| entry["action"] == "get_subtitle")
+            .expect("get_subtitle");
+        assert!(subtitle["parameters"]["properties"]["bvid"].is_object());
+
+        let single = describe(Some("live"), Some("query_danmaku")).expect("describe action");
+        assert_eq!(single["action"]["action"], "query_danmaku");
+        assert!(single["action"]["parameters"].is_object());
+        assert!(describe(Some("live"), Some("nope")).is_err());
+
+        // 域调用必须解析回真实 action 的风险等级（权限闸门依赖它）
+        let costly = describe(Some("video"), Some("danmaku_send")).expect("costly action");
+        assert_eq!(costly["action"]["risk"], "costly");
+        let destructive = describe(Some("account"), Some("remove")).expect("destructive action");
+        assert_eq!(destructive["action"]["risk"], "destructive");
+    }
 }

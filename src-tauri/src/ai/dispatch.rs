@@ -26,12 +26,46 @@ pub async fn call_tool(
 ) -> ToolResult {
     let started = Instant::now();
 
-    let Some(spec) = crate::ai::registry::find_spec(name) else {
-        let error = ToolError::unknown_tool(name);
+    // 目录查询：把域工具的参数 schema 按需返回，避免 tools/list 一次塞满上下文
+    if name == "mcp_describe" {
+        let domain = args.get("domain").and_then(serde_json::Value::as_str);
+        let action = args.get("action").and_then(serde_json::Value::as_str);
+        let outcome = crate::ai::registry::describe(domain, action);
+        let duration = started.elapsed().as_millis() as u64;
+        return match outcome {
+            Ok(data) => {
+                crate::ai::audit::record(app, name, &args, true, "工具目录查询", duration);
+                ToolResult::ok(data)
+            }
+            Err(error) => {
+                crate::ai::audit::record(app, name, &args, false, &error.to_string(), duration);
+                ToolResult::fail(error)
+            }
+        };
+    }
+
+    // 域工具 → 内部工具；权限、确认与审计都按解析后的真实 action 走
+    let (tool_name, call_args, label) = match crate::ai::registry::resolve_call(name, &args) {
+        Ok(value) => value,
+        Err(error) => {
+            crate::ai::audit::record(
+                app,
+                name,
+                &args,
+                false,
+                &error.to_string(),
+                started.elapsed().as_millis() as u64,
+            );
+            return ToolResult::fail(error);
+        }
+    };
+
+    let Some(spec) = crate::ai::registry::find_spec(&tool_name) else {
+        let error = ToolError::unknown_tool(&tool_name);
         crate::ai::audit::record(
             app,
-            name,
-            &args,
+            &label,
+            &call_args,
             false,
             &error.to_string(),
             started.elapsed().as_millis() as u64,
@@ -41,14 +75,14 @@ pub async fn call_tool(
 
     let mode = crate::ai::policy::load_mode(state);
     if spec.risk.needs_confirmation(mode) {
-        match request_confirmation(app, state, &spec, &args).await {
+        match request_confirmation(app, state, &spec, &label, &call_args).await {
             Ok(true) => {}
             Ok(false) => {
                 let error = ToolError::user_denied();
                 crate::ai::audit::record(
                     app,
-                    name,
-                    &args,
+                    &label,
+                    &call_args,
                     false,
                     "用户拒绝",
                     started.elapsed().as_millis() as u64,
@@ -58,8 +92,8 @@ pub async fn call_tool(
             Err(error) => {
                 crate::ai::audit::record(
                     app,
-                    name,
-                    &args,
+                    &label,
+                    &call_args,
                     false,
                     &error.to_string(),
                     started.elapsed().as_millis() as u64,
@@ -69,17 +103,17 @@ pub async fn call_tool(
         }
     }
 
-    let outcome = crate::ai::registry::dispatch_tool(app, state, name, &args).await;
+    let outcome = crate::ai::registry::dispatch_tool(app, state, &tool_name, &call_args).await;
     let duration = started.elapsed().as_millis() as u64;
 
     match outcome {
         Ok(data) => {
             let summary = summarize(&data);
-            crate::ai::audit::record(app, name, &args, true, &summary, duration);
+            crate::ai::audit::record(app, &label, &call_args, true, &summary, duration);
             ToolResult::ok(data)
         }
         Err(error) => {
-            crate::ai::audit::record(app, name, &args, false, &error.to_string(), duration);
+            crate::ai::audit::record(app, &label, &call_args, false, &error.to_string(), duration);
             ToolResult::fail(error)
         }
     }
@@ -90,6 +124,7 @@ async fn request_confirmation(
     app: &tauri::AppHandle,
     state: &AppState,
     spec: &crate::ai::spec::ToolSpec,
+    label: &str,
     args: &serde_json::Value,
 ) -> Result<bool, ToolError> {
     let id = crate::ai::confirm::new_confirmation_id();
@@ -106,7 +141,7 @@ async fn request_confirmation(
 
     let payload = crate::ai::confirm::PendingConfirmation {
         id: id.clone(),
-        tool: spec.name.to_string(),
+        tool: label.to_string(),
         title: format!("AI 请求：{}", spec.title),
         message,
         risk: spec.risk.as_str().to_string(),
