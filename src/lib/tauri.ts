@@ -276,6 +276,9 @@ export const tauriCommands = {
     memoryDelete: (scope: "global" | "room", roomId?: number) =>
       invoke<boolean>("ai_memory_delete", { scope, roomId: roomId ?? null }),
   },
+  brand: {
+    setAccent: (accent: string) => invoke<void>("set_brand_accent", { accent }),
+  },
   app: {
     quit: () => invoke<void>("quit_app_cmd"),
   }
