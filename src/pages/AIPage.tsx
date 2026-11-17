@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
+  Clock,
   Copy,
   RefreshCw,
   RotateCcw,
@@ -12,6 +13,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
 import type { AiPermissionMode, McpStatus } from "@/types/ai";
+
+const WATCH_MINUTES: Array<{ value: number; label: string }> = [
+  { value: 60, label: "1 小时" },
+  { value: 120, label: "2 小时" },
+  { value: 240, label: "4 小时" },
+  { value: 480, label: "8 小时" },
+  { value: 0, label: "不限" },
+];
 
 const MODES: Array<{ value: AiPermissionMode; label: string; description: string }> = [
   {
@@ -35,6 +44,7 @@ export function AIPage() {
   const [status, setStatus] = useState<McpStatus | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [mode, setMode] = useState<AiPermissionMode>("autonomous");
+  const [watchMinutes, setWatchMinutes] = useState(240);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -42,12 +52,14 @@ export function AIPage() {
   const refresh = useCallback(async () => {
     setError(null);
     try {
-      const [mcpStatus, permissionMode] = await Promise.all([
+      const [mcpStatus, permissionMode, watchMaxMinutes] = await Promise.all([
         tauriCommands.ai.mcpStatus(),
         tauriCommands.ai.getPermissionMode(),
+        tauriCommands.ai.getWatchMaxMinutes(),
       ]);
       setStatus(mcpStatus);
       setMode(permissionMode);
+      setWatchMinutes(watchMaxMinutes);
     } catch (reason) {
       setError(String(reason));
     }
@@ -108,6 +120,18 @@ export function AIPage() {
     try {
       await tauriCommands.ai.setPermissionMode(next);
       setMode(next);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selectWatchMinutes = async (minutes: number) => {
+    setBusy(true);
+    try {
+      await tauriCommands.ai.setWatchMaxMinutes(minutes);
+      setWatchMinutes(minutes);
     } catch (reason) {
       setError(String(reason));
     } finally {
@@ -286,6 +310,41 @@ export function AIPage() {
               完全访问下送礼等真实扣费操作不会询问，请确认来源可信。
             </p>
           )}
+        </section>
+
+        {/* ── 长会话 ─────────────────────────────────────── */}
+        <section className="border-t border-subtle py-5">
+          <h3 className="flex items-center gap-2 text-[13px] font-medium text-ink">
+            <Clock className="h-4 w-4" />长会话保底时长
+          </h3>
+          <p className="mt-1 text-xs text-ink-muted">
+            AI 可以开一条后台会话持续接收某个直播间的弹幕（最多 3 路并发），主播下播或手动停止即结束。
+            这里设置会话最长保留多久，到点自动收尾，已收到的弹幕仍可读取。
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {WATCH_MINUTES.map((item) => {
+              const active = watchMinutes === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void selectWatchMinutes(item.value)}
+                  aria-pressed={active}
+                  className={
+                    active
+                      ? "rounded-md border border-brand/50 bg-brand/[0.08] px-3 py-1.5 text-[12px] font-medium text-brand"
+                      : "rounded-md border border-subtle px-3 py-1.5 text-[12px] text-ink-muted hover:bg-slate-50 dark:hover:bg-white/[0.03]"
+                  }
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-ink-muted">
+            单个会话的缓冲上限由 AI 调用时指定（默认 2 万条）；「不限」只表示不加时长上限，会话仍会在主播下播时结束。
+          </p>
         </section>
       </div>
     </section>

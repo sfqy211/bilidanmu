@@ -259,6 +259,9 @@ export const tauriCommands = {
     getPermissionMode: () => invoke<AiPermissionMode>("ai_get_permission_mode"),
     setPermissionMode: (mode: AiPermissionMode) =>
       invoke<void>("ai_set_permission_mode", { mode }),
+    getWatchMaxMinutes: () => invoke<number>("ai_get_watch_max_minutes"),
+    setWatchMaxMinutes: (minutes: number) =>
+      invoke<void>("ai_set_watch_max_minutes", { minutes }),
     confirmResponse: (id: string, approved: boolean) =>
       invoke<boolean>("ai_confirm_response", { id, approved }),
     mcpStatus: () => invoke<McpStatus>("ai_mcp_status"),
