@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, FolderOpen, GitBranch } from "lucide-react";
 import { UpdateDialog } from "@/components/ui/UpdateDialog";
+import { BrandLogo } from "@/components/BrandLogo";
 import { getAppVersion } from "@/lib/constants";
 import { tauriCommands } from "@/lib/tauri";
-import aboutIcon from "@/assets/icon.png";
 import type { UpdateInfo } from "@/types/bilibili";
 import { SettingsGroup, SettingsRow } from "./SettingsControls";
 
@@ -34,7 +34,7 @@ export function AboutSettings() {
   return (
     <>
       <div className="mb-6 flex items-center gap-3">
-        <img src={aboutIcon} alt="" className="box-border h-12 w-12 shrink-0 object-contain" />
+        <BrandLogo className="h-12 w-12 shrink-0 text-brand" />
         <div className="flex h-12 flex-col justify-center">
           <h3 className="text-base font-semibold text-ink">BiliDanmu {version && <span className="numeric ml-1 text-xs font-normal text-ink-muted">v{version}</span>}</h3>
           <p className="mt-0.5 text-xs text-ink-muted">Bilibili 直播弹幕客户端 · AGPLv3</p>

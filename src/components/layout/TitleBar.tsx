@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Maximize, Minus, X } from "lucide-react";
 import { CloseDialog } from "@/components/ui/CloseDialog";
-import logoUrl from "@/assets/logo.svg";
+import { BrandLogo } from "@/components/BrandLogo";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import "./TitleBar.css";
@@ -71,13 +71,7 @@ export function TitleBar() {
     >
       <div className="flex flex-1 items-center gap-2 pl-3.5 pr-3">
         <div className="workspace-brand items-center" aria-label="BiliDanmu">
-          <img
-            src={logoUrl}
-            alt=""
-            className="workspace-brand-logo"
-            draggable={false}
-            style={{ background: "transparent", boxShadow: "none" }}
-          />
+          <BrandLogo className="workspace-brand-logo text-brand" />
           <span className="workspace-brand-name flex items-center">BiliDanmu</span>
         </div>
       </div>

@@ -9,12 +9,14 @@
 
 /* logo 图形在 viewBox 内约占 79%，18px 盒子的实际图形高度约 14px；
    文字保持 14px，视觉上略小于图标。 */
-.workspace-titlebar .workspace-brand-logo {
+.workspace-titlebar .workspace-brand .workspace-brand-logo {
   display: block;
   width: 18px;
   height: 18px;
   padding: 0;
   border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .workspace-titlebar .workspace-brand-name {
