@@ -1,6 +1,6 @@
 //! 侧边吸附（贴边收缩）：把窗口拖到屏幕左/右/上边缘后收缩为细条，
 //! 鼠标悬停展开、离开后延迟收回、展开后拖离边缘退出吸附（QQ 模式）。
-//! 底边不参与（与任务栏抢区域）。仅对弹幕窗口（danmaku-*）生效，抽屉窗口不参与。
+//! 底边不参与（与任务栏抢区域）。对两个弹幕小窗（直播弹幕窗 danmaku / 视频弹幕窗 video-danmaku）生效，其它窗口不参与。
 
 use crate::window_state::{DANMAKU_MAX_H, DANMAKU_MAX_W, DANMAKU_MIN_H, DANMAKU_MIN_W};
 use crate::AppState;
@@ -203,7 +203,9 @@ fn emit_dock_changed(app: &AppHandle, label: &str, phase: &str, side: Option<Doc
 /// 且任务栏 hide/show 还原路径与吸附态冲突（曾导致还原后窗口错乱的恶性 bug）。
 /// 弹幕窗口 transparent + always_on_top，走托盘 hide/show（restore_if_docked 覆盖），吸附稳定。
 fn is_dockable(label: &str) -> bool {
-    label.starts_with("danmaku")
+    // 直播弹幕窗与视频弹幕窗是同一「弹幕小窗」的两种内容形态，吸附交互完全一致
+    label == crate::commands::room::DANMAKU_WINDOW_LABEL
+        || label == crate::commands::video_window::LABEL
 }
 
 /// 窗口销毁时清理该 label 的吸附残留：DockState、拖动冷却、轮询任务。
@@ -238,6 +240,7 @@ pub fn normal_geometry(
 fn enter_dock(app: &AppHandle, window: &WebviewWindow, side: DockSide) {
     let state = app.state::<AppState>();
     let label = window.label().to_string();
+    log::info!("[dock] 进入吸附: {label} side={side:?}");
 
     let Ok(pos) = window.outer_position() else { return };
     let Ok(size) = window.outer_size() else { return };
@@ -607,6 +610,7 @@ pub fn attach(window: &WebviewWindow, app: &AppHandle) {
     if !is_dockable(window.label()) {
         return;
     }
+    log::info!("[dock] 挂接吸附: {}", window.label());
     let app_handle = app.clone();
     let label = window.label().to_string();
     window.on_window_event(move |event| {
@@ -644,6 +648,7 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
         // 光标持续在窗口外的累计时间（用于收回延迟）
         let mut outside_since: Option<std::time::Instant> = None;
 
+        let mut first_tick = true;
         loop {
             if stop.load(Ordering::Relaxed) {
                 break;
@@ -656,6 +661,10 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
                 continue;
             }
             let state = app_handle.state::<AppState>();
+            if first_tick {
+                first_tick = false;
+                log::info!("[dock] 轮询启动: {label}");
+            }
 
             let current = {
                 let docks = lock_docks(state.inner());
@@ -672,8 +681,9 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
             match current {
                 // 正常态：贴边 + 光标离开窗口（= 已松手）→ 进入吸附
                 None => {
-                    // 仅输入框模式不参与吸附（进入该模式时会先解除既有吸附）
-                    if state.danmaku_input_only.load(Ordering::Relaxed) {
+                    // 仅输入框模式不参与吸附（进入该模式时会先解除既有吸附）。
+                    // 按窗口 label 读各自的标志：直播窗 danmaku_input_only / 视频窗 video_input_only
+                    if crate::window_state::input_only_active(state.inner(), &label) {
                         outside_since = None;
                         continue;
                     }

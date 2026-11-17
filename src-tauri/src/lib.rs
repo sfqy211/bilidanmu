@@ -15,6 +15,7 @@ mod settings_store;
 mod stt;
 mod tray;
 mod window_dock;
+mod window_shell;
 mod window_state;
 mod window_stealth;
 mod shortcuts;
@@ -68,8 +69,6 @@ pub struct AppState {
     pub dock_cooldowns: std::sync::Mutex<std::collections::HashSet<String>>,
     /// 弹幕窗口是否处于「仅输入框」紧凑模式（true = 高度锁定输入栏、不参与吸附）
     pub danmaku_input_only: std::sync::atomic::AtomicBool,
-    /// 视频弹幕窗是否处于「仅输入框」紧凑模式（与直播弹幕窗同一套几何/持久化机制）
-    pub video_input_only: std::sync::atomic::AtomicBool,
     /// 收起条开关的内存镜像（false = 收缩态不可见，命中区铺满原窗口跨度）。
     /// 由 update_settings 同步，供 50ms 光标轮询与几何计算读取——不能每次读库
     pub dock_enabled: std::sync::atomic::AtomicBool,
@@ -176,7 +175,6 @@ pub fn run() {
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
-            video_input_only: std::sync::atomic::AtomicBool::new(false),
             dock_enabled: std::sync::atomic::AtomicBool::new(true),
             auto_theme_from_background: std::sync::atomic::AtomicBool::new(false),
             danmaku_emote_panel: std::sync::atomic::AtomicBool::new(false),
@@ -383,7 +381,13 @@ pub fn run() {
         .on_window_event(|window, event| {
             match event {
                 WindowEvent::CloseRequested { api, .. } => {
-                    if window.label() == "main" {
+                    // 关闭即隐藏（不断连/不退出）：主窗口按设置隐藏到托盘，两个弹幕小窗
+                    // 一律隐藏到托盘。真正断开直播间/关闭弹幕模式走各自退出按钮的 destroy 路径。
+                    let label = window.label();
+                    if label == "main"
+                        || label == commands::room::DANMAKU_WINDOW_LABEL
+                        || label == commands::video_window::LABEL
+                    {
                         api.prevent_close();
                         let _ = window.hide();
                     }
@@ -438,8 +442,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::video_window::open_video_danmaku_window,
             commands::video_window::close_video_danmaku_window,
-            commands::video_window::set_video_input_only,
-            commands::video_window::get_video_input_only,
             commands::video_window::publish_video_playback,
             commands::video_window::get_video_playback,
             commands::video_window::control_video_playback,

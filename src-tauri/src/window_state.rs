@@ -70,13 +70,10 @@ pub fn is_persisted_window(label: &str) -> bool {
     geometry_key(label).is_some()
 }
 
-/// 查询某弹幕小窗是否处于「仅输入框」紧凑模式（落盘分流与事件兜底共用）
+/// 查询某弹幕小窗是否处于「仅输入框」紧凑模式（落盘分流与吸附轮询共用）。
+/// 该形态只在直播弹幕窗存在；视频弹幕窗恒为完整模式。
 pub fn input_only_active(state: &AppState, label: &str) -> bool {
-    match label {
-        DANMAKU_WINDOW_LABEL => state.danmaku_input_only.load(Ordering::Relaxed),
-        video_window::LABEL => state.video_input_only.load(Ordering::Relaxed),
-        _ => false,
-    }
+    label == DANMAKU_WINDOW_LABEL && state.danmaku_input_only.load(Ordering::Relaxed)
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

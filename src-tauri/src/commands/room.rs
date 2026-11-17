@@ -7,7 +7,7 @@ use crate::settings_store;
 use crate::tray;
 use crate::window_state;
 use crate::AppState;
-use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, State, WebviewUrl};
 
 /// 常驻弹幕窗口的固定 label。弹幕窗口全应用唯一：切换直播间时窗口不销毁，
 /// 仅在窗口内原地切换路由。
@@ -327,31 +327,13 @@ async fn create_danmaku_window(
         .map(|id| danmaku_window_title(state, id))
         .unwrap_or_else(|| "弹幕窗口".to_string());
 
-    let builder = WebviewWindowBuilder::new(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path))
-        .title(title)
-        .inner_size(w, h)
-        .min_inner_size(min_w, min_h)
-        .max_inner_size(max_w, max_h)
-        .resizable(true)
-        .maximizable(false)
-        .decorations(false)
-        .transparent(true)
-        .always_on_top(true)
-        .shadow(false)
-        // 弹幕窗口全程不进任务栏（对齐 QQ：看直播/吸附时任务栏不留图标）。
-        // 系统托盘图标保留，仍可通过托盘或弹幕窗的退出按钮切回主页面。
-        .skip_taskbar(true);
-    // 隐藏到托盘/吸附折叠时 WebView2 会节流后台定时器（Chromium 对隐藏页面
-    // 5 分钟后可低至 1 次/分钟），mpegts.js 拉流循环依赖 JS 定时器，直播音频会
-    // 静默断流。additional_browser_args 是整体替换而非追加，必须保留 Tauri
-    // 默认禁用的 msWebOOUI 等特性。
-    #[cfg(target_os = "windows")]
-    let builder = builder.additional_browser_args(concat!(
-        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IntensiveWakeUpThrottling",
-        " --disable-background-timer-throttling",
-        " --disable-backgrounding-occluded-windows",
-        " --disable-renderer-backgrounding",
-    ));
+    // 窗口壳与视频弹幕窗共用同一模板（无边框/透明/置顶/不进任务栏/后台节流开关）
+    let builder =
+        crate::window_shell::build_shell_window(app, DANMAKU_WINDOW_LABEL, WebviewUrl::App(path), &title)
+            .map_err(|error| error.to_string())?
+            .inner_size(w, h)
+            .min_inner_size(min_w, min_h)
+            .max_inner_size(max_w, max_h);
     // 先隐藏创建：位置在 build 后按保存值以物理坐标设置，再显示。
     // 若不显式定位，Windows 按级联规则摆放新窗口——每次重建都向右下
     // 偏移一点、累积触底后跳回初始位置（即「窗口位移」bug 的来源）。
