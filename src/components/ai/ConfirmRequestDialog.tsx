@@ -59,7 +59,7 @@ export function ConfirmRequestDialog() {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
-      <div className="flex w-full max-w-md flex-col rounded-lg bg-app-surface p-6 shadow-xl dark:ring-1 dark:ring-white/[0.08]">
+      <div className="workspace-dialog flex w-full max-w-md flex-col rounded-lg bg-app-surface p-6 shadow-xl dark:ring-1 dark:ring-white/[0.08]">
         <div className="flex items-start gap-3">
           <div
             className={

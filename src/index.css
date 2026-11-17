@@ -168,54 +168,49 @@ textarea,
 }
 
 /* ── 主页面氛围设计系统（与弹幕窗同一套玻璃语言） ──
-   玻璃面板 + 编辑级排版工具类。浅色米白、深色墨蓝，粉色为唯一强调。 */
+   不改变既有布局：只以环境色、半透明表面、细高光和柔和投影建立玻璃层次。 */
 
-/* 应用底色：浅色米白、深色墨蓝 */
-/* 外壳底色 = 侧栏/标题栏的灰色，内容区作为内嵌圆角面板叠在上面
-   （ChatGPT 式结构：灰外壳 + 内嵌深色内容区） */
 .app-atmosphere {
   background-color: var(--app-sidebar);
+  background-image:
+    radial-gradient(ellipse 68% 72% at 92% -12%, rgb(var(--brand-rgb) / 0.075), transparent 72%),
+    radial-gradient(ellipse 58% 64% at -10% 108%, rgb(var(--brand-rgb) / 0.035), transparent 74%),
+    linear-gradient(145deg, color-mix(in srgb, var(--app-page) 72%, var(--app-sidebar)), var(--app-sidebar) 62%);
 }
 .dark .app-atmosphere {
   background-color: var(--app-sidebar);
+  background-image:
+    radial-gradient(ellipse 68% 72% at 92% -12%, rgb(var(--brand-rgb) / 0.10), transparent 72%),
+    radial-gradient(ellipse 58% 64% at -10% 108%, rgb(var(--brand-rgb) / 0.04), transparent 74%),
+    linear-gradient(145deg, color-mix(in srgb, var(--app-page) 64%, var(--app-sidebar)), var(--app-sidebar) 62%);
 }
 
-/* 内容区：内嵌圆角面板。四边留出灰边（上边由标题栏下方间隙提供），
-   使右侧形成一块独立的圆角区域，而不是与侧栏直角拼接 */
+/* 内容区保留独立玻璃面；左侧用颜色渐隐衔接侧栏，不以完整描边制造“盒中盒”。 */
 .workspace-main {
   margin: 0 8px 8px 0;
   border-radius: 10px;
-  background-color: var(--app-page);
+  background-color: var(--glass-panel-bg, var(--app-page));
+  background-image: linear-gradient(to right, var(--glass-seam-bg, transparent), transparent 40px);
+  box-shadow: var(--glass-panel-shadow, 0 12px 32px -24px rgb(0 0 0 / 0.24));
+  backdrop-filter: blur(20px) saturate(118%);
+  -webkit-backdrop-filter: blur(20px) saturate(118%);
   overflow: hidden;
 }
 
-/* 玻璃面板：半透明 + 背景模糊 + 极细描边 */
+/* 玻璃面板： blur 只放在静态大面板/浮层，滚动列表不逐行模糊。 */
 .glass-panel {
-  background-color: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.10);
-}
-.dark .glass-panel {
-  background-color: rgba(42, 42, 48, 0.6);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 12px 32px -12px rgba(0, 0, 0, 0.45);
+  background-color: var(--glass-floating-bg, rgb(255 255 255 / 0.78));
+  border: 1px solid var(--glass-border, var(--border-subtle));
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight, rgb(255 255 255 / 0.36)), 0 12px 32px -20px rgb(0 0 0 / 0.28);
 }
 
-/* 玻璃卡片（直播间卡片用，比 panel 更实一点以托住封面） */
 .glass-card {
-  background-color: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.14);
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
-}
-.dark .glass-card {
-  background-color: rgba(22, 25, 38, 0.60);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 14px 36px -14px rgba(0, 0, 0, 0.50);
+  background-color: var(--glass-item-bg, rgb(255 255 255 / 0.68));
+  border: 1px solid var(--glass-border, var(--border-subtle));
+  box-shadow: inset 0 1px 0 var(--glass-highlight, rgb(255 255 255 / 0.32)), 0 12px 30px -22px rgb(0 0 0 / 0.30);
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 /* 排版：英文小标签（字距拉开的微型大写）+ 数字等宽 */
@@ -240,6 +235,25 @@ textarea,
   --workspace-page-space: 24px;
   --workspace-control-radius: calc(var(--radius) - 4px);
   --workspace-hover: color-mix(in srgb, var(--ink) 4%, transparent);
+  --glass-panel-bg: color-mix(in srgb, var(--app-page) 60%, transparent);
+  --glass-item-bg: color-mix(in srgb, var(--app-surface) 46%, transparent);
+  --glass-item-hover: color-mix(in srgb, var(--ink) 4%, var(--glass-item-bg));
+  --glass-control-bg: color-mix(in srgb, var(--app-surface) 34%, transparent);
+  --glass-floating-bg: color-mix(in srgb, var(--app-surface) 78%, transparent);
+  --glass-border: color-mix(in srgb, var(--ink) 8%, transparent);
+  --glass-highlight: rgb(255 255 255 / 0.46);
+  --glass-seam-bg: color-mix(in srgb, var(--app-sidebar) 72%, transparent);
+  --glass-panel-shadow: inset 0 1px 0 var(--glass-highlight), 0 16px 38px -30px rgb(0 0 0 / 0.32);
+}
+.dark .workspace-shell {
+  --glass-panel-bg: color-mix(in srgb, var(--app-page) 64%, transparent);
+  --glass-item-bg: color-mix(in srgb, var(--app-surface) 44%, transparent);
+  --glass-control-bg: color-mix(in srgb, var(--app-surface) 30%, transparent);
+  --glass-floating-bg: color-mix(in srgb, var(--app-surface) 80%, transparent);
+  --glass-border: rgb(255 255 255 / 0.075);
+  --glass-highlight: rgb(255 255 255 / 0.055);
+  --glass-seam-bg: color-mix(in srgb, var(--app-sidebar) 78%, transparent);
+  --glass-panel-shadow: inset 0 1px 0 var(--glass-highlight), 0 18px 42px -30px rgb(0 0 0 / 0.52);
 }
 
 /* 顶部标题栏：与外壳同色（灰），只有右侧内容区是内嵌的深色圆角面板。
@@ -276,11 +290,20 @@ textarea,
   white-space: nowrap;
   transition: background-color 150ms ease, color 150ms ease;
 }
-.workspace-nav-item:hover { background: var(--workspace-hover); color: var(--ink); }
-.workspace-nav-active { background: rgb(var(--brand-rgb) / 0.08); color: var(--ink); font-weight: 600; }
-.workspace-nav-active:hover { background: rgb(var(--brand-rgb) / 0.1); }
+.workspace-nav-item:hover {
+  background: var(--glass-control-bg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+}
+.workspace-nav-active {
+  background: rgb(var(--brand-rgb) / 0.10);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+}
+.workspace-nav-active:hover { background: rgb(var(--brand-rgb) / 0.13); }
 .workspace-nav-active svg { color: rgb(var(--brand-rgb)); }
-.workspace-nav-item[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; background: transparent; }
+.workspace-nav-item[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; background: transparent; box-shadow: none; }
 .workspace-sidebar-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 12px 10px 0; font-size: 10px; color: var(--ink-muted); }
 
 /* 导航标签：侧栏被拖窄时以省略号收敛，不溢出叠到内容区 */
@@ -312,12 +335,16 @@ textarea,
 .workspace-notice { margin: 12px var(--workspace-page-space) 0; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
 /* 迷你播放栏与外壳/侧边栏同色（此前用 --app-surface 比侧边栏浅一档，
    视觉上像两种底色）；分隔靠自身的 border-t */
-.workspace-mini-player { background: var(--app-sidebar); }
+.workspace-mini-player {
+  background: var(--glass-control-bg);
+  backdrop-filter: blur(16px) saturate(118%);
+  -webkit-backdrop-filter: blur(16px) saturate(118%);
+}
 .workspace-brand { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.workspace-brand-logo { box-sizing: border-box; width: 24px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 7px; background: #f7f8fa; object-fit: contain; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08); }
-.dark .workspace-brand-logo { background: #2a2a2f; box-shadow: 0 0 0 1px var(--border-subtle); }
+.workspace-brand-logo { box-sizing: border-box; width: 24px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 7px; background: var(--glass-floating-bg); object-fit: contain; box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 1px var(--glass-border); }
+.dark .workspace-brand-logo { background: var(--glass-floating-bg); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 1px var(--glass-border); }
 .workspace-brand-name { overflow: hidden; color: var(--ink); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-select { border: 1px solid var(--border-subtle); border-radius: var(--workspace-control-radius); background: var(--app-surface); color: var(--ink); }
+.workspace-select { border: 1px solid var(--glass-border); border-radius: var(--workspace-control-radius); background: var(--glass-control-bg); color: var(--ink); box-shadow: inset 0 1px 0 var(--glass-highlight); }
 
 /* 添加直播间/添加视频页的搜索方式下拉：与输入框同高，弹层与按钮同宽 */
 .add-search-mode { position: relative; flex-shrink: 0; width: 128px; }
@@ -325,14 +352,14 @@ textarea,
   height: 32px;
   width: 100%;
   padding-inline: 12px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--glass-border);
   border-radius: var(--workspace-control-radius);
-  background: var(--app-surface);
+  background: var(--glass-control-bg);
   color: var(--ink);
   font-size: 13px;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
 }
-.add-search-mode-trigger:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.add-search-mode-trigger:hover { background: var(--glass-item-hover); }
 .add-search-mode .select-popover { width: 100%; min-width: 0; }
 
 /* 弹幕窗外观面板里的主题下拉（原本写死浅色 #f8f8f8，深色主题下突兀） */
@@ -352,9 +379,9 @@ textarea,
 .workspace-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-bottom: 24px; }
 .workspace-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 100%; }
 .workspace-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 12px; border-radius: var(--workspace-control-radius); color: var(--ink-muted); font-size: 13px; transition: background-color 150ms ease, opacity 150ms ease; }
-.workspace-button:hover { background: var(--workspace-hover); color: var(--ink); }
+.workspace-button:hover { background: var(--glass-control-bg); color: var(--ink); box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight); }
 .workspace-button-primary { background: rgb(var(--brand-rgb)); color: var(--brand-contrast); }
-.workspace-button-primary:hover { background: rgb(var(--brand-rgb)); color: var(--brand-contrast); opacity: 0.9; }
+.workspace-button-primary:hover { background: rgb(var(--brand-rgb)); color: var(--brand-contrast); opacity: 0.9; box-shadow: 0 6px 18px -10px rgb(var(--brand-rgb) / 0.58); }
 .workspace-button:disabled { cursor: not-allowed; opacity: 0.5; }
 .workspace-icon-button { padding: 6px; min-width: 32px; }
 /* 胶囊形态的主按钮（直播间页「添加」等） */
@@ -364,11 +391,12 @@ textarea,
 /* 添加页搜索结果行：与主页行卡同一套视觉 */
 .add-result-row {
   border-radius: calc(var(--radius) - 4px);
-  background: var(--app-surface);
-  transition: background-color 150ms ease;
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
-.add-result-row:hover { background: color-mix(in srgb, var(--ink) 5%, var(--app-surface)); }
-/* 账号页行：与主页行卡同一套视觉（悬浮圆角块 + 品牌色左条标记当前） */
+.add-result-row:hover { background: var(--glass-item-hover); }
+/* 账号页行：与主页行卡同一套玻璃视觉（悬浮圆角块 + 品牌色左条标记当前） */
 .workspace-account-row {
   display: flex;
   flex-wrap: wrap;
@@ -376,13 +404,14 @@ textarea,
   gap: 12px 16px;
   padding: 14px 16px;
   border-radius: calc(var(--radius) - 4px);
-  background: var(--app-surface);
-  transition: background-color 150ms ease;
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
-.workspace-account-row:hover { background: color-mix(in srgb, var(--ink) 5%, var(--app-surface)); }
+.workspace-account-row:hover { background: var(--glass-item-hover); }
 .workspace-account-row[data-current="true"] {
   background: rgb(var(--brand-rgb) / 0.1);
-  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb));
+  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb)), inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
 }
 .workspace-account-row[data-current="true"]:hover { background: rgb(var(--brand-rgb) / 0.14); }
 
@@ -405,14 +434,15 @@ textarea,
   /* 注意不要用 --room-control-radius：它只在 .room-workspace 作用域内定义，
      其它页面取不到会回落成直角；这里直接用与主页行相同值的-radius 计算 */
   border-radius: calc(var(--radius) - 4px);
-  background: var(--app-surface);
-  transition: background-color 150ms ease;
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
-.list-card-row:hover { background: color-mix(in srgb, var(--ink) 5%, var(--app-surface)); }
+.list-card-row:hover { background: var(--glass-item-hover); }
 /* 当前行：与主页当前房间一致（品牌色左条 + 淡品牌底） */
 .list-card-row-current {
   background: rgb(var(--brand-rgb) / 0.1);
-  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb));
+  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb)), inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
 }
 .list-card-row-current:hover { background: rgb(var(--brand-rgb) / 0.14); }
 .workspace-nav-item:focus-visible,
@@ -552,12 +582,12 @@ textarea,
    行间留缝，不再是整块带边框的卡片。 */
 .room-workspace {
   container-type: inline-size;
-  --room-hover: color-mix(in srgb, var(--ink) 5%, transparent);
-  --room-rule: color-mix(in srgb, var(--ink) 7%, transparent);
+  --room-hover: var(--glass-item-hover);
+  --room-rule: var(--glass-border);
   --room-tertiary: color-mix(in srgb, var(--ink-muted) 85%, var(--app-page));
   --room-control-radius: calc(var(--radius) - 4px);
-  --room-row-bg: var(--app-surface);
-  --room-row-bg-hover: color-mix(in srgb, var(--ink) 5%, var(--app-surface));
+  --room-row-bg: var(--glass-item-bg);
+  --room-row-bg-hover: var(--glass-item-hover);
 }
 
 /* ── 状态筛选胶囊：全部 / 直播中 / 未开播 ── */
@@ -567,7 +597,10 @@ textarea,
   gap: 2px;
   padding: 3px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  background: var(--glass-control-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .room-tab {
@@ -583,8 +616,13 @@ textarea,
 }
 .room-tab:hover { color: var(--ink); }
 .room-tab:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
-.room-tab-active { background: rgb(var(--brand-rgb)); color: var(--brand-contrast); font-weight: 500; }
-.room-tab-active:hover { color: var(--brand-contrast); }
+.room-tab-active {
+  background: rgb(var(--brand-rgb) / 0.15);
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+}
+.room-tab-active:hover { color: var(--ink); background: rgb(var(--brand-rgb) / 0.19); }
 .room-tab-count { font-size: 11px; opacity: 0.72; }
 
 /* ── 显示方式切换（列表 / 封面）：一体化双段胶囊 ── */
@@ -594,7 +632,10 @@ textarea,
   gap: 2px;
   padding: 3px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  background: var(--glass-control-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 .room-view-option {
   display: flex;
@@ -607,7 +648,11 @@ textarea,
   transition: background-color 150ms ease, color 150ms ease;
 }
 .room-view-option:hover { color: var(--ink); }
-.room-view-option-active { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.room-view-option-active {
+  background: var(--glass-item-bg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+}
 .room-view-option:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 
 /* ── 分区头：状态点 + 标题 + 数量 + 填充线 + 收起/展开 ── */
@@ -677,20 +722,26 @@ textarea,
   min-height: 44px;
   border-radius: var(--room-control-radius);
   background: var(--room-row-bg);
-  transition: background-color 150ms ease;
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
 .room-list-row:hover,
 .room-list-row:focus-within {
   background: var(--room-row-bg-hover);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), inset 0 1px 0 var(--glass-highlight);
 }
 
-/* 当前连接的房间：品牌色左条 + 淡品牌底 */
+/* 当前房间：整行淡品牌色玻璃 + 完整细描边，不再使用左侧色条。 */
 .room-list-row-current {
-  background: rgb(var(--brand-rgb) / 0.1);
-  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb));
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
 }
-.room-list-row-current:hover { background: rgb(var(--brand-rgb) / 0.14); }
+.room-list-row-current:hover,
+.room-list-row-current:focus-within {
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.34), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.56);
+}
 
 .room-row-divider { width: 1px; height: 16px; background: var(--room-rule); }
 
@@ -714,11 +765,24 @@ textarea,
 .room-row-time::before { content: "·"; margin-right: 5px; opacity: 0.7; }
 
 .room-current-label {
-  color: var(--ink-muted);
-  border: 1px solid var(--room-rule);
-  border-radius: 4px;
-  padding: 1px 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--brand-rgb) / 0.10);
+  padding: 1px 6px;
   white-space: nowrap;
+}
+.room-current-label::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgb(var(--brand-rgb));
+  box-shadow: 0 0 0 3px rgb(var(--brand-rgb) / 0.08);
 }
 
 .room-cover-grid {
@@ -738,6 +802,8 @@ textarea,
   border-radius: var(--radius);
   border: 1px solid var(--room-rule);
   color: var(--cover-ink);
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 14px 32px -24px rgb(0 0 0 / 0.46);
 }
 
 .room-cover-top {
@@ -753,7 +819,9 @@ textarea,
 .room-cover-live {
   border-radius: calc(var(--radius) - 4px);
   background: rgb(var(--cover-scrim) / 0.4);
-  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.10), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
 }
 
 .room-cover-live {
@@ -835,9 +903,10 @@ textarea,
 }
 
 .settings-nav-item[data-state="active"] {
-  background: rgb(var(--brand-rgb) / 0.08);
+  background: rgb(var(--brand-rgb) / 0.10);
   color: var(--ink);
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
 }
 
 .settings-nav-item[data-state="active"] svg {
@@ -859,7 +928,8 @@ textarea,
 .settings-group {
   padding: 14px 16px;
   border-radius: var(--radius);
-  background: var(--app-surface);
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
 }
 
 .settings-content > [role="tabpanel"] > .settings-group + .settings-group {
@@ -1069,13 +1139,13 @@ textarea,
 
 .settings-workspace .settings-select {
   height: 32px;
-  border-color: var(--border-subtle);
+  border-color: var(--glass-border);
   border-radius: var(--settings-control-radius);
-  background: var(--app-surface);
+  background: var(--glass-control-bg);
   padding-inline: 10px;
   color: var(--ink);
   font-size: 13px;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
 }
 
 .settings-workspace .settings-select:disabled {
@@ -1093,14 +1163,14 @@ textarea,
   height: 32px;
   width: 100%;
   padding-inline: 10px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--glass-border);
   border-radius: var(--settings-control-radius);
-  background: var(--app-surface);
+  background: var(--glass-control-bg);
   color: var(--ink);
   font-size: 13px;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
 }
-.settings-select-trigger:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.settings-select-trigger:hover { background: var(--glass-item-hover); }
 .settings-select-wrap .select-popover { width: 100%; min-width: 0; }
 .settings-select-wrap .select-popover > div { max-height: min(300px, 55vh); }
 
@@ -1157,7 +1227,8 @@ textarea,
 
 .room-tool-button:hover {
   color: var(--ink);
-  background: var(--room-hover);
+  background: var(--glass-control-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
 }
 
 .room-tool-button:focus-visible {
@@ -1169,8 +1240,11 @@ textarea,
 .dark .app-scope .room-workspace input.room-search {
   border-radius: 999px;
   color: var(--ink);
-  background: color-mix(in srgb, var(--app-surface) 65%, transparent);
-  border-color: var(--room-rule);
+  background: var(--glass-control-bg);
+  border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(12px) saturate(118%);
+  -webkit-backdrop-filter: blur(12px) saturate(118%);
   font-size: 13px;
 }
 
@@ -1338,7 +1412,7 @@ textarea,
 .app-scope input[type="url"],
 .app-scope input:not([type]),
 .app-scope textarea {
-  background-color: var(--app-surface);
+  background-color: var(--glass-control-bg, var(--app-surface));
   border: 1px solid var(--border-subtle);
   border-radius: 0.625rem;
   color: var(--ink);
@@ -1352,7 +1426,7 @@ textarea,
 .dark .app-scope input[type="url"],
 .dark .app-scope input:not([type]),
 .dark .app-scope textarea {
-  background-color: var(--app-surface);
+  background-color: var(--glass-control-bg, var(--app-surface));
   border-color: var(--border-subtle);
   color: var(--ink);
 }
@@ -1371,15 +1445,15 @@ textarea,
 .app-scope textarea:focus-visible,
 .app-scope textarea:focus {
   border-color: rgb(var(--brand-rgb) / 0.55);
-  background-color: var(--app-surface);
-  box-shadow: 0 0 0 3px rgb(var(--brand-rgb) / 0.14);
+  background-color: var(--glass-floating-bg, var(--app-surface));
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 3px rgb(var(--brand-rgb) / 0.14);
 }
 .dark .app-scope input:focus-visible,
 .dark .app-scope input:focus,
 .dark .app-scope textarea:focus-visible,
 .dark .app-scope textarea:focus {
-  background-color: var(--app-surface);
-  box-shadow: 0 0 0 3px rgb(var(--brand-rgb) / 0.20);
+  background-color: var(--glass-floating-bg, var(--app-surface));
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 3px rgb(var(--brand-rgb) / 0.20);
 }
 
 .app-scope input::placeholder,
@@ -1412,6 +1486,30 @@ textarea,
 .app-scope input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* 主窗口下拉与对话框：沿用弹幕浮层的高透明玻璃，不改变原有尺寸和层级。 */
+.app-scope button[aria-haspopup="listbox"] {
+  border-color: var(--glass-border);
+  background-color: var(--glass-control-bg);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.app-scope button[aria-haspopup="listbox"]:hover { background-color: var(--glass-item-hover); }
+.app-scope button[aria-haspopup="listbox"]:focus-visible {
+  border-color: rgb(var(--brand-rgb) / 0.55);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 2px rgb(var(--brand-rgb) / 0.18);
+}
+.app-scope .select-popover,
+.app-scope .workspace-dialog {
+  border-color: var(--glass-border);
+  background-color: var(--glass-floating-bg);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 20px 52px -20px rgb(0 0 0 / 0.42);
+  backdrop-filter: blur(20px) saturate(122%);
+  -webkit-backdrop-filter: blur(20px) saturate(122%);
+}
+.dark .app-scope .select-popover,
+.dark .app-scope .workspace-dialog {
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 22px 56px -20px rgb(0 0 0 / 0.66);
 }
 
 /* 下拉候选框弹出动画 */
