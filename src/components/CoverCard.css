@@ -1,0 +1,112 @@
+/* 封面卡公共样式：看直播页与听视频页共用，一次修改两处生效 */
+
+.cover-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--radius);
+}
+
+/* —— 封面区 —— */
+.cover-card-image {
+  /* 图上角标（直播状态徽标等）沿用房间卡片的 scrim 变量 */
+  --cover-ink: #fff;
+  --cover-scrim: 0 0 0;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--glass-item-bg);
+  color: var(--cover-ink);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  transition: box-shadow 150ms ease;
+}
+.cover-card:hover .cover-card-image {
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 14px 32px -24px rgb(0 0 0 / 0.46);
+}
+.cover-card.is-current .cover-card-image {
+  box-shadow: inset 0 0 0 2px rgb(var(--brand-rgb) / 0.55), 0 0 0 3px rgb(var(--brand-rgb) / 0.10), 0 14px 32px -24px rgb(var(--brand-rgb) / 0.5);
+}
+.cover-card-placeholder {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  background: rgb(var(--brand-rgb) / 0.08);
+}
+
+/* 可交互卡（点击播放 / 拖动排序）：焦点环画在封面上 */
+.cover-card[role="button"] { cursor: pointer; }
+.cover-card.is-busy { cursor: not-allowed; opacity: 0.6; }
+.cover-card:focus-visible { outline: none; }
+.cover-card:focus-visible .cover-card-image {
+  outline: 2px solid rgb(var(--brand-rgb) / 0.55);
+  outline-offset: 2px;
+}
+
+/* —— 图上角标：状态徽标右上、时长左下 —— */
+.cover-card-badges {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 10px 12px 24px;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.35), transparent);
+  pointer-events: none;
+}
+.cover-card-duration {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 1px 6px;
+  border-radius: calc(var(--radius) - 6px);
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* —— 右下角操作按钮：悬停浮现（与直播封面卡同一位置与样式）—— */
+.cover-card-actions {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.cover-card:hover .cover-card-actions,
+.cover-card:focus-within .cover-card-actions { opacity: 1; }
+
+.cover-card-button {
+  display: flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 4px);
+  color: #fff;
+  background: rgb(0 0 0 / 0.4);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.10), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
+  transition: background-color 150ms ease;
+}
+.cover-card-button:hover { background: rgb(0 0 0 / 0.65); }
+.cover-card-button:disabled { cursor: not-allowed; opacity: 0.5; }
+.cover-card-button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.cover-card-button.is-active { color: rgb(var(--brand-rgb)); }
+.cover-card-button.is-danger:hover {
+  background: rgb(var(--brand-rgb) / 0.85);
+  color: var(--brand-contrast);
+}

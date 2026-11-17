@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { FavoriteManageDialog } from "@/components/rooms/FavoriteManageDialog";
-import { ProxiedImage } from "@/components/ui/ProxiedImage";
+import { CoverCard } from "@/components/CoverCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
@@ -458,111 +458,77 @@ export function RoomPage() {
     const isLive = roomIsLive(room, liveStatusMap);
     const timeInfo = getRoomTimeInfo(room);
     return (
-      <div
+      <CoverCard
         key={room.id}
         data-room-id={room.id}
         onMouseDown={(e) => handleDragMouseDown(room, e)}
-        className={`room-cover-item group min-w-0 ${
-          draggingId === room.id
-            ? "opacity-60 outline outline-2 outline-brand"
-            : ""
-        } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
-      >
-        <div className="room-cover-image relative aspect-video overflow-hidden rounded-lg bg-app-surface">
-          {room.cover ? (
-            <ProxiedImage
-              src={room.cover}
-              alt={room.title}
-              persistent
-              className="h-full w-full object-cover"
-            />
+        className={`${draggingId === room.id ? "opacity-60 outline outline-2 outline-brand" : ""} ${
+          canDrag ? "cursor-grab active:cursor-grabbing" : ""
+        }`}
+        cover={room.cover}
+        coverAlt={room.title}
+        placeholder={<MonitorPlay className="h-10 w-10" />}
+        current={active}
+        badges={<>
+          {active && <span className="room-cover-badge room-cover-current shrink-0 px-2 py-0.5 text-[11px] font-medium">当前</span>}
+          {isLive ? (
+            <span className="room-cover-live flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium" title={timeInfo?.tooltip ?? "直播中"}>
+              <span className="room-cover-live-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
+              直播中
+              {timeInfo && <span className="room-cover-time numeric">{timeInfo.text}</span>}
+            </span>
           ) : (
-            <div className="flex h-full items-center justify-center text-slate-400 dark:text-slate-600">
-              <MonitorPlay className="h-10 w-10" />
-            </div>
+            <span className="room-cover-badge shrink-0 px-2 py-0.5 text-[11px]" title={timeInfo?.tooltip ?? "未开播"}>
+              未开播
+              {timeInfo && <span className="room-cover-time numeric">{timeInfo.text}</span>}
+            </span>
           )}
-
-          <div className="room-cover-top absolute inset-x-0 top-0 flex items-center gap-2 px-3 pb-6 pt-3">
-            <p className="min-w-0 flex-1 truncate text-[13px] font-medium" title={room.title || undefined}>
-              {room.title || "暂无直播标题"}
-            </p>
-            {active && <span className="room-cover-badge room-cover-current shrink-0 px-2 py-0.5 text-[11px] font-medium">当前</span>}
-            {isLive ? (
-              <span className="room-cover-live flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium" title={timeInfo?.tooltip ?? "直播中"}>
-                <span className="room-cover-live-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
-                直播中
-                {timeInfo && <span className="room-cover-time numeric">{timeInfo.text}</span>}
-              </span>
-            ) : (
-              <span className="room-cover-badge shrink-0 px-2 py-0.5 text-[11px]" title={timeInfo?.tooltip ?? "未开播"}>
-                未开播
-                {timeInfo && <span className="room-cover-time numeric">{timeInfo.text}</span>}
-              </span>
-            )}
-          </div>
-          <div className="room-cover-bottom absolute inset-x-0 bottom-0 flex min-w-0 items-center gap-2 px-3 pb-3 pt-8">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                {showAvatars && (room.avatar ? (
-                  <ProxiedImage
-                    src={room.avatar}
-                    alt={room.uname}
-                    persistent
-                    className="h-7 w-7 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="room-cover-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs">
-                    {room.uname.charAt(0)}
-                  </div>
-                ))}
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium" title={`${room.uname} · 房间号 ${room.roomId}`}>{room.uname}</p>
-                </div>
-              </div>
-
-            <div className="room-row-actions flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                <button
-                  onClick={() => handleToggleFavorite(room)}
-                  className={`room-cover-button flex h-7 w-7 items-center justify-center ${
-                    favoriteIds.includes(room.roomId) ? "text-brand" : ""
-                  }`}
-                  aria-label={favoriteIds.includes(room.roomId) ? `取消收藏 ${room.uname}` : `收藏 ${room.uname}`}
-                  aria-pressed={favoriteIds.includes(room.roomId)}
-                  title={favoriteIds.includes(room.roomId) ? "取消收藏" : "收藏"}
-                >
-                  <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentRoomId(room.id);
-                    void tauriCommands.selections.save({ currentRoomId: room.roomId });
-                    void tauriCommands.room.openDanmaku(room.roomId);
-                  }}
-                  className="room-cover-button flex h-7 w-7 items-center justify-center"
-                  aria-label={`打开 ${room.uname} 的弹幕`}
-                  title="打开弹幕"
-                >
-                  <MonitorPlay className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={async () => {
-                    const wasCurrent = currentRoomId === room.id;
-                    await tauriCommands.room.remove(room.roomId);
-                    removeRoom(room.roomId);
-                    void tauriCommands.selections.save({ favoriteRoomIds: useRoomStore.getState().favoriteIds });
-                    if (wasCurrent) {
-                      void tauriCommands.selections.save({ currentRoomId: null });
-                    }
-                  }}
-                  className="room-cover-button room-cover-delete flex h-7 w-7 items-center justify-center"
-                  aria-label={`删除 ${room.uname} 的直播间`}
-                  title="删除"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-          </div>
-        </div>
-      </div>
+        </>}
+        avatar={room.avatar}
+        name={room.uname}
+        title={room.title}
+        titleFallback="暂无直播标题"
+        showAvatar={showAvatars}
+        actions={<>
+          <button
+            onClick={() => handleToggleFavorite(room)}
+            className={`cover-card-button ${favoriteIds.includes(room.roomId) ? "text-brand" : ""}`}
+            aria-label={favoriteIds.includes(room.roomId) ? `取消收藏 ${room.uname}` : `收藏 ${room.uname}`}
+            aria-pressed={favoriteIds.includes(room.roomId)}
+            title={favoriteIds.includes(room.roomId) ? "取消收藏" : "收藏"}
+          >
+            <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
+          </button>
+          <button
+            onClick={() => {
+              setCurrentRoomId(room.id);
+              void tauriCommands.selections.save({ currentRoomId: room.roomId });
+              void tauriCommands.room.openDanmaku(room.roomId);
+            }}
+            className="cover-card-button"
+            aria-label={`打开 ${room.uname} 的弹幕`}
+            title="打开弹幕"
+          >
+            <MonitorPlay className="h-4 w-4" />
+          </button>
+          <button
+            onClick={async () => {
+              const wasCurrent = currentRoomId === room.id;
+              await tauriCommands.room.remove(room.roomId);
+              removeRoom(room.roomId);
+              void tauriCommands.selections.save({ favoriteRoomIds: useRoomStore.getState().favoriteIds });
+              if (wasCurrent) {
+                void tauriCommands.selections.save({ currentRoomId: null });
+              }
+            }}
+            className="cover-card-button is-danger"
+            aria-label={`删除 ${room.uname} 的直播间`}
+            title="删除"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </>}
+      />
     );
   };
 

@@ -1,0 +1,54 @@
+/* 封面卡信息区（直播封面卡与视频封面卡共用）：头像 + 标题 + 名称，放在封面下方 */
+
+.cover-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.cover-info-avatar {
+  height: 28px;
+  width: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  object-fit: cover;
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+}
+
+.cover-info-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: rgb(var(--brand-rgb) / 0.14);
+}
+
+.cover-info-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.cover-info-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.cover-info-name {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
