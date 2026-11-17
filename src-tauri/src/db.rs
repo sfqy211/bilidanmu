@@ -30,6 +30,14 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               value TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS ai_memory (
+              scope TEXT NOT NULL,
+              room_id INTEGER NOT NULL DEFAULT 0,
+              content TEXT NOT NULL,
+              updated_at INTEGER NOT NULL,
+              PRIMARY KEY (scope, room_id)
+            );
+
             CREATE TABLE IF NOT EXISTS rooms (
               room_id INTEGER PRIMARY KEY,
               uid INTEGER,

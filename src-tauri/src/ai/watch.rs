@@ -67,6 +67,8 @@ pub struct WatchSession {
     pub max_events: usize,
     pub stop_on_end: bool,
     pub with_transcript: bool,
+    /// 会话默认是否带发送者信息（collect 可按次覆盖，不重建连接）
+    pub include_senders: bool,
     pub events: VecDeque<(u64, StoredEvent)>,
     /// 下一条事件使用的 seq（从 1 开始）
     pub next_seq: u64,
@@ -97,6 +99,7 @@ pub struct SessionSummary {
     pub max_events: usize,
     pub stop_on_end: bool,
     pub with_transcript: bool,
+    pub include_senders: bool,
     pub buffered: usize,
     pub received: u64,
     pub dropped: u64,
@@ -124,6 +127,7 @@ impl WatchSession {
             max_events: self.max_events,
             stop_on_end: self.stop_on_end,
             with_transcript: self.with_transcript,
+            include_senders: self.include_senders,
             buffered: self.events.len(),
             received: self.received,
             dropped: self.dropped,
@@ -188,6 +192,7 @@ impl WatchManager {
         max_events: usize,
         stop_on_end: bool,
         with_transcript: bool,
+        include_senders: bool,
         transcript_rx: Option<broadcast::Receiver<SttTranscript>>,
     ) -> Result<SessionSummary, String> {
         self.prune_ended();
@@ -219,6 +224,7 @@ impl WatchManager {
             max_events: max_events.max(100),
             stop_on_end,
             with_transcript,
+            include_senders,
             events: VecDeque::new(),
             next_seq: 1,
             evicted_before: 1,

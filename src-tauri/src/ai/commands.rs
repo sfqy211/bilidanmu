@@ -45,6 +45,52 @@ pub async fn ai_set_watch_max_minutes(
     crate::ai::policy::save_watch_max_minutes(state.inner(), clamped)
 }
 
+/// 读取某个范围的记忆（AI 接入页编辑用）
+#[tauri::command]
+pub async fn ai_memory_get(
+    state: State<'_, AppState>,
+    scope: String,
+    room_id: Option<u64>,
+) -> Result<Option<crate::ai::memory::MemoryEntry>, String> {
+    let guard = state
+        .db
+        .lock()
+        .map_err(|_| "数据库锁获取失败".to_string())?;
+    let connection = guard.as_ref().ok_or("数据库尚未初始化")?;
+    crate::ai::memory::get(connection, &scope, room_id.unwrap_or(0))
+}
+
+/// 覆盖写入记忆
+#[tauri::command]
+pub async fn ai_memory_set(
+    state: State<'_, AppState>,
+    scope: String,
+    room_id: Option<u64>,
+    content: String,
+) -> Result<crate::ai::memory::MemoryEntry, String> {
+    let guard = state
+        .db
+        .lock()
+        .map_err(|_| "数据库锁获取失败".to_string())?;
+    let connection = guard.as_ref().ok_or("数据库尚未初始化")?;
+    crate::ai::memory::set(connection, &scope, room_id.unwrap_or(0), &content)
+}
+
+/// 删除记忆
+#[tauri::command]
+pub async fn ai_memory_delete(
+    state: State<'_, AppState>,
+    scope: String,
+    room_id: Option<u64>,
+) -> Result<bool, String> {
+    let guard = state
+        .db
+        .lock()
+        .map_err(|_| "数据库锁获取失败".to_string())?;
+    let connection = guard.as_ref().ok_or("数据库尚未初始化")?;
+    crate::ai::memory::delete(connection, &scope, room_id.unwrap_or(0))
+}
+
 /// 用户对确认请求的应答
 #[tauri::command]
 pub async fn ai_confirm_response(

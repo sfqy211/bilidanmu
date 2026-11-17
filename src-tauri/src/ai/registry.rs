@@ -34,6 +34,14 @@ pub async fn dispatch_tool(
         "live_watch_status" => tools::watch::status(app, state, args).await,
         "live_watch_stop" => tools::watch::stop(app, state, args).await,
         "live_watch_list" => tools::watch::list(app, state, args).await,
+        "live_watch_senders" => tools::watch::senders(app, state, args).await,
+
+        // ── 记忆 ──────────────────────────────────────────────
+        "memory_get" => tools::memory::get(app, state, args).await,
+        "memory_set" => tools::memory::set(app, state, args).await,
+        "memory_append" => tools::memory::append(app, state, args).await,
+        "memory_list" => tools::memory::list(app, state, args).await,
+        "memory_delete" => tools::memory::delete(app, state, args).await,
 
         // ── 账号 ──────────────────────────────────────────────
         "account_list" => tools::account::list(app, state, args).await,
@@ -159,7 +167,8 @@ pub fn all_specs() -> Vec<ToolSpec> {
                 "properties": {
                     "danmakuLimit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 40, "description": "返回最近多少条弹幕" },
                     "giftLimit": { "type": "integer", "minimum": 0, "maximum": 200, "default": 20, "description": "返回最近多少条礼物/SC" },
-                    "includeActivity": { "type": "boolean", "default": false, "description": "是否附带进场/点赞等轻量活动" }
+                    "includeActivity": { "type": "boolean", "default": false, "description": "是否附带进场/点赞等轻量活动" },
+                    "includeEmoticons": { "type": "boolean", "default": false, "description": "是否返回纯表情消息；默认过滤，开启后它们带 type=emoticon 标识" }
                 },
                 "additionalProperties": false
             })),
@@ -177,7 +186,8 @@ pub fn all_specs() -> Vec<ToolSpec> {
                     "keyword": { "type": "string", "description": "关键词，省略则返回最近弹幕" },
                     "limit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 50 },
                     "roomId": { "type": "integer", "minimum": 1, "description": "任意直播间号：传入后改为临时采样该房间（3–20 秒），不切换当前直播间" },
-                    "seconds": { "type": "integer", "minimum": 3, "maximum": 60, "default": 8, "description": "roomId 模式的采样时长（秒），省略用 8；要看“播了什么”可以给 30–60" }
+                    "seconds": { "type": "integer", "minimum": 3, "maximum": 60, "default": 8, "description": "roomId 模式的采样时长（秒），省略用 8；要看“播了什么”可以给 30–60" },
+                    "includeEmoticons": { "type": "boolean", "default": false, "description": "是否返回纯表情消息；默认过滤，开启后带 type=emoticon 标识" }
                 },
                 "additionalProperties": false
             })),
@@ -210,7 +220,8 @@ pub fn all_specs() -> Vec<ToolSpec> {
                     "maxMinutes": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "本会话保底时长（分钟，0 = 跟随设置）；不会超过设置里的上限" },
                     "maxEvents": { "type": "integer", "minimum": 100, "maximum": 100000, "default": 20000, "description": "环形缓冲上限，超出丢弃最旧的并计入 dropped" },
                     "stopOnEnd": { "type": "boolean", "default": true, "description": "主播下播时自动结束会话（缓冲保留，仍可 collect）" },
-                    "withTranscript": { "type": "boolean", "default": false, "description": "同时收集语音转字幕；仅当会话房间就是当前正在收听且开着 STT 的房间时生效" }
+                    "withTranscript": { "type": "boolean", "default": false, "description": "同时收集语音转字幕；仅当会话房间就是当前正在收听且开着 STT 的房间时生效" },
+                    "withSenders": { "type": "boolean", "default": false, "description": "会话默认是否返回发送者；collect 每次可覆盖（热切换，不重连）" }
                 },
                 "required": ["roomId"],
                 "additionalProperties": false
@@ -220,8 +231,11 @@ pub fn all_specs() -> Vec<ToolSpec> {
             name: "live_watch_collect",
             title: "拉取长会话事件",
             description: "按 seq 游标增量拉取。首次 cursor=0，之后传上一次返回的 nextCursor。
-emoticonMode：keep 逐条返回并标注 isEmoticon/emojiOnly；aggregate 把相同表情合并成计数（默认不带发送者，
-includeSenders 才附明细）；drop 直接过滤表情。缓冲被覆盖时返回 skippedByEviction。",
+默认 duplicateMode=merge：相同正文合并成 danmakuGroup（count/firstSeq/lastSeq），只出现一次的仍返回单条；
+默认不带发送者（username/uid 会被移除），下次传 includeSenders=true 即可热切换，不需要重连。
+emoticonMode 默认 drop（纯表情不返回）；keep 返回并标 type=emoticon / isEmoticon / emojiOnly；
+aggregate 合并相同表情计数。带表情的文字仍保留，并标 inlineEmoticon。
+想知道某条或某段相同弹幕是谁发的，用 live_watch_senders（seq 或 content）。",
             risk: Risk::Read,
             input_schema: schema(json!({
                 "type": "object",
@@ -229,10 +243,11 @@ includeSenders 才附明细）；drop 直接过滤表情。缓冲被覆盖时返
                     "sessionId": { "type": "string" },
                     "cursor": { "type": "integer", "minimum": 0, "default": 0, "description": "下一条要读的 seq；用上次的 nextCursor" },
                     "limit": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 200 },
-                    "types": { "type": "array", "items": { "type": "string", "enum": ["danmaku","gift","super_chat","guard","enter","like","live","transcript"] }, "description": "只取这些类型；省略取全部" },
-                    "keyword": { "type": "string", "description": "按内容或用户名过滤（不区分大小写）" },
-                    "emoticonMode": { "type": "string", "enum": ["keep","aggregate","drop"], "default": "keep" },
-                    "includeSenders": { "type": "boolean", "default": false, "description": "aggregate 模式下是否附带发送者明细" },
+                    "types": { "type": "array", "items": { "type": "string", "enum": ["danmaku","gift","super_chat","guard","enter","like","live","transcript"] }, "description": "默认 [\"danmaku\",\"gift\"]，并自动带 super_chat（SC 视为特殊弹幕：只要开了弹幕或礼物就会带上）；每次调用可换，热切换不重连" },
+                    "keyword": { "type": "string", "description": "按内容过滤（不区分大小写）" },
+                    "duplicateMode": { "type": "string", "enum": ["merge","keep"], "default": "merge", "description": "merge 合并相同正文；keep 逐条返回" },
+                    "emoticonMode": { "type": "string", "enum": ["keep","aggregate","drop"], "default": "drop", "description": "默认 drop：纯表情不返回；keep 返回并带 type=emoticon 标识；aggregate 合并计数" },
+                    "includeSenders": { "type": "boolean", "description": "本次是否带发送者；省略跟随会话 withSenders。热切换，不重连" },
                     "senderLimit": { "type": "integer", "minimum": 1, "maximum": 200, "default": 20 }
                 },
                 "required": ["sessionId"],
@@ -292,6 +307,96 @@ includeSenders 才附明细）；drop 直接过滤表情。缓冲被覆盖时返
             input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
         },
 
+        ToolSpec {
+            name: "live_watch_senders",
+            title: "查询弹幕发送者",
+            description: "默认返回不带发送者；需要时用 seq（单条）或 content（某段相同弹幕）查发送者。\n\
+可配 fromSeq/toSeq 缩小范围。返回每个发送者的次数与首末时间，以及最多 10 条样本。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "sessionId": { "type": "string" },
+                    "seq": { "type": "integer", "minimum": 1, "description": "单条事件的 seq（collect 的 events/merged 里有）" },
+                    "content": { "type": "string", "description": "相同弹幕的正文（精确匹配）" },
+                    "fromSeq": { "type": "integer", "minimum": 0, "description": "配合 content 缩小范围" },
+                    "toSeq": { "type": "integer", "minimum": 0 }
+                },
+                "required": ["sessionId"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "memory_get",
+            title: "读取记忆",
+            description: "读取房间或全局记忆的完整内容。scope=room 时 roomId 用真实房间号（room_get 返回值）。\n\
+watch_start 已自动附带房间摘要，需要完整内容时再用它。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "scope": { "type": "string", "enum": ["room", "global"] },
+                    "roomId": { "type": "integer", "minimum": 1, "description": "scope=room 时必填（真实房间号）" }
+                },
+                "required": ["scope"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "memory_set",
+            title: "覆盖记忆",
+            description: "覆盖写入某个范围的记忆（Markdown，最多 8000 字）。清空请用 memory_delete。\n\
+适合在总结一整场直播后，把过时内容整体替换掉。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "scope": { "type": "string", "enum": ["room", "global"] },
+                    "roomId": { "type": "integer", "minimum": 1 },
+                    "content": { "type": "string", "description": "Markdown 正文，最多 8000 字" }
+                },
+                "required": ["scope", "content"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "memory_append",
+            title: "追加记忆",
+            description: "在已有记忆后追加一段（空行分隔）。适合记录「这场直播新增的事实」，不覆盖旧内容。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "scope": { "type": "string", "enum": ["room", "global"] },
+                    "roomId": { "type": "integer", "minimum": 1 },
+                    "content": { "type": "string", "description": "要追加的 Markdown 片段" }
+                },
+                "required": ["scope", "content"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "memory_list",
+            title: "记忆列表",
+            description: "列出全部房间/全局记忆的摘要（字数、更新时间、前 80 字）。",
+            risk: Risk::Read,
+            input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
+        },
+        ToolSpec {
+            name: "memory_delete",
+            title: "删除记忆",
+            description: "删除某个范围的记忆。不可逆。",
+            risk: Risk::Destructive,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "scope": { "type": "string", "enum": ["room", "global"] },
+                    "roomId": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["scope"],
+                "additionalProperties": false
+            })),
+        },
         // ── 账号 ──────────────────────────────────────────────
         ToolSpec {
             name: "account_list",
@@ -925,7 +1030,7 @@ pub const DOMAINS: &[DomainSpec] = &[
     DomainSpec {
         name: "live",
         title: "直播间",
-        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、get_stats、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list（后台长会话）。",
+        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、get_stats、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list / watch_senders（后台长会话；collect 默认合并重复且不带发送者，按需用 watch_senders 查）。",
         actions: &[
             ("get_context", "live_get_context"),
             ("query_danmaku", "live_query_danmaku"),
@@ -936,6 +1041,7 @@ pub const DOMAINS: &[DomainSpec] = &[
             ("watch_status", "live_watch_status"),
             ("watch_stop", "live_watch_stop"),
             ("watch_list", "live_watch_list"),
+            ("watch_senders", "live_watch_senders"),
         ],
     },
     DomainSpec {
@@ -1022,6 +1128,19 @@ pub const DOMAINS: &[DomainSpec] = &[
         actions: &[
             ("get", "settings_get"),
             ("patch", "settings_patch"),
+        ],
+    },
+    DomainSpec {
+        name: "memory",
+        title: "直播记忆",
+        description: "房间 / 全局两级 Markdown 记忆。action: get、set（覆盖）、append、list、delete（不可逆）。\
+房间记忆用真实房间号；总量每个范围 8000 字。",
+        actions: &[
+            ("get", "memory_get"),
+            ("set", "memory_set"),
+            ("append", "memory_append"),
+            ("list", "memory_list"),
+            ("delete", "memory_delete"),
         ],
     },
 ];

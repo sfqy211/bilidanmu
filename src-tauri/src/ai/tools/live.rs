@@ -15,6 +15,8 @@ pub async fn get_context(
     raw: &serde_json::Value,
 ) -> Result<serde_json::Value, ToolError> {
     let danmaku_limit = args::capped(raw, "danmakuLimit", 40, 1, 300) as usize;
+    // 默认不返回表情：避免表情刷屏被当成聊天内容
+    let include_emoticons = args::bool_or(raw, "includeEmoticons", false);
     let gift_limit = args::capped(raw, "giftLimit", 20, 0, 200) as usize;
     let include_activity = args::bool_or(raw, "includeActivity", false);
 
@@ -59,6 +61,7 @@ pub async fn get_context(
     let recent: Vec<serde_json::Value> = context
         .recent_danmaku(danmaku_limit)
         .into_iter()
+        .filter(|event| include_emoticons || !crate::ai::emoticon::is_pure_emoticon(event))
         .map(compact_event)
         .collect();
 
@@ -124,6 +127,7 @@ pub async fn query_danmaku(
 ) -> Result<serde_json::Value, ToolError> {
     let keyword = args::opt_string(raw, "keyword");
     let limit = args::capped(raw, "limit", 50, 1, 300) as usize;
+    let include_emoticons = args::bool_or(raw, "includeEmoticons", false);
 
     // 指定 roomId：对任意直播间做临时只读采样——独立连接采集几秒后关闭，
     // 不切换当前直播间、不开窗口、不写上下文缓冲。
@@ -165,7 +169,10 @@ pub async fn query_danmaku(
             &api, real_room_id, seconds, 300,
         )
         .await
-        .map_err(ToolError::failed)?;
+        .map_err(ToolError::failed)?
+        .into_iter()
+        .filter(|event| include_emoticons || !crate::ai::emoticon::is_pure_emoticon(event))
+        .collect::<Vec<_>>();
         let filtered: Vec<_> = match &keyword {
             Some(keyword) if !keyword.trim().is_empty() => {
                 let needle = keyword.trim().to_lowercase();
@@ -201,11 +208,13 @@ pub async fn query_danmaku(
         Some(keyword) if !keyword.trim().is_empty() => context
             .search_danmaku(keyword.trim(), limit)
             .into_iter()
+            .filter(|event| include_emoticons || !crate::ai::emoticon::is_pure_emoticon(event))
             .map(compact_event)
             .collect(),
         _ => context
             .recent_danmaku(limit)
             .into_iter()
+            .filter(|event| include_emoticons || !crate::ai::emoticon::is_pure_emoticon(event))
             .map(compact_event)
             .collect(),
     };
@@ -249,8 +258,14 @@ pub async fn get_stats(
 /// 事件压缩成模型友好的形状：去掉 UI 专用字段（颜色、背景图、表情选项等），
 /// 保留语义字段。原始字段对模型是噪音，还会吃 token。
 pub(crate) fn compact_event(event: &crate::models::message::DanmakuEvent) -> serde_json::Value {
+    // 对外类型名与 types 过滤枚举保持一致（解析器内部用 entry / superChat）
+    let event_type = match event.event_type.as_str() {
+        "entry" => "enter",
+        "superChat" => "super_chat",
+        other => other,
+    };
     let mut value = serde_json::json!({
-        "type": event.event_type,
+        "type": event_type,
         "username": event.username,
         "uid": event.uid,
         "content": event.content,
@@ -291,4 +306,44 @@ pub(crate) fn compact_event(event: &crate::models::message::DanmakuEvent) -> ser
     // 表情类弹幕打标：大表情 isEmoticon、纯 emoji 文本 emojiOnly
     crate::ai::emoticon::decorate(&mut value, event);
     value
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_event_normalizes_type_names() {
+        let event: crate::models::message::DanmakuEvent = serde_json::from_value(serde_json::json!({
+            "id": "1",
+            "roomId": 1,
+            "type": "entry",
+            "username": "u",
+            "content": "进入了直播间",
+            "timestamp": 1,
+            "uid": 1,
+            "color": 0,
+            "guardLevel": 0,
+            "isAdmin": false,
+            "dmType": 0
+        }))
+        .expect("event");
+        assert_eq!(compact_event(&event)["type"], "enter");
+
+        let sc: crate::models::message::DanmakuEvent = serde_json::from_value(serde_json::json!({
+            "id": "2",
+            "roomId": 1,
+            "type": "superChat",
+            "username": "u",
+            "content": "SC",
+            "timestamp": 1,
+            "uid": 1,
+            "color": 0,
+            "guardLevel": 0,
+            "isAdmin": false,
+            "dmType": 0
+        }))
+        .expect("event");
+        assert_eq!(compact_event(&sc)["type"], "super_chat");
+    }
 }

@@ -10,6 +10,7 @@ pub mod app;
 pub mod danmaku;
 pub mod gift;
 pub mod live;
+pub mod memory;
 pub mod room;
 pub mod settings;
 pub mod video;

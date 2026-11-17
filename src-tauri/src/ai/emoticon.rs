@@ -84,9 +84,15 @@ pub fn is_emoji_only(text: &str) -> bool {
     saw_emoji
 }
 
-/// 表情类弹幕（大表情或纯 emoji 文本）。
+/// 表情类弹幕（含带表情的文字），用于旧逻辑兜底。
 pub fn is_emoticon_like(event: &DanmakuEvent) -> bool {
     emoticon_meta(event).is_some() || is_emoji_only(&event.content)
+}
+
+/// 纯表情消息：整条就是大表情（dm_type=1）或纯 emoji 文本。
+/// 这类默认不返回；带表情的文字（dm_type=0 + emots）不算。
+pub fn is_pure_emoticon(event: &DanmakuEvent) -> bool {
+    event.dm_type == 1 || is_emoji_only(&event.content)
 }
 
 /// 给单条事件补上表情标识（keep 模式用）。
@@ -94,16 +100,36 @@ pub fn decorate(value: &mut Value, event: &DanmakuEvent) {
     let Some(object) = value.as_object_mut() else {
         return;
     };
+    let pure = is_pure_emoticon(event);
     if let Some(meta) = emoticon_meta(event) {
         object.insert("isEmoticon".to_string(), json!(true));
-        let mut emoticon = json!({ "unique": meta.unique, "name": meta.name });
+        let mut emoticon = json!({
+            "unique": meta.unique,
+            "name": meta.name,
+            "kind": if pure { "sticker" } else { "inline" },
+        });
         if let Some(url) = meta.url {
             emoticon["url"] = json!(url);
         }
         object.insert("emoticon".to_string(), emoticon);
-    }
-    if is_emoji_only(&event.content) {
+        if pure {
+            // 整条就是表情：改掉 type，避免被当成字幕/聊天内容
+            object.insert("type".to_string(), json!("emoticon"));
+        } else {
+            object.insert("inlineEmoticon".to_string(), json!(true));
+        }
+    } else if is_emoji_only(&event.content) {
+        object.insert("isEmoticon".to_string(), json!(true));
         object.insert("emojiOnly".to_string(), json!(true));
+        object.insert("type".to_string(), json!("emoticon"));
+        object.insert(
+            "emoticon".to_string(),
+            json!({
+                "unique": format!("emoji:{}", event.content.trim()),
+                "name": event.content.trim(),
+                "kind": "emoji",
+            }),
+        );
     }
 }
 
@@ -273,5 +299,36 @@ mod tests {
         assert_eq!(groups[0]["senders"][0]["username"], "a");
         assert_eq!(groups[0]["senders"].as_array().unwrap().len(), 1);
         assert_eq!(groups[0]["sendersTruncated"], true);
+    }
+
+    #[test]
+    fn distinguishes_pure_and_inline_emoticons() {
+        let mut sticker = danmaku("[笑]", "u");
+        sticker.dm_type = 1;
+        sticker.emots = Some(json!({"笑": {"emotion_unique": "emoji_1", "descript": "笑"}}));
+        assert!(is_pure_emoticon(&sticker));
+
+        let mut inline = danmaku("好[笑]", "u");
+        inline.emots = Some(json!({"笑": {"emotion_unique": "emoji_1", "descript": "笑"}}));
+        assert!(!is_pure_emoticon(&inline));
+        assert!(emoticon_meta(&inline).is_some());
+
+        let mut value = json!({"type": "danmaku", "content": "[笑]"});
+        decorate(&mut value, &sticker);
+        assert_eq!(value["type"], "emoticon");
+        assert_eq!(value["isEmoticon"], true);
+        assert_eq!(value["emoticon"]["kind"], "sticker");
+
+        let mut value = json!({"type": "danmaku", "content": "好[笑]"});
+        decorate(&mut value, &inline);
+        assert_eq!(value["type"], "danmaku");
+        assert_eq!(value["inlineEmoticon"], true);
+
+        let emoji = danmaku("👀", "u");
+        assert!(is_pure_emoticon(&emoji));
+        let mut value = json!({"type": "danmaku", "content": "👀"});
+        decorate(&mut value, &emoji);
+        assert_eq!(value["type"], "emoticon");
+        assert_eq!(value["emojiOnly"], true);
     }
 }

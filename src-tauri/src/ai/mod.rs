@@ -11,6 +11,7 @@ pub mod confirm;
 pub mod context;
 pub mod dispatch;
 pub mod emoticon;
+pub mod memory;
 pub mod policy;
 pub mod registry;
 pub mod spec;

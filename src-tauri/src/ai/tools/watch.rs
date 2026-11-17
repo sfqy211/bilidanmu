@@ -15,6 +15,19 @@ use std::collections::HashMap;
 /// 一次 collect 最多返回的条数上限
 const MAX_COLLECT: u64 = 1000;
 
+/// 默认只返回弹幕与礼物；进场/点赞/SC/舰长等按需通过 types 打开
+const DEFAULT_TYPES: &[&str] = &["danmaku", "gift"];
+const VALID_TYPES: &[&str] = &[
+    "danmaku",
+    "gift",
+    "super_chat",
+    "guard",
+    "enter",
+    "like",
+    "live",
+    "transcript",
+];
+
 fn session_of(
     state: &AppState,
     raw: &Value,
@@ -46,6 +59,8 @@ pub async fn start(
     let max_events = args::capped(raw, "maxEvents", DEFAULT_MAX_EVENTS as u64, 100, 100_000) as usize;
     let stop_on_end = args::bool_or(raw, "stopOnEnd", true);
     let want_transcript = args::bool_or(raw, "withTranscript", false);
+    // 会话默认是否带发送者；collect 每次可覆盖（热切换，不重连）
+    let with_senders = args::bool_or(raw, "withSenders", false);
 
     let api = api_with_main(state).await;
     let info = if room_id == crate::bili::mock::MOCK_ROOM_ID && crate::bili::mock::is_enabled() {
@@ -111,6 +126,7 @@ pub async fn start(
             max_events,
             stop_on_end,
             with_transcript,
+            with_senders,
             transcript_rx,
         )
         .map_err(ToolError::failed)?;
@@ -125,6 +141,10 @@ pub async fn start(
     payload["hint"] = json!(
         "用 live_watch_collect(sessionId, cursor) 增量拉取；游标从返回的 nextCursor 继续。总结前可先 live_watch_digest 看热度与表情分布。"
     );
+    // 自动带上房间/全局记忆摘要，AI 不必额外调一次 memory get
+    if let Some(memory) = memory_snapshot(state, room_id, real_room_id) {
+        payload["memory"] = memory;
+    }
     Ok(payload)
 }
 
@@ -140,21 +160,37 @@ pub async fn collect(
     let keyword = args::opt_string(raw, "keyword")
         .map(|text| text.trim().to_lowercase())
         .filter(|text| !text.is_empty());
-    let types = parse_types(raw)?;
-    let mode = args::opt_string(raw, "emoticonMode").unwrap_or_else(|| "keep".to_string());
+    // 默认只看弹幕与礼物；每次调用都可换 types，热切换、不重连
+    let types = effective_types(
+        parse_types(raw)?
+            .unwrap_or_else(|| DEFAULT_TYPES.iter().map(|item| item.to_string()).collect()),
+    );
+    // 默认丢弃表情：避免表情刷屏被 AI 当成聊天内容
+    let mode = args::opt_string(raw, "emoticonMode").unwrap_or_else(|| "drop".to_string());
     if !matches!(mode.as_str(), "keep" | "aggregate" | "drop") {
         return Err(ToolError::invalid_args(
             "emoticonMode 只能是 keep / aggregate / drop",
         ));
     }
-    let include_senders = args::bool_or(raw, "includeSenders", false);
+    let duplicate_mode =
+        args::opt_string(raw, "duplicateMode").unwrap_or_else(|| "merge".to_string());
+    if !matches!(duplicate_mode.as_str(), "merge" | "keep") {
+        return Err(ToolError::invalid_args(
+            "duplicateMode 只能是 merge / keep",
+        ));
+    }
     let sender_limit = args::capped(raw, "senderLimit", 20, 1, 200) as usize;
 
     let guard = lock_session(&session);
+    // 发送者开关：本次显式传了就覆盖，否则跟随会话默认；两者都不重建连接
+    let include_senders = raw
+        .get("includeSenders")
+        .and_then(Value::as_bool)
+        .unwrap_or(guard.include_senders);
     let from_seq = cursor.max(guard.evicted_before);
     let mut consumed = 0usize;
     let mut last_seq = from_seq.saturating_sub(1);
-    let mut events: Vec<Value> = Vec::new();
+    let mut danmaku_window: Vec<(u64, DanmakuEvent)> = Vec::new();
     let mut emoticon_events: Vec<DanmakuEvent> = Vec::new();
     let mut transcripts: Vec<Value> = Vec::new();
 
@@ -165,11 +201,8 @@ pub async fn collect(
         if consumed >= limit {
             break;
         }
-        let kind = stored.kind();
-        if let Some(types) = &types {
-            if !types.iter().any(|item| item == kind) {
-                continue;
-            }
+        if !types.iter().any(|item| item == stored.kind()) {
+            continue;
         }
         match stored {
             StoredEvent::Danmaku(event) => {
@@ -180,13 +213,13 @@ pub async fn collect(
                         continue;
                     }
                 }
-                let is_emoticon = emoticon::is_emoticon_like(event);
+                let is_emoticon = emoticon::is_pure_emoticon(event);
                 consumed += 1;
                 last_seq = *seq;
                 match mode.as_str() {
                     "drop" if is_emoticon => {}
                     "aggregate" if is_emoticon => emoticon_events.push(event.clone()),
-                    _ => events.push(super::live::compact_event(event)),
+                    _ => danmaku_window.push((*seq, event.clone())),
                 }
             }
             StoredEvent::Transcript {
@@ -220,6 +253,22 @@ pub async fn collect(
     let summary = guard.summary();
     drop(guard);
 
+    // 相同正文合并（默认）：只把出现 ≥2 次的收进 merged，其余按单条返回
+    let (events, merged) = if duplicate_mode == "merge" {
+        merge_duplicates(danmaku_window, include_senders, sender_limit)
+    } else {
+        let events = danmaku_window
+            .iter()
+            .map(|(seq, event)| {
+                let mut value =
+                    maybe_strip_sender(super::live::compact_event(event), include_senders);
+                value["seq"] = json!(seq);
+                value
+            })
+            .collect();
+        (events, Vec::new())
+    };
+
     let emoticon_messages = emoticon_events.len();
     let groups = if mode == "aggregate" {
         Some(emoticon::aggregate(
@@ -236,8 +285,12 @@ pub async fn collect(
         "sessionId": summary.session_id,
         "fromSeq": from_seq,
         "nextCursor": next_cursor,
-        "count": events.len() + transcripts.len() + group_count,
+        "count": events.len() + transcripts.len() + group_count + merged.len(),
+        "duplicateMode": duplicate_mode,
+        "types": types,
+        "includeSenders": include_senders,
         "events": events,
+        "merged": merged,
         "transcripts": transcripts,
         "evictedBefore": summary.evicted_before,
         "ended": summary.ended,
@@ -258,6 +311,239 @@ pub async fn collect(
         payload["skippedByEviction"] = json!(summary.evicted_before.saturating_sub(cursor));
     }
     Ok(payload)
+}
+
+/// 单条弹幕默认不带发送者：去掉 username / uid / avatar。
+fn maybe_strip_sender(mut value: Value, include_senders: bool) -> Value {
+    if include_senders {
+        return value;
+    }
+    if let Some(object) = value.as_object_mut() {
+        object.remove("username");
+        object.remove("uid");
+        object.remove("avatar");
+    }
+    value
+}
+
+struct MergeGroup {
+    content: String,
+    count: u64,
+    first_seq: u64,
+    last_seq: u64,
+    first_at: u64,
+    last_at: u64,
+    sample: DanmakuEvent,
+    senders: std::collections::HashMap<String, u64>,
+}
+
+/// 把相同正文的弹幕合并成 `danmakuGroup`；只出现一次的仍走普通事件。
+fn merge_duplicates(
+    items: Vec<(u64, DanmakuEvent)>,
+    include_senders: bool,
+    sender_limit: usize,
+) -> (Vec<Value>, Vec<Value>) {
+    let mut order: Vec<String> = Vec::new();
+    let mut groups: std::collections::HashMap<String, MergeGroup> = std::collections::HashMap::new();
+
+    let mut non_danmaku: Vec<(u64, DanmakuEvent)> = Vec::new();
+    for (seq, event) in items {
+        // 只合并文字弹幕；礼物/进场/点赞等结构化事件单独返回，不包成 danmakuGroup
+        if event.event_type != "danmaku" {
+            non_danmaku.push((seq, event));
+            continue;
+        }
+        // 纯表情 / 带表情的文字 / 普通文字分开合并，避免同类不同义混在一起
+        let prefix = if emoticon::is_pure_emoticon(&event) {
+            "e"
+        } else if emoticon::emoticon_meta(&event).is_some() {
+            "i"
+        } else {
+            "t"
+        };
+        let key = format!("{prefix}:{}", event.content.trim());
+        let group = groups.entry(key.clone()).or_insert_with(|| {
+            order.push(key.clone());
+            MergeGroup {
+                content: event.content.trim().to_string(),
+                count: 0,
+                first_seq: seq,
+                last_seq: seq,
+                first_at: event.timestamp,
+                last_at: event.timestamp,
+                sample: event.clone(),
+                senders: std::collections::HashMap::new(),
+            }
+        });
+        group.count += 1;
+        group.last_seq = seq;
+        group.last_at = event.timestamp;
+        if !event.username.is_empty() {
+            *group.senders.entry(event.username.clone()).or_insert(0) += 1;
+        }
+    }
+
+    let mut singles: Vec<Value> = non_danmaku
+        .into_iter()
+        .map(|(seq, event)| {
+            let mut value = maybe_strip_sender(super::live::compact_event(&event), include_senders);
+            value["seq"] = json!(seq);
+            value
+        })
+        .collect();
+    let mut merged: Vec<Value> = Vec::new();
+    for key in order {
+        let Some(group) = groups.remove(&key) else {
+            continue;
+        };
+        if group.count >= 2 {
+            let mut value = json!({
+                "type": "danmakuGroup",
+                "content": group.content,
+                "count": group.count,
+                "firstSeq": group.first_seq,
+                "lastSeq": group.last_seq,
+                "firstAt": group.first_at,
+                "lastAt": group.last_at,
+            });
+            if emoticon::is_pure_emoticon(&group.sample) {
+                value["type"] = json!("emoticonGroup");
+                value["isEmoticon"] = json!(true);
+                if let Some(meta) = emoticon::emoticon_meta(&group.sample) {
+                    let mut emoticon = json!({
+                        "unique": meta.unique,
+                        "name": meta.name,
+                        "kind": "sticker",
+                    });
+                    if let Some(url) = meta.url {
+                        emoticon["url"] = json!(url);
+                    }
+                    value["emoticon"] = emoticon;
+                }
+                if emoticon::is_emoji_only(&group.sample.content) {
+                    value["emojiOnly"] = json!(true);
+                }
+            } else if emoticon::emoticon_meta(&group.sample).is_some() {
+                value["isEmoticon"] = json!(true);
+                value["inlineEmoticon"] = json!(true);
+            }
+            if include_senders {
+                let mut senders: Vec<(String, u64)> = group.senders.into_iter().collect();
+                senders.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                value["senderCount"] = json!(senders.len());
+                let truncated = senders.len() > sender_limit;
+                let senders: Vec<Value> = senders
+                    .into_iter()
+                    .take(sender_limit)
+                    .map(|(username, count)| json!({ "username": username, "count": count }))
+                    .collect();
+                value["senders"] = json!(senders);
+                if truncated {
+                    value["sendersTruncated"] = json!(true);
+                }
+            }
+            merged.push(value);
+        } else {
+            let mut value = maybe_strip_sender(
+                super::live::compact_event(&group.sample),
+                include_senders,
+            );
+            value["seq"] = json!(group.first_seq);
+            singles.push(value);
+        }
+    }
+    (singles, merged)
+}
+
+/// 单独查询某个 seq 或某段正文的发送者（默认不返回，按需再查）。
+pub async fn senders(
+    _app: &tauri::AppHandle,
+    state: &AppState,
+    raw: &Value,
+) -> Result<Value, ToolError> {
+    let session = session_of(state, raw)?;
+    let seq = args::opt_u64(raw, "seq");
+    let content = args::opt_string(raw, "content")
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty());
+    if seq.is_none() && content.is_none() {
+        return Err(ToolError::invalid_args("需要 seq 或 content 之一").with_hint(
+            "单条用 collect 返回事件里的 seq；整段相同弹幕传 content（可配 fromSeq/toSeq 缩范围）",
+        ));
+    }
+    let from_seq = args::opt_u64(raw, "fromSeq").unwrap_or(0);
+    let to_seq = args::opt_u64(raw, "toSeq").unwrap_or(u64::MAX);
+
+    let guard = lock_session(&session);
+    let mut count = 0u64;
+    let mut matched_content: Option<String> = None;
+    let mut senders: std::collections::HashMap<(String, u64), (u64, u64, u64)> =
+        std::collections::HashMap::new();
+    let mut samples: Vec<Value> = Vec::new();
+
+    for (event_seq, stored) in guard.events.iter() {
+        if *event_seq < from_seq || *event_seq > to_seq {
+            continue;
+        }
+        let StoredEvent::Danmaku(event) = stored else {
+            continue;
+        };
+        if event.event_type != "danmaku" {
+            continue;
+        }
+        let matched = match (seq, &content) {
+            (Some(target), _) => *event_seq == target,
+            (None, Some(text)) => event.content.trim() == text,
+            _ => false,
+        };
+        if !matched {
+            continue;
+        }
+        count += 1;
+        matched_content.get_or_insert_with(|| event.content.trim().to_string());
+        let entry = senders
+            .entry((event.username.clone(), event.uid))
+            .or_insert((0, event.timestamp, event.timestamp));
+        entry.0 += 1;
+        entry.1 = entry.1.min(event.timestamp);
+        entry.2 = entry.2.max(event.timestamp);
+        if samples.len() < 10 {
+            samples.push(json!({
+                "seq": event_seq,
+                "timestamp": event.timestamp,
+                "username": event.username,
+                "uid": event.uid,
+            }));
+        }
+    }
+
+    let mut senders: Vec<((String, u64), (u64, u64, u64))> = senders.into_iter().collect();
+    senders.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
+    let senders: Vec<Value> = senders
+        .into_iter()
+        .map(|((username, uid), (count, first_at, last_at))| {
+            json!({
+                "username": username,
+                "uid": uid,
+                "count": count,
+                "firstAt": first_at,
+                "lastAt": last_at,
+            })
+        })
+        .collect();
+
+    Ok(json!({
+        "sessionId": guard.session_id,
+        "content": matched_content,
+        "count": count,
+        "senders": senders,
+        "samples": samples,
+        "hint": if count == 0 {
+            Some("没有匹配到弹幕；seq 可能已被缓冲淘汰，或用 content 在更大范围查")
+        } else {
+            None
+        },
+    }))
 }
 
 /// 统计摘要：不返回正文，适合长会话先看热度与表情分布。
@@ -421,6 +707,62 @@ pub async fn list(
     }))
 }
 
+/// 开会话时顺带取房间/全局记忆的摘要（截断上限见 ai::memory）。
+fn memory_snapshot(state: &AppState, room_id: u64, real_room_id: u64) -> Option<Value> {
+    let guard = state.db.lock().ok()?;
+    let connection = guard.as_ref()?;
+    let room = crate::ai::memory::get(connection, "room", real_room_id)
+        .ok()
+        .flatten()
+        .or_else(|| {
+            crate::ai::memory::get(connection, "room", room_id)
+                .ok()
+                .flatten()
+        });
+    let global = crate::ai::memory::get(connection, "global", 0)
+        .ok()
+        .flatten();
+    if room.is_none() && global.is_none() {
+        return None;
+    }
+
+    let mut value = json!({});
+    if let Some(entry) = room {
+        let (content, truncated) =
+            crate::ai::memory::snippet(&entry.content, crate::ai::memory::ROOM_SNIPPET_CHARS);
+        value["room"] = json!({
+            "content": content,
+            "chars": entry.chars,
+            "updatedAt": entry.updated_at,
+            "truncated": truncated,
+        });
+    }
+    if let Some(entry) = global {
+        let (content, truncated) =
+            crate::ai::memory::snippet(&entry.content, crate::ai::memory::GLOBAL_SNIPPET_CHARS);
+        value["global"] = json!({
+            "content": content,
+            "chars": entry.chars,
+            "updatedAt": entry.updated_at,
+            "truncated": truncated,
+        });
+    }
+    value["hint"] = json!("这是记忆摘要；完整内容用 memory{action:\"get\"} 读取");
+    Some(value)
+}
+
+/// SC 是特殊弹幕：只要开了弹幕或礼物，就自动带上 super_chat。
+fn effective_types(requested: Vec<String>) -> Vec<String> {
+    let mut types = requested;
+    let wants_message = types
+        .iter()
+        .any(|item| item == "danmaku" || item == "gift");
+    if wants_message && !types.iter().any(|item| item == "super_chat") {
+        types.push("super_chat".to_string());
+    }
+    types
+}
+
 fn parse_types(raw: &Value) -> Result<Option<Vec<String>>, ToolError> {
     let Some(value) = raw.get("types") else {
         return Ok(None);
@@ -433,8 +775,143 @@ fn parse_types(raw: &Value) -> Result<Option<Vec<String>>, ToolError> {
         let Some(text) = item.as_str() else {
             return Err(ToolError::invalid_args("types 需要是字符串数组"));
         };
+        if !VALID_TYPES.contains(&text) {
+            return Err(ToolError::invalid_args(format!("未知事件类型 {text}"))
+                .with_hint(format!("可选：{}", VALID_TYPES.join(" / "))));
+        }
         types.push(text.to_string());
+    }
+    if types.is_empty() {
+        return Err(ToolError::invalid_args("types 不能为空数组"));
     }
     Ok(Some(types))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn danmaku(content: &str, username: &str) -> DanmakuEvent {
+        serde_json::from_value(json!({
+            "id": "1",
+            "roomId": 1,
+            "type": "danmaku",
+            "username": username,
+            "content": content,
+            "timestamp": 1,
+            "uid": 42,
+            "color": 16777215,
+            "guardLevel": 0,
+            "isAdmin": false,
+            "dmType": 0
+        }))
+        .expect("event")
+    }
+
+    #[test]
+    fn merges_duplicates_and_hides_senders_by_default() {
+        let items = vec![
+            (1, danmaku("哈哈", "a")),
+            (2, danmaku("哈哈", "b")),
+            (3, danmaku("独特", "a")),
+        ];
+        let (events, merged) = merge_duplicates(items, false, 20);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0]["count"], 2);
+        assert!(merged[0].get("senders").is_none());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["content"], "独特");
+        assert!(events[0].get("username").is_none());
+        assert!(events[0].get("uid").is_none());
+        assert_eq!(events[0]["content"], "独特");
+    }
+
+    #[test]
+    fn include_senders_keeps_identity_and_group_details() {
+        let items = vec![
+            (1, danmaku("哈哈", "a")),
+            (2, danmaku("哈哈", "a")),
+            (3, danmaku("哈哈", "b")),
+        ];
+        let (events, merged) = merge_duplicates(items, true, 20);
+        assert!(events.is_empty());
+        assert_eq!(merged[0]["senderCount"], 2);
+        assert_eq!(merged[0]["senders"][0]["username"], "a");
+        assert_eq!(merged[0]["senders"][0]["count"], 2);
+    }
+
+    #[test]
+    fn strip_sender_only_removes_identity() {
+        let value = json!({"content": "x", "username": "u", "uid": 1, "timestamp": 2});
+        let stripped = maybe_strip_sender(value, false);
+        assert!(stripped.get("username").is_none());
+        assert!(stripped.get("uid").is_none());
+        assert_eq!(stripped["content"], "x");
+    }
+
+    #[test]
+    fn merged_text_keeps_original_content() {
+        let items = vec![
+            (1, danmaku("哈哈", "a")),
+            (2, danmaku("哈哈", "b")),
+        ];
+        let (_, merged) = merge_duplicates(items, false, 20);
+        assert_eq!(merged[0]["type"], "danmakuGroup");
+        assert_eq!(merged[0]["content"], "哈哈");
+    }
+
+    #[test]
+    fn super_chat_follows_danmaku_or_gift() {
+        assert_eq!(
+            effective_types(vec!["danmaku".into(), "gift".into()]),
+            vec!["danmaku", "gift", "super_chat"]
+        );
+        assert_eq!(
+            effective_types(vec!["danmaku".into()]),
+            vec!["danmaku", "super_chat"]
+        );
+        assert_eq!(
+            effective_types(vec!["gift".into()]),
+            vec!["gift", "super_chat"]
+        );
+        assert_eq!(effective_types(vec!["enter".into()]), vec!["enter"]);
+        assert_eq!(
+            effective_types(vec!["danmaku".into(), "super_chat".into()]),
+            vec!["danmaku", "super_chat"]
+        );
+    }
+
+    #[test]
+    fn parse_types_rejects_unknown_and_empty() {
+        assert!(parse_types(&json!({})).unwrap().is_none());
+        let ok = parse_types(&json!({"types": ["danmaku", "gift"]})).unwrap().unwrap();
+        assert_eq!(ok, vec!["danmaku".to_string(), "gift".to_string()]);
+        assert!(parse_types(&json!({"types": ["nope"]})).is_err());
+        assert!(parse_types(&json!({"types": []})).is_err());
+    }
+
+    #[test]
+    fn gift_events_are_not_merged_into_danmaku_group() {
+        let mut gift = danmaku("投喂了 人气票 ×1", "a");
+        gift.event_type = "gift".to_string();
+        let items = vec![(1, gift.clone()), (2, gift)];
+        let (events, merged) = merge_duplicates(items, false, 20);
+        assert!(merged.is_empty());
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0]["type"], "gift");
+    }
+
+    #[test]
+    fn merged_emoticons_keep_marker() {
+        let mut sticker = danmaku("一几一几", "a");
+        sticker.dm_type = 1;
+        let items = vec![(1, sticker.clone()), (2, sticker)];
+        let (events, merged) = merge_duplicates(items, false, 20);
+        assert!(events.is_empty());
+        assert_eq!(merged[0]["type"], "emoticonGroup");
+        assert_eq!(merged[0]["isEmoticon"], true);
+        assert_eq!(merged[0]["count"], 2);
+        assert_eq!(merged[0]["content"], "一几一几");
+    }
+}
