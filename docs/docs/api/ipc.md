@@ -124,8 +124,6 @@ const settings = await tauriCommands.settings.get()
 | --- | --- | --- | --- |
 | `open_video_danmaku_window` | — | `void` | 打开唯一的 `video-danmaku` 窗口，隐藏主窗口，继续使用主窗口音轨。窗口按上次落盘的几何恢复尺寸与位置（无保存值用 440×680 默认），并恢复上次的仅输入框模式；几何与直播弹幕窗共用同一份记录，互相继承对方上次调整的结果 |
 | `close_video_danmaku_window` | `restoreMain?` | `void` | 销毁视频弹幕窗口（销毁前落盘当前几何），默认显示主窗口；进入直播间时传 false |
-| `set_video_input_only` | `enabled` | `boolean` | 以底边为锚切换 48px 仅输入框形态，约束常量与几何持久化与直播弹幕窗共用同一套 |
-| `get_video_input_only` | — | `boolean` | 查询视频弹幕窗是否处于仅输入框模式（前端挂载同步用） |
 | `publish_video_playback` | `snapshot` | `void` | 仅主窗口可发布播放快照，并定向通知视频弹幕窗口 |
 | `get_video_playback` | — | `PlaybackSnapshot \| null` | 获取最新播放快照 |
 | `control_video_playback` | `bvid, cid, control` | `void` | 向主窗口发送控制请求，匹配当前 bvid/cid 后执行。`control` 为 `{ action: 'togglePlay' }`、`{ action: 'seek' \| 'volume', value: number }` 或 `{ action: 'selectTrack', value: string }`，切换曲目的 value 使用曲目 key |

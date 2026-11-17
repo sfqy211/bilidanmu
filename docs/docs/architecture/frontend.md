@@ -39,6 +39,17 @@ flowchart TD
 3. **Hooks 抽离逻辑**：业务逻辑放在 Hooks 中，组件只负责渲染
 4. **类型安全**：所有组件与 Hooks 都有完整的 TypeScript 类型
 
+### 弹幕小窗公共组件
+
+`components/danmaku/DanmakuWindow` 是直播弹幕窗与视频弹幕窗共用的完整小窗组件，窗口级行为全部内聚：
+
+- 标题栏按钮（置顶/锁定/仅输入框/透传/隐身/隐藏到托盘/切换器/退出）与全局按钮可见性设置
+- 隐身/透传（含淡出动画）、侧边吸附收缩与滑入滑出、隐藏到托盘、透明背景与右键菜单抑制
+- 仅输入框形态（可选能力）：消费方通过 `inputOnly.renderBar` 提供输入区内容
+- 音频区渲染与内容区插槽（`children` 支持 render prop 取窗口状态，`footer` 放发送栏）
+
+两个弹幕窗只是本组件的消费方：内容区（直播三栏 / 视频双时间线）、音频源（本地拉流 / 远端控制主窗播放器）与退出逻辑由页面注入。`components/danmaku/WindowSplitter` 是可复用的上下分栏拖拽原语。
+
 ## Hooks 设计
 
 | Hook | 职责 |
@@ -53,6 +64,7 @@ flowchart TD
 | `useBackgroundTheme` | 轮询屏幕亮度并写入主题覆盖 |
 | `useTauriEvent` | Tauri 事件监听封装 |
 | `useWindowDock` | 贴边吸附状态同步 |
+| `useDanmakuWindowModes`（文件） | 弹幕小窗窗口级 hooks：`useWindowPinnedLocked`（置顶/锁定）、`useStealthMode`（隐身）、`usePassthroughHitTest`（透传） |
 | `useProxyImage` | 图片代理加载（L1 内存 + L2 SQLite） |
 | `useUpdateCheck` | 24 小时一次的更新检查 |
 | `useDividerDrag` | 可拖拽分隔条（弹幕窗三栏） |
