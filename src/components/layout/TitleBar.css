@@ -1,0 +1,24 @@
+/* 标题栏品牌：图标与文字等高居中。
+   注意：本文件在 index.css 之前加载（router 先于 main.tsx 引入 index.css），
+   因此必须用 .workspace-titlebar 前缀提高特异性，否则会被全局样式覆盖。 */
+
+.workspace-titlebar .workspace-brand {
+  align-items: center;
+  height: 18px;
+}
+
+/* logo 图形在 viewBox 内约占 79%，18px 盒子的实际图形高度约 14px；
+   文字保持 14px，视觉上略小于图标。 */
+.workspace-titlebar .workspace-brand-logo {
+  display: block;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.workspace-titlebar .workspace-brand-name {
+  height: 18px;
+  font-size: 14px;
+  line-height: 1;
+}

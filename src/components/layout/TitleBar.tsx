@@ -5,6 +5,7 @@ import { CloseDialog } from "@/components/ui/CloseDialog";
 import logoUrl from "@/assets/logo.svg";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
+import "./TitleBar.css";
 
 const appWindow = getCurrentWindow();
 
@@ -68,10 +69,16 @@ export function TitleBar() {
       onMouseDown={handleMouseDown}
       className="workspace-titlebar relative z-20 flex h-10 shrink-0 select-none items-center"
     >
-      <div className="flex flex-1 items-center gap-2 px-3">
-        <div className="workspace-brand" aria-label="BiliDanmu">
-          <img src={logoUrl} alt="" className="workspace-brand-logo" draggable={false} />
-          <span className="workspace-brand-name">BiliDanmu</span>
+      <div className="flex flex-1 items-center gap-2 pl-3.5 pr-3">
+        <div className="workspace-brand items-center" aria-label="BiliDanmu">
+          <img
+            src={logoUrl}
+            alt=""
+            className="workspace-brand-logo"
+            draggable={false}
+            style={{ background: "transparent", boxShadow: "none" }}
+          />
+          <span className="workspace-brand-name flex items-center">BiliDanmu</span>
         </div>
       </div>
       <div className="flex h-full">

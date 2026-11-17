@@ -5,7 +5,13 @@ import { TitleBar } from "./TitleBar";
 import { MiniPlayer } from "@/components/listen/MiniPlayer";
 import { rememberRoute } from "@/lib/app-history";
 import { tauriCommands } from "@/lib/tauri";
-import { clampSidebarWidth, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, useUiStore } from "@/stores/ui-store";
+import {
+  clampSidebarWidth,
+  SIDEBAR_COLLAPSED_WIDTH,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+  useUiStore,
+} from "@/stores/ui-store";
 
 export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notice?: ReactNode }) {
   const location = useLocation();
@@ -18,6 +24,7 @@ export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notic
   // 宽度实时写入 ui-store（inline 覆盖 CSS 默认值），松手/键盘调整后持久化到 selections。
   const setSidebarWidth = useUiStore((state) => state.setSidebarWidth);
   const sidebarWidth = useUiStore((state) => state.sidebarWidth);
+  const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const handleRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -88,11 +95,18 @@ export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notic
   return (
     <div
       className="window-rounded app-atmosphere app-scope workspace-shell flex h-full flex-col overflow-hidden text-ink"
-      style={sidebarWidth != null ? ({ "--workspace-sidebar-width": `${sidebarWidth}px` } as CSSProperties) : undefined}
+      style={
+        sidebarCollapsed
+          ? ({ "--workspace-sidebar-width": `${SIDEBAR_COLLAPSED_WIDTH}px` } as CSSProperties)
+          : sidebarWidth != null
+            ? ({ "--workspace-sidebar-width": `${sidebarWidth}px` } as CSSProperties)
+            : undefined
+      }
     >
       <TitleBar />
       <div className="flex min-h-0 flex-1">
         {sidebar}
+        {!sidebarCollapsed && (
         <div
           ref={handleRef}
           className="workspace-sidebar-handle"
@@ -111,6 +125,7 @@ export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notic
           onDoubleClick={handleDoubleClick}
           onKeyDown={handleKeyDown}
         />
+        )}
         <main className="workspace-main flex min-h-0 min-w-0 flex-1 flex-col">
           {notice}
           <div className="workspace-page min-h-0 flex-1 overflow-auto"><Outlet /></div>

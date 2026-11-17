@@ -26,12 +26,20 @@ async function bootstrap() {
 
   // 在首帧渲染前恢复视图模式，避免 card→list 闪烁
   try {
-    const selections = await tauriCommands.selections.load(["roomViewMode", "sidebarWidth", "videoViewMode"]);
+    const selections = await tauriCommands.selections.load([
+      "roomViewMode",
+      "sidebarWidth",
+      "sidebarCollapsed",
+      "videoViewMode",
+    ]);
     if (selections.roomViewMode === "card" || selections.roomViewMode === "list") {
       useRoomStore.getState().setViewMode(selections.roomViewMode);
     }
     if (typeof selections.sidebarWidth === "number") {
       useUiStore.getState().setSidebarWidth(clampSidebarWidth(selections.sidebarWidth));
+    }
+    if (typeof selections.sidebarCollapsed === "boolean") {
+      useUiStore.getState().setSidebarCollapsed(selections.sidebarCollapsed);
     }
     initVideoViewMode(selections.videoViewMode);
   } catch {

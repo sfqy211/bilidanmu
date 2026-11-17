@@ -42,7 +42,7 @@
 
 ## Routes and navigation
 - `src/router.tsx`: `/rooms`, `/rooms/add`, `/accounts`, `/ai`, `/settings`, `/listen`, `/listen/add` (`/listen/search` redirects to it), `/listen/watchlater`, `/listen/fav/:mediaId`, `/listen/video/:bvid`, `/listen/video/:bvid/comments`, plus the standalone `/danmaku/:roomId` window route.
-- There is no "看直播 / 听视频" mode switch. Main-window navigation is the sidebar only: 直播间 / 账号 / AI 接入 / 听视频, with 设置 pinned at the bottom (`AppSidebar.tsx` → `WorkspaceSidebar.tsx`). Write docs against these exact labels.
+- There is no "看直播 / 听视频" mode switch. Main-window navigation is the sidebar only: 直播 / 账号 / AI / 视频, with 设置 pinned at the bottom (`AppSidebar.tsx` → `WorkspaceSidebar.tsx`). The collapse toggle sits at the bottom of the sidebar, below 设置 (icon button; label 收起); it switches to an icon-only rail (`sidebarCollapsed` in selections). The brand logo/name stay in the title bar. Write docs against these exact labels.
 - `AppLayout` supplies the sidebar; `WorkspaceLayout` owns the title bar, resizable sidebar, page area and the listen mini player.
 
 ## Architecture facts that affect edits

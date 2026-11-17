@@ -1,0 +1,15 @@
+/* 侧栏紧凑间距：菜单控件的左右留白收窄，图标列更贴近窗口边缘。
+   基础样式在 index.css；这里用更高特异性覆盖，避免改动全局样式表。 */
+
+.workspace-shell .workspace-sidebar {
+  padding-inline: 8px;
+}
+
+.workspace-shell .workspace-sidebar .workspace-nav-item {
+  padding-inline: 8px;
+}
+
+.workspace-shell .workspace-sidebar .workspace-nav-group-label,
+.workspace-shell .workspace-sidebar .workspace-sidebar-meta {
+  padding-inline: 8px;
+}
