@@ -64,16 +64,21 @@
 | 域 | action |
 | --- | --- |
 | `app` | status、refresh_rooms、reveal_window、permission |
-| `live` | get_context、query_danmaku、get_stats、watch_start、watch_collect、watch_digest、watch_status、watch_stop、watch_list |
+| `live` | get_context、query_danmaku、get_stats、watch_start、watch_collect、watch_digest、watch_status、watch_stop、watch_list、watch_senders |
 | `room` | list、search、get、live_status、follow_lives、join、leave |
 | `danmaku` | get_emoticons、send、send_emoticon、like、auto_send_start、auto_send_stop、auto_like_start、auto_like_stop、auto_status、template_list、template_save、template_delete |
 | `gift` | list、bag、send |
 | `video` | search、get_info、get_subtitle、get_danmaku、danmaku_send、get_comments、get_replies、fav_folders、fav_list、watch_later、watch_later_remove、play、stop、comment_like、comment_post |
 | `account` | list、get_current、get_wallet、switch、remove |
 | `settings` | get、patch |
+| `memory` | get、set、append、list、delete |
 | `mcp_describe` | domain?、action? |
 
 > 风险等级按解析后的真实 action 判定（见上一节），与域工具本身无关；确认弹窗里的工具名显示为 `域.action`。
+>
+> 弹幕中的纯表情默认不返回；需要时用 `includeEmoticons`（上下文/检索）或 `emoticonMode`（长会话）打开，返回项的 `type` 会是 `emoticon`，不会被当成文字。
+>
+> 长会话默认只返回弹幕与礼物；SC 视为特殊弹幕，只要开启弹幕或礼物任一都会自动带上。进场/点赞/舰长/字幕按需在 `types` 里打开；`types` 每次调用都可改，属于热切换，不重建连接。返回项的 `type` 与 `types` 枚举同名（`enter`、`super_chat`），不会出现内部名 `entry` / `superChat`。
 
 ### app
 
@@ -88,11 +93,12 @@
 
 | action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者 |
-| `query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样（不切房、不占缓冲，仅实时无历史） |
+| `get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false)、`includeEmoticons`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者；纯表情默认过滤，开启后带 `type=emoticon` |
+| `query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8)、`includeEmoticons`(默认 false) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样；纯表情默认过滤，开启后带 `type=emoticon` |
 | `get_stats` | read | — | 只返回实时指标，不含弹幕正文 |
-| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false) | 对任意在播房间开后台长会话：独立连接、心跳、断线重连、环形缓冲；不切换当前直播间 |
-| `watch_collect` | read | `sessionId`*、`cursor`、`limit`(1-1000)、`types`、`keyword`、`emoticonMode`(keep/aggregate/drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取；aggregate 时相同表情合并计数，需要名单再开 `includeSenders` |
+| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false)、`withSenders`(默认 false) | 对任意在播房间开后台长会话；`withSenders` 只是会话默认值，collect 可按次覆盖 |
+| `watch_collect` | read | `sessionId`*、`cursor`、`limit`(1-1000)、`types`(默认 `danmaku`+`gift`，自动带 `super_chat`)、`keyword`、`duplicateMode`(merge/keep)、`emoticonMode`(默认 drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取。默认 `merge`：相同正文的**文字弹幕**合并成 `danmakuGroup`（`count`/`firstSeq`/`lastSeq`），只出现一次的仍返回单条（带 `seq`，可用于 `watch_senders`）；默认不带发送者（`username`/`uid` 被移除），传 `includeSenders=true` 即热切换，不重连；纯表情默认丢弃（`emoticonMode=drop`），保留时用 `type=emoticon` / `isEmoticon` / `emojiOnly` 明确标识，合并组为 `emoticonGroup` |
+| `watch_senders` | read | `sessionId`*、`seq`、`content`、`fromSeq`、`toSeq` | 默认不返回发送者；需要时按 `seq`（单条）或 `content`（某段相同弹幕）查发送者次数与首末时间，附最多 10 条样本 |
 | `watch_digest` | read | `sessionId`*、`topN`、`includeSenders`、`senderLimit` | 只取统计：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量 |
 | `watch_status` | read | `sessionId`* | 会话健康度：缓冲、已收/丢弃、连接、重连、结束原因 |
 | `watch_stop` | write | `sessionId`*、`remove`(默认 false) | 停止采集；默认保留缓冲供继续 collect |
@@ -171,6 +177,20 @@
 | --- | --- | --- | --- |
 | `get` | read | `keys` | 读取设置（默认剔除快捷键与外观） |
 | `patch` | write | `patch`* | 局部修改，仅接受 `sendInterval`/`rateLimit`/`riskControl`/`receive`/`filter` |
+
+### memory
+
+房间 / 全局两级 Markdown 记忆，每个范围最多 8000 字。`watch_start` 会自动附带房间与全局记忆的摘要（房间 800 字、全局 400 字），完整内容用 `get`。
+
+| action | 风险 | 参数 | 说明 |
+| --- | --- | --- | --- |
+| `get` | read | `scope`*(room/global)、`roomId` | 读取完整记忆 |
+| `set` | write | `scope`*、`roomId`、`content`* | 覆盖写入（Markdown） |
+| `append` | write | `scope`*、`roomId`、`content`* | 追加一段，不覆盖旧内容 |
+| `list` | read | — | 全部记忆的摘要（字数、更新时间、前 80 字） |
+| `delete` | destructive | `scope`*、`roomId` | 删除记忆，不可逆 |
+
+> `roomId` 用真实房间号（`room_get` 的返回值）。
 
 ### mcp_describe
 
