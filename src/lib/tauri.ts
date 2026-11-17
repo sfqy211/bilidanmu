@@ -177,6 +177,7 @@ export const tauriCommands = {
       invoke<CommentPage>("get_video_comments", { aid, page: page ?? 1, sort: sort ?? 1 }),
     searchVideos: (keyword: string, page?: number) => invoke<SearchVideoPage>("search_videos", { keyword, page: page ?? 1 }),
     listWatchLater: () => invoke<WatchLaterItem[]>("list_watch_later"),
+    removeWatchLater: (aid: number) => invoke<void>("remove_watch_later", { aid }),
     likeComment: (oid: number, rpid: number, like: boolean) =>
       invoke<void>("like_comment", { oid, rpid, like }),
     addComment: (oid: number, message: string, root?: number, parent?: number) =>

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, LayoutGrid, List, ListMusic, Loader2, PanelsTopLeft, Pause, Play, RefreshCw } from "lucide-react";
+import { ArrowLeft, LayoutGrid, List, ListMusic, Loader2, PanelsTopLeft, Pause, Play, RefreshCw, Trash2 } from "lucide-react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { CoverCard } from "@/components/CoverCard";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -14,6 +14,8 @@ import {
 import "./VideoCollectionPage.css";
 
 export interface CollectionVideo {
+  /** 视频 avid（稍后再看删除等写操作用；收藏夹列表没有） */
+  aid?: number;
   bvid: string;
   title: string;
   author: string;
@@ -34,6 +36,7 @@ export function VideoCollectionPage({
   title, items, total, loading, error, errorKey, playingBvid, onPlay, onRefresh,
   emptyText, emptyIcon: EmptyIcon, backTo = "/listen", backLabel = "返回听视频", footer,
   onPlayAll, playingAll, currentBvid, isPlaying, onDanmaku, openingDanmakuBvid,
+  onRemove, removingBvid,
 }: {
   title: string;
   items: CollectionVideo[];
@@ -61,6 +64,10 @@ export function VideoCollectionPage({
   onDanmaku?: (item: CollectionVideo, index: number) => void;
   /** 本次点击正在打开弹幕窗口的那一行 */
   openingDanmakuBvid?: string | null;
+  /** 行内「移除」按钮（不传则不显示）：目前只有稍后再看接入 */
+  onRemove?: (item: CollectionVideo) => void;
+  /** 本次正在移除的那一行 */
+  removingBvid?: string | null;
 }) {
   const navigate = useNavigate();
   const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
@@ -110,6 +117,22 @@ export function VideoCollectionPage({
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <PanelsTopLeft className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); onRemove(item); }}
+            disabled={rowBusy || removingBvid === item.bvid}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+            title="从稍后再看移除"
+            aria-label={`从稍后再看移除 ${item.title}`}
+          >
+            {removingBvid === item.bvid ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
             )}
           </button>
         )}
@@ -182,6 +205,22 @@ export function VideoCollectionPage({
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <PanelsTopLeft className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className="cover-card-button is-danger"
+              title="从稍后再看移除"
+              aria-label={`从稍后再看移除 ${item.title}`}
+              disabled={rowBusy || removingBvid === item.bvid}
+              onClick={(event) => { event.stopPropagation(); onRemove(item); }}
+            >
+              {removingBvid === item.bvid ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
               )}
             </button>
           )}

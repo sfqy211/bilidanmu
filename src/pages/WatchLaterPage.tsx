@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock } from "lucide-react";
+import { toast } from "sonner";
 import { VideoCollectionPage, type CollectionVideo } from "@/components/listen/VideoCollectionPage";
 import { enterVideoDanmakuMode } from "@/lib/video-playback";
 import { tauriCommands } from "@/lib/tauri";
@@ -18,6 +19,7 @@ export function WatchLaterPage() {
   const [loading, setLoading] = useState(true);
   const [playingBvid, setPlayingBvid] = useState<string | null>(null);
   const [openingDanmakuBvid, setOpeningDanmakuBvid] = useState<string | null>(null);
+  const [removingBvid, setRemovingBvid] = useState<string | null>(null);
   const [playingAll, setPlayingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msgKey, setMsgKey] = useState(0);
@@ -39,6 +41,7 @@ export function WatchLaterPage() {
   }, [load]);
 
   const videos: CollectionVideo[] = items.map((item) => ({
+    aid: item.aid,
     bvid: item.bvid,
     title: item.title,
     author: item.ownerName,
@@ -83,6 +86,24 @@ export function WatchLaterPage() {
     }
   };
 
+  /** 从稍后再看移除：乐观更新列表，失败回滚并提示 */
+  const handleRemove = async (video: CollectionVideo) => {
+    if (removingBvid || !video.aid) return;
+    setRemovingBvid(video.bvid);
+    const snapshot = items;
+    try {
+      setItems((previous) => previous.filter((item) => item.bvid !== video.bvid));
+      await tauriCommands.video.removeWatchLater(video.aid);
+      toast.success("已从稍后再看移除");
+    } catch (reason) {
+      setItems(snapshot);
+      setError(reason instanceof Error ? reason.message : "移除失败");
+      setMsgKey((key) => key + 1);
+    } finally {
+      setRemovingBvid(null);
+    }
+  };
+
   /** 播放全部：稍后再看是一次性全量返回的，直接整表入队从第一首播 */
   const handlePlayAll = async () => {
     if (playingAll || playingBvid || videos.length === 0) return;
@@ -115,6 +136,8 @@ export function WatchLaterPage() {
       onRefresh={() => void load()}
       onDanmaku={(video, index) => void handleDanmaku(video, index)}
       openingDanmakuBvid={openingDanmakuBvid}
+      onRemove={(video) => void handleRemove(video)}
+      removingBvid={removingBvid}
       emptyText="稍后再看是空的"
       emptyIcon={Clock}
     />

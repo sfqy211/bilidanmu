@@ -78,6 +78,8 @@ export interface SearchVideoPage {
 }
 
 export interface WatchLaterItem {
+  /** 视频 avid（从稍后再看移除时用） */
+  aid: number;
   bvid: string;
   cid: number;
   title: string;
