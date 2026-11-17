@@ -124,11 +124,14 @@
 | `video_search` | read | `keyword`*、`page` | 搜索视频 |
 | `video_get_info` | read | `bvid`* | 视频详情（含 `aid`、分P `cid`） |
 | `video_get_subtitle` | read | `bvid`*、`cid` | 字幕逐行文本 |
+| `video_get_danmaku` | read | `bvid`*、`cid`、`segment`(6 分钟一段，从 1 开始) | 视频内弹幕 |
+| `video_danmaku_send` | **costly** | `bvid`*、`message`*、`progress`*(秒)、`cid` | 向视频指定时间点发送公开弹幕（20 秒内同文案拒绝） |
 | `video_get_comments` | read | `bvid`*、`page`、`sort`(1 热度 / 0 时间) | 一级评论 |
 | `video_get_replies` | read | `bvid`*、`root`*、`page` | 楼中楼回复 |
 | `video_fav_folders` | read | — | 收藏夹列表 |
 | `video_fav_list` | read | `mediaId`*、`page`、`size` | 收藏夹内容 |
 | `video_watch_later` | read | — | 稍后再看 |
+| `video_watch_later_remove` | write | `aid` | 从稍后再看移除一个视频（aid 来自 `video_watch_later`） |
 | `video_play` | write | `bvid`* | 在桌面端打开并播放 |
 | `video_stop` | write | — | 停止视频音频 |
 | `video_comment_like` | write | `oid`*、`rpid`*、`like` | 评论点赞/取消 |

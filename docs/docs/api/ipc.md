@@ -109,6 +109,7 @@ const settings = await tauriCommands.settings.get()
 | `list_fav_folders` | — | `FavFolder[]` | 我创建的收藏夹（需登录） |
 | `list_fav_resources` | `mediaId, page?, size?` | `FavResourcePage` | 收藏夹内视频（分页） |
 | `list_watch_later` | — | `WatchLaterItem[]` | 稍后再看（需登录） |
+| `remove_watch_later` | `aid` | — | 从稍后再看移除一个视频（需登录） |
 | `search_videos` | `keyword, page?` | `SearchVideoPage` | 视频关键词搜索 |
 | `get_video_subtitle` | `bvid, cid` | `SubtitleLine[]` | 视频自带字幕 |
 | `get_video_danmaku` | `cid, segment` | `VideoDanmaku[]` | 视频弹幕，6 分钟一段，`segment` 从 1 开始；条目为 `{ id: string, progress: number, content: string }`，`progress` 单位为秒 |
