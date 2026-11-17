@@ -42,6 +42,18 @@ pub async fn send_video_danmaku(
         .await
 }
 
+/// 从稍后再看移除视频（`aid` 为视频 avid，列表接口里带）
+#[tauri::command]
+pub async fn remove_watch_later(aid: u64, state: State<'_, AppState>) -> Result<(), String> {
+    if aid == 0 {
+        return Err("无效的视频 aid".into());
+    }
+    let credential = state.credential.lock().await.clone();
+    build_api_client(credential, &state)
+        .remove_watch_later(aid)
+        .await
+}
+
 /// 视频信息（标题、UP 主、分 P 列表）
 #[tauri::command]
 pub async fn get_video_info(bvid: String, state: State<'_, AppState>) -> Result<VideoInfo, String> {

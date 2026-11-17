@@ -70,9 +70,12 @@ pub async fn dispatch_tool(
         "video_get_subtitle" => tools::video::get_subtitle(app, state, args).await,
         "video_get_comments" => tools::video::get_comments(app, state, args).await,
         "video_get_replies" => tools::video::get_replies(app, state, args).await,
+        "video_get_danmaku" => tools::video::get_danmaku(app, state, args).await,
+        "video_danmaku_send" => tools::video::send_danmaku(app, state, args).await,
         "video_fav_folders" => tools::video::fav_folders(app, state, args).await,
         "video_fav_list" => tools::video::fav_list(app, state, args).await,
         "video_watch_later" => tools::video::watch_later(app, state, args).await,
+        "video_watch_later_remove" => tools::video::watch_later_remove(app, state, args).await,
         "video_play" => tools::video::play(app, state, args).await,
         "video_stop" => tools::video::stop(app, state, args).await,
         "video_comment_like" => tools::video::like_comment(app, state, args).await,
@@ -586,6 +589,39 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
             })),
         },
         ToolSpec {
+            name: "video_get_danmaku",
+            title: "视频弹幕",
+            description: "拉取视频内某一时段的弹幕。B 站按 6 分钟分段（segment 从 1 开始），长视频按 video_get_info 的总时长除以 360 逐段翻页。不传 cid 时自动取第一个分P。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "bvid": { "type": "string" },
+                    "cid": { "type": "integer", "description": "分P id，省略取第一个分P" },
+                    "segment": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 1, "description": "6 分钟一段，从 1 开始" }
+                },
+                "required": ["bvid"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "video_danmaku_send",
+            title: "发送视频弹幕",
+            description: "在视频的指定时间点发送一条弹幕。弹幕公开可见，必须已登录；长度上限 100 字；20 秒内相同文案会被拒绝。",
+            risk: Risk::Costly,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "bvid": { "type": "string" },
+                    "message": { "type": "string", "description": "弹幕正文（1–100 字）" },
+                    "progress": { "type": "number", "minimum": 0, "description": "视频内时间（秒）" },
+                    "cid": { "type": "integer", "description": "分P id，省略取第一个分P" }
+                },
+                "required": ["bvid", "message", "progress"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
             name: "video_get_comments",
             title: "视频评论",
             description: "拉取视频一级评论。sort=1 按热度、sort=0 按时间。",
@@ -646,6 +682,20 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
             description: "列出稍后再看列表。需要登录。",
             risk: Risk::Read,
             input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
+        },
+        ToolSpec {
+            name: "video_watch_later_remove",
+            title: "从稍后再看移除",
+            description: "把一个视频从稍后再看列表里删掉。需要登录。aid 来自 video_watch_later（不是 bvid）；删除会同步到 B 站账号。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "aid": { "type": "integer", "minimum": 1, "description": "视频 aid，来自 video_watch_later 的返回" }
+                },
+                "required": ["aid"],
+                "additionalProperties": false
+            })),
         },
         ToolSpec {
             name: "video_play",

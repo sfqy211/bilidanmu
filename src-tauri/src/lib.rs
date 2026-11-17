@@ -497,6 +497,7 @@ pub fn run() {
             commands::video::get_video_comments,
             commands::video::search_videos,
             commands::video::list_watch_later,
+            commands::video::remove_watch_later,
             commands::video::like_comment,
             commands::video::add_video_comment,
             commands::video::get_comment_replies,

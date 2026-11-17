@@ -818,6 +818,7 @@ impl BiliApiClient {
             .iter()
             .filter_map(|item| {
                 Some(crate::models::video::WatchLaterItem {
+                    aid: item.get("aid").and_then(Value::as_u64).unwrap_or(0),
                     bvid: item.get("bvid").and_then(Value::as_str)?.to_string(),
                     cid: item.get("cid").and_then(Value::as_u64).unwrap_or(0),
                     title: item
@@ -839,6 +840,24 @@ impl BiliApiClient {
                 })
             })
             .collect())
+    }
+
+    /// 从稍后再看移除视频（需要登录与 csrf）。`aid` 为视频 avid。
+    pub async fn remove_watch_later(&self, aid: u64) -> Result<(), String> {
+        let csrf = self
+            .credential
+            .as_ref()
+            .and_then(|credential| credential.bili_jct.as_deref())
+            .filter(|value| !value.is_empty())
+            .ok_or("请先登录")?;
+        let form = BTreeMap::from([
+            ("aid".to_string(), aid.to_string()),
+            ("csrf".to_string(), csrf.to_string()),
+        ]);
+        let response = self
+            .post_form("https://api.bilibili.com/x/v2/history/toview/del", &form)
+            .await?;
+        ensure_success(&response)
     }
 
     /// 视频音频流：DASH 音轨里取最高码率的 CDN 地址（需经本地代理补 Referer 取流）。

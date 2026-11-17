@@ -109,6 +109,8 @@ pub struct SearchVideoPage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WatchLaterItem {
+    /// 视频 avid（从稍后再看移除时用）
+    pub aid: u64,
     pub bvid: String,
     pub cid: u64,
     pub title: String,
