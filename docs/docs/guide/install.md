@@ -18,17 +18,25 @@
 
 ### 方式二：从源码构建（开发者）
 
+前端 UI 与 Rust 协议层依赖同级的公共仓库 `danmaku-core`，先把它放到客户端同级目录，再安装依赖：
+
 ```bash
 git clone https://github.com/sfqy211/bilidanmu.git
 cd bilidanmu
+git clone https://github.com/sfqy211/danmaku-core.git ../danmaku-core
+git -C ../danmaku-core checkout --detach "$(node scripts/shared-core-revision.mjs)"
+npm --prefix ../danmaku-core ci
+npm --prefix ../danmaku-core run build
 npm ci
 ```
+
+`scripts/shared-core-revision.mjs` 从 `src-tauri/Cargo.toml` 读取公共核心的固定修订，保证前端与 Rust 使用同一份源码。
 
 ## 环境要求
 
 | 组件 | 最低版本 | 说明 |
 | --- | --- | --- |
-| Node.js | 18+ | 前端构建与包管理（文档站要求 20+） |
+| Node.js | 20.19+ | 前端构建与包管理（Vite 8 要求） |
 | Rust | 最新 stable | 通过 [rustup](https://rustup.rs/) 安装 |
 | Windows | 10+ | 需要 WebView2 运行时（Win11 自带） |
 | 包管理器 | npm | 仓库带 `package-lock.json`，统一用 `npm ci` |
@@ -48,6 +56,8 @@ npm ci
 ```
 
 该命令会按锁文件安装前端依赖。Rust 依赖在首次 `tauri dev` / `tauri build` 时由 Cargo 自动下载编译。
+
+前置条件是同级目录已有 `danmaku-core`（见上节）。之后 `typecheck`、`dev:renderer`、`build:renderer` 会自动重新构建共享 UI，Cargo 也会按锁文件拉取固定修订的公共核心，无需手动更新。
 
 ## 启动开发
 
