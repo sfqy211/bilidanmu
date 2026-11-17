@@ -33,7 +33,7 @@
 | 错误码 | 含义 | 建议动作 |
 | --- | --- | --- |
 | `NOT_LOGGED_IN` | 未登录 | 让用户扫码登录，或调用 `account_list` 选账号 |
-| `NOT_IN_ROOM` | 未进入直播间 | 先 `room_join` 或 `room_list` |
+| `NOT_IN_ROOM` | 未进入直播间 | 先 `room{action:"join"}` 或 `room{action:"list"}` |
 | `INVALID_ARGS` | 参数不合法 | 按 `inputSchema` 修正 |
 | `UNKNOWN_TOOL` | 工具名不存在 | 调 `tools/list` |
 | `FEATURE_DISABLED` | 编译期能力缺失（如送礼） | 说明后放弃，不要重试 |
@@ -53,60 +53,72 @@
 
 ## 工具清单
 
-### 应用
+`tools/list` 只返回 8 个域工具和 1 个目录查询工具，避免每次会话把所有参数 schema 装进上下文。调用形如：
 
-| 工具 | 风险 | 参数 | 说明 |
+```json
+{ "name": "live", "arguments": { "action": "get_context", "params": { "danmakuLimit": 20 } } }
+```
+
+`params` 是该 action 的参数对象。不确定字段时先调 `mcp_describe(domain, action)`，它返回该 action 的完整 JSON Schema、说明与风险等级；不传参数则返回全部域与 action 索引。
+
+| 域 | action |
+| --- | --- |
+| `app` | status、refresh_rooms、reveal_window、permission |
+| `live` | get_context、query_danmaku、get_stats、watch_start、watch_collect、watch_digest、watch_status、watch_stop、watch_list |
+| `room` | list、search、get、live_status、follow_lives、join、leave |
+| `danmaku` | get_emoticons、send、send_emoticon、like、auto_send_start、auto_send_stop、auto_like_start、auto_like_stop、auto_status、template_list、template_save、template_delete |
+| `gift` | list、bag、send |
+| `video` | search、get_info、get_subtitle、get_danmaku、danmaku_send、get_comments、get_replies、fav_folders、fav_list、watch_later、watch_later_remove、play、stop、comment_like、comment_post |
+| `account` | list、get_current、get_wallet、switch、remove |
+| `settings` | get、patch |
+| `mcp_describe` | domain?、action? |
+
+> 风险等级按解析后的真实 action 判定（见上一节），与域工具本身无关；确认弹窗里的工具名显示为 `域.action`。
+
+### app
+
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `app_get_status` | read | — | 版本、登录态、当前房间、WS 连接、礼物能力、权限模式、MCP 状态 |
-| `app_refresh_rooms` | read | — | 重新拉取房间标题与开播状态 |
-| `app_reveal_window` | read | — | 显示并聚焦主窗口 |
-| `app_get_permission` | read | — | 当前权限模式与三档含义 |
+| `status` | read | — | 版本、登录态、当前房间、WS 连接、礼物能力、权限模式、MCP 状态 |
+| `refresh_rooms` | read | — | 重新拉取房间标题与开播状态 |
+| `reveal_window` | read | — | 显示并聚焦主窗口 |
+| `permission` | read | — | 当前权限模式与三档含义 |
 
-### 直播上下文
+### live
 
-| 工具 | 风险 | 参数 | 说明 |
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `live_get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者 |
-| `live_query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样（不切房、不占缓冲，仅实时无历史；长采样会自动补心跳） |
-| `live_get_stats` | read | — | 只返回实时指标，不含弹幕正文 |
-| `live_watch_start` | write | `roomId`、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false) | 对任意在播房间开后台长会话：独立连接、心跳、断线重连、环形缓冲；不切换当前直播间 |
-| `live_watch_collect` | read | `sessionId`、`cursor`、`limit`(1-1000)、`types`、`keyword`、`emoticonMode`(keep/aggregate/drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取；aggregate 时相同表情合并计数，需要名单再开 `includeSenders` |
-| `live_watch_digest` | read | `sessionId`、`topN`、`includeSenders`、`senderLimit` | 只取统计：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量 |
-| `live_watch_status` | read | `sessionId` | 会话健康度：缓冲、已收/丢弃、连接、重连、结束原因 |
-| `live_watch_stop` | write | `sessionId`、`remove`(默认 false) | 停止采集；默认保留缓冲供继续 collect |
-| `live_watch_list` | read | — | 列出全部会话（含已结束、保留期内） |
+| `get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者 |
+| `query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样（不切房、不占缓冲，仅实时无历史） |
+| `get_stats` | read | — | 只返回实时指标，不含弹幕正文 |
+| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false) | 对任意在播房间开后台长会话：独立连接、心跳、断线重连、环形缓冲；不切换当前直播间 |
+| `watch_collect` | read | `sessionId`*、`cursor`、`limit`(1-1000)、`types`、`keyword`、`emoticonMode`(keep/aggregate/drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取；aggregate 时相同表情合并计数，需要名单再开 `includeSenders` |
+| `watch_digest` | read | `sessionId`*、`topN`、`includeSenders`、`senderLimit` | 只取统计：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量 |
+| `watch_status` | read | `sessionId`* | 会话健康度：缓冲、已收/丢弃、连接、重连、结束原因 |
+| `watch_stop` | write | `sessionId`*、`remove`(默认 false) | 停止采集；默认保留缓冲供继续 collect |
+| `watch_list` | read | — | 列出全部会话（含已结束、保留期内） |
 
-### 账号
+### room
 
-| 工具 | 风险 | 参数 | 说明 |
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `account_list` | read | — | 已登录账号（不含 cookie） |
-| `account_get_current` | read | — | 当前登录态与能否发送 |
-| `account_get_wallet` | read | `roomId` | 金/银瓜子余额 |
-| `account_switch` | write | `accountId`* | 切换活跃账号 |
-| `account_remove` | destructive | `accountId`* | 删除本地凭据（不可逆） |
+| `list` | read | `onlyLive`(默认 false) | 已保存房间 + 实时开播状态 |
+| `search` | read | `keyword`*、`mode`(`roomId`/`link`/`name`) | 搜索直播间 |
+| `get` | read | `roomId`* | 房间详情（含主播 uid，送礼需要） |
+| `live_status` | read | — | 全部已保存房间的开播状态 |
+| `follow_lives` | read | — | 关注列表中正在直播的主播 |
+| `join` | write | `roomId`* | 进入直播间（与手动点击行为一致） |
+| `leave` | write | — | 离开当前直播间 |
 
-### 房间
+### danmaku
 
-| 工具 | 风险 | 参数 | 说明 |
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `room_list` | read | `onlyLive`(默认 false) | 已保存房间 + 实时开播状态 |
-| `room_search` | read | `keyword`*、`mode`(`roomId`/`link`/`name`) | 搜索直播间 |
-| `room_get` | read | `roomId`* | 房间详情（含主播 uid，送礼需要） |
-| `room_live_status` | read | — | 全部已保存房间的开播状态 |
-| `room_follow_lives` | read | — | 关注列表中正在直播的主播 |
-| `room_join` | write | `roomId`* | 进入直播间（与手动点击行为一致） |
-| `room_leave` | write | — | 离开当前直播间 |
-
-### 弹幕
-
-| 工具 | 风险 | 参数 | 说明 |
-| --- | --- | --- | --- |
-| `danmaku_get_emoticons` | read | `roomId` | 房间表情包（优先本地缓存） |
-| `danmaku_send` | **costly** | `roomId`、`message`*(≤20 字)、`color`、`mode` | 发送文字弹幕，经发送队列限流 |
-| `danmaku_send_emoticon` | **costly** | `roomId`、`emoticonUnique`*、`emoticonOptions` | 发送表情弹幕 |
-| `danmaku_like` | write | `roomId`、`anchorId`、`clickTimes`(1-100) | 给直播间点赞 |
-| `auto_send_start` | **costly** | `roomId`、`entries`*（≤20 条，含 `message`/`dmType`/`emoticonOptions`）、`intervalMs`(≥300，默认 3000，会抬到用户设置的最小发送间隔)、`timeLimitSecs` | 后台循环发送，一次确认覆盖整段循环；与模型会话无关 |
+| `get_emoticons` | read | `roomId` | 房间表情包（优先本地缓存） |
+| `send` | **costly** | `roomId`、`message`*(≤20 字)、`color`、`mode` | 发送文字弹幕，经发送队列限流 |
+| `send_emoticon` | **costly** | `roomId`、`emoticonUnique`*、`emoticonOptions` | 发送表情弹幕 |
+| `like` | write | `roomId`、`anchorId`、`clickTimes`(1-100) | 给直播间点赞 |
+| `auto_send_start` | **costly** | `roomId`、`entries`*（≤20 条，含 `message`/`dmType`/`emoticonOptions`）、`intervalMs`(≥300，默认 3000，会抬到用户设置的最小发送间隔)、`timeLimitSecs` | 后台循环发送，一次确认覆盖整段循环 |
 | `auto_send_stop` | write | — | 停止循环发送 |
 | `auto_like_start` | write | `roomId`、`anchorId`、`targetTotal`(1-1000，默认 100)、`batchSize`(1-100，默认 20)、`intervalMs`(≥500，默认 5000) | 分批点赞到目标次数后自动停止 |
 | `auto_like_stop` | write | — | 停止自动点赞 |
@@ -115,40 +127,57 @@
 | `template_save` | write | `id`、`title`*、`content`* | 新建（无 id）或更新模板 |
 | `template_delete` | write | `id`* | 删除模板 |
 
-### 礼物
+### gift
 
-| 工具 | 风险 | 参数 | 说明 |
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `gift_list` | read | `roomId` | 房间礼物面板（含 `giftId`、`price`） |
-| `gift_bag` | read | `roomId` | 礼物背包 |
-| `gift_send` | **costly** | `roomId`、`giftId`*、`giftNum`(1-999)、`coinType`、`price`（金瓜子必填）、`ruid`、`bagId` | 送礼物，金瓜子真实扣费（1000 = 1 元） |
+| `list` | read | `roomId` | 房间礼物面板（含 `giftId`、`price`） |
+| `bag` | read | `roomId` | 礼物背包 |
+| `send` | **costly** | `roomId`、`giftId`*、`giftNum`(1-999)、`coinType`、`price`（金瓜子必填）、`ruid`、`bagId` | 送礼物，金瓜子真实扣费（1000 = 1 元） |
 
-### 视频
+### video
 
-| 工具 | 风险 | 参数 | 说明 |
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `video_search` | read | `keyword`*、`page` | 搜索视频 |
-| `video_get_info` | read | `bvid`* | 视频详情（含 `aid`、分P `cid`） |
-| `video_get_subtitle` | read | `bvid`*、`cid` | 字幕逐行文本 |
-| `video_get_danmaku` | read | `bvid`*、`cid`、`segment`(6 分钟一段，从 1 开始) | 视频内弹幕 |
-| `video_danmaku_send` | **costly** | `bvid`*、`message`*、`progress`*(秒)、`cid` | 向视频指定时间点发送公开弹幕（20 秒内同文案拒绝） |
-| `video_get_comments` | read | `bvid`*、`page`、`sort`(1 热度 / 0 时间) | 一级评论 |
-| `video_get_replies` | read | `bvid`*、`root`*、`page` | 楼中楼回复 |
-| `video_fav_folders` | read | — | 收藏夹列表 |
-| `video_fav_list` | read | `mediaId`*、`page`、`size` | 收藏夹内容 |
-| `video_watch_later` | read | — | 稍后再看 |
-| `video_watch_later_remove` | write | `aid` | 从稍后再看移除一个视频（aid 来自 `video_watch_later`） |
-| `video_play` | write | `bvid`* | 在桌面端打开并播放 |
-| `video_stop` | write | — | 停止视频音频 |
-| `video_comment_like` | write | `oid`*、`rpid`*、`like` | 评论点赞/取消 |
-| `video_comment_post` | **costly** | `oid`*、`message`*、`root`、`parent` | 发表公开评论 |
+| `search` | read | `keyword`*、`page` | 搜索视频 |
+| `get_info` | read | `bvid`* | 视频详情（含 `aid`、分P `cid`） |
+| `get_subtitle` | read | `bvid`*、`cid` | 字幕逐行文本 |
+| `get_danmaku` | read | `bvid`*、`cid`、`segment`(6 分钟一段，从 1 开始) | 视频内弹幕 |
+| `danmaku_send` | **costly** | `bvid`*、`message`*、`progress`*(秒)、`cid` | 向视频指定时间点发送公开弹幕（20 秒内同文案拒绝） |
+| `get_comments` | read | `bvid`*、`page`、`sort`(1 热度 / 0 时间) | 一级评论 |
+| `get_replies` | read | `bvid`*、`root`*、`page` | 楼中楼回复 |
+| `fav_folders` | read | — | 收藏夹列表 |
+| `fav_list` | read | `mediaId`*、`page`、`size` | 收藏夹内容 |
+| `watch_later` | read | — | 稍后再看 |
+| `watch_later_remove` | write | `aid`* | 从稍后再看移除一个视频（aid 来自 `watch_later`） |
+| `play` | write | `bvid`* | 在桌面端打开并播放 |
+| `stop` | write | — | 停止视频音频 |
+| `comment_like` | write | `oid`*、`rpid`*、`like` | 评论点赞/取消 |
+| `comment_post` | **costly** | `oid`*、`message`*、`root`、`parent` | 发表公开评论 |
 
-### 设置
+### account
 
-| 工具 | 风险 | 参数 | 说明 |
+| action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `settings_get` | read | `keys` | 读取设置（默认剔除快捷键与外观） |
-| `settings_patch` | write | `patch`* | 局部修改，仅接受 `sendInterval`/`rateLimit`/`riskControl`/`receive`/`filter` |
+| `list` | read | — | 已登录账号（不含 cookie） |
+| `get_current` | read | — | 当前登录态与能否发送 |
+| `get_wallet` | read | `roomId` | 金/银瓜子余额 |
+| `switch` | write | `accountId`* | 切换活跃账号 |
+| `remove` | destructive | `accountId`* | 删除本地凭据（不可逆） |
+
+### settings
+
+| action | 风险 | 参数 | 说明 |
+| --- | --- | --- | --- |
+| `get` | read | `keys` | 读取设置（默认剔除快捷键与外观） |
+| `patch` | write | `patch`* | 局部修改，仅接受 `sendInterval`/`rateLimit`/`riskControl`/`receive`/`filter` |
+
+### mcp_describe
+
+| 参数 | 说明 |
+| --- | --- |
+| `domain` | 域名称；省略时返回全部域与 action 索引 |
+| `action` | 域内 action；省略时返回整个域的参数 schema |
 
 > 带 `*` 的参数为必填。
 
@@ -173,5 +202,5 @@ curl -s -X POST http://127.0.0.1:23332/mcp \
 curl -s -X POST http://127.0.0.1:23332/mcp \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"live_get_context","arguments":{"danmakuLimit":20}}}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"live","arguments":{"action":"get_context","params":{"danmakuLimit":20}}}}'
 ```
