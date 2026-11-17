@@ -16,7 +16,7 @@ export function GeneralSettings({ settings, patchSettings }: SettingsPanelProps)
           options={[{ value: "danmaku", label: "弹幕窗口" }, { value: "main", label: "主页面" }]} />
       </SettingsGroup>
       <SettingsGroup title="界面显示">
-        <SettingsToggle title="显示头像" description="在直播间列表、添加主播、账号和视频评论中展示头像。"
+        <SettingsToggle title="显示头像" description="在直播间列表、听视频列表、添加主播、账号和视频评论中展示头像。"
           checked={settings.showAvatars} onChange={(showAvatars) => patchSettings({ showAvatars })} />
       </SettingsGroup>
     </>

@@ -65,6 +65,7 @@ export function ListenFavPage() {
     bvid: item.bvid,
     title: item.title,
     author: item.upperName,
+    avatar: item.upperAvatar,
     cover: item.cover,
     duration: item.duration,
     cid: null

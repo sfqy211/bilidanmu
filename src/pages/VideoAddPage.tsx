@@ -28,7 +28,6 @@ function extractBvid(input: string): string | null {
 /** 添加视频子页：与添加主播共用 AddSearchPage，BV 号也会先展示结果供确认。 */
 export function VideoAddPage() {
   const navigate = useNavigate();
-  const showCovers = useSettingsStore((state) => state.settings.listen.showCovers);
 
   const handleSearch = async (query: string, mode: string): Promise<VideoCandidate[]> => {
     // 无论当前模式，只要能识别出 BV 号都先解析成单条结果，交给用户确认。
@@ -60,11 +59,11 @@ export function VideoAddPage() {
       itemKey={(video) => video.bvid}
       renderRow={(video) => (
         <div className="add-result-row flex items-center gap-3 px-4 py-3">
-          {showCovers && (video.cover ? (
+          {video.cover ? (
             <ProxiedImage src={video.cover} alt="" className="h-9 w-16 shrink-0 rounded object-cover" />
           ) : (
             <div className="h-9 w-16 shrink-0 rounded bg-brand/10" />
-          ))}
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{video.title}</p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">{video.author}</p>

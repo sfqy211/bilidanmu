@@ -42,6 +42,7 @@ export function WatchLaterPage() {
     bvid: item.bvid,
     title: item.title,
     author: item.ownerName,
+    avatar: item.ownerAvatar,
     cover: item.cover,
     duration: item.duration,
     cid: item.cid || null

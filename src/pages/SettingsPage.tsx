@@ -25,7 +25,7 @@ const SETTINGS_CATEGORIES = [
   { value: "danmaku", label: "弹幕窗口", description: "文字、消息、活动栏与屏蔽", icon: MessageSquare, component: DanmakuSettings,
     resetKeys: ["appearance", "filter"] },  { value: "audio", label: "弹幕小窗音频", description: "小窗音频与实时语音字幕", icon: Volume2, component: AudioSettings,
     resetKeys: ["audio", "stt"] },
-  { value: "listen", label: "听视频", description: "播放偏好、视频字幕与封面外观", icon: Headphones, component: ListenSettings,
+  { value: "listen", label: "听视频", description: "播放偏好与视频字幕", icon: Headphones, component: ListenSettings,
     resetKeys: ["listen"] },
   { value: "storage", label: "存储", description: "消息保留与图片缓存", icon: HardDrive, component: StorageSettings,
     resetKeys: ["cache"] },

@@ -82,6 +82,7 @@ export interface WatchLaterItem {
   cid: number;
   title: string;
   ownerName: string;
+  ownerAvatar?: string;
   cover?: string;
   duration: number;
 }
@@ -104,6 +105,7 @@ export interface FavResource {
   bvid: string;
   title: string;
   upperName: string;
+  upperAvatar?: string;
   cover?: string;
   duration: number;
 }
@@ -410,8 +412,6 @@ export interface AudioSetting {
 }
 
 export interface ListenSetting {
-  /** 在视频列表和播放页标题旁展示封面 */
-  showCovers: boolean;
   autoNext: boolean;
   subtitleFontSize: number;
   subtitleAutoFollow: boolean;

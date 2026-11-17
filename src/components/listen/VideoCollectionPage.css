@@ -1,0 +1,38 @@
+/* 听视频列表的双视图（列表 / 封面），与看直播页的房间视图同一视觉语言。
+   独立文件而不是写进 index.css：该文件有本地的未提交改动，这里只放视频列表专用类名。 */
+
+.video-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--glass-control-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+}
+.video-view-option {
+  display: flex;
+  height: 26px;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.video-view-option:hover { color: var(--ink); }
+.video-view-option-active {
+  background: var(--glass-item-bg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+}
+.video-view-option:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
+
+/* 封面网格：16:9 大封面完整展示，信息放在图片下方（不遮挡封面） */
+.video-cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}

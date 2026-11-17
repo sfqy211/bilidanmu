@@ -24,7 +24,6 @@ export function VideoPlayerPage() {
   const isCurrentVideo = video?.bvid === bvid;
   const track = queue?.tracks[index];
   const coverSource = useProxyImage(isCurrentVideo ? video?.cover : undefined);
-  const showCovers = preferences.showCovers;
   const [reloadKey, setReloadKey] = useState(0);
   const [treeOpen, setTreeOpen] = useState(false);
   const [openingWindow, setOpeningWindow] = useState(false);
@@ -113,7 +112,7 @@ export function VideoPlayerPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          {showCovers && (
+          {(
             <figure className="listen-player-cover-thumb">
               {video.cover ? <img src={coverSource} alt="" /> : <ImageIcon className="h-4 w-4" />}
             </figure>

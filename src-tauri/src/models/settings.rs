@@ -335,7 +335,6 @@ impl Default for AudioSetting {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ListenSetting {
-    pub show_covers: bool,
     pub auto_next: bool,
     pub subtitle_font_size: u32,
     pub subtitle_auto_follow: bool,
@@ -345,7 +344,6 @@ pub struct ListenSetting {
 impl Default for ListenSetting {
     fn default() -> Self {
         Self {
-            show_covers: true,
             auto_next: true,
             subtitle_font_size: 16,
             subtitle_auto_follow: true,

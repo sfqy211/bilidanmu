@@ -16,10 +16,6 @@ export function ListenSettings({ settings, patchSettings }: SettingsPanelProps) 
         <SettingsToggle title="显示时间标记" description="在字幕旁显示开始时间，方便浏览和定位。"
           checked={settings.listen.subtitleShowTime} onChange={(subtitleShowTime) => update({ subtitleShowTime })} />
       </SettingsGroup>
-      <SettingsGroup title="视频封面">
-        <SettingsToggle title="显示视频封面" description="在视频列表、播放页标题旁和底部播放栏展示封面；关闭后都只显示文字。"
-          checked={settings.listen.showCovers} onChange={(showCovers) => update({ showCovers })} />
-      </SettingsGroup>
     </>
   );
 }
