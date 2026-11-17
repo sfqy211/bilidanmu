@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useWindowDock } from "@/hooks/useWindowDock";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
-import type { DockSide } from "@/hooks/useWindowDock";
-import { DockCollapsedBar } from "@/components/DockCollapsedBar";
 
 const appWindow = getCurrentWindow();
 import { useZoom } from "@/hooks/useZoom";
@@ -35,10 +32,6 @@ import { DanmakuInput } from "@/components/danmaku/DanmakuInput";
 import { DanmakuWindow } from "@/components/danmaku/DanmakuWindow";
 import { DanmakuWindowAppearanceSettings } from "@/components/danmaku/DanmakuWindowAppearanceSettings";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
-import {
-  usePassthroughHitTest,
-  useStealthMode,
-} from "@/hooks/useDanmakuWindowModes";
 import { tauriCommands } from "@/lib/tauri";
 import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
@@ -169,8 +162,6 @@ export function DanmakuPage() {
   const settingsOpen = activePanel === PANEL.SETTINGS;
   const filterOpen = activePanel === PANEL.FILTER;
   const clipboardOpen = activePanel === PANEL.CLIPBOARD;
-  const [pinned, setPinned] = useState(true);
-  const [locked, setLocked] = useState(false);
   // 仅输入框紧凑模式：Rust 侧管窗口尺寸/约束/吸附互斥，前端只切渲染形态
   const [inputOnly, setInputOnly] = useState(false);
   useEffect(() => {
@@ -187,7 +178,7 @@ export function DanmakuPage() {
   // 位移超过阈值才交给系统拖动；一旦 startDragging 交出去，mouseup 未必还能回到本窗口，
   // 所以调用前先摘掉监听，避免松手时被当成一次点击。
   const handleInputOnlyGrip = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
+    (event: React.MouseEvent<HTMLButtonElement>, locked: boolean) => {
       if (event.button !== 0) return;
       // 上一次的监听若因鼠标移出窗口没收到 mouseup，先清掉，避免残留的 mousemove 误触发拖动
       inputOnlyGripCleanupRef.current?.();
@@ -217,20 +208,8 @@ export function DanmakuPage() {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [appWindow, locked, toggleInputOnly],
+    [appWindow, toggleInputOnly],
   );
-  const [passthroughEnabled, setPassthroughEnabled] = useState(false);
-  // 隐身与透传与视频弹幕窗共用同一套 hook（useDanmakuWindowModes）：
-  // 隐身由后端按光标位置自动显隐，透传按 DOM 命中测试轮询
-  const stealth = useStealthMode();
-  usePassthroughHitTest(passthroughEnabled, stealth.enabled, stealth.visible);
-  const toggleStealth = useCallback(() => {
-    setActivePanel(null);
-    stealth.toggle();
-  }, [stealth.toggle]);
-  const togglePassthrough = useCallback(() => {
-    setPassthroughEnabled((v) => !v);
-  }, []);
   const { disconnect } = useDanmakuStream(roomId);
 
   const navigate = useNavigate();
@@ -410,11 +389,8 @@ export function DanmakuPage() {
   const audioSettings = useSettingsStore((s) => s.settings.audio);
   const sttSettings = useSettingsStore((s) => s.settings.stt);
   const fontSize = useSettingsStore((s) => s.settings.appearance.fontSize);
-  const preferredDockAnimMs = useSettingsStore((s) => s.settings.appearance.dockAnimMs);
-  const dockAnimMs = useReducedMotion() ? 0 : preferredDockAnimMs;
   // 隐身淡出：窗口本身是真透明，内容整体淡出即为"隐身"。
   // 显示比隐藏快一点：悬停要跟手，离开后渐隐不突兀
-  const stealthFadeMs = useReducedMotion() ? 0 : stealth.visible ? 120 : 200;
   const opacity = useSettingsStore((s) => s.settings.appearance.opacity);
   // 弹幕窗外观：功能栏形态与收起条样式（旧数据缺字段时按默认）
   const danmakuWindow = useSettingsStore((s) => s.settings.appearance.danmakuWindow);
@@ -547,25 +523,6 @@ export function DanmakuPage() {
     localStorage.removeItem("danmaku-window-height");
   }, []);
   useZoom();
-
-  // 弹幕窗口启用透明背景
-  useEffect(() => {
-    document.documentElement.dataset.transparent = "true";
-    return () => {
-      delete document.documentElement.dataset.transparent;
-    };
-  }, []);
-
-  // 关闭窗口时隐藏到托盘（不断开连接）
-  useEffect(() => {
-    const unlisten = appWindow.onCloseRequested((e) => {
-      e.preventDefault();
-      void appWindow.hide();
-    });
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, [disconnect, sttAvailable]);
 
   const {
     isRunning: autoSendRunning,
@@ -933,8 +890,8 @@ export function DanmakuPage() {
   // 空白区域拖动页面：仅当左键直接点在容器自身空白（非子元素、非滚动条）时才拖动。
   // 滚动条不属于任何子元素，e.target 也是容器本身，因此必须额外排除落在滚动条上的点击，
   // 否则拖动滚动条会被误判为拖动页面。
-  const handleBlankAreaMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (locked || passthroughEnabled || e.button !== 0) return;
+  const handleBlankAreaMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>, locked: boolean, passthrough: boolean) => {
+    if (locked || passthrough || e.button !== 0) return;
     if (e.target !== e.currentTarget) return;
     const el = e.currentTarget;
     const rect = el.getBoundingClientRect();
@@ -946,89 +903,21 @@ export function DanmakuPage() {
     const hScrollHeight = el.offsetHeight - el.clientHeight;
     if (hScrollHeight > 0 && e.clientY >= rect.bottom - hScrollHeight) return;
     void appWindow.startDragging();
-  }, [locked, passthroughEnabled]);
+  }, []);
 
-  const { phase: dockPhase, side: dockSide, expand: dockExpand } = useWindowDock();
-
-  // 侧边吸附滑动动画：展开时内容从屏幕边缘滑入，收回时向边缘滑出。
-  // 展开流程：后端 dock_expand 只更新状态+发事件（不缩放），前端收到事件后先以
-  // hidden transform 挂载主内容，双 rAF 等该帧上屏，再回调 dock_apply_expand 让
-  // 后端 set_size/set_position，并等其返回（窗口确已放大）后才解除 hidden 触发
-  // CSS transition 滑入——四步串行保证任何时刻屏幕上都不会出现旧内容：
-  // 未上屏就扩窗，旧帧的收缩条会在放大区左上角闪现；未放大就解除 hidden，
-  // 滑入动画会在小窗里提前跑掉。收回流程不变：光标离开 250ms 后后端发
-  // collapsing，前端播滑出动画，动画结束回调 dock_collapse 才真正缩窗。
-  const [slideIn, setSlideIn] = useState(false);
-  const [slideOut, setSlideOut] = useState(false);
-  const [animSide, setAnimSide] = useState<DockSide>(dockSide);
-  // 吸附动画时长（设置项）。effect 内只读 ref，避免改设置时重跑动画 effect
-  const dockAnimMsRef = useRef(dockAnimMs);
-  dockAnimMsRef.current = dockAnimMs;
-  // 展开动画解除 hidden 用的 rAF 句柄（applyExpand 完成后才排入，供 effect 清理取消）
-  const unhideRafRef = useRef<number | null>(null);
-  const dockPhaseRef = useRef(dockPhase);
-  dockPhaseRef.current = dockPhase;
+  // 侧边吸附的收缩条与滑入/滑出动画已抽进共享的 DanmakuWindow 组件
+  // （直播与视频弹幕窗两种内容形态共用同一实现），本页只用 phase 做滚动归位
+  const { phase: dockPhase } = useWindowDock();
   const prevDockPhaseRef = useRef(dockPhase);
 
-  // 在 render 阶段同步检测 collapsed→expanded 转换，确保首次绘制就处于屏幕外（消除闪现）
-  const prevPhaseForSlide = useRef(dockPhase);
-  const justExpanded = prevPhaseForSlide.current === "collapsed" && dockPhase === "expanded";
-  prevPhaseForSlide.current = dockPhase;
-
-  useLayoutEffect(() => {
-    if (dockPhase === "collapsing") {
-      // 发起收回：播滑出动画；时长为 0（关闭动画）时 0ms 过渡不会触发
-      // transitionend，直接跳过动画立即收回
-      setAnimSide(dockSide);
-      if (dockAnimMsRef.current === 0) {
-        setSlideOut(false);
-        setSlideIn(false);
-        void tauriCommands.dock.collapse(appWindow.label).catch(() => {});
-      } else {
-        setSlideOut(true);
-        setSlideIn(false);
-      }
-    } else if (dockPhase === "expanded" || dockPhase === "normal") {
-      // 取消收回（反向滑回）或正常展开
-      setSlideOut(false);
-      if (dockPhase === "expanded") {
-        setAnimSide(dockSide);
-        setSlideIn(true);
-        // 窗口放大会触发容器 ResizeObserver，抑制展开瞬间的 epoch 重挂载（见 suppressRoUntilRef 定义处）
-        suppressRoUntilRef.current = Date.now() + 600;
-        // 双 rAF 等「主内容 hidden 态」真正绘制上屏后再扩窗：layout effect 只保证
-        // DOM 已变更、不保证已绘制，若扩窗 IPC 抢在首帧绘制前执行，窗口放大后
-        // 左上角会短暂挂着上一帧的收缩条（闪现）。单 rAF 仍可能在本帧绘制前触发，
-        // 双 rAF 保证至少错过一次 paint。之后还须等扩窗 IPC 返回再解除 hidden，
-        // 保证滑入动画在已放大的窗口里完整播放（见下）。
-        let raf2 = 0;
-        const raf1 = requestAnimationFrame(() => {
-          raf2 = requestAnimationFrame(() => {
-            void tauriCommands.dock
-              .applyExpand(appWindow.label)
-              .catch(() => {})
-              .finally(() => {
-                unhideRafRef.current = requestAnimationFrame(() => setSlideIn(false));
-              });
-          });
-        });
-        return () => {
-          cancelAnimationFrame(raf1);
-          if (raf2) cancelAnimationFrame(raf2);
-          if (unhideRafRef.current !== null) {
-            cancelAnimationFrame(unhideRafRef.current);
-            unhideRafRef.current = null;
-          }
-        };
-      }
-    }
-    // collapsed：渲染收缩条，无动画状态需要维护
-  }, [dockPhase, dockSide]);
-
-  // 从吸附收起状态展开时，强制滚动到最新弹幕
+  // 从吸附收起状态展开时，强制滚动到最新弹幕；进入展开态时同时抑制展开瞬间
+  // 容器 ResizeObserver 触发的 epoch 重挂载（见 suppressRoUntilRef 定义处）
   useEffect(() => {
     const prev = prevDockPhaseRef.current;
     prevDockPhaseRef.current = dockPhase;
+    if (dockPhase === "expanded" && prev !== "expanded") {
+      suppressRoUntilRef.current = Date.now() + 600;
+    }
     if (prev === "collapsed" && (dockPhase === "expanded" || dockPhase === "normal")) {
       // 等容器挂载完成后再滚
       requestAnimationFrame(() => {
@@ -1039,112 +928,62 @@ export function DanmakuPage() {
     }
   }, [dockPhase, danmakuScroll, giftScroll, activityScroll]);
 
-  // 收回动画结束（slide-out 过渡播完）后，通知后端真正缩成细条。
-  // 只响应根节点自身的 transform 过渡，避免后代按钮 hover transition 冒泡误触发提前收回。
-  const handleSlideOutEnd = useCallback((e: React.TransitionEvent) => {
-    if (e.target !== e.currentTarget || e.propertyName !== "transform") return;
-    if (dockPhaseRef.current === "collapsing") {
-      void tauriCommands.dock.collapse(appWindow.label).catch(() => {});
-    }
-  }, []);
-
-  // 滑出/滑入的屏幕外位移：左 = 左移出，右 = 右移出，顶 = 上移出（收缩条贴上缘，向下展开）
-  const hiddenTranslate =
-    animSide === "left"
-      ? "-translate-x-full"
-      : animSide === "right"
-        ? "translate-x-full"
-        : "-translate-y-full";
-  // justExpanded 时使用 dockSide（当前值），而非 animSide（可能还是旧值）
-  const initialHiddenTranslate =
-    dockSide === "left"
-      ? "-translate-x-full"
-      : dockSide === "right"
-        ? "translate-x-full"
-        : "-translate-y-full";
-  const slideClass = slideOut
-    ? `${hiddenTranslate} ease-in`
-    : (slideIn || justExpanded)
-      ? `${initialHiddenTranslate} transition-none`
-      : "translate-x-0 translate-y-0 ease-out";
-
   return (
     <>
     {/* audio 元素通过 portal 挂载到 body，跨 dockPhase / 仅输入框模式切换时不会被 React 卸载，避免 mpegts 断流 */}
     {createPortal(<audio ref={audioRef} className="hidden" />, document.body)}
-    {/* 隐身淡出层：窗口本身透明，内容整体 opacity=0 即完全隐身且不拦截视觉 */}
-    <div
-      className="h-full w-full transition-opacity"
-      style={{
-        opacity: stealth.visible ? 1 : 0,
-        transitionDuration: `${stealthFadeMs}ms`,
-        pointerEvents: stealth.visible ? undefined : "none",
-      }}
-    >
-    {inputOnly ? (
-      <div
-        data-interactive=""
-        className="danmaku-bg-bar window-rounded flex h-full w-full items-center gap-1 px-2 select-none"
-        style={appearanceStyle}
-      >
-        {/* 紧凑栏没有底色，输入框只靠一圈中性浅灰描边划出边界；描边深浅由 --field-ring-a
-            跟着「不透明度」设置走：设置越高（窗口越实）描边越浅，越低（越透）描边越深 */}
-        <DanmakuInput value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
-          aria-label="发送直播弹幕" disabled={isAnonymous}
-          style={{ "--field-ring-a": inputOnlyRingAlpha } as React.CSSProperties}
-          className="min-w-0 flex-1 rounded bg-transparent px-2 py-1.5 text-sm outline-none ring-1 ring-inset ring-[rgb(148_163_184_/_var(--field-ring-a))] focus:ring-brand/70"
-        />
-        {/* 拖动 + 恢复完整窗口二合一：按住移动超过 4px 就走系统拖动，
-            松手前没产生位移就算一次点击，回到完整窗口 */}
-        <button
-          type="button"
-          onMouseDown={handleInputOnlyGrip}
-          className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded bg-black/5 text-ink-muted transition hover:bg-black/10 hover:text-ink active:cursor-grabbing dark:bg-white/10 dark:hover:bg-white/[0.18]"
-          title={locked ? "点击恢复完整窗口（位置已锁定）" : "点击恢复完整窗口 · 按住拖动移动窗口"}
-          aria-label="恢复完整窗口，或拖动移动窗口"
-        >
-          {/* 必须是看得见的图标：紧凑栏没有底色，一根 25% 透明度的细竖条在桌面上等于隐形 */}
-          <Expand className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    ) : dockPhase === "collapsed" ? (
-      <DockCollapsedBar side={dockSide} onExpand={dockExpand} />
-    ) : (
     <DanmakuWindow
-      className={`danmaku-bg-main select-none transition-transform ${slideClass}`}
-      style={{ ...appearanceStyle, "--bg-a": bgAlpha, transitionDuration: `${dockAnimMs}ms` } as React.CSSProperties}
-      onTransitionEnd={slideOut ? handleSlideOutEnd : undefined}
+      className="danmaku-bg-main select-none"
+      style={{ ...appearanceStyle, "--bg-a": bgAlpha } as React.CSSProperties}
       title={displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
-      controls={{
-        pinned, locked, passthrough: passthroughEnabled, stealth: stealth.enabled,
-        onTogglePin: () => { const next = !pinned; setPinned(next); void appWindow.setAlwaysOnTop(next); },
-        onToggleLock: () => setLocked((value) => !value),
-        onToggleInputOnly: toggleInputOnly,
-        onTogglePassthrough: togglePassthrough,
-        onToggleStealth: toggleStealth,
-        onHide: () => { void appWindow.close(); },
-        onDrag: () => { void appWindow.startDragging(); },
-        exitLabel: "退出直播间",
-        onExit: async () => {
-            // 断开连接，最多等 1 秒
-            const timeout = new Promise((r) => setTimeout(r, 1000));
-            await Promise.race([
-              tauriCommands.ws.disconnect().catch(() => {}),
-              timeout,
-            ]);
-            if (sttAvailable) {
-              tauriCommands.stt.stop().catch(() => {});
-            }
-            if (roomId !== null) {
-              // exit_room 销毁弹幕/抽屉窗口并按设置恢复主窗口
-              tauriCommands.room.exitRoom(roomId).catch(() => {
-                // exit_room 失败时兜底本地销毁，避免窗口残留
-                appWindow.destroy().catch(() => {});
-              });
-            } else {
-              void appWindow.destroy();
-            }
-          },
+      exitLabel="退出直播间"
+      onExit={async () => {
+        // 断开连接，最多等 1 秒
+        const timeout = new Promise((r) => setTimeout(r, 1000));
+        await Promise.race([
+          tauriCommands.ws.disconnect().catch(() => {}),
+          timeout,
+        ]);
+        if (sttAvailable) {
+          tauriCommands.stt.stop().catch(() => {});
+        }
+        if (roomId !== null) {
+          // exit_room 销毁弹幕/抽屉窗口并按设置恢复主窗口
+          tauriCommands.room.exitRoom(roomId).catch(() => {
+            // exit_room 失败时兜底本地销毁，避免窗口残留
+            appWindow.destroy().catch(() => {});
+          });
+        } else {
+          void appWindow.destroy();
+        }
+      }}
+      inputOnly={{
+        active: inputOnly,
+        onToggle: toggleInputOnly,
+        barStyle: appearanceStyle,
+        renderBar: ({ locked }) => (
+          <>
+            {/* 紧凑栏没有底色，输入框只靠一圈中性浅灰描边划出边界；描边深浅由 --field-ring-a
+                跟着「不透明度」设置走：设置越高（窗口越实）描边越浅，越低（越透）描边越深 */}
+            <DanmakuInput value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
+              aria-label="发送直播弹幕" disabled={isAnonymous}
+              style={{ "--field-ring-a": inputOnlyRingAlpha } as React.CSSProperties}
+              className="min-w-0 flex-1 rounded bg-transparent px-2 py-1.5 text-sm outline-none ring-1 ring-inset ring-[rgb(148_163_184_/_var(--field-ring-a))] focus:ring-brand/70"
+            />
+            {/* 拖动 + 恢复完整窗口二合一：按住移动超过 4px 就走系统拖动，
+                松手前没产生位移就算一次点击，回到完整窗口 */}
+            <button
+              type="button"
+              onMouseDown={(event) => handleInputOnlyGrip(event, locked)}
+              className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded bg-black/5 text-ink-muted transition hover:bg-black/10 hover:text-ink active:cursor-grabbing dark:bg-white/10 dark:hover:bg-white/[0.18]"
+              title={locked ? "点击恢复完整窗口（位置已锁定）" : "点击恢复完整窗口 · 按住拖动移动窗口"}
+              aria-label="恢复完整窗口，或拖动移动窗口"
+            >
+              {/* 必须是看得见的图标：紧凑栏没有底色，一根 25% 透明度的细竖条在桌面上等于隐形 */}
+              <Expand className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ),
       }}
       switcher={<RoomSwitcher roomId={roomId} />}
       audio={{
@@ -1376,6 +1215,8 @@ export function DanmakuPage() {
           </div>
       }
     >
+      {(win) => (
+      <>
       {/* 上方区域：礼物 + 分割栏 + 弹幕 — 始终渲染三栏，折叠时 flex=0 但分割栏仍可拖拽恢复 */}
       <div className="relative flex min-h-0 flex-1 flex-col">
       <div ref={splitContainerRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1457,7 +1298,7 @@ export function DanmakuPage() {
               <div
                 ref={giftScroll.scrollRef}
                 onScroll={giftScroll.checkAtBottom}
-                onMouseDown={handleBlankAreaMouseDown}
+                onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                 className="relative min-h-0 flex-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
                 style={{ fontSize: `${fontSize}px` }}
               >
@@ -1540,7 +1381,7 @@ export function DanmakuPage() {
                 <div
                   ref={danmakuScroll.scrollRef}
                   onScroll={danmakuScroll.checkAtBottom}
-                  onMouseDown={handleBlankAreaMouseDown}
+                  onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                   onContextMenu={(e) => {
                     // 生产环境禁用空白区域右键菜单，开发环境保留（可检查元素）
                     if (!import.meta.env.DEV && e.target === e.currentTarget) {
@@ -1626,7 +1467,7 @@ export function DanmakuPage() {
               {activityBarMode === "latest" ? (
                 <div
                   className="flex h-full items-center overflow-hidden px-2.5"
-                  onMouseDown={handleBlankAreaMouseDown}
+                  onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                   onContextMenu={(e) => {
                     if (!import.meta.env.DEV && e.target === e.currentTarget) {
                       e.preventDefault();
@@ -1669,7 +1510,7 @@ export function DanmakuPage() {
                   <div
                     ref={activityScroll.scrollRef}
                     onScroll={activityScroll.checkAtBottom}
-                    onMouseDown={handleBlankAreaMouseDown}
+                    onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                     onContextMenu={(e) => {
                       if (!import.meta.env.DEV && e.target === e.currentTarget) {
                         e.preventDefault();
@@ -2077,10 +1918,9 @@ export function DanmakuPage() {
       </div>
       )}
       </div>
-
+      </>
+      )}
     </DanmakuWindow>
-    )}
-    </div>
     </>
   );
 }

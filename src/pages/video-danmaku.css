@@ -131,8 +131,6 @@
 .video-window-videos > div > button[aria-current] { color: rgb(var(--brand-rgb)); }
 .video-window-videos > div > button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .video-window-videos svg { width: 14px; height: 14px; flex-shrink: 0; }
-.video-danmaku-window.is-input-only { justify-content: center; }
-.video-danmaku-window.is-input-only .video-window-footer { border: 0; }
 html[data-reduced-motion="true"] .video-danmaku-window { transition: none; }
 html[data-reduced-motion="true"] .video-seek-detail { animation: none; }
 @media (prefers-reduced-motion: reduce) {

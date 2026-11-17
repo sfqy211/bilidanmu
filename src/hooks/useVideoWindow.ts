@@ -1,22 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { Settings } from "@/types/bilibili";
-import {
-  usePassthroughHitTest,
-  useStealthMode,
-} from "@/hooks/useDanmakuWindowModes";
 import {
   DEFAULT_VIDEO_WINDOW_LOCAL,
   type VideoPlaybackSnapshot,
   type VideoWindowLocalPreferences,
   type VideoWindowPreferences,
 } from "@/types/video-window";
-
-const appWindow = getCurrentWindow();
 
 export function useVideoPlayback() {
   const [playback, setPlayback] = useState<VideoPlaybackSnapshot | null>(null);
@@ -92,48 +85,4 @@ export function useVideoWindowPreferences() {
     setLocal({ subtitleRatio: next.subtitleRatio, autoFollow: next.autoFollow, showTime: next.showTime });
   }, [opacity, danmakuFontSize, subtitleFontSize]);
   return { preferences, setPreferences, ready };
-}
-
-/**
- * 视频弹幕窗的窗口模式。置顶/锁定/仅输入框为本窗口状态；
- * 隐身与透传与直播弹幕窗共用同一套实现（useDanmakuWindowModes：
- * 隐身由后端按光标位置自动显隐，透传按 DOM 命中测试轮询）。
- */
-export function useVideoWindowModes() {
-  const [pinned, setPinned] = useState(true);
-  const pinChanging = useRef(false);
-  const [locked, setLocked] = useState(false);
-  // 仅输入框模式由 Rust 侧持久化：重建窗口按保存值创建，前端挂载时同步初始状态
-  // （与直播弹幕窗的 room.getInputOnly 同一模式）
-  const [inputOnly, setInputOnly] = useState(false);
-  useEffect(() => {
-    void tauriCommands.videoWindow.getInputOnly().then(setInputOnly).catch(() => {});
-  }, []);
-  const [changingMode, setChangingMode] = useState(false);
-  const [passthrough, setPassthrough] = useState(false);
-  const stealth = useStealthMode();
-  usePassthroughHitTest(passthrough, stealth.enabled, stealth.visible);
-
-  const toggleInputOnly = async () => {
-    if (changingMode) return;
-    setChangingMode(true);
-    try { setInputOnly(await tauriCommands.videoWindow.setInputOnly(!inputOnly)); }
-    catch (reason) { toast.error(String(reason)); }
-    finally { setChangingMode(false); }
-  };
-  const togglePin = async () => {
-    if (pinChanging.current) return;
-    pinChanging.current = true;
-    const next = !pinned;
-    try { await appWindow.setAlwaysOnTop(next); setPinned(next); }
-    catch (reason) { toast.error(String(reason)); }
-    finally { pinChanging.current = false; }
-  };
-  const startDragging = () => { if (!locked) void appWindow.startDragging().catch((reason) => toast.error(String(reason))); };
-  return {
-    pinned, locked, inputOnly, changingMode, passthrough,
-    stealth: stealth.enabled, visible: stealth.visible,
-    setLocked, setPassthrough, toggleStealth: stealth.toggle,
-    togglePin, toggleInputOnly, startDragging,
-  };
 }

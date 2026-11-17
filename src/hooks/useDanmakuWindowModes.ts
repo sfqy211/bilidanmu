@@ -6,6 +6,38 @@ import { useTauriEvent } from "@/hooks/useTauriEvent";
 const appWindow = getCurrentWindow();
 
 /**
+ * 置顶/锁定：弹幕小窗的通用窗口级状态（直播与视频窗共用）。
+ * 置顶切换系统 always-on-top；锁定只门控窗口拖动（标题栏拖拽由组件内部处理，
+ * 内容区拖动由消费方通过 children 的 render prop 状态自行门控）。
+ */
+export function useWindowPinnedLocked() {
+  const [pinned, setPinned] = useState(true);
+  const pinChanging = useRef(false);
+  const [locked, setLocked] = useState(false);
+
+  const togglePin = useCallback(async () => {
+    if (pinChanging.current) return;
+    pinChanging.current = true;
+    const next = !pinned;
+    try {
+      await appWindow.setAlwaysOnTop(next);
+      setPinned(next);
+    } catch {
+      // 系统拒绝时保持原状态
+    } finally {
+      pinChanging.current = false;
+    }
+  }, [pinned]);
+
+  const startDragging = useCallback(() => {
+    if (locked) return;
+    void appWindow.startDragging().catch(() => {});
+  }, [locked]);
+
+  return { pinned, locked, setLocked, togglePin, startDragging };
+}
+
+/**
  * 隐身模式：后端按光标位置自动显隐并切点击穿透，前端只负责渲染淡入淡出。
  * 直播弹幕窗与视频弹幕窗共用；后端按调用方窗口分别判定，事件带 label 区分，
  * 这里按本窗口 label 过滤，两个窗口互不串扰。
