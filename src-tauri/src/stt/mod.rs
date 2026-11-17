@@ -9,7 +9,7 @@ pub mod pipeline;
 
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{mpsc, Notify};
 
 use crate::proxy::stream_proxy::StreamProxyServer;
@@ -80,7 +80,11 @@ impl SttManager {
                         match msg {
                             Some(transcript) => {
                                 log::trace!("STT transcript: {} (final={})", transcript.text, transcript.is_final);
-                                let _ = app_handle.emit("stt-transcript", transcript);
+                                let _ = app_handle.emit("stt-transcript", transcript.clone());
+                                // 同步给 AI 长会话（MCP 侧按需订阅；无人订阅时 send 返回错误，可忽略）
+                                if let Some(state) = app_handle.try_state::<crate::AppState>() {
+                                    let _ = state.transcript_bus.send(transcript);
+                                }
                             }
                             None => {
                                 log::info!("STT transcript channel closed");

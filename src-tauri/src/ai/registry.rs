@@ -28,6 +28,12 @@ pub async fn dispatch_tool(
         "live_get_context" => tools::live::get_context(app, state, args).await,
         "live_query_danmaku" => tools::live::query_danmaku(app, state, args).await,
         "live_get_stats" => tools::live::get_stats(app, state, args).await,
+        "live_watch_start" => tools::watch::start(app, state, args).await,
+        "live_watch_collect" => tools::watch::collect(app, state, args).await,
+        "live_watch_digest" => tools::watch::digest(app, state, args).await,
+        "live_watch_status" => tools::watch::status(app, state, args).await,
+        "live_watch_stop" => tools::watch::stop(app, state, args).await,
+        "live_watch_list" => tools::watch::list(app, state, args).await,
 
         // ── 账号 ──────────────────────────────────────────────
         "account_list" => tools::account::list(app, state, args).await,
@@ -161,14 +167,17 @@ pub fn all_specs() -> Vec<ToolSpec> {
         ToolSpec {
             name: "live_query_danmaku",
             title: "检索弹幕",
-            description: "在已缓冲的弹幕里按关键词检索（匹配内容或用户名），或直接取最近 N 条。\
-当 live_get_context 返回的弹幕不够、或用户问『有没有人提到 X』时使用。缓冲区只保留最近 2000 条，不含历史回放。",
+            description: "检索弹幕。不带 roomId 时在当前房间已缓冲的最近 2000 条里按关键词检索（省略关键词则取最近 N 条）。\
+传 roomId 时改为对该房间做一次临时只读采样：独立连接采集几秒后关闭，可读任意正在直播的房间，\
+不切换当前直播间、不占用当前缓冲；只能拿到这几秒内的实时消息，直播弹幕没有历史接口。",
             risk: Risk::Read,
             input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "keyword": { "type": "string", "description": "关键词，省略则返回最近弹幕" },
-                    "limit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 50 }
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 50 },
+                    "roomId": { "type": "integer", "minimum": 1, "description": "任意直播间号：传入后改为临时采样该房间（3–20 秒），不切换当前直播间" },
+                    "seconds": { "type": "integer", "minimum": 3, "maximum": 60, "default": 8, "description": "roomId 模式的采样时长（秒），省略用 8；要看“播了什么”可以给 30–60" }
                 },
                 "additionalProperties": false
             })),
@@ -183,6 +192,104 @@ pub fn all_specs() -> Vec<ToolSpec> {
                 "properties": {},
                 "additionalProperties": false
             })),
+        },
+
+        // ── 长会话（任意房间后台采集） ─────────────────────────
+        ToolSpec {
+            name: "live_watch_start",
+            title: "开启弹幕长会话",
+            description: "对任意正在直播的房间开一个后台长会话：独立连接、30 秒心跳、断线重连，
+事件写入带 seq 的环形缓冲，不切换当前直播间、不开窗口。主播下播可自动结束（stopOnEnd），
+保底时长默认取设置里的 4 小时（可在 AI 接入页修改，0 = 不限）。
+用于「一场播几个小时，帮我总结」；只想此刻看一眼请用 live_query_danmaku。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "roomId": { "type": "integer", "minimum": 1, "description": "直播间号" },
+                    "maxMinutes": { "type": "integer", "minimum": 0, "maximum": 1440, "description": "本会话保底时长（分钟，0 = 跟随设置）；不会超过设置里的上限" },
+                    "maxEvents": { "type": "integer", "minimum": 100, "maximum": 100000, "default": 20000, "description": "环形缓冲上限，超出丢弃最旧的并计入 dropped" },
+                    "stopOnEnd": { "type": "boolean", "default": true, "description": "主播下播时自动结束会话（缓冲保留，仍可 collect）" },
+                    "withTranscript": { "type": "boolean", "default": false, "description": "同时收集语音转字幕；仅当会话房间就是当前正在收听且开着 STT 的房间时生效" }
+                },
+                "required": ["roomId"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_watch_collect",
+            title: "拉取长会话事件",
+            description: "按 seq 游标增量拉取。首次 cursor=0，之后传上一次返回的 nextCursor。
+emoticonMode：keep 逐条返回并标注 isEmoticon/emojiOnly；aggregate 把相同表情合并成计数（默认不带发送者，
+includeSenders 才附明细）；drop 直接过滤表情。缓冲被覆盖时返回 skippedByEviction。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "sessionId": { "type": "string" },
+                    "cursor": { "type": "integer", "minimum": 0, "default": 0, "description": "下一条要读的 seq；用上次的 nextCursor" },
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 200 },
+                    "types": { "type": "array", "items": { "type": "string", "enum": ["danmaku","gift","super_chat","guard","enter","like","live","transcript"] }, "description": "只取这些类型；省略取全部" },
+                    "keyword": { "type": "string", "description": "按内容或用户名过滤（不区分大小写）" },
+                    "emoticonMode": { "type": "string", "enum": ["keep","aggregate","drop"], "default": "keep" },
+                    "includeSenders": { "type": "boolean", "default": false, "description": "aggregate 模式下是否附带发送者明细" },
+                    "senderLimit": { "type": "integer", "minimum": 1, "maximum": 200, "default": 20 }
+                },
+                "required": ["sessionId"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_watch_digest",
+            title: "长会话统计摘要",
+            description: "只取统计不取正文：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量。
+总结长会话前先调它看热度与表情分布，再按需 collect 正文。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "sessionId": { "type": "string" },
+                    "topN": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 },
+                    "includeSenders": { "type": "boolean", "default": false, "description": "表情聚合是否附发送者明细" },
+                    "senderLimit": { "type": "integer", "minimum": 1, "maximum": 50, "default": 5 }
+                },
+                "required": ["sessionId"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_watch_status",
+            title: "长会话状态",
+            description: "会话健康度：已收/丢弃条数、缓冲占用、连接状态、重连次数、结束原因。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": { "sessionId": { "type": "string" } },
+                "required": ["sessionId"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_watch_stop",
+            title: "停止长会话",
+            description: "停止采集。默认保留缓冲供继续 collect；remove=true 时连缓冲一起丢弃。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "sessionId": { "type": "string" },
+                    "remove": { "type": "boolean", "default": false }
+                },
+                "required": ["sessionId"],
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_watch_list",
+            title: "长会话列表",
+            description: "列出全部会话（含已结束、仍在保留期内的），含缓冲与连接状态。",
+            risk: Risk::Read,
+            input_schema: schema(json!({ "type": "object", "properties": {}, "additionalProperties": false })),
         },
 
         // ── 账号 ──────────────────────────────────────────────

@@ -45,6 +45,9 @@ impl PermissionMode {
 }
 
 pub const PERMISSION_MODE_KEY: &str = "aiPermissionMode";
+/// 长会话保底时长（分钟，0 = 不限）
+pub const WATCH_MAX_MINUTES_KEY: &str = "aiWatchMaxMinutes";
+pub const DEFAULT_WATCH_MAX_MINUTES: u64 = 240;
 pub const MCP_ENABLED_KEY: &str = "aiMcpEnabled";
 
 /// 读取当前权限模式；键缺失或读取失败时回落到默认的自主模式。
@@ -72,6 +75,21 @@ pub fn load_mcp_enabled(state: &crate::AppState) -> bool {
         .and_then(|mut map| map.remove(MCP_ENABLED_KEY))
         .and_then(|value| value.as_bool())
         .unwrap_or(true)
+}
+
+/// 读取长会话保底时长（分钟）。默认 4 小时；0 表示不限。
+pub fn load_watch_max_minutes(state: &crate::AppState) -> u64 {
+    crate::selections_store::load_values(state, &[WATCH_MAX_MINUTES_KEY.to_string()])
+        .ok()
+        .and_then(|mut map| map.remove(WATCH_MAX_MINUTES_KEY))
+        .and_then(|value| value.as_u64())
+        .unwrap_or(DEFAULT_WATCH_MAX_MINUTES)
+}
+
+pub fn save_watch_max_minutes(state: &crate::AppState, minutes: u64) -> Result<(), String> {
+    let mut entries = serde_json::Map::new();
+    entries.insert(WATCH_MAX_MINUTES_KEY.to_string(), serde_json::json!(minutes));
+    crate::selections_store::save_values(state, &entries)
 }
 
 pub fn save_mcp_enabled(state: &crate::AppState, enabled: bool) -> Result<(), String> {

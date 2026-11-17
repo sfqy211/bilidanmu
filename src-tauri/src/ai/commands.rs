@@ -29,6 +29,22 @@ pub async fn ai_set_permission_mode(
     Ok(())
 }
 
+/// 长会话保底时长（分钟，0 = 不限）
+#[tauri::command]
+pub async fn ai_get_watch_max_minutes(state: State<'_, AppState>) -> Result<u64, String> {
+    Ok(crate::ai::policy::load_watch_max_minutes(state.inner()))
+}
+
+#[tauri::command]
+pub async fn ai_set_watch_max_minutes(
+    state: State<'_, AppState>,
+    minutes: u64,
+) -> Result<(), String> {
+    // 界面上只提供固定档位，这里再兜一次底，避免异常值写库
+    let clamped = minutes.min(24 * 60);
+    crate::ai::policy::save_watch_max_minutes(state.inner(), clamped)
+}
+
 /// 用户对确认请求的应答
 #[tauri::command]
 pub async fn ai_confirm_response(

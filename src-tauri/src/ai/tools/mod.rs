@@ -13,6 +13,7 @@ pub mod live;
 pub mod room;
 pub mod settings;
 pub mod video;
+pub mod watch;
 
 use crate::ai::spec::ToolError;
 use crate::bili::api::BiliApiClient;

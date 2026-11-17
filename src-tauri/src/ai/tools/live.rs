@@ -1,6 +1,6 @@
 //! 直播间上下文工具：AI 理解"现在直播间在发生什么"的核心入口。
 
-use super::args;
+use super::{api_with_main, args};
 use crate::ai::context::now_secs;
 use crate::ai::spec::ToolError;
 use crate::AppState;
@@ -125,6 +125,69 @@ pub async fn query_danmaku(
     let keyword = args::opt_string(raw, "keyword");
     let limit = args::capped(raw, "limit", 50, 1, 300) as usize;
 
+    // 指定 roomId：对任意直播间做临时只读采样——独立连接采集几秒后关闭，
+    // 不切换当前直播间、不开窗口、不写上下文缓冲。
+    if let Some(room_id) = args::opt_u64(raw, "roomId") {
+        if room_id == 0 && !crate::bili::mock::is_enabled() {
+            return Err(ToolError::invalid_args("roomId 必须是有效直播间号"));
+        }
+        let seconds = args::capped(raw, "seconds", 8, 3, 60);
+        let api = api_with_main(state).await;
+
+        // 先查房间：不存在直接报错，未开播明确说明（否则空采样会被误读成"没人说话"）
+        let info = if room_id == crate::bili::mock::MOCK_ROOM_ID
+            && crate::bili::mock::is_enabled()
+        {
+            crate::models::room::RoomInfo::mock(room_id)
+        } else {
+            api.get_room_info_ex(room_id, true)
+                .await
+                .map_err(super::classify_business_error)?
+        };
+        let real_room_id = info.room.room_id;
+        let meta = serde_json::json!({
+            "roomId": room_id,
+            "realRoomId": real_room_id,
+            "live": info.is_live,
+            "title": info.room.title,
+            "anchor": info.room.uname,
+        });
+        if !info.is_live {
+            let mut payload = meta;
+            payload["sampledSeconds"] = serde_json::json!(0);
+            payload["count"] = serde_json::json!(0);
+            payload["events"] = serde_json::json!([]);
+            payload["hint"] = serde_json::json!("该房间当前未开播，直播弹幕只能在开播时采样");
+            return Ok(payload);
+        }
+
+        let sampled = crate::bili::room_sample::sample_room_danmaku(
+            &api, real_room_id, seconds, 300,
+        )
+        .await
+        .map_err(ToolError::failed)?;
+        let filtered: Vec<_> = match &keyword {
+            Some(keyword) if !keyword.trim().is_empty() => {
+                let needle = keyword.trim().to_lowercase();
+                sampled
+                    .into_iter()
+                    .filter(|event| {
+                        event.content.to_lowercase().contains(&needle)
+                            || event.username.to_lowercase().contains(&needle)
+                    })
+                    .collect()
+            }
+            _ => sampled,
+        };
+        let events: Vec<serde_json::Value> = filtered.iter().take(limit).map(compact_event).collect();
+        let mut payload = meta;
+        payload["sampledSeconds"] = serde_json::json!(seconds);
+        payload["count"] = serde_json::json!(events.len());
+        payload["sampled"] = serde_json::json!(filtered.len());
+        payload["events"] = serde_json::json!(events);
+        return Ok(payload);
+    }
+
     let context = state
         .live_context
         .lock()
@@ -185,7 +248,7 @@ pub async fn get_stats(
 
 /// 事件压缩成模型友好的形状：去掉 UI 专用字段（颜色、背景图、表情选项等），
 /// 保留语义字段。原始字段对模型是噪音，还会吃 token。
-fn compact_event(event: &crate::models::message::DanmakuEvent) -> serde_json::Value {
+pub(crate) fn compact_event(event: &crate::models::message::DanmakuEvent) -> serde_json::Value {
     let mut value = serde_json::json!({
         "type": event.event_type,
         "username": event.username,
@@ -225,5 +288,7 @@ fn compact_event(event: &crate::models::message::DanmakuEvent) -> serde_json::Va
     if let Some(bubble) = event.bubble_color.as_ref().filter(|text| !text.is_empty()) {
         map.insert("bubbleColor".to_string(), serde_json::json!(bubble));
     }
+    // 表情类弹幕打标：大表情 isEmoticon、纯 emoji 文本 emojiOnly
+    crate::ai::emoticon::decorate(&mut value, event);
     value
 }

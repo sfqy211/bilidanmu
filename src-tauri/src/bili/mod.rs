@@ -4,6 +4,7 @@ pub mod credential;
 pub mod heartbeat;
 pub mod mock;
 pub mod protocol;
+pub mod room_sample;
 pub mod wbi;
 pub mod ws_client;
 pub mod video_danmaku;

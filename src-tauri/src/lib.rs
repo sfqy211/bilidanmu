@@ -93,6 +93,10 @@ pub struct AppState {
     pub ai_pending_confirm: std::sync::Mutex<ai::confirm::ConfirmRegistry>,
     /// MCP server 句柄（None = 尚未启动）
     pub mcp_server: mcp::server::ServerSlot,
+    /// AI 长会话（任意房间后台采集，仅 MCP 使用）
+    pub live_watch: ai::watch::WatchManager,
+    /// 当前房间的 STT 定稿片段广播（长会话据此写入字幕事件）
+    pub transcript_bus: tokio::sync::broadcast::Sender<stt::SttTranscript>,
 }
 
 /// 「仅输入框」模式展开表情面板前保存的紧凑栏几何
@@ -185,6 +189,11 @@ pub fn run() {
             live_context: std::sync::Mutex::new(ai::context::LiveContext::new()),
             ai_pending_confirm: std::sync::Mutex::new(ai::confirm::ConfirmRegistry::default()),
             mcp_server: Arc::new(TokioMutex::new(None)),
+            live_watch: ai::watch::WatchManager::new(),
+            transcript_bus: {
+                let (sender, _receiver) = tokio::sync::broadcast::channel(256);
+                sender
+            },
         }
         })
         .setup(|app| {
@@ -554,6 +563,8 @@ pub fn run() {
             commands::download::open_file_path,
             commands::log::open_log_dir,
             ai::commands::ai_get_permission_mode,
+            ai::commands::ai_get_watch_max_minutes,
+            ai::commands::ai_set_watch_max_minutes,
             ai::commands::ai_set_permission_mode,
             ai::commands::ai_confirm_response,
             ai::commands::ai_mcp_status,

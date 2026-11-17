@@ -585,7 +585,7 @@ async fn probe_host_latency(host: &str, port: u64) -> Option<Duration> {
 
 /// 从 host_list 中并发探测并选出延迟最低的主机；全部失败时回退首个（保持旧行为）。
 /// 多主机选择可避开个别 CDN 节点不通/高延迟导致的连接慢或反复重连。
-async fn select_best_danmu_host(hosts: &[Value]) -> Option<&Value> {
+pub(crate) async fn select_best_danmu_host(hosts: &[Value]) -> Option<&Value> {
     if hosts.len() <= 1 {
         return hosts.first();
     }
