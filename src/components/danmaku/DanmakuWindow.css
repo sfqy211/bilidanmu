@@ -112,7 +112,10 @@
   max-width: 60%;
 }
 .danmaku-window-select button {
-  font-size: 12px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
 }
 .danmaku-window-select .select-popover {
   max-height: 150px;

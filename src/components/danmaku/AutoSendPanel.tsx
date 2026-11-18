@@ -392,9 +392,9 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
       ) : (
         /* 点赞 Tab */
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-ink-muted">目标总数</label>
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[11px] text-ink-muted">目标总数</label>
               <PanelInput
                 value={likeTarget}
                 onChange={(e) => setLikeTarget(e.target.value)}
@@ -404,8 +404,8 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
               />
               <PanelNote>上限 1000</PanelNote>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-ink-muted">批次大小</label>
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[11px] text-ink-muted">批次大小</label>
               <PanelInput
                 value={likeBatchSize}
                 onChange={(e) => setLikeBatchSize(e.target.value)}
@@ -415,8 +415,8 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
               />
               <PanelNote>每批 ≤100</PanelNote>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-ink-muted">批次间隔</label>
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[11px] text-ink-muted">批次间隔</label>
               <PanelInput
                 value={likeIntervalSec}
                 onChange={(e) => setLikeIntervalSec(e.target.value)}

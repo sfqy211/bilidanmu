@@ -201,7 +201,7 @@ export function EmoticonPickerPanel({
                     }
                   }}
                   title={managing ? (pkgHidden ? `显示 ${getPackageLabel(pkg)}` : `隐藏 ${getPackageLabel(pkg)}`) : getPackageLabel(pkg)}
-                  className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-md transition ${
+                  className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition ${
                     managing
                       ? pkgHidden
                         ? "bg-[var(--panel-control-bg)] opacity-50"
@@ -218,7 +218,7 @@ export function EmoticonPickerPanel({
                       src={preview.url}
                       alt={getPackageLabel(pkg)}
                       persistent
-                      className={`h-8 w-8 object-contain ${pkgHidden ? "grayscale" : ""}`}
+                      className={`h-7 w-7 object-contain ${pkgHidden ? "grayscale" : ""}`}
                     />
                   ) : (
                     <span className="text-[10px]">包</span>
@@ -268,9 +268,9 @@ export function EmoticonPickerPanel({
                         src={emoticon.url}
                         alt={getEmoticonLabel(emoticon)}
                         persistent
-                        className="h-12 w-12 object-contain"
+                        className="h-10 w-10 object-contain"
                       />
-                      <span className="mt-2 line-clamp-2 text-[11px] text-ink-muted">
+                      <span className="mt-1 line-clamp-2 text-[10.5px] text-ink-muted">
                         {getEmoticonLabel(emoticon)}
                       </span>
                     </button>
