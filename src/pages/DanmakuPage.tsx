@@ -19,8 +19,6 @@ import { GiftPanel } from "@/components/danmaku/GiftPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import {
   PanelChip,
-  PanelField,
-  PanelNote,
   PanelRow,
   PanelSection,
   PanelSegmented,
@@ -1588,18 +1586,6 @@ export function DanmakuPage() {
                   onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
                 />
 
-                <PanelField label="字体大小" value={`${fontSize}px`}>
-                  <input
-                    type="range"
-                    min={10}
-                    max={32}
-                    step={1}
-                    value={fontSize}
-                    onChange={(e) => commitSettings({ appearance: { fontSize: Number(e.target.value) } } as Partial<SettingsType>)}
-                    className="h-1 w-full cursor-pointer accent-brand"
-                  />
-                </PanelField>
-
                 {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
                     放在这里是为了看直播时不用为了关字幕跑回主窗口 */}
                 <PanelRow label="实时字幕" hint={subtitleHint}>
@@ -1707,7 +1693,7 @@ export function DanmakuPage() {
                   </div>
                 </PanelSection>
 
-                <PanelSection title="活动栏">
+                <PanelRow label="活动栏">
                   <PanelSegmented
                     ariaLabel="活动栏模式"
                     items={ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => ({
@@ -1724,9 +1710,10 @@ export function DanmakuPage() {
                       })
                     }
                   />
-                  {settings.appearance.activityBarMode === "scroll" && (
+                </PanelRow>
+                {settings.appearance.activityBarMode === "scroll" && (
+                  <PanelRow label="活动栏过滤">
                     <PanelSegmented
-                      className="mt-2"
                       ariaLabel="活动栏过滤"
                       items={ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => ({
                         value,
@@ -1742,10 +1729,10 @@ export function DanmakuPage() {
                         })
                       }
                     />
-                  )}
-                </PanelSection>
+                  </PanelRow>
+                )}
 
-                <PanelSection title="弹幕栏简化醒目留言">
+                <PanelRow label="弹幕栏简化醒目留言">
                   <PanelSegmented
                     ariaLabel="简化醒目留言"
                     items={[
@@ -1759,9 +1746,9 @@ export function DanmakuPage() {
                       })
                     }
                   />
-                </PanelSection>
+                </PanelRow>
 
-                <PanelSection title="金额着色">
+                <PanelRow label="金额着色">
                   <PanelSegmented
                     ariaLabel="金额着色"
                     items={[
@@ -1778,10 +1765,7 @@ export function DanmakuPage() {
                       })
                     }
                   />
-                  <PanelNote>
-                    各金额档位的具体颜色在「设置 → 外观 → 金额档位配色」里调整。
-                  </PanelNote>
-                </PanelSection>
+                </PanelRow>
               </div>
             </DanmakuWindowAppearanceSettings>
           </FloatingPanel>

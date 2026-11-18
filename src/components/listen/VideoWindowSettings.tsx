@@ -19,7 +19,7 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
       onClose={onClose}
       ariaLabel="视频弹幕外观设置"
     >
-      <DanmakuWindowAppearanceSettings switcherLabel="视频切换">
+      <DanmakuWindowAppearanceSettings>
         {ranges.map(({ key, label, min, max, unit }) => (
           <PanelField key={key} label={label} value={`${preferences[key]}${unit}`}>
             <input
