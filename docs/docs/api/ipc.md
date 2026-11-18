@@ -21,9 +21,6 @@ const settings = await tauriCommands.settings.get()
 | --- | --- | --- | --- |
 | `login_by_tv_qr` | — | `{ url, authCode }` | 获取 TV 二维码登录 URL |
 | `poll_tv_qr` | `authCode` | `QrPollResult & { accessKey? }` | 轮询 TV 二维码登录状态 |
-| `login_by_qr` | — | `serde_json::Value` | 网页版二维码（界面未使用） |
-| `poll_qr` | `qrcodeKey` | `serde_json::Value` | 网页版二维码轮询（界面未使用） |
-| `login_by_cookie` | `cookie` | `Credential` | 直接用 Cookie 导入账号（界面未使用） |
 | `restore_login` | — | `Credential \| null` | 恢复上次登录 |
 | `remove_account` | `accountId` | `string \| null` | 移除账号，返回新的活跃账号 id |
 | `switch_account` | `accountId` | `Credential` | 切换主账号 |
@@ -48,8 +45,11 @@ const settings = await tauriCommands.settings.get()
 | `get_follow_lives` | — | `SearchRoomResult[]` | 关注列表中正在直播的主播（需登录） |
 | `get_rooms_live_status` | — | `Record<uid, { isLive, title, liveStartTime }>` | 批量开播状态，**按 UID 键控** |
 | `open_danmaku_window` | `roomId` | `void` | 打开弹幕窗（位置尺寸由后端恢复），隐藏主窗口并通知 `danmaku-entered` |
+| `open_danmaku_home` | — | `void` | 打开「未选择直播间」的弹幕窗默认页 `/danmaku`；窗口已存在则仅显示，隐藏主窗口 |
+| `close_danmaku_window` | — | `void` | 从默认页退出：销毁弹幕窗并恢复主窗口，不改动 `currentRoomId` |
 | `switch_room` | `roomId` | `void` | 原地切换直播间，emit `room-switched`，不改变窗口可见性 |
 | `exit_room` | `roomId` | `void` | 退出直播间：断开连接、销毁弹幕窗、恢复主窗口 |
+| `room_entry_action` | `roomId` | `void` | 进入直播间上报（设置 `receive.entryAction` 开启时前端调用；失败不阻塞） |
 | `get_emoticons` | `roomId, force?, accountId?` | `EmoticonPackage[]` | 获取表情列表 |
 | `clear_emoticon_cache` | — | `void` | 清除全部表情缓存 |
 | `clear_room_emoticon_cache` | `roomId` | `void` | 清除指定房间的表情缓存 |
@@ -114,7 +114,7 @@ const settings = await tauriCommands.settings.get()
 | `get_video_subtitle` | `bvid, cid` | `SubtitleLine[]` | 视频自带字幕 |
 | `get_video_danmaku` | `cid, segment` | `VideoDanmaku[]` | 视频弹幕，6 分钟一段，`segment` 从 1 开始；条目为 `{ id: string, progress: number, content: string }`，`progress` 单位为秒 |
 | `send_video_danmaku` | `bvid, cid, message, progress` | `VideoDanmaku` | 使用发送账号向指定分 P 发送弹幕，时间单位为秒，长度 1–100 字符 |
-| `get_video_comments` | `aid, page?, sort?` | `CommentPage` | 评论列表（`sort` 1=按点赞 2=按时间） |
+| `get_video_comments` | `aid, page?, sort?` | `CommentPage` | 评论列表（`sort` 0=按时间 1=按热度，默认 1） |
 | `get_comment_replies` | `oid, root, page?` | `CommentPage` | 楼中楼回复 |
 | `like_comment` | `oid, rpid, like` | `void` | 评论点赞/取消 |
 | `add_video_comment` | `oid, message, root?, parent?` | `VideoComment` | 发表评论或回复 |
@@ -143,6 +143,8 @@ const settings = await tauriCommands.settings.get()
 | `update_settings` | `settings` | `void` | 保存设置（同时同步 `dock_enabled`、主题跟随等内存镜像） |
 | `is_stt_available` | — | `boolean` | STT 是否可用（当前恒为 `true`） |
 | `get_shortcut_errors` | — | `string[]` | 最近一次全局快捷键注册失败清单 |
+
+`Settings.stt` 中的 `customModelDir: string \| null` 记录自定义模型目录（空 = 默认 `{appDataDir}/models/stt`），由 `set_stt_model_dir` 写入。
 
 ## 状态命令 (`state`)
 
@@ -190,6 +192,7 @@ const settings = await tauriCommands.settings.get()
 | `stop_stt` | — | `void` | 停止语音识别 |
 | `switch_stt_model` | `modelId` | `void` | 切换模型 |
 | `get_stt_model_dir` | — | `string` | 模型目录路径 |
+| `set_stt_model_dir` | `dir?` | `void` | 设置自定义模型目录；不传或空串恢复默认。目录不存在时自动创建，STT 运行中会先停止 |
 | `list_stt_models` | — | `string[]` | 列出可用模型目录 |
 | `open_stt_model_dir` | — | `void` | 在文件管理器中打开模型目录 |
 | `list_available_stt_models` | — | `SttCatalogEntry[]` | 精选可下载模型目录（内置清单，仅含当前管线可加载的流式模型） |
@@ -227,6 +230,7 @@ const settings = await tauriCommands.settings.get()
 | 命令 | 参数 | 返回 | 说明 |
 | --- | --- | --- | --- |
 | `quit_app_cmd` | — | `void` | 停止自动任务、断开连接、保存几何后退出 |
+| `set_brand_accent` | `accent` | `void` | 主题应用后把强调色（`#RRGGBB`）同步给托盘与窗口图标；新建弹幕窗/视频窗时自动补色 |
 
 ## AI 命令 (`ai`)
 
@@ -239,6 +243,11 @@ const settings = await tauriCommands.settings.get()
 | --- | --- | --- | --- |
 | `ai_get_permission_mode` | — | `"confirmAll" \| "autonomous" \| "full"` | 当前权限模式 |
 | `ai_set_permission_mode` | `mode` | `void` | 切换权限模式，广播 `ai-permission-changed` |
+| `ai_get_watch_max_minutes` | — | `number` | 长会话保底时长（分钟，0 = 不限） |
+| `ai_set_watch_max_minutes` | `minutes` | `void` | 保存长会话保底时长，上限 1440 分钟 |
+| `ai_memory_get` | `scope, roomId?` | `MemoryEntry \| null` | 读取指定范围（全局/直播间）的直播记忆 |
+| `ai_memory_set` | `scope, roomId?, content` | `MemoryEntry` | 覆盖写入直播记忆，返回写入后的条目 |
+| `ai_memory_delete` | `scope, roomId?` | `boolean` | 删除直播记忆，返回是否实际删除 |
 | `ai_confirm_response` | `id, approved` | `boolean` | 回应确认请求；返回 false 表示该请求已超时失效 |
 | `ai_mcp_status` | — | `McpStatus` | MCP 服务状态（`running`/`port`/`endpoint`/`error`） |
 | `ai_mcp_start` | — | `McpStatus` | 启动 MCP 服务 |

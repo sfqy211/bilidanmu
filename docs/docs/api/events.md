@@ -209,7 +209,7 @@ interface SttModelDownloadEvent {
 | --- | --- | --- |
 | `ai-confirm-request` | `{ id, tool, title, message, risk }` | AI 请求执行需确认的操作，主窗口弹确认框；用户决定后经 `ai_confirm_response` 回传 |
 | `ai-permission-changed` | `"confirmAll" \| "autonomous" \| "full"` | 权限模式变更，界面同步按钮状态 |
-| `ai-navigate` | `{ path }` | 请求主窗口跳到指定路由（如 `video_play` 打开视频页） |
+| `ai-navigate` | `{ path }` | 请求主窗口跳到指定路由（如 `/listen/video/{bvid}` 打开视频播放页） |
 
 `ai-confirm-request` 的 `id` 是关联键：Rust 侧等待用户决定，超时（55 秒）后该 id
 失效，`ai_confirm_response` 会返回 `false`。
@@ -235,7 +235,7 @@ interface SttModelDownloadEvent {
 | `danmaku-stealth`（载荷带 `label`，直播与视频弹幕窗共用） | Rust → 前端 | `window_stealth.rs` |
 | `account-switched` / `account-switch-error` | Rust → 前端 | `commands/auth.rs`、`tray.rs` |
 | `global-shortcut-action` | Rust → 前端 | `shortcuts.rs` |
-| `stt-transcript` | Rust → 前端 | `stt/mod.rs` |
+| `stt-transcript` / `stt-model-download` | Rust → 前端 | `stt/mod.rs`、`commands/stt_download.rs` |
 | `download-progress` | Rust → 前端 | `commands/download.rs` |
 | `settings-changed` | 前端 → 前端（跨窗口） | `stores/settings-store.ts` |
 | `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |

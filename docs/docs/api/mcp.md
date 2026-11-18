@@ -32,7 +32,7 @@
 
 | 错误码 | 含义 | 建议动作 |
 | --- | --- | --- |
-| `NOT_LOGGED_IN` | 未登录 | 让用户扫码登录，或调用 `account_list` 选账号 |
+| `NOT_LOGGED_IN` | 未登录 | 让用户扫码登录，或调用 `account{action:"list"}` 选账号 |
 | `NOT_IN_ROOM` | 未进入直播间 | 先 `room{action:"join"}` 或 `room{action:"list"}` |
 | `INVALID_ARGS` | 参数不合法 | 按 `inputSchema` 修正 |
 | `UNKNOWN_TOOL` | 工具名不存在 | 调 `tools/list` |
@@ -53,7 +53,7 @@
 
 ## 工具清单
 
-`tools/list` 只返回 8 个域工具和 1 个目录查询工具，避免每次会话把所有参数 schema 装进上下文。调用形如：
+`tools/list` 只返回 9 个域工具和 1 个目录查询工具，避免每次会话把所有参数 schema 装进上下文。调用形如：
 
 ```json
 { "name": "live", "arguments": { "action": "get_context", "params": { "danmakuLimit": 20 } } }
@@ -121,7 +121,7 @@
 | action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
 | `get_emoticons` | read | `roomId` | 房间表情包（优先本地缓存） |
-| `send` | **costly** | `roomId`、`message`*(≤20 字)、`color`、`mode` | 发送文字弹幕，经发送队列限流 |
+| `send` | **costly** | `roomId`、`message`*(≤40 字)、`color`、`mode` | 发送文字弹幕，经发送队列限流 |
 | `send_emoticon` | **costly** | `roomId`、`emoticonUnique`*、`emoticonOptions` | 发送表情弹幕 |
 | `like` | write | `roomId`、`anchorId`、`clickTimes`(1-100) | 给直播间点赞 |
 | `auto_send_start` | **costly** | `roomId`、`entries`*（≤20 条，含 `message`/`dmType`/`emoticonOptions`）、`intervalMs`(≥300，默认 3000，会抬到用户设置的最小发送间隔)、`timeLimitSecs` | 后台循环发送，一次确认覆盖整段循环 |
