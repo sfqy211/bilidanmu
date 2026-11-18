@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ListVideo } from "lucide-react";
+import { PanelIconButton, PanelListRow, PanelShell } from "@/components/ui/DanmakuPanel";
+import { usePanelDismiss } from "@/hooks/usePanelDismiss";
 import { useRoomStore } from "@/stores/room-store";
 import { tauriCommands } from "@/lib/tauri";
 
@@ -40,17 +42,11 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
     };
   }, [open]);
 
-  // 点击外部关闭
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  usePanelDismiss({
+    open,
+    onClose: () => setOpen(false),
+    ignoreRef: containerRef,
+  });
 
   // 仅显示开播中的房间（保持存储顺序）；状态映射按 UID 键控（get_status_info_by_uids），不是房间号
   const liveRooms = useMemo(
@@ -80,65 +76,49 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
   return (
     // 拦下 mousedown 冒泡，避免标题栏把 Popover 区域的按下当作窗口拖动
     <div ref={containerRef} className="relative" onMouseDown={(e) => e.stopPropagation()}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-6 w-6 items-center justify-center text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
-        title="切换直播间"
+      <PanelIconButton
+        label="切换直播间"
+        active={open}
+        onClick={() => setOpen((value) => !value)}
       >
         <ListVideo className="h-3.5 w-3.5" />
-      </button>
+      </PanelIconButton>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-white/[0.06] dark:bg-[#12141e]">
-          <div className="max-h-56 overflow-y-auto py-0.5">
-            {liveStatus === null ? (
-              <div className="px-3 py-1.5 text-xs text-slate-400 dark:text-slate-500">
-                {statusLoading ? "正在获取开播状态…" : "开播状态获取失败"}
-              </div>
-            ) : liveRooms.length === 0 ? (
-              <div className="px-3 py-1.5 text-xs text-slate-400 dark:text-slate-500">
-                暂无正在直播的房间
-              </div>
-            ) : (
-              liveRooms.map((room) => {
+        <PanelShell
+          variant="menu"
+          hideHeader
+          ariaLabel="切换直播间"
+          maxHeight="224px"
+          className="absolute right-0 top-full z-50 mt-1 w-56"
+        >
+          {liveStatus === null ? (
+            <p className="panel-note px-2 py-1.5">
+              {statusLoading ? "正在获取开播状态…" : "开播状态获取失败"}
+            </p>
+          ) : liveRooms.length === 0 ? (
+            <p className="panel-note px-2 py-1.5">暂无正在直播的房间</p>
+          ) : (
+            <div className="panel-list">
+              {liveRooms.map((room) => {
                 const isCurrent = room.roomId === roomId;
                 const liveTitle = liveStatus[String(room.uid)]?.title?.trim() ?? "";
                 const displayTitle = liveTitle || room.title;
                 return (
-                  <button
+                  <PanelListRow
                     key={room.roomId}
-                    type="button"
+                    label={room.uname}
+                    description={displayTitle}
+                    selected={isCurrent}
+                    align="start"
+                    right={isCurrent ? <Check className="h-3.5 w-3.5" /> : undefined}
                     onClick={() => void handleSelect(room.roomId)}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs transition ${
-                      isCurrent
-                        ? "bg-pink-50 dark:bg-pink-500/10"
-                        : "hover:bg-slate-100 dark:hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={`block truncate ${
-                          isCurrent
-                            ? "font-medium text-pink-600 dark:text-pink-400"
-                            : "text-slate-700 dark:text-slate-200"
-                        }`}
-                      >
-                        {room.uname}
-                      </span>
-                      {displayTitle && (
-                        <span className="block truncate text-[11px] text-slate-400 dark:text-slate-500">
-                          {displayTitle}
-                        </span>
-                      )}
-                    </span>
-                    {isCurrent && <Check className="h-3.5 w-3.5 shrink-0 text-pink-500" />}
-                  </button>
+                  />
                 );
-              })
-            )}
-          </div>
-        </div>
+              })}
+            </div>
+          )}
+        </PanelShell>
       )}
     </div>
   );

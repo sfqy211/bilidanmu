@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Radio, Users } from "lucide-react";
+import { PanelListRow, PanelShell } from "@/components/ui/DanmakuPanel";
+import { usePanelDismiss } from "@/hooks/usePanelDismiss";
 import { useAuthStore } from "@/stores/auth-store";
 import { tauriCommands } from "@/lib/tauri";
 
@@ -28,17 +30,11 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
     });
   }, []);
 
-  // 点击外部关闭
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  usePanelDismiss({
+    open,
+    onClose: () => setOpen(false),
+    ignoreRef: containerRef,
+  });
 
   // 切换发送账号
   const handleSelect = useCallback(
@@ -62,7 +58,7 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
   // 匿名模式下只显示"匿名模式"标签，不显示下拉
   if (isAnonymous) {
     return (
-      <div className="danmaku-bg-bar rounded inline-flex items-center gap-1 px-2.5 py-1 text-xs text-slate-400 dark:text-slate-500">
+      <div className="inline-flex items-center gap-1 rounded-md bg-[var(--panel-control-bg)] px-2.5 py-1 text-xs text-ink-muted">
         <Users className="h-3.5 w-3.5" />
         匿名模式
       </div>
@@ -82,47 +78,54 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         title={displayName}
-        className="danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+        aria-label={displayName}
+        aria-expanded={open}
+        className="panel-icon-btn text-sm font-bold"
+        data-active={open ? "true" : "false"}
       >
-        <span className="text-sm font-bold leading-none">
-          {displayName.charAt(0).toUpperCase()}
-        </span>
+        {displayName.charAt(0).toUpperCase()}
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-50 mb-1 w-48 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-white/[0.06] dark:bg-[#12141e]">
-          <div className="max-h-48 overflow-y-auto py-0.5">
+        <PanelShell
+          variant="menu"
+          hideHeader
+          ariaLabel="切换发送账号"
+          maxHeight="192px"
+          className="absolute bottom-full left-0 z-50 mb-1 w-48"
+        >
+          <div className="panel-list">
             {accounts.map((account) => {
               const isSelected = account.accountId === effectiveSendingId;
               const isViewing = account.accountId === viewingAccountIdRef.current;
 
               return (
-                <button
+                <PanelListRow
                   key={account.accountId}
-                  type="button"
-                  onClick={() => void handleSelect(account.accountId)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/[0.04]"
-                >
-                  <span className="w-4 shrink-0 text-center text-sm font-bold leading-none text-slate-500 dark:text-slate-400">
-                    {account.username.charAt(0).toUpperCase()}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">
-                    {account.username}
-                  </span>
-                  {isViewing && (
-                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-blue-50 px-1 py-0.5 text-[10px] text-blue-500 dark:bg-blue-500/10 dark:text-blue-400">
-                      <Radio className="h-2.5 w-2.5" />
-                      弹幕/音频
+                  label={account.username}
+                  icon={
+                    <span className="flex h-5 w-5 items-center justify-center text-sm font-bold">
+                      {account.username.charAt(0).toUpperCase()}
                     </span>
-                  )}
-                  {isSelected && (
-                    <Check className="h-3.5 w-3.5 shrink-0 text-pink-500" />
-                  )}
-                </button>
+                  }
+                  selected={isSelected}
+                  right={
+                    <span className="flex items-center gap-1">
+                      {isViewing && (
+                        <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1 py-0.5 text-[10px] text-blue-500 dark:bg-blue-500/10 dark:text-blue-400">
+                          <Radio className="h-2.5 w-2.5" />
+                          弹幕/音频
+                        </span>
+                      )}
+                      {isSelected && <Check className="h-3.5 w-3.5" />}
+                    </span>
+                  }
+                  onClick={() => void handleSelect(account.accountId)}
+                />
               );
             })}
           </div>
-        </div>
+        </PanelShell>
       )}
     </div>
   );
