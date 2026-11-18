@@ -190,20 +190,26 @@
   color: var(--ink-muted);
 }
 .panel-list-row-main {
+  display: block;
   min-width: 0;
   flex: 1;
 }
 .panel-list-row-title {
+  display: block;
   overflow: hidden;
   font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .panel-list-row-desc {
-  margin-top: 0;
+  display: block;
+  margin-top: 1px;
   overflow: hidden;
   color: var(--ink-muted);
   font-size: 10.5px;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

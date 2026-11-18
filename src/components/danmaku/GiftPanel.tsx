@@ -58,8 +58,8 @@ export function GiftPanel({
     (state) => state.settings.appearance.showGiftIcons ?? true
   );
   /** 图标隐藏时格子更矮，两行总高同步收缩 */
-  const cellHeightClass = showGiftIcons ? "h-[74px]" : "h-[44px]";
-  const gridMaxHeightClass = showGiftIcons ? "max-h-[149px]" : "max-h-[89px]";
+  const cellHeightClass = showGiftIcons ? "h-[80px]" : "h-[44px]";
+  const gridMaxHeightClass = showGiftIcons ? "max-h-[161px]" : "max-h-[89px]";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -329,7 +329,7 @@ export function GiftPanel({
                         disabled={sending}
                         onClick={() => handleSelect({ kind: "panel", gift })}
                         title={gift.desc || gift.name}
-                        className={`flex ${cellHeightClass} w-full flex-col items-center justify-center rounded-md p-1.5 text-center transition ${
+                        className={`flex ${cellHeightClass} w-full flex-col items-center justify-center rounded-md p-1 text-center transition ${
                           active ? cellActiveClass : cellIdleClass
                         } ${sending ? "cursor-wait opacity-60" : ""}`}
                       >
@@ -338,7 +338,7 @@ export function GiftPanel({
                             src={gift.imgBasic}
                             alt={gift.name}
                             persistent
-                            className="h-9 w-9 shrink-0 object-contain"
+                            className="h-8 w-8 shrink-0 object-contain"
                           />
                         )}
                         <span
@@ -372,12 +372,12 @@ export function GiftPanel({
                       disabled={sending}
                       onClick={() => handleSelect({ kind: "bag", item })}
                       title={`${item.giftName} ×${item.giftNum}`}
-                      className={`flex ${cellHeightClass} w-full flex-col items-center justify-center rounded-md p-1.5 text-center transition ${
+                      className={`flex ${cellHeightClass} w-full flex-col items-center justify-center rounded-md p-1 text-center transition ${
                         active ? cellActiveClass : cellIdleClass
                       } ${sending ? "cursor-wait opacity-60" : ""}`}
                     >
                       {showGiftIcons && (
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm">
                           🎁
                         </span>
                       )}

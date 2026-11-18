@@ -111,6 +111,7 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
                     description={displayTitle}
                     selected={isCurrent}
                     align="start"
+                    icon={<span className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500" />}
                     right={isCurrent ? <Check className="h-3.5 w-3.5" /> : undefined}
                     onClick={() => void handleSelect(room.roomId)}
                   />
