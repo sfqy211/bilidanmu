@@ -63,6 +63,11 @@ pub struct AppState {
     pub stt_manager: Arc<TokioMutex<Option<stt::SttManager>>>,
     /// 正在进行的 STT 模型下载任务（None = 空闲；单并发）
     pub stt_download_job: Arc<TokioMutex<Option<commands::stt_download::DownloadJob>>>,
+    /// 视频语音转字幕的会话内缓存（`bvid:cid` -> 字幕轨道；重启即清空）
+    pub video_stt_cache:
+        Arc<StdMutex<HashMap<String, stt::video_stt::VideoSttTrack>>>,
+    /// 正在进行的视频语音识别任务（None = 空闲；单并发，切视频即取消）
+    pub video_stt_job: Arc<TokioMutex<Option<stt::video_stt::VideoSttJob>>>,
     /// 各窗口的侧边吸附状态（label -> DockState）
     pub window_docks: std::sync::Mutex<HashMap<String, window_dock::DockState>>,
     /// 退出吸附后的拖动冷却集合：冷却中的窗口即使贴边也不重新吸附，
@@ -179,6 +184,8 @@ pub fn run() {
             stream_proxy: Arc::new(StreamProxyServer::new(proxy_client)),
             stt_manager: Arc::new(TokioMutex::new(None)),
             stt_download_job: commands::stt_download::initial_job_slot(),
+            video_stt_cache: Arc::new(StdMutex::new(HashMap::new())),
+            video_stt_job: Arc::new(TokioMutex::new(None)),
             window_docks: std::sync::Mutex::new(HashMap::new()),
             dock_cooldowns: std::sync::Mutex::new(std::collections::HashSet::new()),
             danmaku_input_only: std::sync::atomic::AtomicBool::new(false),
@@ -511,6 +518,10 @@ pub fn run() {
             commands::video::like_comment,
             commands::video::add_video_comment,
             commands::video::get_comment_replies,
+            commands::video_stt::get_video_stt,
+            commands::video_stt::start_video_stt,
+            commands::video_stt::stop_video_stt,
+            commands::video_stt::clear_video_stt,
             commands::room::exit_room,
             window_dock::dock_expand,
             window_dock::dock_apply_expand,

@@ -54,7 +54,7 @@ http-body-util = "0.1"
 bytes = "1"
 open = "5"
 sherpa-onnx = "2.0"
-symphonia = { version = "0.6.0", default-features = false, features = ["aac"] }
+symphonia = { version = "0.6.0", default-features = false, features = ["aac", "isomp4"] }
 # STT 模型包解压（tar.bz2；两者已在依赖树中由 sherpa-onnx-sys 引入，显式声明零增量）
 tar = "0.4"
 bzip2 = "0.6"

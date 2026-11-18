@@ -6,6 +6,7 @@
 
 pub mod flv_demux;
 pub mod pipeline;
+pub mod video_stt;
 
 use std::sync::Arc;
 

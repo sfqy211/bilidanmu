@@ -327,7 +327,7 @@ impl AacDecoder {
 /// Uses the channel count from the decoded buffer (`actual_channels`) rather
 /// than the FLV header to avoid mixing inconsistencies when the two disagree (#7).
 /// Unsigned types are centered to [-1, 1] to avoid DC bias (#2).
-fn extract_f32_samples(
+pub(crate) fn extract_f32_samples(
     audio_buf: &GenericAudioBufferRef<'_>,
     _num_channels: usize, // kept for API compat, unused — see #7
     dest: &mut Vec<f32>,
@@ -577,30 +577,7 @@ impl PipelineState {
 
     /// Silero VAD（离线模式切句依赖），模型位于模型目录上级的 `_vad/`。
     fn create_vad(model_dir: &Path) -> Result<VoiceActivityDetector, String> {
-        let vad_path = model_dir
-            .parent()
-            .ok_or_else(|| "无法定位模型目录上级".to_string())?
-            .join(super::super::commands::stt_download::VAD_DIR)
-            .join(super::super::commands::stt_download::VAD_FILE);
-        if !vad_path.exists() {
-            return Err(format!(
-                "缺少离线识别依赖的 VAD 模型: {}（请重新下载该离线模型以自动附带）",
-                vad_path.display()
-            ));
-        }
-        let config = VadModelConfig {
-            silero_vad: SileroVadModelConfig {
-                model: Some(vad_path.to_string_lossy().to_string()),
-                threshold: 0.5,
-                min_silence_duration: 0.4,
-                min_speech_duration: 0.25,
-                window_size: 512,
-                max_speech_duration: 15.0,
-            },
-            ..Default::default()
-        };
-        VoiceActivityDetector::create(&config, 30.0)
-            .ok_or_else(|| "创建 VAD 失败".to_string())
+        create_vad_with(model_dir, 15.0, 0.4)
     }
 
     /// 喂入一段 16kHz 重采样音频并推进识别，返回待 emit 的文本事件。
@@ -698,6 +675,142 @@ impl PipelineState {
             }
         }
     }
+}
+
+/// 视频字幕批量识别用的识别器：每个 VAD 片段独立识别，不维护直播的流式会话状态。
+pub(crate) enum BatchRecognizer {
+    Streaming(OnlineRecognizer),
+    Offline(OfflineRecognizer),
+}
+
+impl BatchRecognizer {
+    pub(crate) fn create(model_dir: &Path) -> Result<Self, String> {
+        let (kind, files) = resolve_model(model_dir)?;
+        if kind.is_offline() {
+            Ok(Self::Offline(PipelineState::create_offline(kind, &files)?))
+        } else {
+            Ok(Self::Streaming(PipelineState::create_online(kind, &files)?))
+        }
+    }
+
+    pub(crate) fn is_streaming(&self) -> bool {
+        matches!(self, Self::Streaming(_))
+    }
+
+    /// 流式模型的连续识别会话（无 VAD 时按端点切句兜底）。
+    pub(crate) fn streaming_session(&self) -> Option<BatchStreamingSession<'_>> {
+        match self {
+            Self::Streaming(recognizer) => Some(BatchStreamingSession::new(recognizer)),
+            Self::Offline(_) => None,
+        }
+    }
+
+    /// 把一个 VAD 片段当作完整语句识别。
+    pub(crate) fn recognize(&self, samples: &[f32]) -> Option<String> {
+        let text = match self {
+            Self::Streaming(recognizer) => {
+                let stream = recognizer.create_stream();
+                stream.accept_waveform(16000, samples);
+                stream.input_finished();
+                while recognizer.is_ready(&stream) {
+                    recognizer.decode(&stream);
+                }
+                recognizer.get_result(&stream).map(|result| result.text)
+            }
+            Self::Offline(recognizer) => {
+                let stream = recognizer.create_stream();
+                stream.accept_waveform(16000, samples);
+                recognizer.decode(&stream);
+                stream.get_result().map(|result| result.text)
+            }
+        };
+        text.map(|text| text.trim().to_string())
+            .filter(|text| !text.is_empty())
+    }
+}
+
+/// 流式模型的连续识别会话：喂音频 → 命中 endpoint 时返回一句文本。
+///
+/// VAD 模型缺失时的兜底路径（流式模型下载包不一定附带 `_vad`）。
+pub(crate) struct BatchStreamingSession<'a> {
+    recognizer: &'a OnlineRecognizer,
+    stream: OnlineStream,
+}
+
+impl<'a> BatchStreamingSession<'a> {
+    fn new(recognizer: &'a OnlineRecognizer) -> Self {
+        Self {
+            recognizer,
+            stream: recognizer.create_stream(),
+        }
+    }
+
+    /// 喂入 16k 音频；命中 endpoint 时返回这一句并复位。
+    pub(crate) fn accept(&self, samples: &[f32]) -> Option<String> {
+        self.stream.accept_waveform(16000, samples);
+        while self.recognizer.is_ready(&self.stream) {
+            self.recognizer.decode(&self.stream);
+        }
+        if !self.recognizer.is_endpoint(&self.stream) {
+            return None;
+        }
+        let text = self
+            .recognizer
+            .get_result(&self.stream)
+            .map(|result| result.text.trim().to_string())
+            .filter(|text| !text.is_empty());
+        self.recognizer.reset(&self.stream);
+        text
+    }
+
+    /// 收尾：刷出最后一句。
+    pub(crate) fn finish(&self) -> Option<String> {
+        self.stream.input_finished();
+        while self.recognizer.is_ready(&self.stream) {
+            self.recognizer.decode(&self.stream);
+        }
+        self.recognizer
+            .get_result(&self.stream)
+            .map(|result| result.text.trim().to_string())
+            .filter(|text| !text.is_empty())
+    }
+}
+
+/// 视频批量识别的 VAD：切句上限比直播短，让每行更接近字幕长度。
+pub(crate) fn create_batch_vad(model_dir: &Path) -> Result<VoiceActivityDetector, String> {
+    create_vad_with(model_dir, 7.0, 0.35)
+}
+
+/// 创建 Silero VAD（模型位于模型目录上级的 `_vad/`）。
+fn create_vad_with(
+    model_dir: &Path,
+    max_speech_duration: f32,
+    min_silence_duration: f32,
+) -> Result<VoiceActivityDetector, String> {
+    let vad_path = model_dir
+        .parent()
+        .ok_or_else(|| "无法定位模型目录上级".to_string())?
+        .join(super::super::commands::stt_download::VAD_DIR)
+        .join(super::super::commands::stt_download::VAD_FILE);
+    if !vad_path.exists() {
+        return Err(format!(
+            "缺少离线识别依赖的 VAD 模型: {}（请重新下载该离线模型以自动附带）",
+            vad_path.display()
+        ));
+    }
+    let config = VadModelConfig {
+        silero_vad: SileroVadModelConfig {
+            model: Some(vad_path.to_string_lossy().to_string()),
+            threshold: 0.5,
+            min_silence_duration,
+            min_speech_duration: 0.25,
+            window_size: 512,
+            max_speech_duration,
+        },
+        ..Default::default()
+    };
+    VoiceActivityDetector::create(&config, 30.0)
+        .ok_or_else(|| "创建 VAD 失败".to_string())
 }
 
 /// The main STT pipeline.
