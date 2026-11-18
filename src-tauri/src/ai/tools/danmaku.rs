@@ -134,10 +134,10 @@ pub async fn send(
     if trimmed.is_empty() {
         return Err(ToolError::invalid_args("弹幕内容不能为空"));
     }
-    // B 站弹幕长度上限 20 字，超出会被服务端拒绝，提前拦下给明确提示
-    if trimmed.chars().count() > 20 {
+    // 与应用内输入框一致：文字弹幕最多 40 字，超出会被服务端拒绝，提前拦下给明确提示
+    if trimmed.chars().count() > 40 {
         return Err(ToolError::invalid_args(format!(
-            "弹幕长度 {} 超过 B 站上限 20 字",
+            "弹幕长度 {} 超过上限 40 字",
             trimmed.chars().count()
         ))
         .with_hint("压缩文案后重试"));
@@ -369,9 +369,9 @@ pub async fn auto_send_start(
                 "entries[{index}].dmType 只能是 0（文字）或 1（表情）"
             )));
         }
-        if dm_type == 0 && message.chars().count() > 20 {
+        if dm_type == 0 && message.chars().count() > 40 {
             return Err(ToolError::invalid_args(format!(
-                "entries[{index}] 文本 {} 字，超过 B 站 20 字上限",
+                "entries[{index}] 文本 {} 字，超过 40 字上限",
                 message.chars().count()
             )));
         }

@@ -551,14 +551,14 @@ watch_start 已自动附带房间摘要，需要完整内容时再用它。",
         ToolSpec {
             name: "danmaku_send",
             title: "发送弹幕",
-            description: "在当前直播间发送一条文字弹幕。必须已登录。长度上限 20 字（B 站限制）；\
+            description: "在当前直播间发送一条文字弹幕。必须已登录。长度上限 40 字（与应用内输入框一致）；\
 20 秒内相同文案会被拒绝以避免刷屏。发送间隔受用户设置里的发送频率限制约束。",
             risk: Risk::Costly,
             input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "roomId": { "type": "integer", "description": "房间号，省略则用当前直播间" },
-                    "message": { "type": "string", "description": "弹幕正文，最多 20 字" },
+                    "message": { "type": "string", "description": "弹幕正文，最多 40 字" },
                     "color": { "type": "integer", "description": "文字颜色（十进制 RGB），省略用默认白色" },
                     "mode": { "type": "integer", "description": "弹幕模式：1/2/3 滚动，4 底部，5 顶部；省略用滚动" }
                 },
@@ -602,7 +602,7 @@ watch_start 已自动附带房间摘要，需要完整内容时再用它。",
             title: "启动循环发送弹幕",
             description: "在后台按固定间隔循环发送 entries 里的文案（桌面端「自动发送」同一个后台任务）。\
 一次确认覆盖整段循环，节奏由 Rust 定时器控制，不依赖模型往返。intervalMs 会被抬到用户设置的最小发送间隔。\
-文字弹幕每条不超过 20 字，entries 按顺序轮播；用 auto_send_stop 停止，auto_status 查看状态。",
+文字弹幕每条不超过 40 字，entries 按顺序轮播；用 auto_send_stop 停止，auto_status 查看状态。",
             risk: Risk::Costly,
             input_schema: schema(json!({
                 "type": "object",
@@ -614,7 +614,7 @@ watch_start 已自动附带房间摘要，需要完整内容时再用它。",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "message": { "type": "string", "description": "文字弹幕正文（≤20 字），或表情的 emoticonUnique" },
+                                "message": { "type": "string", "description": "文字弹幕正文（≤40 字），或表情的 emoticonUnique" },
                                 "dmType": { "type": "integer", "enum": [0, 1], "description": "0=文字，1=表情" },
                                 "emoticonOptions": { "type": "string", "description": "dmType=1 时的 emoticon_options JSON，省略按 emoticonUnique 兜底" }
                             },
