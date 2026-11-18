@@ -365,6 +365,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
 }
 .panel-field {
   padding: 3px 0;

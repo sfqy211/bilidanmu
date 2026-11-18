@@ -1584,6 +1584,9 @@ export function DanmakuPage() {
                 <OpacitySlider
                   value={opacity}
                   onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
+                  className="min-h-[28px] py-0.5"
+                  labelClassName="panel-row-label"
+                  valueClassName="panel-field-value w-9 text-right"
                 />
 
                 {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
