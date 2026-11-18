@@ -43,7 +43,7 @@ pub async fn handle_message(
                     "version": env!("CARGO_PKG_VERSION"),
                 },
                 "instructions": "BiliDanmu 是一个 B 站直播间弹幕客户端。\
-能力折叠成 8 个域工具：app / live / room / danmaku / gift / video / account / settings，\
+能力折叠成 9 个域工具：app / live / memory / room / danmaku / gift / video / account / settings，\
 统一用 { action, params } 调用；参数不确定时先调 mcp_describe(domain, action) 查完整 schema。\
 开始任务前先 app{action:status} 了解登录态与当前房间；理解直播间用 live{action:get_context}；\
 写操作会被应用的权限模式约束，可能需要用户确认。",
@@ -57,7 +57,7 @@ pub async fn handle_message(
         }
         "ping" => OutgoingResponse::ok(id, serde_json::json!({})),
         "tools/list" => {
-            // 只返回 8 个域 + mcp_describe：完整 action 参数按需通过 mcp_describe 取，
+            // 只返回 9 个域 + mcp_describe：完整 action 参数按需通过 mcp_describe 取，
             // 避免每次会话把所有内部工具的 schema 全塞进上下文。
             let tools = registry::exposed_tools();
             OutgoingResponse::ok(id, serde_json::json!({ "tools": tools }))

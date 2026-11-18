@@ -1003,7 +1003,7 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
     ]
 }
 
-/// 对外暴露的域工具：57 个内部工具折叠成 8 个域 + mcp_describe。
+/// 对外暴露的域工具：63 个内部工具折叠成 9 个域 + mcp_describe。
 ///
 /// 内部规格仍是单一真源；这里只决定“模型看到什么”。调用时代理层会把
 /// `{action, params}` 还原成内部工具名，权限、审计与确认流程仍按真实 action 走。
@@ -1251,7 +1251,7 @@ pub fn describe(domain: Option<&str>, action: Option<&str>) -> Result<serde_json
     Ok(json!({ "domain": domain_name, "title": spec.title, "actions": actions }))
 }
 
-/// MCP `tools/list` 的返回：8 个域 + mcp_describe。
+/// MCP `tools/list` 的返回：9 个域 + mcp_describe。
 pub fn exposed_tools() -> Vec<serde_json::Value> {
     let mut tools: Vec<serde_json::Value> = DOMAINS
         .iter()
