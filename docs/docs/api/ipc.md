@@ -119,6 +119,17 @@ const settings = await tauriCommands.settings.get()
 | `like_comment` | `oid, rpid, like` | `void` | 评论点赞/取消 |
 | `add_video_comment` | `oid, message, root?, parent?` | `VideoComment` | 发表评论或回复 |
 
+## 视频语音字幕命令 (`videoStt`)
+
+| 命令 | 参数 | 返回 | 说明 |
+| --- | --- | --- | --- |
+| `get_video_stt` | `bvid, cid` | `VideoSttTrack \| null` | 读取当前会话已生成的视频字幕轨道（没有则 null） |
+| `start_video_stt` | `bvid, cid` | `void` | 开始整段识别；已有会话缓存时直接完成。单并发，开始新任务会取消旧任务 |
+| `stop_video_stt` | — | `void` | 取消当前识别任务 |
+| `clear_video_stt` | `bvid, cid` | `void` | 清除该视频的会话缓存；若它正在识别则一并取消 |
+
+`VideoSttTrack` 包含 `bvid: string`、`cid: number`、`modelId: string`、`duration: number`（秒）与 `lines: SubtitleLine[]`。字幕只保存在进程内，重启应用即清空；前端只在视频没有官方 CC 字幕时调用这些命令，进度与增量字幕通过 `video-stt` 事件推送。
+
 ## 视频弹幕窗口命令 (`videoWindow`)
 
 | 命令 | 参数 | 返回 | 说明 |

@@ -181,6 +181,25 @@ interface SttTranscript {
 }
 ```
 
+### `video-stt`
+
+视频整段语音识别的进度与增量字幕。前端按 `bvid + cid` 过滤；带 `line` 的事件只追加字幕，不更新进度。
+
+```typescript
+interface VideoSttEvent {
+  bvid: string
+  cid: number
+  /** downloading | decoding | recognizing | done | cancelled | error */
+  phase: string
+  /** 当前阶段内的进度（0~1） */
+  progress: number
+  /** recognizing 阶段新增的一行字幕 */
+  line?: SubtitleLine
+  /** 仅 error 时有值 */
+  message?: string
+}
+```
+
 ### `stt-model-download`
 
 识别模型下载进度与状态。
@@ -236,6 +255,7 @@ interface SttModelDownloadEvent {
 | `account-switched` / `account-switch-error` | Rust → 前端 | `commands/auth.rs`、`tray.rs` |
 | `global-shortcut-action` | Rust → 前端 | `shortcuts.rs` |
 | `stt-transcript` / `stt-model-download` | Rust → 前端 | `stt/mod.rs`、`commands/stt_download.rs` |
+| `video-stt` | Rust → 前端 | `commands/video_stt.rs` |
 | `download-progress` | Rust → 前端 | `commands/download.rs` |
 | `settings-changed` | 前端 → 前端（跨窗口） | `stores/settings-store.ts` |
 | `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |

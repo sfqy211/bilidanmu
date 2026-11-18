@@ -70,6 +70,7 @@
 - Video audio and live audio are mutually exclusive: entering a room emits `danmaku-entered`, which pauses the video player (queue and progress are kept; the mini player resumes it manually).
 - Dual credential: `state.credential` (main, for WS/audio) + `state.sending_credential` (for sending danmaku/emoticons/gifts). `get_sending_credential()` helper in `commands/mod.rs` falls back to main.
 - STT is always compiled in (no feature gates); `is_stt_available` always returns true and runtime toggles via settings control whether it's active.
+- Video STT is a separate batch path from live STT: `src-tauri/src/stt/video_stt.rs` downloads the whole DASH audio (fMP4) → symphonia isomp4 demux → AAC decode → VAD segmentation → per-segment recognition, producing absolute-timestamp lines. Results live only in `AppState.video_stt_cache` (session memory, no DB), one job at a time; it never auto-starts (button click only) and is cancelled on video switch. The frontend only offers it when a video has no CC subtitles (`SubtitlePanel` / `VideoTimelinePane` action). Live pipeline behavior must stay untouched; shared helpers are `pipeline::BatchRecognizer` / `create_batch_vad` / `extract_f32_samples`.
 
 ## AI tool layer / MCP server
 

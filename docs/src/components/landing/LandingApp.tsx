@@ -70,7 +70,8 @@ export function LandingApp({ base, cleanUrls, assetBase }: LandingProps) {
                 <h3>视频弹幕窗</h3>
                 <p>
                   把视频字幕和弹幕放进同一个独立小窗：字幕逐句跟随、弹幕按时间滚过，
-                  点击任一行即可跳转，也可以直接在小窗里发送弹幕。
+                  点击任一行即可跳转；没有字幕的视频还能用本地语音识别整段生成，
+                  也可以直接在小窗里发送弹幕。
                 </p>
               </article>
               <article>
