@@ -1,7 +1,9 @@
 .video-danmaku-window {
   height: 100dvh;
   background-color: color-mix(in srgb, var(--app-page) calc(var(--bg-a) * 100%), transparent);
-  transition: opacity 160ms ease-out;
+  /* 不要在这里声明 transition：共享 DanmakuWindow 用 transition-transform 做
+     吸附滑入/滑出，此处若覆盖为 opacity 会导致 transform 过渡不触发、
+     transitionend 丢失，窗口卡在收起中（表现为没有收起条/鼠标移开像隐身）。 */
 }
 .video-window-text-button:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .video-danmaku-window button:focus-visible, .video-danmaku-window input:focus-visible, .video-window-divider:focus-visible { outline: 2px solid rgb(var(--brand-rgb)); outline-offset: -2px; }

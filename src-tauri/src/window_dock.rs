@@ -720,6 +720,24 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
                                     d.phase = DockPhase::Collapsing;
                                     drop(docks);
                                     emit_dock_changed(&app_handle, &label, "collapsing", Some(side));
+                                    // 兜底：前端依赖 transform transitionend 回调 dock_collapse，
+                                    // 任何样式覆盖/动画被禁用都可能丢事件；1s 后仍在 Collapsing
+                                    // 则后端自行收起（collapse_dock 会复核光标仍在窗外）。
+                                    let fallback_app = app_handle.clone();
+                                    let fallback_label = label.clone();
+                                    tauri::async_runtime::spawn(async move {
+                                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                                        let Some(win) = fallback_app.get_webview_window(&fallback_label) else { return };
+                                        let still_collapsing = {
+                                            let state = fallback_app.state::<AppState>();
+                                            let docks = lock_docks(state.inner());
+                                            docks.get(&fallback_label).map(|d| d.phase) == Some(DockPhase::Collapsing)
+                                        };
+                                        if still_collapsing {
+                                            log::info!("[dock] 收起回调超时，后端兜底: {fallback_label}");
+                                            collapse_dock(&fallback_app, &win);
+                                        }
+                                    });
                                 }
                             }
                         }
