@@ -1,48 +1,27 @@
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { PanelShell } from "@/components/ui/DanmakuPanel";
 
 interface FloatingPanelProps {
   title: string;
   onClose: () => void;
   className?: string;
   extra?: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
 }
 
-export function FloatingPanel({ title, onClose, className, extra, children }: FloatingPanelProps) {
+/** 直播弹幕窗的整宽底部面板：实际外壳由公共 PanelShell 提供。 */
+export function FloatingPanel({ title, onClose, className, extra, footer, children }: FloatingPanelProps) {
   return (
-    <div
-      onMouseDown={(e) => e.stopPropagation()}
+    <PanelShell
+      title={title}
+      variant="sheet"
+      onClose={onClose}
+      extra={extra}
+      footer={footer}
       className={className}
     >
-      <div className="danmaku-floating">
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/50 dark:border-white/[0.06]">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</span>
-          {extra ? (
-            <div className="flex items-center gap-2">
-              {extra}
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex h-5 w-5 items-center justify-center rounded text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-5 w-5 items-center justify-center rounded text-slate-400 transition hover:bg-[#ebebeb] dark:text-slate-500 dark:hover:bg-white/[0.06]"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-        <div className="max-h-[50vh] overflow-y-auto px-3">
-          {children}
-        </div>
-      </div>
-    </div>
+      {children}
+    </PanelShell>
   );
 }

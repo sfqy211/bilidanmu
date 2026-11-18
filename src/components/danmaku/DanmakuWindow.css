@@ -106,23 +106,6 @@
 .danmaku-window-appearance {
   font-size: 12px;
 }
-.danmaku-window-check {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-block: 7px;
-}
-.danmaku-window-check input {
-  accent-color: rgb(var(--brand-rgb));
-}
-.danmaku-window-choice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-block: 6px;
-}
 .danmaku-window-select {
   position: relative;
   width: 150px;
@@ -135,18 +118,10 @@
   max-height: 150px;
   overflow-y: auto;
 }
-.danmaku-window-appearance input[type="color"] {
-  width: 34px;
-  height: 24px;
-  padding: 1px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  background: transparent;
-}
 .danmaku-window-appearance-details {
-  margin-top: 6px;
+  margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--panel-border, var(--border-subtle));
 }
 .danmaku-window-appearance-details summary {
   color: var(--ink-muted);
@@ -157,23 +132,23 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-block: 10px 2px;
+  padding-block: 8px 2px;
 }
 .danmaku-window-title-options button {
-  padding: 4px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-border, var(--border-subtle));
+  border-radius: 999px;
   font-size: 11px;
   color: var(--ink-muted);
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.danmaku-window-title-options button:hover {
+  color: var(--ink);
+  background: var(--panel-hover, color-mix(in srgb, var(--ink) 5%, transparent));
 }
 .danmaku-window-title-options button[aria-pressed="true"] {
   color: rgb(var(--brand-rgb));
-  border-color: rgb(var(--brand-rgb) / 0.4);
-  background: rgb(var(--brand-rgb) / 0.08);
-}
-.danmaku-window-settings-note {
-  margin-block: 10px 2px;
-  color: var(--ink-muted);
-  font-size: 10px;
-  line-height: 1.6;
+  border-color: rgb(var(--brand-rgb) / 0.3);
+  background: rgb(var(--brand-rgb) / 0.10);
 }

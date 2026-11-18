@@ -17,6 +17,15 @@ import { DanmakuMessageItem } from "@/components/danmaku/DanmakuMessageItem";
 import { EmoticonPickerPanel } from "@/components/danmaku/EmoticonPickerPanel";
 import { GiftPanel } from "@/components/danmaku/GiftPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
+import {
+  PanelChip,
+  PanelField,
+  PanelNote,
+  PanelRow,
+  PanelSection,
+  PanelSegmented,
+  PanelShell,
+} from "@/components/ui/DanmakuPanel";
 import { FilterPanel } from "@/components/danmaku/FilterPanel";
 import { SubtitleOverlay } from "@/components/danmaku/SubtitleOverlay";
 import { useDanmaku } from "@/hooks/useDanmaku";
@@ -27,6 +36,7 @@ import { useDanmakuStream } from "@/hooks/useDanmakuStream";
 import { useDividerDrag } from "@/hooks/useDividerDrag";
 import { useSttTranscript } from "@/hooks/useSttTranscript";
 import { useDanmakuWindowAppearance } from "@/hooks/useDanmakuWindowAppearance";
+import { usePanelDismiss } from "@/hooks/usePanelDismiss";
 import { DanmakuInput } from "@/components/danmaku/DanmakuInput";
 import { DanmakuWindow } from "@/components/danmaku/DanmakuWindow";
 import { DanmakuWindowAppearanceSettings } from "@/components/danmaku/DanmakuWindowAppearanceSettings";
@@ -136,6 +146,8 @@ export function DanmakuPage() {
   }, [roomIdParam]);
   const [message, setMessage] = useState("");
   const inputBarRef = useRef<HTMLDivElement | null>(null);
+  const panelHostRef = useRef<HTMLDivElement | null>(null);
+  const panelIgnoreRefs = useMemo(() => [inputBarRef, panelHostRef], []);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const togglePanel = useCallback((name: string) => {
     setActivePanel((prev) => (prev === name ? null : name));
@@ -734,20 +746,14 @@ export function DanmakuPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (event.button !== 0) return; // 仅左键
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (inputBarRef.current?.contains(target)) return;
+  usePanelDismiss({
+    open: activePanel !== null || barMenuOpen,
+    onClose: () => {
       setActivePanel(null);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-    };
-  }, []);
+      setBarMenuOpen(false);
+    },
+    ignoreRef: panelIgnoreRefs,
+  });
 
   // ── 窗口透传：见 useDanmakuWindowModes 的 usePassthroughHitTest（两窗共用） ──
 
@@ -1155,37 +1161,44 @@ export function DanmakuPage() {
                   <Plus className={`h-4 w-4 transition-transform ${barMenuOpen ? "rotate-45" : ""}`} />
                 </button>
                 {barMenuOpen && (
-                  <div className="danmaku-floating absolute bottom-full left-0 z-30 mb-1 flex items-center gap-1 rounded-lg p-1">
-                    {[
-                      { key: PANEL.AUTO_SEND, label: "自动发送", Icon: Zap, disabled: isAnonymous },
-                      { key: PANEL.EMOTICON, label: "表情", Icon: Smile, disabled: isAnonymous },
-                      ...(giftSendEnabled
-                        ? [{ key: PANEL.GIFT, label: "礼物", Icon: Gift, disabled: isAnonymous }]
-                        : []),
-                      { key: PANEL.FILTER, label: "屏蔽管理", Icon: ShieldBan, disabled: false },
-                      { key: PANEL.SETTINGS, label: "设置", Icon: Settings, disabled: false },
-                      { key: PANEL.CLIPBOARD, label: "快捷消息", Icon: ClipboardList, disabled: false },
-                    ].map(({ key, label, Icon, disabled }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={disabled}
-                        title={label}
-                        onClick={() => {
-                          if (key === PANEL.EMOTICON) void handleToggleEmoticonPicker();
-                          else togglePanel(key);
-                          setBarMenuOpen(false);
-                        }}
-                        className={`flex h-8 w-8 items-center justify-center rounded transition ${
-                          disabled ? "cursor-not-allowed opacity-40"
-                            : activePanel === key ? "bg-brand/10 text-brand"
-                            : "text-ink-muted hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </button>
-                    ))}
-                  </div>
+                  <PanelShell
+                    variant="menu"
+                    hideHeader
+                    ariaLabel="更多功能"
+                    className="absolute bottom-full left-0 z-30 mb-1"
+                  >
+                    <div className="flex items-center gap-1">
+                      {[
+                        { key: PANEL.AUTO_SEND, label: "自动发送", Icon: Zap, disabled: isAnonymous },
+                        { key: PANEL.EMOTICON, label: "表情", Icon: Smile, disabled: isAnonymous },
+                        ...(giftSendEnabled
+                          ? [{ key: PANEL.GIFT, label: "礼物", Icon: Gift, disabled: isAnonymous }]
+                          : []),
+                        { key: PANEL.FILTER, label: "屏蔽管理", Icon: ShieldBan, disabled: false },
+                        { key: PANEL.SETTINGS, label: "设置", Icon: Settings, disabled: false },
+                        { key: PANEL.CLIPBOARD, label: "快捷消息", Icon: ClipboardList, disabled: false },
+                      ].map(({ key, label, Icon, disabled }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          disabled={disabled}
+                          title={label}
+                          onClick={() => {
+                            if (key === PANEL.EMOTICON) void handleToggleEmoticonPicker();
+                            else togglePanel(key);
+                            setBarMenuOpen(false);
+                          }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-md transition ${
+                            disabled ? "cursor-not-allowed opacity-40"
+                              : activePanel === key ? "bg-brand/10 text-brand"
+                              : "text-ink-muted hover:bg-[var(--panel-hover)] hover:text-ink"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </button>
+                      ))}
+                    </div>
+                  </PanelShell>
                 )}
               </div>
             )}
@@ -1565,19 +1578,17 @@ export function DanmakuPage() {
 
       {/* 浮动面板（覆盖在内容区上方） */}
       {activePanel && (
-      <div className="absolute inset-x-0 bottom-0 z-20">
+      <div ref={panelHostRef} className="absolute inset-x-0 bottom-0 z-20">
         {settingsOpen && (
           <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
             <DanmakuWindowAppearanceSettings>
-              <div className="space-y-3">
+              <div className="space-y-1">
                 <OpacitySlider
                   value={opacity}
                   onChange={(val) => commitSettings({ appearance: { opacity: val } } as Partial<SettingsType>)}
                 />
 
-                {/* 字体大小 */}
-                <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-xs text-ink-muted dark:text-ink-muted">字体大小</span>
+                <PanelField label="字体大小" value={`${fontSize}px`}>
                   <input
                     type="range"
                     min={10}
@@ -1585,150 +1596,103 @@ export function DanmakuPage() {
                     step={1}
                     value={fontSize}
                     onChange={(e) => commitSettings({ appearance: { fontSize: Number(e.target.value) } } as Partial<SettingsType>)}
-                    className="h-1 min-w-0 flex-1 cursor-pointer accent-brand"
+                    className="h-1 w-full cursor-pointer accent-brand"
                   />
-                  <span className="w-9 shrink-0 text-right text-xs text-ink-muted dark:text-ink-muted">{fontSize}px</span>
-                </div>
+                </PanelField>
 
                 {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
                     放在这里是为了看直播时不用为了关字幕跑回主窗口 */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-ink-muted dark:text-ink-muted">实时字幕</span>
-                  <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                    {([true, false] as const).map((value) => (
-                      <button
-                        key={String(value)}
-                        type="button"
+                <PanelRow label="实时字幕" hint={subtitleHint}>
+                  <PanelSegmented
+                    ariaLabel="实时字幕"
+                    items={[
+                      {
+                        value: "on" as const,
+                        label: "开启",
                         // 只在「打开」时要求可用，避免模型缺失时连关都关不掉
-                        disabled={value && (!sttAvailable || subtitleModelReady === false)}
-                        title={subtitleHint}
-                        onClick={() => commitSettings({ stt: { ...settings.stt, enabled: value } })}
-                        className={`px-2.5 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                          settings.stt.enabled === value
-                            ? "bg-brand text-white"
-                            : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
-                      >
-                        {value ? "开启" : "关闭"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {subtitleHint && (
-                  <p className="-mt-1 text-[11px] text-ink-muted dark:text-ink-muted">{subtitleHint}</p>
-                )}
+                        disabled: !sttAvailable || subtitleModelReady === false,
+                        title: subtitleHint,
+                      },
+                      { value: "off" as const, label: "关闭" },
+                    ]}
+                    value={settings.stt.enabled ? "on" : "off"}
+                    onChange={(value) =>
+                      commitSettings({ stt: { ...settings.stt, enabled: value === "on" } })
+                    }
+                  />
+                </PanelRow>
 
-                {/* 表情样式 */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-ink-muted dark:text-ink-muted">表情样式</span>
-                  <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                    {([
-                      { value: "hidden", label: "不显示" },
-                      { value: "text", label: "文字" },
-                      { value: "image", label: "图片" },
-                    ] as const).map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() =>
-                          commitSettings({
-                            appearance: { ...settings.appearance, emoticonStyle: value }
-                          })
-                        }
-                        className={`px-2.5 py-1 text-xs transition ${
-                          settings.appearance.emoticonStyle === value
-                            ? "bg-brand text-white"
-                            : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <PanelRow label="表情样式">
+                  <PanelSegmented
+                    ariaLabel="表情样式"
+                    items={[
+                      { value: "hidden" as const, label: "不显示" },
+                      { value: "text" as const, label: "文字" },
+                      { value: "image" as const, label: "图片" },
+                    ]}
+                    value={settings.appearance.emoticonStyle}
+                    onChange={(value) =>
+                      commitSettings({
+                        appearance: { ...settings.appearance, emoticonStyle: value },
+                      })
+                    }
+                  />
+                </PanelRow>
 
                 {/* 礼物图标：仅礼物打赏功能启用（gift-send 构建）时显示 */}
                 {giftSendEnabled && (
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-ink-muted dark:text-ink-muted">礼物图标</span>
-                    <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                      {([
-                        { value: true, label: "显示" },
-                        { value: false, label: "不显示" },
-                      ] as const).map(({ value, label }) => (
-                        <button
-                          key={String(value)}
-                          type="button"
-                          onClick={() =>
-                            commitSettings({
-                              appearance: { ...settings.appearance, showGiftIcons: value }
-                            })
-                          }
-                          className={`px-2.5 py-1 text-xs transition ${
-                            (settings.appearance.showGiftIcons ?? true) === value
-                              ? "bg-brand text-white"
-                              : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <PanelRow label="礼物图标">
+                    <PanelSegmented
+                      ariaLabel="礼物图标"
+                      items={[
+                        { value: "show" as const, label: "显示" },
+                        { value: "hide" as const, label: "不显示" },
+                      ]}
+                      value={(settings.appearance.showGiftIcons ?? true) ? "show" : "hide"}
+                      onChange={(value) =>
+                        commitSettings({
+                          appearance: { ...settings.appearance, showGiftIcons: value === "show" },
+                        })
+                      }
+                    />
+                  </PanelRow>
                 )}
 
-                {/* 侧边吸附动画速度 */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-ink-muted dark:text-ink-muted">吸附动画</span>
-                  <div className="flex overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
-                    {([
-                      { value: 350, label: "慢" },
-                      { value: 220, label: "标准" },
-                      { value: 120, label: "快" },
-                      { value: 0, label: "关" },
-                    ] as const).map(({ value, label }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => commitSettings({ appearance: { dockAnimMs: value } } as Partial<SettingsType>)}
-                        className={`px-2.5 py-1 text-xs transition ${
-                          settings.appearance.dockAnimMs === value
-                            ? "bg-brand text-white"
-                            : "bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <PanelRow label="吸附动画">
+                  <PanelSegmented
+                    ariaLabel="吸附动画速度"
+                    items={[
+                      { value: "350" as const, label: "慢" },
+                      { value: "220" as const, label: "标准" },
+                      { value: "120" as const, label: "快" },
+                      { value: "0" as const, label: "关" },
+                    ]}
+                    value={String(settings.appearance.dockAnimMs)}
+                    onChange={(value) =>
+                      commitSettings({ appearance: { dockAnimMs: Number(value) } } as Partial<SettingsType>)
+                    }
+                  />
+                </PanelRow>
 
-                {/* 隐藏元素 */}
-                <div>
-                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">隐藏元素</p>
+                <PanelSection title="隐藏元素">
                   <div className="flex flex-wrap gap-1.5">
                     {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
-                      <button
+                      <PanelChip
                         key={key}
-                        type="button"
+                        selected={settings.appearance[key]}
                         onClick={() =>
                           commitSettings({
-                            appearance: { ...settings.appearance, [key]: !settings.appearance[key] }
+                            appearance: { ...settings.appearance, [key]: !settings.appearance[key] },
                           })
                         }
-                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                          settings.appearance[key]
-                            ? "border-brand/40 bg-brand/10 text-brand"
-                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
                       >
                         {label}
-                      </button>
+                      </PanelChip>
                     ))}
                     {/* 气泡背景默认显示，所以这里的按钮语义是「取消气泡背景」，
                         与上面那排「命中即隐藏」的字段反向 */}
-                    <button
-                      type="button"
+                    <PanelChip
+                      selected={settings.appearance.hideBubbleColor}
                       onClick={() =>
                         commitSettings({
                           appearance: {
@@ -1737,110 +1701,87 @@ export function DanmakuPage() {
                           },
                         })
                       }
-                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                        settings.appearance.hideBubbleColor
-                          ? "border-brand/40 bg-brand/10 text-brand"
-                          : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                      }`}
                     >
                       气泡背景
-                    </button>
+                    </PanelChip>
                   </div>
-                </div>
+                </PanelSection>
 
-                {/* 活动栏（进场/点赞） */}
-                <div>
-                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">活动栏</p>
-                  <div className="mb-2 flex flex-wrap gap-1.5">
-                    {ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => commitSettings({ appearance: { ...settings.appearance, activityBarMode: value } })}
-                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                          settings.appearance.activityBarMode === value
-                            ? "border-brand/40 bg-brand/10 text-brand"
-                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                <PanelSection title="活动栏">
+                  <PanelSegmented
+                    ariaLabel="活动栏模式"
+                    items={ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => ({
+                      value,
+                      label,
+                    }))}
+                    value={settings.appearance.activityBarMode}
+                    onChange={(value) =>
+                      commitSettings({
+                        appearance: {
+                          ...settings.appearance,
+                          activityBarMode: value as typeof settings.appearance.activityBarMode,
+                        },
+                      })
+                    }
+                  />
                   {settings.appearance.activityBarMode === "scroll" && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => commitSettings({ appearance: { ...settings.appearance, activityFilter: value } })}
-                          className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                            settings.appearance.activityFilter === value
-                              ? "border-brand/40 bg-brand/10 text-brand"
-                              : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                    <PanelSegmented
+                      className="mt-2"
+                      ariaLabel="活动栏过滤"
+                      items={ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => ({
+                        value,
+                        label,
+                      }))}
+                      value={settings.appearance.activityFilter}
+                      onChange={(value) =>
+                        commitSettings({
+                          appearance: {
+                            ...settings.appearance,
+                            activityFilter: value as typeof settings.appearance.activityFilter,
+                          },
+                        })
+                      }
+                    />
                   )}
-                </div>
+                </PanelSection>
 
-                {/* 简化醒目留言 */}
-                <div>
-                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">弹幕栏简化醒目留言</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {([
-                      { value: false, label: "不显示" },
-                      { value: true, label: "显示" },
-                    ] as const).map(({ value, label }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => commitSettings({ appearance: { ...settings.appearance, scInDanmaku: value } })}
-                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                          settings.appearance.scInDanmaku === value
-                            ? "border-brand/40 bg-brand/10 text-brand"
-                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <PanelSection title="弹幕栏简化醒目留言">
+                  <PanelSegmented
+                    ariaLabel="简化醒目留言"
+                    items={[
+                      { value: "hide" as const, label: "不显示" },
+                      { value: "show" as const, label: "显示" },
+                    ]}
+                    value={settings.appearance.scInDanmaku ? "show" : "hide"}
+                    onChange={(value) =>
+                      commitSettings({
+                        appearance: { ...settings.appearance, scInDanmaku: value === "show" },
+                      })
+                    }
+                  />
+                </PanelSection>
 
-                {/* 金额着色：关闭后 SC/礼物/舰长与普通弹幕一样，只剩纯文字金额 */}
-                <div>
-                  <p className="mb-1.5 text-xs text-ink-muted dark:text-ink-muted">金额着色</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {([
-                      { value: false, label: "彩色" },
-                      { value: true, label: "与普通弹幕一致" },
-                    ] as const).map(({ value, label }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() =>
-                          commitSettings({
-                            appearance: { ...settings.appearance, plainPriceMessages: value }
-                          })
-                        }
-                        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                          (settings.appearance.plainPriceMessages ?? false) === value
-                            ? "border-brand/40 bg-brand/10 text-brand"
-                            : "border-neutral-200 bg-[#f8f8f8] text-ink-muted hover:bg-[#efefef] dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-ink-muted dark:hover:bg-[#22242e]"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-ink-muted dark:text-ink-muted">
+                <PanelSection title="金额着色">
+                  <PanelSegmented
+                    ariaLabel="金额着色"
+                    items={[
+                      { value: "color" as const, label: "彩色" },
+                      { value: "plain" as const, label: "与普通弹幕一致" },
+                    ]}
+                    value={(settings.appearance.plainPriceMessages ?? false) ? "plain" : "color"}
+                    onChange={(value) =>
+                      commitSettings({
+                        appearance: {
+                          ...settings.appearance,
+                          plainPriceMessages: value === "plain",
+                        },
+                      })
+                    }
+                  />
+                  <PanelNote>
                     各金额档位的具体颜色在「设置 → 外观 → 金额档位配色」里调整。
-                  </p>
-                </div>
+                  </PanelNote>
+                </PanelSection>
               </div>
             </DanmakuWindowAppearanceSettings>
           </FloatingPanel>

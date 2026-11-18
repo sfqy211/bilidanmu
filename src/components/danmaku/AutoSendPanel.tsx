@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Play, Plus, Send, Square, Star, X, Loader2, Circle } from "lucide-react";
+import { Play, Square, Star, X, Loader2, Circle } from "lucide-react";
+import {
+  PanelButton,
+  PanelInput,
+  PanelNote,
+  PanelTabs,
+  PanelTextarea,
+} from "@/components/ui/DanmakuPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { AutoSendEntry } from "@/lib/tauri";
@@ -35,10 +42,10 @@ interface AutoSendPanelProps {
 
 type TabKey = "text" | "emotion" | "like";
 
-const AUTO_SEND_TABS: Array<{ key: TabKey; label: string }> = [
-  { key: "text", label: "文字" },
-  { key: "emotion", label: "表情" },
-  { key: "like", label: "点赞" },
+const AUTO_SEND_TABS: Array<{ value: TabKey; label: string }> = [
+  { value: "text", label: "文字" },
+  { value: "emotion", label: "表情" },
+  { value: "like", label: "点赞" },
 ];
 
 // ─── 文字 Tab 内容区 ───
@@ -66,15 +73,14 @@ function TextTabContent({
 
   return (
     <div>
-      <textarea
+      <PanelTextarea
         value={messagesInput}
         onChange={(e) => setMessagesInput(e.target.value)}
         disabled={isRunning}
         placeholder={"每行一条循环弹幕\n第一条"}
         rows={2}
-        className="w-full rounded bg-white/10 px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
       />
-      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">共 {entries.length} 条</p>
+      <PanelNote>共 {entries.length} 条</PanelNote>
     </div>
   );
 }
@@ -126,19 +132,22 @@ function EmotionTabContent({
   return (
     <div className="space-y-3">
       {/* 已选表情 */}
-      <div className="rounded bg-white/10 p-3 dark:bg-white/[0.06]">
+      <div className="panel-card">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            已选表情 ({selectedEntries.length})
-          </span>
+          <span className="panel-row-label">已选表情 ({selectedEntries.length})</span>
           {selectedEntries.length > 0 ? (
-            <button onClick={clearAll} disabled={isRunning} className="text-xs text-rose-500 hover:text-rose-600 disabled:opacity-50 dark:text-rose-400">
+            <button
+              type="button"
+              onClick={clearAll}
+              disabled={isRunning}
+              className="text-xs text-rose-500 transition hover:text-rose-600 disabled:opacity-50 dark:text-rose-400"
+            >
               清空
             </button>
           ) : null}
         </div>
         {selectedEntries.length === 0 ? (
-          <p className="text-xs text-slate-400 dark:text-slate-500">点击下方表情添加</p>
+          <PanelNote>点击下方表情添加</PanelNote>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {selectedEntries.map((entry) => {
@@ -146,9 +155,10 @@ function EmotionTabContent({
               return (
                 <button
                   key={entry.message}
+                  type="button"
                   onClick={() => toggleEmotion(entry.message, emotUrl)}
                   disabled={isRunning}
-                  className="relative border border-pink-200 bg-pink-50 p-0.5 dark:border-pink-500/30 dark:bg-pink-500/10 disabled:opacity-50"
+                  className="relative rounded-md border border-brand/30 bg-brand/10 p-0.5 disabled:opacity-50"
                   title={entry.message}
                 >
                   {emotUrl ? (
@@ -175,12 +185,13 @@ function EmotionTabContent({
               return (
                 <button
                   key={key}
+                  type="button"
                   onClick={() => setActivePkgKey(key)}
                   disabled={isRunning}
-                  className={`shrink-0 p-1 transition disabled:opacity-50 ${
+                  className={`shrink-0 rounded-md p-1 transition disabled:opacity-50 ${
                     active
-                      ? "border border-pink-300 bg-pink-50 dark:border-pink-500/40 dark:bg-pink-500/10"
-                      : "hover:bg-white/[0.08] dark:hover:bg-white/[0.04]"
+                      ? "bg-brand/10 ring-1 ring-inset ring-brand/30"
+                      : "hover:bg-[var(--panel-hover)]"
                   }`}
                   title={pkg.pkgName || `包 ${pkg.pkgId}`}
                 >
@@ -189,7 +200,7 @@ function EmotionTabContent({
                   ) : preview ? (
                     <ProxiedImage src={preview.url} alt={pkg.pkgName} persistent className="h-7 w-7 object-contain" />
                   ) : (
-                    <span className="px-1 text-xs text-slate-500 dark:text-slate-400">{pkg.pkgName || `包 ${pkg.pkgId}`}</span>
+                    <span className="px-1 text-xs text-ink-muted">{pkg.pkgName || `包 ${pkg.pkgId}`}</span>
                   )}
                 </button>
               );
@@ -204,13 +215,14 @@ function EmotionTabContent({
                 return (
                   <button
                     key={emot.emoticonUnique ?? emot.emoticonId}
+                    type="button"
                     onClick={() => emot.emoticonUnique && toggleEmotion(emot.emoticonUnique, emot.url)}
                     disabled={!available || isRunning}
                     title={emot.descript ?? emot.emoji ?? ""}
-                    className={`flex items-center justify-center p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 ${
+                    className={`flex items-center justify-center rounded-md p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 ${
                       selected
-                        ? "border border-pink-300 bg-pink-50 dark:border-pink-500/30 dark:bg-pink-500/10"
-                        : "hover:bg-white/[0.08] dark:hover:bg-white/[0.04]"
+                        ? "bg-brand/10 ring-1 ring-inset ring-brand/30"
+                        : "hover:bg-[var(--panel-hover)]"
                     }`}
                   >
                     <ProxiedImage src={emot.url} alt={emot.descript ?? emot.emoji ?? ""} persistent className="h-7 w-7 object-contain" />
@@ -221,7 +233,7 @@ function EmotionTabContent({
           ) : null}
         </>
       ) : (
-        <p className="text-xs text-slate-400 dark:text-slate-500">请先在弹幕页打开表情选择器加载表情列表</p>
+        <PanelNote>请先在弹幕页打开表情选择器加载表情列表</PanelNote>
       )}
     </div>
   );
@@ -269,6 +281,31 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
   const [likeBatchSize, setLikeBatchSize] = useState("5");
   const [likeIntervalSec, setLikeIntervalSec] = useState("1.5");
 
+  const running = activeTab === "like" ? like.isRunning : isRunning;
+  const canStart = activeTab === "like"
+    ? !like.isRunning && like.anchorId && (() => {
+        const t = Number(likeTarget), b = Number(likeBatchSize), i = Number(likeIntervalSec);
+        return Number.isFinite(t) && t > 0 && t <= 1000 && Number.isFinite(b) && b > 0 && b <= 100 && Number.isFinite(i) && i >= 0.5;
+      })()
+    : !isRunning && currentEntries.length > 0 && Number.isFinite(Number(intervalSec)) && Number(intervalSec) >= 0.3;
+
+  const handleToggle = () => {
+    if (running) {
+      if (activeTab === "like") like.onStop();
+      else onStop();
+      return;
+    }
+    if (!canStart) return;
+    if (activeTab === "like") {
+      const t = Math.round(Number(likeTarget));
+      const b = Math.round(Number(likeBatchSize));
+      const i = Math.round(Number(likeIntervalSec) * 1000);
+      void like.onStart(t, b, i);
+    } else {
+      handleStart();
+    }
+  };
+
   return (
     <FloatingPanel
       title="循环发送"
@@ -276,26 +313,76 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
       extra={
         (isRunning || like.isRunning)
           ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-          : <Circle className="h-4 w-4 text-slate-400" />
+          : <Circle className="h-4 w-4 text-ink-muted" />
+      }
+      footer={
+        <>
+          {/* 进度条（仅点赞 tab 且有目标时显示） */}
+          {activeTab === "like" && like.targetTotal > 0 && (
+            <div className="min-w-0 flex-1">
+              <div className="mb-0.5 flex items-center justify-between text-[10px] text-ink-muted">
+                <span>{like.sentTotal}/{like.targetTotal}</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--panel-control-bg)]">
+                <div
+                  className="h-full rounded-full bg-brand transition-all"
+                  style={{ width: `${Math.min(100, (like.sentTotal / like.targetTotal) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 间隔（仅文字/表情 tab，点赞 tab 上方已有批次间隔） */}
+          {activeTab !== "like" && (
+            <div className="flex items-center gap-1.5">
+              <label className="shrink-0 text-xs text-ink-muted">间隔</label>
+              <PanelInput
+                value={intervalSec}
+                onChange={(e) => setIntervalSec(e.target.value)}
+                disabled={isRunning}
+                inputMode="decimal"
+                className="w-14"
+              />
+              <span className="text-xs text-ink-muted">秒</span>
+            </div>
+          )}
+
+          {/* 限时（仅文字/表情 tab） */}
+          {activeTab !== "like" && (
+            <div className="flex items-center gap-1.5">
+              <label className="shrink-0 text-xs text-ink-muted">限时</label>
+              <PanelInput
+                value={timeLimitSec}
+                onChange={(e) => setTimeLimitSec(e.target.value)}
+                disabled={isRunning}
+                inputMode="numeric"
+                placeholder="0"
+                className="w-14"
+              />
+              <span className="text-xs text-ink-muted">秒</span>
+            </div>
+          )}
+
+          <PanelButton
+            variant={running ? "stop" : "primary"}
+            onClick={handleToggle}
+            disabled={!running && !canStart}
+            title={running ? "停止" : activeTab === "like" && !like.anchorId ? "缺少主播信息" : "开始"}
+            aria-label={running ? "停止" : "开始"}
+            className="ml-auto w-8 shrink-0 px-0"
+          >
+            {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-4 w-4" />}
+          </PanelButton>
+        </>
       }
     >
-
-      {/* Tab 切换 */}
-      <div className="mb-3 flex gap-1">
-        {AUTO_SEND_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-3 py-1.5 text-xs font-medium transition ${
-              activeTab === tab.key
-                ? "border-b-2 border-pink-500 text-pink-600 dark:text-pink-300"
-                : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <PanelTabs
+        className="mb-3"
+        items={AUTO_SEND_TABS}
+        value={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="循环发送类型"
+      />
 
       {/* Tab 内容区 */}
       {activeTab === "text" ? (
@@ -307,156 +394,63 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400">目标总数</label>
-              <input
+              <label className="text-xs text-ink-muted">目标总数</label>
+              <PanelInput
                 value={likeTarget}
                 onChange={(e) => setLikeTarget(e.target.value)}
                 disabled={like.isRunning}
                 inputMode="numeric"
                 placeholder="100"
-                className="h-8 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
               />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">上限 1000</span>
+              <PanelNote>上限 1000</PanelNote>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400">批次大小</label>
-              <input
+              <label className="text-xs text-ink-muted">批次大小</label>
+              <PanelInput
                 value={likeBatchSize}
                 onChange={(e) => setLikeBatchSize(e.target.value)}
                 disabled={like.isRunning}
                 inputMode="numeric"
                 placeholder="5"
-                className="h-8 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
               />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">每批 ≤100</span>
+              <PanelNote>每批 ≤100</PanelNote>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400">批次间隔</label>
-              <input
+              <label className="text-xs text-ink-muted">批次间隔</label>
+              <PanelInput
                 value={likeIntervalSec}
                 onChange={(e) => setLikeIntervalSec(e.target.value)}
                 disabled={like.isRunning}
                 inputMode="decimal"
                 placeholder="1.5"
-                className="h-8 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
               />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">秒，最小 0.5</span>
+              <PanelNote>秒，最小 0.5</PanelNote>
             </div>
           </div>
 
           {/* 状态 */}
-          <div className="space-y-1 text-xs">
+          <div className="space-y-1">
             {like.stopReason === "completed" ? (
-              <p className="text-emerald-600 dark:text-emerald-400">✓ 点赞完成</p>
+              <PanelNote>✓ 点赞完成</PanelNote>
             ) : like.stopReason === "manual" ? (
-              <p className="text-slate-400 dark:text-slate-500">已手动停止</p>
+              <PanelNote>已手动停止</PanelNote>
             ) : like.stopReason === "error" ? (
-              <p className="text-rose-500 dark:text-rose-400">已停止（错误）</p>
+              <p className="panel-error">已停止（错误）</p>
             ) : null}
-            {like.error ? <p className="text-rose-500 dark:text-rose-400">错误：{like.error}</p> : null}
+            {like.error ? <p className="panel-error">错误：{like.error}</p> : null}
           </div>
         </div>
       )}
 
-      {/* 底部控件：进度 + 间隔 + 限时 + 启停 */}
-      <div className="mt-3 flex items-center gap-2">
-        {/* 进度条（仅点赞 tab 且有目标时显示） */}
-        {activeTab === "like" && like.targetTotal > 0 && (
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
-              <span>{like.sentTotal}/{like.targetTotal}</span>
-            </div>
-            <div className="h-1.5 w-full bg-white/10 dark:bg-white/[0.06] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-pink-500 transition-all rounded-full"
-                style={{ width: `${Math.min(100, (like.sentTotal / like.targetTotal) * 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* 间隔（仅文字/表情 tab，点赞 tab 上方已有批次间隔） */}
-        {activeTab !== "like" && (
-          <div className="flex items-center gap-1.5">
-            <label className="shrink-0 text-xs text-slate-500 dark:text-slate-400">间隔</label>
-            <input
-              value={intervalSec}
-              onChange={(e) => setIntervalSec(e.target.value)}
-              disabled={isRunning}
-              inputMode="decimal"
-              className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white"
-            />
-            <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
-          </div>
-        )}
-
-        {/* 限时（仅文字/表情 tab） */}
-        {activeTab !== "like" && (
-          <div className="flex items-center gap-1.5">
-            <label className="shrink-0 text-xs text-slate-500 dark:text-slate-400">限时</label>
-            <input
-              value={timeLimitSec}
-              onChange={(e) => setTimeLimitSec(e.target.value)}
-              disabled={isRunning}
-              inputMode="numeric"
-              placeholder="0"
-              className="h-8 w-14 rounded bg-white/10 px-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
-            />
-            <span className="text-xs text-slate-400 dark:text-slate-500">秒</span>
-          </div>
-        )}
-
-        {/* 启停按钮 */}
-        {(() => {
-          const running = activeTab === "like" ? like.isRunning : isRunning;
-          const canStart = activeTab === "like"
-            ? !like.isRunning && like.anchorId && (() => {
-                const t = Number(likeTarget), b = Number(likeBatchSize), i = Number(likeIntervalSec);
-                return Number.isFinite(t) && t > 0 && t <= 1000 && Number.isFinite(b) && b > 0 && b <= 100 && Number.isFinite(i) && i >= 0.5;
-              })()
-            : !isRunning && currentEntries.length > 0 && Number.isFinite(Number(intervalSec)) && Number(intervalSec) >= 0.3;
-
-          return (
-            <button
-              onClick={() => {
-                if (running) {
-                  activeTab === "like" ? like.onStop() : onStop();
-                } else if (canStart) {
-                  if (activeTab === "like") {
-                    const t = Math.round(Number(likeTarget));
-                    const b = Math.round(Number(likeBatchSize));
-                    const i = Math.round(Number(likeIntervalSec) * 1000);
-                    void like.onStart(t, b, i);
-                  } else {
-                    handleStart();
-                  }
-                }
-              }}
-              disabled={!running && !canStart}
-              title={running ? "停止" : activeTab === "like" && !like.anchorId ? "缺少主播信息" : "开始"}
-              className={`ml-auto flex h-8 w-8 items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                running
-                  ? "bg-rose-500 text-white hover:bg-rose-400"
-                  : "bg-pink-500 text-white hover:bg-pink-400"
-              }`}
-            >
-              {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-4 w-4" />}
-            </button>
-          );
-        })()}
-      </div>
-
       {/* 运行状态 */}
-      <div className="mt-3 space-y-1 text-xs">
+      <div className="mt-3 space-y-1">
         {lastSentMessage ? (
-          <p className="text-slate-500 dark:text-slate-400">
-            最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}
-          </p>
+          <PanelNote>最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}</PanelNote>
         ) : null}
-        {lastIndex !== null ? <p className="text-slate-400 dark:text-slate-500">当前条目索引：#{lastIndex + 1}</p> : null}
-        {sentCount > 0 ? <p className="text-slate-400 dark:text-slate-500">累计发送：{sentCount} 条</p> : null}
-        {stopReason ? <p className="text-slate-400 dark:text-slate-500">停止原因：{stopReason}</p> : null}
-        {error ? <p className="text-rose-500 dark:text-rose-400">错误：{error}</p> : null}
+        {lastIndex !== null ? <PanelNote>当前条目索引：#{lastIndex + 1}</PanelNote> : null}
+        {sentCount > 0 ? <PanelNote>累计发送：{sentCount} 条</PanelNote> : null}
+        {stopReason ? <PanelNote>停止原因：{stopReason}</PanelNote> : null}
+        {error ? <p className="panel-error">错误：{error}</p> : null}
       </div>
     </FloatingPanel>
   );

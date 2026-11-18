@@ -1,5 +1,13 @@
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
+import {
+  PanelButton,
+  PanelEmpty,
+  PanelIconButton,
+  PanelInput,
+  PanelListRow,
+  PanelTabs,
+} from "@/components/ui/DanmakuPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -56,119 +64,86 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
   const hasAnyItems = blockedKeywords.length > 0 || blockedUsers.length > 0;
 
   return (
-    <FloatingPanel
-      title="屏蔽管理"
-      onClose={onClose}
-    >
-      {/* 操作栏 */}
-      <div className="mb-2 flex items-center justify-between">
-        {/* Tab 栏 */}
-        <div className="flex flex-1 rounded bg-[#f0f0f0] p-0.5 dark:bg-[#0e1018]">
-          {([
-            { key: "keywords" as const, label: "屏蔽关键词" },
-            { key: "users" as const, label: "屏蔽用户" },
-          ]).map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 rounded px-2 py-1 text-xs font-medium transition ${
-                activeTab === tab.key
-                  ? "bg-white text-slate-700 shadow-sm dark:bg-[#1a1c24] dark:text-slate-200"
-                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+    <FloatingPanel title="屏蔽管理" onClose={onClose}>
+      <div className="mb-3 flex items-center gap-2">
+        <PanelTabs
+          className="min-w-0 flex-1"
+          items={[
+            { value: "keywords" as const, label: "屏蔽关键词" },
+            { value: "users" as const, label: "屏蔽用户" },
+          ]}
+          value={activeTab}
+          onChange={setActiveTab}
+          ariaLabel="屏蔽类型"
+        />
         {hasAnyItems && (
-          <button
-            type="button"
-            onClick={handleClearAll}
-            className="flex h-5 w-5 items-center justify-center text-slate-400 transition hover:text-rose-500 dark:hover:text-rose-400"
-            title="一键清空"
-          >
+          <PanelIconButton label="一键清空" onClick={handleClearAll}>
             <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          </PanelIconButton>
         )}
       </div>
 
-      {/* Tab 内容 */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {activeTab === "keywords" ? (
-          <div className="space-y-2">
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddKeyword(); }}
-                placeholder="输入关键词"
-                className="h-8 flex-1 rounded border border-neutral-200 bg-[#f8f8f8] px-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-pink-500/30 dark:border-neutral-700 dark:bg-[#1a1c24] dark:text-white"
-              />
-              <button
-                type="button"
-                onClick={handleAddKeyword}
-                disabled={!keywordInput.trim()}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-pink-500 text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+      {activeTab === "keywords" ? (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <PanelInput
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddKeyword(); }}
+              placeholder="输入关键词"
+              className="flex-1"
+            />
+            <PanelButton
+              variant="primary"
+              onClick={handleAddKeyword}
+              disabled={!keywordInput.trim()}
+              aria-label="添加屏蔽关键词"
+              className="w-8 shrink-0 px-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </PanelButton>
+          </div>
+          {blockedKeywords.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {blockedKeywords.map((kw) => (
+                <span
+                  key={kw}
+                  className="inline-flex items-center gap-1 rounded-md bg-brand/10 px-2 py-0.5 text-xs text-brand"
+                >
+                  {kw}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveKeyword(kw)}
+                    aria-label={`移除关键词 ${kw}`}
+                    className="inline-flex h-3.5 w-3.5 items-center justify-center text-brand/70 transition hover:text-brand"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
             </div>
-            {blockedKeywords.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {blockedKeywords.map((kw) => (
-                  <span
-                    key={kw}
-                    className="inline-flex items-center gap-0.5 rounded bg-pink-500/10 px-1.5 py-0.5 text-xs text-pink-600 dark:bg-pink-500/20 dark:text-pink-300"
-                  >
-                    {kw}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveKeyword(kw)}
-                      className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center text-pink-400 transition hover:text-pink-600 dark:hover:text-pink-200"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 dark:text-slate-500">暂无屏蔽关键词</p>
-            )}
-          </div>
-        ) : (
-          <div>
-            {blockedUsers.length > 0 ? (
-              <div className="space-y-1">
-                {blockedUsers.map((user) => (
-                  <div
-                    key={user.uid}
-                    className="flex items-center justify-between rounded bg-[#f0f0f0] px-2 py-1 dark:bg-[#0e1018]"
-                  >
-                    <span className="min-w-0 truncate text-xs text-slate-600 dark:text-slate-300">
-                      {user.username}
-                      <span className="ml-1 shrink-0 text-slate-400 dark:text-slate-500">({user.uid})</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveUser(user.uid)}
-                      className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center text-slate-400 transition hover:text-rose-500 dark:hover:text-rose-400"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                暂无屏蔽用户。在弹幕上右键选择「屏蔽此用户」即可添加。
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+          ) : (
+            <PanelEmpty>暂无屏蔽关键词</PanelEmpty>
+          )}
+        </div>
+      ) : blockedUsers.length > 0 ? (
+        <div className="panel-list">
+          {blockedUsers.map((user) => (
+            <PanelListRow
+              key={user.uid}
+              label={user.username}
+              description={String(user.uid)}
+              right={
+                <PanelIconButton label={`移除 ${user.username}`} onClick={() => handleRemoveUser(user.uid)}>
+                  <X className="h-3 w-3" />
+                </PanelIconButton>
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <PanelEmpty>暂无屏蔽用户。在弹幕上右键选择「屏蔽此用户」即可添加。</PanelEmpty>
+      )}
     </FloatingPanel>
   );
 }

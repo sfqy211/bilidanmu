@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { PanelCheck, PanelNote, PanelRow } from "@/components/ui/DanmakuPanel";
 import {
   Select,
   SelectContent,
@@ -48,8 +49,7 @@ function AppearanceSelect({
   disabled?: boolean;
 }) {
   return (
-    <div className="danmaku-window-choice">
-      <span>{label}</span>
+    <PanelRow label={label}>
       <div className="danmaku-window-select">
         <Select value={value} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger aria-label={label} disabled={disabled} />
@@ -62,7 +62,7 @@ function AppearanceSelect({
           </SelectContent>
         </Select>
       </div>
-    </div>
+    </PanelRow>
   );
 }
 
@@ -135,17 +135,11 @@ function DanmakuWindowThemeSettings() {
           { value: "background", label: "跟随背景" },
         ]}
       />
-      <label className="danmaku-window-check">
-        <span>跟随屏幕背景亮暗</span>
-        <input
-          type="checkbox"
-          aria-label="跟随屏幕背景亮暗"
-          checked={appearance.autoThemeFromBackground}
-          onChange={(event) =>
-            commitAppearance({ autoThemeFromBackground: event.target.checked })
-          }
-        />
-      </label>
+      <PanelCheck
+        label="跟随屏幕背景亮暗"
+        checked={appearance.autoThemeFromBackground ?? false}
+        onChange={(checked) => commitAppearance({ autoThemeFromBackground: checked })}
+      />
       <AppearanceSelect
         label={`${mode === "dark" ? "深色" : "浅色"}主题预设`}
         value={preset?.id ?? "custom"}
@@ -181,8 +175,7 @@ function DanmakuWindowThemeSettings() {
         }
       />
       {style.accentMode === "custom" && (
-        <label className="danmaku-window-check">
-          <span>自定义强调色</span>
+        <PanelRow label="自定义强调色">
           <input
             type="color"
             aria-label="自定义强调色"
@@ -192,8 +185,9 @@ function DanmakuWindowThemeSettings() {
                 danmakuWindow: { ...style, accentColor: event.target.value },
               })
             }
+            className="h-7 w-10 cursor-pointer rounded-md border border-[var(--panel-border)] bg-transparent p-0.5"
           />
-        </label>
+        </PanelRow>
       )}
       <AppearanceSelect
         label="界面字体"
@@ -267,9 +261,7 @@ export function DanmakuWindowAppearanceSettings({
       <DanmakuWindowThemeSettings />
       {children}
       <DanmakuWindowTitleButtons switcherLabel={switcherLabel} />
-      <p className="danmaku-window-settings-note">
-        主题、字体、强调色和标题栏按钮使用全局外观设置。
-      </p>
+      <PanelNote>主题、字体、强调色和标题栏按钮使用全局外观设置。</PanelNote>
     </div>
   );
 }

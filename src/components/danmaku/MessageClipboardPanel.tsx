@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Send, Settings2, X } from "lucide-react";
+import {
+  PanelButton,
+  PanelEmpty,
+  PanelIconButton,
+  PanelInput,
+  PanelTextarea,
+} from "@/components/ui/DanmakuPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { tauriCommands } from "@/lib/tauri";
 import type { MessageTemplate } from "@/types/bilibili";
@@ -73,74 +80,62 @@ export function MessageClipboardPanel({ onClose, onLoad }: MessageClipboardPanel
   return (
     <FloatingPanel title="快捷消息" onClose={onClose}>
       <div className="space-y-3">
-        {/* 模板列表 */}
         {!isEditing && templates.map((tpl) => (
-          <div key={tpl.id} className="rounded bg-white/10 p-3 dark:bg-white/[0.06]">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{tpl.title}</span>
+          <div key={tpl.id} className="panel-card">
+            <div className="panel-card-head">
+              <span className="panel-card-title">{tpl.title}</span>
               <div className="flex items-center gap-1">
-                <button onClick={() => onLoad(tpl.content)} title="填入发送栏" className="p-1 text-slate-400 hover:text-pink-500 transition">
+                <PanelIconButton label="填入发送栏" onClick={() => onLoad(tpl.content)}>
                   <Send className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => startEdit(tpl)} title="编辑" className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition">
+                </PanelIconButton>
+                <PanelIconButton label="编辑" onClick={() => startEdit(tpl)}>
                   <Settings2 className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => void handleDelete(tpl.id)} title="删除" className="p-1 text-slate-400 hover:text-rose-500 transition">
+                </PanelIconButton>
+                <PanelIconButton label="删除" onClick={() => void handleDelete(tpl.id)}>
                   <X className="h-3.5 w-3.5" />
-                </button>
+                </PanelIconButton>
               </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap line-clamp-3">{tpl.content}</p>
+            <p className="panel-card-text line-clamp-3">{tpl.content}</p>
           </div>
         ))}
 
         {templates.length === 0 && !isEditing && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">暂无快捷消息，点击下方添加</p>
+          <PanelEmpty>暂无快捷消息，点击下方添加</PanelEmpty>
         )}
 
-        {/* 编辑/创建表单 */}
         {isEditing && (
           <div className="space-y-2">
-            <input
+            <PanelInput
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               placeholder="消息名称"
-              className="h-9 w-full rounded bg-white/10 px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
             />
-            <textarea
+            <PanelTextarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               placeholder="消息内容（最多 40 字）"
               maxLength={40}
-              className="min-h-24 w-full rounded bg-white/10 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-pink-500/30 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-slate-500"
             />
             <div className="flex gap-2">
-              <button
+              <PanelButton
+                variant="primary"
                 onClick={() => void (editingId !== null ? handleUpdate() : handleCreate())}
                 disabled={!editContent.trim()}
-                className="flex-1 rounded bg-pink-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1"
               >
                 {editingId !== null ? "保存" : "添加"}
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="rounded bg-white/10 px-3 py-1.5 text-xs text-slate-500 transition hover:bg-white/[0.08] dark:text-slate-400 dark:hover:bg-white/[0.04]"
-              >
-                取消
-              </button>
+              </PanelButton>
+              <PanelButton onClick={cancelEdit}>取消</PanelButton>
             </div>
           </div>
         )}
 
-        {/* 底部操作 */}
         {!isEditing && (
-          <button
-            onClick={startCreate}
-            className="w-full rounded bg-white/10 px-3 py-2 text-xs text-slate-500 transition hover:bg-white/[0.08] dark:text-slate-400 dark:hover:bg-white/[0.04]"
-          >
-            <Plus className="inline h-3 w-3 mr-1" />
+          <PanelButton onClick={startCreate} className="w-full">
+            <Plus className="h-3 w-3" />
             添加消息
-          </button>
+          </PanelButton>
         )}
       </div>
     </FloatingPanel>

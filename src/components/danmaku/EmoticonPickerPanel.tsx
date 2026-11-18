@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Settings2, Star } from "lucide-react";
+import {
+  PanelButton,
+  PanelEmpty,
+  PanelIconButton,
+  PanelNote,
+} from "@/components/ui/DanmakuPanel";
 import { FloatingPanel } from "@/components/danmaku/FloatingPanel";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
@@ -155,38 +161,25 @@ export function EmoticonPickerPanel({
   return (
     <FloatingPanel title="表情选择器" onClose={() => { setManaging(false); onClose(); }}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {managing ? "点击表情包切换显示/隐藏" : "点击大表情后直接发送"}
-        </p>
-        <button
-          type="button"
+        <PanelNote>{managing ? "点击表情包切换显示/隐藏" : "点击大表情后直接发送"}</PanelNote>
+        <PanelIconButton
+          label={managing ? "完成管理" : "管理表情包"}
+          active={managing}
           onClick={() => setManaging((v) => !v)}
-          className={`p-1 transition ${
-            managing
-              ? "text-pink-500 bg-pink-50 dark:bg-pink-500/10"
-              : "text-slate-400 hover:bg-white/[0.08] hover:text-slate-700 dark:hover:bg-white/[0.04] dark:hover:text-white"
-          }`}
-          title={managing ? "完成管理" : "管理表情包"}
         >
           <Settings2 className="h-4 w-4" />
-        </button>
+        </PanelIconButton>
       </div>
 
       {loading ? (
-        <div className="px-3 py-6 text-center text-sm text-slate-400 dark:text-slate-500">
-          正在加载表情列表...
-        </div>
+        <PanelEmpty>正在加载表情列表...</PanelEmpty>
       ) : error ? (
-        <div className="bg-rose-50 px-3 py-4 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
-          <p>{error}</p>
-          <button type="button" onClick={onReload} className="mt-2 text-xs text-pink-500 hover:text-pink-400 dark:text-pink-300 dark:hover:text-pink-200">
-            重新加载
-          </button>
+        <div className="space-y-2">
+          <p className="panel-error">{error}</p>
+          <PanelButton onClick={onReload}>重新加载</PanelButton>
         </div>
       ) : packages.length === 0 ? (
-        <div className="px-3 py-6 text-center text-sm text-slate-400 dark:text-slate-500">
-          当前房间没有可用表情。
-        </div>
+        <PanelEmpty>当前房间没有可用表情。</PanelEmpty>
       ) : (
         <>
           <div className="mb-3 overflow-x-auto pb-1">
@@ -208,14 +201,14 @@ export function EmoticonPickerPanel({
                     }
                   }}
                   title={managing ? (pkgHidden ? `显示 ${getPackageLabel(pkg)}` : `隐藏 ${getPackageLabel(pkg)}`) : getPackageLabel(pkg)}
-                  className={`relative flex h-12 w-12 shrink-0 items-center justify-center transition ${
+                  className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-md transition ${
                     managing
                       ? pkgHidden
-                        ? "bg-white/10 opacity-50 dark:bg-white/[0.06]"
-                        : "border border-pink-300 bg-white/10 dark:border-pink-500/40 dark:bg-white/[0.06]"
+                        ? "bg-[var(--panel-control-bg)] opacity-50"
+                        : "bg-[var(--panel-control-bg)] ring-1 ring-inset ring-brand/30"
                       : active
-                        ? "border border-pink-300 bg-pink-50 text-pink-600 dark:border-pink-500/40 dark:bg-pink-500/[0.08] dark:text-pink-200"
-                        : "bg-white/10 text-slate-400 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:text-slate-400 dark:hover:bg-white/[0.04]"
+                        ? "bg-brand/10 text-brand ring-1 ring-inset ring-brand/30"
+                        : "bg-[var(--panel-control-bg)] text-ink-muted hover:bg-[var(--panel-hover)]"
                   }`}
                 >
                   {pkg.pkgId === -1 ? (
@@ -231,11 +224,11 @@ export function EmoticonPickerPanel({
                     <span className="text-[10px]">包</span>
                   )}
                   {managing && (
-                    <span className="absolute -right-1 -top-1 rounded-full bg-white/80 p-0.5 shadow-sm dark:bg-white/[0.12]">
+                    <span className="absolute -right-1 -top-1 rounded-full bg-[var(--panel-control-bg)] p-0.5 shadow-sm">
                       {pkgHidden ? (
-                        <EyeOff className="h-3 w-3 text-slate-400" />
+                        <EyeOff className="h-3 w-3 text-ink-muted" />
                       ) : (
-                        <Eye className="h-3 w-3 text-pink-500" />
+                        <Eye className="h-3 w-3 text-brand" />
                       )}
                     </span>
                   )}
@@ -248,7 +241,7 @@ export function EmoticonPickerPanel({
           {!managing && (
             <div className="grid grid-cols-5 gap-px">
               {activePackage?.pkgId === -1 && (activePackage.emoticons.length === 0) ? (
-                <div className="col-span-4 flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">
+                <div className="col-span-4 flex h-full items-center justify-center text-xs text-ink-muted">
                   点击其他表情上的 ⭐ 添加收藏
                 </div>
               ) : activePackage?.emoticons.map((emoticon, index) => {
@@ -265,10 +258,10 @@ export function EmoticonPickerPanel({
                       disabled={!available || sending}
                       onClick={() => onSelectEmoticon(emoticon)}
                       title={emoticon.descript ?? emoticon.emoji ?? "表情"}
-                      className={`flex h-full w-full flex-col items-center p-1 text-center transition ${
+                      className={`flex h-full w-full flex-col items-center rounded-md p-1 text-center transition ${
                         available
-                          ? "bg-white/10 hover:bg-white/[0.08] dark:bg-white/[0.06] dark:hover:bg-white/[0.04]"
-                          : "cursor-not-allowed bg-white/10 opacity-50 dark:bg-white/[0.06]"
+                          ? "bg-[var(--panel-control-bg)] hover:bg-[var(--panel-hover)]"
+                          : "cursor-not-allowed bg-[var(--panel-control-bg)] opacity-50"
                       }`}
                     >
                       <ProxiedImage
@@ -277,7 +270,7 @@ export function EmoticonPickerPanel({
                         persistent
                         className="h-12 w-12 object-contain"
                       />
-                      <span className="mt-2 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-300">
+                      <span className="mt-2 line-clamp-2 text-[11px] text-ink-muted">
                         {getEmoticonLabel(emoticon)}
                       </span>
                     </button>
@@ -285,11 +278,11 @@ export function EmoticonPickerPanel({
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleFavorite(emoticon); }}
-                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-white/20"
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-[var(--panel-hover)]"
                         title={isFav ? "取消收藏" : "收藏"}
                       >
                         <Star
-                          className={`h-3 w-3 ${isFav ? "fill-amber-400 text-amber-400" : "text-slate-400/60"}`}
+                          className={`h-3 w-3 ${isFav ? "fill-amber-400 text-amber-400" : "text-ink-muted/60"}`}
                         />
                       </button>
                     )}
