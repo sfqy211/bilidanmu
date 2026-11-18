@@ -28,9 +28,10 @@ src/
 │   ├── RoomPage.tsx            # /rooms 房间列表
 │   ├── RoomAddPage.tsx         # /rooms/add 添加直播间
 │   ├── AccountPage.tsx         # /accounts 账号
-│   ├── AIPage.tsx              # /ai 占位页（开发中）
+│   ├── AIPage.tsx              # /ai AI 接入（MCP 服务、权限、记忆）
 │   ├── SettingsPage.tsx        # /settings 设置
 │   ├── DanmakuPage.tsx         # /danmaku/:roomId 弹幕窗口
+│   ├── VideoDanmakuPage.tsx    # /video-danmaku 视频弹幕窗口
 │   ├── ListenHomePage.tsx      # /listen 听视频首页
 │   ├── VideoAddPage.tsx        # /listen/add 添加视频
 │   ├── WatchLaterPage.tsx      # /listen/watchlater 稍后再看
@@ -103,7 +104,7 @@ src-tauri/
 │   ├── focus.rs            # 前台窗口焦点保存/恢复
 │   ├── lib.rs              # 应用入口 + AppState + 插件/事件注册
 │   └── main.rs             # 可执行入口
-├── capabilities/default.json # 权限（windows: main, danmaku）
+├── capabilities/default.json # 权限（windows: main, danmaku, video-danmaku）
 ├── icons/                  # 应用图标
 ├── Cargo.toml              # Rust 依赖与 gift-send feature
 └── tauri.conf.json         # Tauri 配置
@@ -118,7 +119,7 @@ src-tauri/
 | `/rooms` | `RoomPage` | 房间列表（默认页，`/` 重定向到这里） |
 | `/rooms/add` | `RoomAddPage` | 添加直播间 |
 | `/accounts` | `AccountPage` | 账号管理 |
-| `/ai` | `AIPage` | 占位页 |
+| `/ai` | `AIPage` | AI 接入（MCP 服务状态、token、权限模式、直播记忆） |
 | `/settings` | `SettingsPage` | 设置（八个分类） |
 | `/listen` | `ListenHomePage` | 收藏夹 + 稍后再看 |
 | `/listen/add` | `VideoAddPage` | 搜索 / BV 号添加 |
@@ -127,7 +128,8 @@ src-tauri/
 | `/listen/fav/:mediaId` | `ListenFavPage` | 收藏夹内容 |
 | `/listen/video/:bvid` | `VideoPlayerPage` | 播放页 |
 | `/listen/video/:bvid/comments` | `VideoCommentsPage` | 评论区 |
-| `/danmaku/:roomId` | `DanmakuPage` | 弹幕窗口（不在主布局内） |
+| `/danmaku/:roomId` | `DanmakuPage` | 直播弹幕窗口（不在主布局内） |
+| `/video-danmaku` | `VideoDanmakuPage` | 视频弹幕窗口（独立窗口，不在主布局内） |
 
 `/rooms`、`/accounts`、`/ai`、`/settings`、`/listen*` 都嵌套在 `AppLayout` 里，共用标题栏、侧栏与迷你播放条。
 
