@@ -11,9 +11,31 @@ function formatTime(seconds: number) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime, onSeek, onRetry }: {
+export interface SubtitlePanelAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export function SubtitlePanel({
+  lines, loading, failed, activeIndex, currentTime, onSeek, onRetry,
+  badge, emptyTitle, emptyHint, action, statusText, onStop, onRestart, errorText,
+}: {
   lines: SubtitleLine[]; loading: boolean; failed: boolean; activeIndex: number; currentTime: number;
   onSeek: (seconds: number) => void; onRetry: () => void;
+  /** 标题旁的来源标记，例如「AI 生成」 */
+  badge?: string;
+  emptyTitle?: string;
+  emptyHint?: string;
+  /** 空态主操作（语音识别生成 / 前往设置等） */
+  action?: SubtitlePanelAction;
+  /** 识别进度等状态文案（列表已有内容时显示在标题栏） */
+  statusText?: string | null;
+  /** 识别中显示「停止」 */
+  onStop?: () => void;
+  /** 已有生成结果时显示「重新识别」 */
+  onRestart?: () => void;
+  errorText?: string | null;
 }) {
   const preferences = useSettingsStore((state) => state.settings.listen);
   const reducedMotion = useReducedMotion();
@@ -84,9 +106,23 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
       <header className="listen-subtitle-header">
         <div className="flex min-w-0 items-center gap-3">
           <h3 className="text-xs font-medium text-ink-muted">字幕</h3>
+          {badge && (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              {badge}
+            </span>
+          )}
           <span className="numeric text-xs text-ink-muted">{formatTime(currentTime)}</span>
+          {lines.length > 0 && statusText && <span className="truncate text-xs text-ink-muted">{statusText}</span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {statusText && onStop && (
+            <button type="button" onClick={onStop} className="workspace-button text-xs">停止</button>
+          )}
+          {!statusText && onRestart && (
+            <button type="button" onClick={onRestart} className="workspace-button text-xs" title="清除并重新识别字幕">
+              重新识别
+            </button>
+          )}
           {preferences.subtitleAutoFollow && !following && (
             <button type="button" onClick={resumeFollowing} className="workspace-button text-xs" title="恢复字幕跟随">
               <RotateCcw className="h-3.5 w-3.5" />跟随
@@ -96,12 +132,24 @@ export function SubtitlePanel({ lines, loading, failed, activeIndex, currentTime
       </header>
       {loading ? (
         <div className="listen-subtitle-empty" role="status"><Loader2 className="h-4 w-4 animate-spin" />正在加载字幕…</div>
-      ) : failed ? (
-        <div className="listen-subtitle-empty" role="status">
-          <span>暂时无法读取字幕</span><button type="button" className="workspace-button" onClick={onRetry}>重新加载</button>
-        </div>
       ) : !lines.length ? (
-        <div className="listen-subtitle-empty"><p>这个视频还没有字幕</p><p className="text-xs">你仍可以听音频，或查看评论。</p></div>
+        <div className="listen-subtitle-empty" role="status">
+          {failed ? (
+            <><span>暂时无法读取字幕</span><button type="button" className="workspace-button" onClick={onRetry}>重新加载</button></>
+          ) : (
+            <>
+              <p>{emptyTitle ?? "这个视频还没有字幕"}</p>
+              {emptyHint && <p className="text-xs">{emptyHint}</p>}
+            </>
+          )}
+          {statusText && <p className="text-xs">{statusText}</p>}
+          {errorText && <p className="max-w-[80%] text-xs text-rose-500">{errorText}</p>}
+          {action && (
+            <button type="button" className="workspace-button" disabled={action.disabled} onClick={action.onClick}>
+              {action.label}
+            </button>
+          )}
+        </div>
       ) : (
         <div ref={scrollRef} data-lyric-scroll tabIndex={0} aria-label="字幕列表"
           onWheel={pauseFollowing} onPointerDown={pauseFollowing} onKeyDown={(event) => {

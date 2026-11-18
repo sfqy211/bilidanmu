@@ -26,6 +26,7 @@ import type {
   SttTranscript,
   UpdateInfo,
   VideoInfo,
+  VideoSttTrack,
   WalletInfo
 } from "@/types/bilibili";
 
@@ -173,6 +174,10 @@ export const tauriCommands = {
     listFavResources: (mediaId: number, page?: number, size?: number) =>
       invoke<FavResourcePage>("list_fav_resources", { mediaId, page: page ?? 1, size: size ?? 20 }),
     getSubtitle: (bvid: string, cid: number) => invoke<SubtitleLine[]>("get_video_subtitle", { bvid, cid }),
+    getStt: (bvid: string, cid: number) => invoke<VideoSttTrack | null>("get_video_stt", { bvid, cid }),
+    startStt: (bvid: string, cid: number) => invoke<void>("start_video_stt", { bvid, cid }),
+    stopStt: () => invoke<void>("stop_video_stt"),
+    clearStt: (bvid: string, cid: number) => invoke<void>("clear_video_stt", { bvid, cid }),
     getComments: (aid: number, page?: number, sort?: number) =>
       invoke<CommentPage>("get_video_comments", { aid, page: page ?? 1, sort: sort ?? 1 }),
     searchVideos: (keyword: string, page?: number) => invoke<SearchVideoPage>("search_videos", { keyword, page: page ?? 1 }),

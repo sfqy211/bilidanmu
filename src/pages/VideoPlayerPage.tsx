@@ -10,6 +10,8 @@ import { SubtitlePanel, type SubtitleLine } from "@/components/listen/SubtitlePa
 import { tauriCommands } from "@/lib/tauri";
 import { getRememberedRoute } from "@/lib/app-history";
 import { useProxyImage } from "@/hooks/useProxyImage";
+import { useSttModelReady } from "@/hooks/useSttModelReady";
+import { useVideoStt } from "@/hooks/useVideoStt";
 import { useVideoAudioStore } from "@/stores/video-audio-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -27,7 +29,7 @@ export function VideoPlayerPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [treeOpen, setTreeOpen] = useState(false);
   const [openingWindow, setOpeningWindow] = useState(false);
-  const [subtitle, setSubtitle] = useState<{ loading: boolean; failed: boolean; lines: SubtitleLine[] }>({ loading: false, failed: false, lines: [] });
+  const [subtitle, setSubtitle] = useState<{ loading: boolean; failed: boolean; checked: boolean; lines: SubtitleLine[] }>({ loading: false, failed: false, checked: false, lines: [] });
 
   // 记录挂载时 store 的曲目位置：检测「播放器自动前进」与「用户主动导航」的区别
   const trackSignature = `${queue?.key ?? ""}#${index}`;
@@ -76,24 +78,42 @@ export function VideoPlayerPage() {
   useEffect(() => {
     let cancelled = false;
     if (!isCurrentVideo || !videoBvid || currentCid == null) {
-      setSubtitle({ loading: false, failed: false, lines: [] });
+      setSubtitle({ loading: false, failed: false, checked: false, lines: [] });
       return;
     }
-    setSubtitle({ loading: true, failed: false, lines: [] });
+    setSubtitle({ loading: true, failed: false, checked: false, lines: [] });
     void tauriCommands.video.getSubtitle(videoBvid, currentCid)
-      .then((lines) => { if (!cancelled) setSubtitle({ loading: false, failed: false, lines }); })
-      .catch(() => { if (!cancelled) setSubtitle({ loading: false, failed: true, lines: [] }); });
+      .then((lines) => { if (!cancelled) setSubtitle({ loading: false, failed: false, checked: true, lines }); })
+      .catch(() => { if (!cancelled) setSubtitle({ loading: false, failed: true, checked: true, lines: [] }); });
     return () => { cancelled = true; };
   }, [videoBvid, currentCid, isCurrentVideo, reloadKey]);
 
+  // 有官方 CC 时不提供语音识别；CC 检查完成且确实没有字幕时才允许生成
+  const hasCc = subtitle.lines.length > 0;
+  const sttAllowed = subtitle.checked && !hasCc;
+  const stt = useVideoStt(videoBvid, currentCid, sttAllowed);
+  const sttModelReady = useSttModelReady(sttAllowed);
+  const displayLines = hasCc ? subtitle.lines : stt.lines;
+
   const activeIndex = useMemo(() => {
     let active = -1;
-    for (let index = 0; index < subtitle.lines.length; index++) {
-      if (currentTime < subtitle.lines[index].from) break;
+    for (let index = 0; index < displayLines.length; index++) {
+      if (currentTime < displayLines[index].from) break;
       active = index;
     }
     return active;
-  }, [subtitle.lines, currentTime]);
+  }, [displayLines, currentTime]);
+
+  const sttPercent = Math.round(stt.progress * 100);
+  const sttStatus = !sttAllowed ? null
+    : stt.status === "downloading" ? `正在获取音频 ${sttPercent}%`
+      : stt.status === "decoding" ? "正在加载识别模型…"
+        : stt.status === "recognizing" ? `正在识别 ${sttPercent}%`
+          : null;
+  const sttAction = !sttAllowed || stt.busy || stt.lines.length > 0 ? undefined
+    : sttModelReady === null ? { label: "检查识别模型…", onClick: () => {}, disabled: true }
+      : sttModelReady === false ? { label: "前往设置安装模型", onClick: () => navigate("/settings") }
+        : { label: stt.error ? "重试语音识别" : "用语音识别生成字幕", onClick: () => { void stt.start(); } };
 
   if (error) return <section className="flex h-full flex-col"><InlineMessage type="error">{error}</InlineMessage></section>;
   if (!isCurrentVideo) return <div className="workspace-empty h-full" role="status"><Loader2 className="h-4 w-4 animate-spin" />正在解析视频…</div>;
@@ -135,8 +155,25 @@ export function VideoPlayerPage() {
         </div>
       </header>
       <div className={treeOpen ? "listen-player-body-with-tree" : "listen-player-body"}>
-        <SubtitlePanel lines={subtitle.lines} loading={subtitle.loading} failed={subtitle.failed} activeIndex={activeIndex}
-          currentTime={currentTime} onSeek={seek} onRetry={() => setReloadKey((key) => key + 1)} />
+        <SubtitlePanel
+          lines={displayLines}
+          loading={subtitle.loading}
+          failed={subtitle.failed}
+          activeIndex={activeIndex}
+          currentTime={currentTime}
+          onSeek={seek}
+          onRetry={() => setReloadKey((key) => key + 1)}
+          badge={!hasCc && stt.lines.length > 0 ? "AI 生成" : undefined}
+          emptyTitle="这个视频还没有字幕"
+          emptyHint={sttModelReady === false
+            ? "安装语音识别模型后，可为这个视频生成字幕"
+            : "可先播放音频；点击下方按钮用语音识别生成字幕，生成后可像 CC 字幕一样点击跳转"}
+          action={sttAction}
+          statusText={sttStatus}
+          onStop={stt.busy ? () => { void stt.stop(); } : undefined}
+          onRestart={!stt.busy && !hasCc && stt.lines.length > 0 ? () => { void stt.restart(); } : undefined}
+          errorText={!hasCc ? stt.error : null}
+        />
         {treeOpen && <PlaylistTreePanel video={video} onClose={() => setTreeOpen(false)} />}
       </div>
       <PlayerControls

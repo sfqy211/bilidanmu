@@ -45,6 +45,36 @@ export interface SubtitleLine {
   content: string;
 }
 
+/** 视频语音转字幕的阶段 */
+export type VideoSttPhase =
+  | "downloading"
+  | "decoding"
+  | "recognizing"
+  | "done"
+  | "cancelled"
+  | "error";
+
+/** 整段识别完成的字幕轨道（仅当前会话内缓存） */
+export interface VideoSttTrack {
+  bvid: string;
+  cid: number;
+  modelId: string;
+  /** 音轨总时长（秒） */
+  duration: number;
+  lines: SubtitleLine[];
+}
+
+/** `video-stt` 事件载荷 */
+export interface VideoSttEvent {
+  bvid: string;
+  cid: number;
+  phase: VideoSttPhase;
+  /** 当前阶段内的进度（0~1）；带 line 的事件不更新进度 */
+  progress: number;
+  line?: SubtitleLine;
+  message?: string;
+}
+
 /** 视频评论（只读） */
 export interface VideoComment {
   rpid: number;

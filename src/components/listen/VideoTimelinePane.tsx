@@ -21,7 +21,13 @@ function activeTimelineIndex(items: VideoTimelineItem[], currentTime: number) {
   return low - 1;
 }
 
-export function VideoTimelinePane({ title, items, currentTime, loading, error, empty, fontSize, showTime, autoFollow, followKey, collapsed = false, onSeek, onRetry }: {
+export interface VideoTimelineAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export function VideoTimelinePane({ title, items, currentTime, loading, error, empty, fontSize, showTime, autoFollow, followKey, collapsed = false, onSeek, onRetry, action, status }: {
   title: string;
   items: VideoTimelineItem[];
   currentTime: number;
@@ -35,6 +41,10 @@ export function VideoTimelinePane({ title, items, currentTime, loading, error, e
   collapsed?: boolean;
   onSeek: (time: number) => void;
   onRetry: () => void;
+  /** 空态主操作（如「语音识别生成字幕」） */
+  action?: VideoTimelineAction;
+  /** 识别进度等状态文案；列表已有内容时显示在标题栏 */
+  status?: string | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pausedAt, setPausedAt] = useState<number | null>(null);
@@ -60,11 +70,28 @@ export function VideoTimelinePane({ title, items, currentTime, loading, error, e
       <header className="video-timeline-heading" data-interactive>
         <h2>{title}</h2>
         <span className="numeric">{items.length > 0 && `${items.length} 条`}</span>
+        {items.length > 0 && status && <span className="video-window-timeline-status">{status}</span>}
         {autoFollow && paused && <button type="button" className="video-window-text-button" onClick={() => setPausedAt(null)}><RotateCcw />跟随播放</button>}
       </header>
       {loading ? <div className="video-window-empty" role="status"><Loader2 className="animate-spin" />正在加载{title}…</div>
-        : error ? <div className="video-window-empty" role="status"><span>{error}</span><button type="button" data-interactive className="video-window-text-button" onClick={onRetry}>重新加载</button></div>
-          : !items.length ? <div className="video-window-empty">{empty}</div>
+        : error ? <div className="video-window-empty" role="status">
+          <span>{error}</span>
+          <button type="button" data-interactive className="video-window-text-button" onClick={onRetry}>重新加载</button>
+          {action && (
+            <button type="button" data-interactive className="video-window-text-button" disabled={action.disabled} onClick={action.onClick}>
+              {action.label}
+            </button>
+          )}
+        </div>
+          : !items.length ? <div className="video-window-empty">
+            <span>{empty}</span>
+            {status && <span>{status}</span>}
+            {action && (
+              <button type="button" data-interactive className="video-window-text-button" disabled={action.disabled} onClick={action.onClick}>
+                {action.label}
+              </button>
+            )}
+          </div>
             : <div ref={scrollRef} className="video-timeline-scroll" role="region" tabIndex={0} aria-label={`${title}时间轴`}
               onWheel={() => setPausedAt(followKey)} onTouchMove={() => setPausedAt(followKey)} onKeyDown={(event) => {
                 if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key)) setPausedAt(followKey);
