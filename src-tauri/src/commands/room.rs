@@ -61,7 +61,6 @@ pub async fn remove_room(app: tauri::AppHandle, room_id: u64, state: State<'_, A
     Ok(())
 }
 
-#[tauri::command]
 /// 后台刷新所有已存储房间的信息（标题、封面等）
 pub async fn refresh_all_rooms(app: tauri::AppHandle) {
     use tauri::Emitter;
@@ -228,24 +227,14 @@ pub async fn clear_room_specific_emoticons(state: State<'_, AppState>) -> Result
     crate::emoticon_store::clear_room_specific_emoticons(state.inner())
 }
 
-/// 关闭指定房间的所有抽屉窗口
-pub(crate) fn close_drawer_windows(app: &tauri::AppHandle, room_id: u64) {
-    let prefix = format!("drawer-{room_id}-");
-    for (label, window) in app.webview_windows() {
-        if label.starts_with(&prefix) {
-            let _ = window.destroy();
-        }
-    }
-}
-
 fn danmaku_window_title(state: &AppState, room_id: u64) -> String {
     room_store::get_room_display_info(state, room_id)
         .map(|(uname, room_title)| format!("{uname} - {room_title}"))
         .unwrap_or_else(|| format!("房间 {room_id}"))
 }
 
-/// 切换当前房间并做全部联动：保存选择、刷新托盘、关闭旧房间抽屉窗、
-/// 通知前端原地切路由。返回房间是否真的发生了变化。
+/// 切换当前房间并做全部联动：保存选择、刷新托盘、通知前端原地切路由。
+/// 返回房间是否真的发生了变化。
 fn apply_room_switch_bookkeeping(
     app: &tauri::AppHandle,
     room_id: u64,
@@ -264,10 +253,6 @@ fn apply_room_switch_bookkeeping(
     entries.insert("currentRoomId".to_string(), serde_json::json!(room_id));
     crate::selections_store::save_values(state, &entries).map_err(|e| e.to_string())?;
     let _ = tray::refresh_tray(app);
-
-    if let Some(previous_room) = previous {
-        close_drawer_windows(app, previous_room);
-    }
 
     use tauri::Emitter;
     let _ = app.emit("room-switched", room_id);
@@ -771,12 +756,9 @@ pub async fn exit_room(
     // 销毁前把当前正常尺寸落盘（Resized 防抖可能尚未写库）
     window_state::save_now(&app, DANMAKU_WINDOW_LABEL);
 
-    // 销毁常驻弹幕窗口与该房间的抽屉窗口
-    let drawer_prefix = format!("drawer-{room_id}-");
-    for (label, window) in app.webview_windows() {
-        if label == DANMAKU_WINDOW_LABEL || label.starts_with(&drawer_prefix) {
-            let _ = window.destroy();
-        }
+    // 销毁常驻弹幕窗口
+    if let Some(window) = app.get_webview_window(DANMAKU_WINDOW_LABEL) {
+        let _ = window.destroy();
     }
 
     // 退出直播间即切换到主页面（弹幕与主页面互斥）
