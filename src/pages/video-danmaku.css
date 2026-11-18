@@ -14,6 +14,7 @@
 .video-timeline-heading h2 { font-size: 12px; font-weight: 500; }
 .video-window-text-button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 5px; border-radius: 3px; font-size: 11px; }
 .video-timeline-heading .video-window-text-button { margin-left: auto; }
+.video-window-timeline-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
 .video-window-text-button svg { width: 12px; height: 12px; }
 .video-timeline-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
 .video-timeline-line { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 6px 12px; text-align: left; line-height: 1.6; }
@@ -26,6 +27,7 @@
 .video-window-divider:hover { background-color: rgb(var(--brand-rgb) / 0.5); }
 .video-window-empty { display: flex; flex: 1; min-height: 0; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 12px; text-align: center; color: var(--ink-muted); font-size: 12px; overflow: auto; }
 .video-window-empty svg { width: 14px; height: 14px; }
+.video-window-empty .video-window-text-button:disabled { opacity: 0.55; cursor: default; }
 .video-window-error { display: flex; align-items: center; gap: 8px; padding: 4px 12px; font-size: 12px; color: rgb(var(--brand-rgb)); }
 .video-window-error > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .video-window-error button { flex-shrink: 0; text-decoration: underline; }
@@ -116,23 +118,11 @@
 .video-seek-window { position: absolute; top: -3px; bottom: -3px; left: var(--seek-range-left); right: calc(100% - var(--seek-range-right)); min-width: 2px; border: 1px solid rgb(var(--brand-rgb) / 0.7); border-radius: 2px; background: rgb(var(--brand-rgb) / 0.12); }
 @keyframes video-seek-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .video-window-input { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 5px 8px; }
-.video-window-input > input { width: 0; min-width: 0; flex: 1; height: 28px; border: 1px solid var(--border-subtle); border-radius: 4px; padding-inline: 8px; background: color-mix(in srgb, var(--app-surface) 40%, transparent); color: var(--ink); font-size: 12px; }
+.video-window-input > input { width: 0; min-width: 0; flex: 1; height: 28px; border: 1px solid var(--border-subtle); border-radius: 8px; padding-inline: 10px; background: color-mix(in srgb, var(--app-surface) 42%, transparent); color: var(--ink); font-size: 12px; }
 .video-window-input > input::placeholder { color: var(--ink-muted); }
-.video-window-popover { position: absolute; z-index: 10; right: 8px; bottom: calc(100% + 6px); width: min(320px, calc(100vw - 16px)); max-height: calc(100dvh - 100px); overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--app-surface); padding: 10px 12px; font-size: 12px; }
-.video-window-popover header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.video-window-popover h2 { font-weight: 500; }
-.video-window-settings > header { position: sticky; top: 0; z-index: 2; background: var(--app-surface); }
-.video-window-setting { display: block; padding: 6px 0; }
-.video-window-setting > span { display: flex; justify-content: space-between; gap: 8px; }
-.video-window-setting > span > span { color: var(--ink-muted); }
-.video-window-setting input { display: block; width: 100%; margin-top: 6px; }
-.video-window-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; }
-.video-window-videos > div { max-height: 260px; overflow: auto; }
-.video-window-videos > div > button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 4px; text-align: left; }
-.video-window-videos > div > button:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
-.video-window-videos > div > button[aria-current] { color: rgb(var(--brand-rgb)); }
-.video-window-videos > div > button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.video-window-videos svg { width: 14px; height: 14px; flex-shrink: 0; }
+.video-window-input > input:focus-visible { border-color: rgb(var(--brand-rgb) / 0.55); outline: none; box-shadow: 0 0 0 2px rgb(var(--brand-rgb) / 0.14); }
+/* 视频窗面板宿主：与直播弹幕窗一致的整宽底部浮层，覆盖发送栏向上展开 */
+.video-window-panel-host { position: absolute; right: 0; bottom: 0; left: 0; z-index: 20; }
 html[data-reduced-motion="true"] .video-danmaku-window { transition: none; }
 html[data-reduced-motion="true"] .video-seek-detail { animation: none; }
 @media (prefers-reduced-motion: reduce) {

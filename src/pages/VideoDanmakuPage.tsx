@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { Check, ListVideo, X } from "lucide-react";
+import { Check, ListVideo } from "lucide-react";
 import { toast } from "sonner";
 import { VideoWindowComposer } from "@/components/listen/VideoWindowComposer";
 import { VideoSeekBar } from "@/components/listen/VideoSeekBar";
 import { VideoTimelinePane, type VideoTimelineItem } from "@/components/listen/VideoTimelinePane";
 import { DanmakuWindow, DanmakuWindowButton as WindowButton } from "@/components/danmaku/DanmakuWindow";
 import { WindowSplitter } from "@/components/danmaku/WindowSplitter";
+import { PanelListRow, PanelShell } from "@/components/ui/DanmakuPanel";
 import { useDanmakuWindowAppearance } from "@/hooks/useDanmakuWindowAppearance";
+import { usePanelDismiss } from "@/hooks/usePanelDismiss";
 import { VideoWindowSettings } from "@/components/listen/VideoWindowSettings";
 import { useVideoPlayback, useVideoWindowPreferences } from "@/hooks/useVideoWindow";
+import { useSttModelReady } from "@/hooks/useSttModelReady";
+import { useVideoStt } from "@/hooks/useVideoStt";
 import { tauriCommands } from "@/lib/tauri";
 import { formatClock } from "@/lib/time";
 import { queryClient } from "@/lib/query-client";
@@ -52,9 +56,27 @@ export function VideoDanmakuPage() {
     })),
     combine: combineDanmaku,
   });
-  const subtitleItems = useMemo<VideoTimelineItem[]>(() => (subtitles.data ?? []).map((line, index) => ({
-    id: `${line.from}-${index}`, time: line.from, end: line.to, content: line.content,
-  })), [subtitles.data]);
+  // 有官方 CC 时用 CC；CC 检查完成且没有字幕时才允许语音识别生成
+  const ccLines = subtitles.data ?? [];
+  const sttAllowed = !subtitles.isPending && ccLines.length === 0;
+  const stt = useVideoStt(bvid, cid, sttAllowed);
+  const sttModelReady = useSttModelReady(sttAllowed);
+  const sttPercent = Math.round(stt.progress * 100);
+  const sttStatus = !sttAllowed ? null
+    : stt.status === "downloading" ? `获取音频 ${sttPercent}%`
+      : stt.status === "decoding" ? "加载识别模型…"
+        : stt.status === "recognizing" ? `识别中 ${sttPercent}%`
+          : null;
+  const sttAction = !sttAllowed || stt.busy || stt.lines.length > 0 ? undefined
+    : sttModelReady === null ? { label: "检查识别模型…", onClick: () => {}, disabled: true }
+      : sttModelReady === false ? { label: "未安装识别模型，请在设置中安装", onClick: () => {}, disabled: true }
+        : { label: stt.error ? "重试语音识别" : "用语音识别生成字幕", onClick: () => { void stt.start(); } };
+  const subtitleItems = useMemo<VideoTimelineItem[]>(() => {
+    const lines = ccLines.length > 0 ? ccLines : stt.lines;
+    return lines.map((line, index) => ({
+      id: `${line.from}-${index}`, time: line.from, end: line.to, content: line.content,
+    }));
+  }, [ccLines, stt.lines]);
   const danmakuItems = useMemo<VideoTimelineItem[]>(() => {
     const items = new Map(danmaku.items.map((item) => [item.id, item]));
     if (sent.key === identity) sent.items.forEach((item) => items.set(item.id, item));
@@ -62,16 +84,12 @@ export function VideoDanmakuPage() {
       .map((item) => ({ id: item.id, time: item.progress, content: item.content }));
   }, [danmaku.items, sent, identity]);
 
-  useEffect(() => {
-    if (!panel) return;
-    const dismiss = (event: PointerEvent) => {
-      if (!popoverRef.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest("[data-video-panel-trigger]")) setPanel(null);
-    };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setPanel(null); };
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", escape);
-    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
-  }, [panel]);
+  usePanelDismiss({
+    open: panel !== null,
+    onClose: () => setPanel(null),
+    ignoreRef: popoverRef,
+    triggerSelector: "[data-video-panel-trigger]",
+  });
 
   const control = (action: VideoPlaybackAction) => {
     if (!playback) return;
@@ -105,17 +123,36 @@ export function VideoDanmakuPage() {
     footer={<footer className="video-window-footer danmaku-bg-bar" data-interactive ref={popoverRef}>
       <VideoSeekBar key={identity} currentTime={currentTime} duration={duration}
         disabled={!duration || !!playback?.loading} onSeek={seek} onScrubStart={() => setPanel(null)} />
-      {panel === "settings" && <VideoWindowSettings preferences={preferences} onChange={setPreferences} onClose={() => setPanel(null)} />}
-      {panel === "videos" && <section className="video-window-popover video-window-videos" aria-label="切换视频" data-interactive>
-        <header><h2>播放列表</h2><WindowButton title="关闭播放列表" onClick={() => setPanel(null)}><X /></WindowButton></header>
-        <div>{playback?.tracks.map((track, index) => <button type="button" key={track.key} aria-current={index === playback.index ? "true" : undefined}
-          onClick={() => { control({ action: "selectTrack", value: track.key }); setPanel(null); }}><span>{track.title}</span>{index === playback.index && <Check />}</button>)}</div>
-      </section>}
       <VideoWindowComposer playback={playback} settingsOpen={panel === "settings"} settingsReady={ready}
         onToggleSettings={() => togglePanel("settings")} onSent={(item) => {
           setSent((previous) => ({ key: identity, items: [...(previous.key === identity ? previous.items : []), item] }));
           setFollowKey((value) => value + 1);
         }} />
+      {panel && (
+        <div className="video-window-panel-host">
+          {panel === "settings" && (
+            <VideoWindowSettings preferences={preferences} onChange={setPreferences} onClose={() => setPanel(null)} />
+          )}
+          {panel === "videos" && (
+            <PanelShell title="播放列表" variant="sheet" onClose={() => setPanel(null)} ariaLabel="切换视频">
+              <div className="panel-list">
+                {playback?.tracks.map((track, index) => (
+                  <PanelListRow
+                    key={track.key}
+                    label={track.title}
+                    selected={index === playback.index}
+                    right={index === playback.index ? <Check className="h-3.5 w-3.5" /> : undefined}
+                    onClick={() => {
+                      control({ action: "selectTrack", value: track.key });
+                      setPanel(null);
+                    }}
+                  />
+                ))}
+              </div>
+            </PanelShell>
+          )}
+        </div>
+      )}
     </footer>}>
     <>
       {(connectionError || playback?.error) && <div className="video-window-error" role="alert" data-interactive>
@@ -125,7 +162,10 @@ export function VideoDanmakuPage() {
       <div className="video-window-timelines" style={{ gridTemplateRows: `minmax(0, ${preferences.subtitleRatio}fr) 5px minmax(0, ${1 - preferences.subtitleRatio}fr)` }}>
         <VideoTimelinePane key={`subtitles-${identity}`} title="字幕" items={subtitleItems} currentTime={currentTime}
           collapsed={preferences.subtitleRatio === 0}
-          loading={subtitles.isPending} error={subtitles.error ? String(subtitles.error) : null} empty="这个视频还没有字幕，可继续听音频和查看弹幕"
+          loading={subtitles.isPending} error={subtitles.error ? String(subtitles.error) : null}
+          empty={ccLines.length > 0 ? "这个视频还没有字幕，可继续听音频和查看弹幕" : stt.error ?? "这个视频还没有字幕，可用语音识别生成"}
+          action={ccLines.length > 0 ? undefined : sttAction}
+          status={ccLines.length > 0 ? null : sttStatus}
           fontSize={preferences.danmakuFontSize} showTime={preferences.showTime} autoFollow={preferences.autoFollow} followKey={followKey}
           onSeek={seek} onRetry={() => void subtitles.refetch()} />
         <WindowSplitter ratio={preferences.subtitleRatio} resetRatio={0.5} disabled={!ready}
