@@ -393,7 +393,7 @@ export function AIPage() {
                   aria-pressed={active}
                   className={
                     active
-                      ? "rounded-md border border-brand/50 bg-brand/[0.08] px-3 py-1.5 text-[12px] font-medium text-brand"
+                      ? "rounded-md border border-brand/30 bg-brand/10 px-3 py-1.5 text-[12px] font-medium text-brand"
                       : "rounded-md border border-subtle px-3 py-1.5 text-[12px] text-ink-muted hover:bg-slate-50 dark:hover:bg-white/[0.03]"
                   }
                 >
@@ -573,7 +573,7 @@ export function AIPage() {
                   onClick={() => void selectMode(item.value)}
                   className={
                     active
-                      ? "flex w-full items-start gap-3 rounded-md border border-brand/50 bg-brand/[0.06] px-3 py-2.5 text-left"
+                      ? "flex w-full items-start gap-3 rounded-md border border-brand/30 bg-brand/10 px-3 py-2.5 text-left"
                       : "flex w-full items-start gap-3 rounded-md border border-subtle px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.03]"
                   }
                 >

@@ -444,10 +444,12 @@ textarea,
 }
 .workspace-account-row:hover { background: var(--glass-item-hover); }
 .workspace-account-row[data-current="true"] {
-  background: rgb(var(--brand-rgb) / 0.1);
-  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb)), inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
 }
-.workspace-account-row[data-current="true"]:hover { background: rgb(var(--brand-rgb) / 0.14); }
+.workspace-account-row[data-current="true"]:hover {
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
+}
 
 /* ── 通用卡片列表 ──
    与直播间主页同一套视觉：行是浮在页面底色上的独立圆角色块，行间留缝。
@@ -473,12 +475,14 @@ textarea,
   transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 .list-card-row:hover { background: var(--glass-item-hover); }
-/* 当前行：与主页当前房间一致（品牌色左条 + 淡品牌底） */
+/* 当前行：与主页当前房间一致（整行淡品牌渐变 + 完整细描边，不使用左侧色条） */
 .list-card-row-current {
-  background: rgb(var(--brand-rgb) / 0.1);
-  box-shadow: inset 3px 0 0 rgb(var(--brand-rgb)), inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
 }
-.list-card-row-current:hover { background: rgb(var(--brand-rgb) / 0.14); }
+.list-card-row-current:hover {
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
+}
 .workspace-nav-item:focus-visible,
 .workspace-button:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 .workspace-select:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
@@ -651,12 +655,12 @@ textarea,
 .room-tab:hover { color: var(--ink); }
 .room-tab:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 .room-tab-active {
-  background: rgb(var(--brand-rgb) / 0.15);
+  background: rgb(var(--brand-rgb) / 0.10);
   color: var(--ink);
   font-weight: 500;
   box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
 }
-.room-tab-active:hover { color: var(--ink); background: rgb(var(--brand-rgb) / 0.19); }
+.room-tab-active:hover { color: var(--ink); background: rgb(var(--brand-rgb) / 0.13); }
 .room-tab-count { font-size: 11px; opacity: 0.72; }
 
 /* ── 显示方式切换（列表 / 封面）：一体化双段胶囊 ── */
@@ -683,10 +687,12 @@ textarea,
 }
 .room-view-option:hover { color: var(--ink); }
 .room-view-option-active {
-  background: var(--glass-item-bg);
+  background: rgb(var(--brand-rgb) / 0.10);
   color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
 }
+.room-view-option-active svg { color: rgb(var(--brand-rgb)); }
+.room-view-option-active:hover { background: rgb(var(--brand-rgb) / 0.13); }
 .room-view-option:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 
 /* ── 分区头：状态点 + 标题 + 数量 + 填充线 + 收起/展开 ── */
@@ -1265,6 +1271,12 @@ textarea,
   box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
 }
 
+.room-tool-button[aria-pressed="true"] {
+  color: rgb(var(--brand-rgb));
+  background: rgb(var(--brand-rgb) / 0.10);
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+}
+
 .room-tool-button:focus-visible {
   outline: 2px solid rgb(var(--brand-rgb) / 0.6);
   outline-offset: 2px;
@@ -1338,7 +1350,12 @@ textarea,
   transition: background-color 120ms ease;
 }
 .listen-playlist-tree-row:hover { background: rgb(var(--brand-rgb) / 0.06); }
-.listen-playlist-tree-row-active { background: rgb(var(--brand-rgb) / 0.1); color: rgb(var(--brand-rgb)); }
+.listen-playlist-tree-row-active {
+  background: rgb(var(--brand-rgb) / 0.10);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+}
+.listen-playlist-tree-row-active:hover { background: rgb(var(--brand-rgb) / 0.13); }
 .listen-playlist-tree-index {
   display: flex; width: 18px; flex-shrink: 0; align-items: center; justify-content: center;
   font-size: 10px; color: var(--ink-muted);
@@ -1353,10 +1370,19 @@ textarea,
   transition: background-color 120ms ease, color 120ms ease;
 }
 .listen-playlist-tree-page:hover { background: rgb(var(--brand-rgb) / 0.06); color: var(--ink); }
-.listen-playlist-tree-page-active { background: rgb(var(--brand-rgb) / 0.1); color: rgb(var(--brand-rgb)); }
+.listen-playlist-tree-page-active {
+  background: rgb(var(--brand-rgb) / 0.10);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+}
+.listen-playlist-tree-page-active:hover { background: rgb(var(--brand-rgb) / 0.13); }
 .listen-playlist-tree-season { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
 /* 播放器上的「播放列表」开关：展开时保持高亮 */
-.listen-player-tree-open { background: rgb(var(--brand-rgb) / 0.12); color: rgb(var(--brand-rgb)); }
+.listen-player-tree-open {
+  background: rgb(var(--brand-rgb) / 0.10);
+  color: rgb(var(--brand-rgb));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.12), inset 0 1px 0 var(--glass-highlight);
+}
 @container (max-width: 640px) {
   /* 窄容器下抽屉收窄，保证字幕区仍有可读宽度 */
   .listen-playlist-tree { width: 200px; }

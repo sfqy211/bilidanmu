@@ -352,7 +352,7 @@ function ManagerModelRow({
   const cardClass =
     `flex w-full items-start justify-between gap-3 rounded-lg border p-3 text-left transition ${
       isCurrent
-        ? "border-brand/50 bg-brand/[0.06]"
+        ? "border-brand/30 bg-brand/10"
         : "border-[var(--border-subtle)] hover:bg-black/5 dark:hover:bg-white/[0.04]"
     }`;
 

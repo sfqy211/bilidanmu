@@ -349,7 +349,7 @@ export function VideoCommentsPage() {
               onClick={() => setSort(value)}
               className={`px-3 py-1.5 text-xs transition ${
                 sort === value
-                  ? "bg-brand text-white"
+                  ? "bg-brand/10 font-medium text-brand"
                   : "bg-app-surface text-slate-500 hover:bg-ink/[0.05] dark:bg-app-surface dark:text-slate-400 dark:hover:bg-ink/[0.06]"
               }`}
             >
