@@ -62,6 +62,28 @@ export function LandingApp({ base, cleanUrls, assetBase }: LandingProps) {
         <DeskDemo />
         <ListenDemo assetBase={assetBase} />
 
+        <section className="lp-capabilities">
+          <div className="lp-shell">
+            <p className="lp-eyebrow">还能做什么</p>
+            <div className="lp-capability-grid">
+              <article>
+                <h3>视频弹幕窗</h3>
+                <p>
+                  把视频字幕和弹幕放进同一个独立小窗：字幕逐句跟随、弹幕按时间滚过，
+                  点击任一行即可跳转，也可以直接在小窗里发送弹幕。
+                </p>
+              </article>
+              <article>
+                <h3>AI 接入（MCP）</h3>
+                <p>
+                  内置本地 MCP 服务，外部 AI 客户端可以读取直播上下文、弹幕、视频字幕与评论，
+                  并在三档权限约束下发送弹幕、整理稍后再看。
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
         <section id="download" className="lp-download">
           <div className="lp-shell">
             <p className="lp-eyebrow">

@@ -344,12 +344,26 @@ pub async fn stop(
 }
 
 /// 点赞或取消点赞评论。
+/// 评论写操作统一用 bvid；`oid` 作为旧调用方的兼容入口。
+async fn resolve_comment_oid(api: &crate::bili::api::BiliApiClient, raw: &serde_json::Value) -> Result<u64, ToolError> {
+    if let Some(oid) = args::opt_u64(raw, "oid") {
+        return Ok(oid);
+    }
+    let bvid = args::string(raw, "bvid")?;
+    let info = api
+        .get_video_info(&bvid)
+        .await
+        .map_err(classify_business_error)?;
+    Ok(info.aid)
+}
+
 pub async fn like_comment(
     app: &tauri::AppHandle,
-    _state: &AppState,
+    state: &AppState,
     raw: &serde_json::Value,
 ) -> Result<serde_json::Value, ToolError> {
-    let oid = args::u64_required(raw, "oid")?;
+    let api = api_with_main(state).await;
+    let oid = resolve_comment_oid(&api, raw).await?;
     let rpid = args::u64_required(raw, "rpid")?;
     let like = args::bool_or(raw, "like", true);
 
@@ -363,10 +377,11 @@ pub async fn like_comment(
 /// 发表评论（`root`/`parent` 非空时为楼中楼回复）。
 pub async fn post_comment(
     app: &tauri::AppHandle,
-    _state: &AppState,
+    state: &AppState,
     raw: &serde_json::Value,
 ) -> Result<serde_json::Value, ToolError> {
-    let oid = args::u64_required(raw, "oid")?;
+    let api = api_with_main(state).await;
+    let oid = resolve_comment_oid(&api, raw).await?;
     let message = args::string(raw, "message")?;
     if message.trim().is_empty() {
         return Err(ToolError::invalid_args("评论内容不能为空"));

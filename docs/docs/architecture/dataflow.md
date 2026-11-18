@@ -130,10 +130,10 @@ flowchart LR
 | --- | --- | --- |
 | 账号凭证 | tauri-plugin-store | 应用数据目录 `credential.json` |
 | 应用设置 | SQLite `app_metadata`（key = `settings`） | `bilidanmu.db` |
-| 轻量选项（当前房间、收藏、视图模式、侧栏宽度） | SQLite `app_metadata` | `bilidanmu.db` |
+| 轻量选项（当前房间、收藏、视图模式、侧栏宽度与收起态、视频弹幕窗外观 `videoDanmakuAppearance`） | SQLite `app_metadata` | `bilidanmu.db` |
 | 房间列表 | SQLite `rooms` 表 | `bilidanmu.db` |
 | 表情包 / 表情 / 收藏 | SQLite `emoticon_packages` / `emoticons` / `favorite_emoticons` | `bilidanmu.db` |
 | 图片缓存 | SQLite `image_cache` 表 | `bilidanmu.db` |
 | 快捷消息 | SQLite `message_templates` 表 | `bilidanmu.db` |
 | 弹幕窗口几何 | SQLite `app_metadata`（`selections_store`，key = 窗口几何） | `bilidanmu.db` |
-| 界面缩放、分隔条比例、上次检查更新时间 | localStorage | WebView 本地存储 |
+| 界面缩放（`ui-scale`）、主题键、三个分隔条比例、上次检查更新时间、隐藏的表情包列表 | localStorage | WebView 本地存储 |

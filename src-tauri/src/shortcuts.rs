@@ -81,7 +81,7 @@ pub fn handle_shortcut(app: &AppHandle, shortcut: &Shortcut) {
 
 fn dispatch(app: &AppHandle, action: &str) {
     match action {
-        // 与托盘左键同语义：当前窗口（连接房间时弹幕窗，否则主窗）显示/隐藏
+        // 与托盘左键同语义：当前窗口（视频弹幕窗 > 直播间弹幕窗 > 主窗）显示/隐藏
         "toggleWindow" => tray::toggle_current_window(app),
         // 复用仅输入框模式切换（无弹幕窗时忽略）
         "toggleInputOnly" => {

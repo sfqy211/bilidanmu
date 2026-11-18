@@ -1,7 +1,14 @@
 # AGENTS.md
 
 ## Use these commands
-- Install deps: `npm ci`.
+- Shared UI/protocol core: the app consumes the sibling repo `sfqy211/danmaku-core` (`@danmaku-core/ui` + the Rust `danmaku-core` crate). In a clean checkout prepare it **before** `npm ci`:
+  ```bash
+  git clone https://github.com/sfqy211/danmaku-core.git ../danmaku-core
+  git -C ../danmaku-core checkout --detach "$(node scripts/shared-core-revision.mjs)"
+  npm --prefix ../danmaku-core ci && npm --prefix ../danmaku-core run build
+  npm ci
+  ```
+  `scripts/shared-core-revision.mjs` reads the pinned revision from `src-tauri/Cargo.toml`, so frontend and Rust use the same source.
 - Full desktop dev: `npm run dev`.
 - Mock live room dev: `npm run dev:mock` (see Testing).
 - Gift-enabled dev: `npm run dev:gift`.
@@ -20,6 +27,8 @@
 - Default expectation: run `npm run typecheck` and `cargo check`.
 - If you touched STT code, verify it still compiles.
 - If you touched `docs/`, run `npm run build` in `docs/` — `onBrokenLinks: 'throw'` fails the build on dead internal links.
+- Shared core: run `cargo test --manifest-path ../danmaku-core/Cargo.toml --workspace --locked` for protocol/Rust changes and `npm test` in `../danmaku-core` for shared UI changes.
+- Window interaction regression: `npm run dev:renderer`, then `./tests/test-video-window.ps1` (needs `agent-browser`); details and coverage are in `tests/README.md`.
 
 ## Testing
 - `tests/README.md` is the testing handbook — read it before driving any manual or scripted test; put new test scripts in `tests/`.
@@ -41,7 +50,7 @@
 - `docs/` is the Docusaurus documentation site (`routeBasePath: '/'`, content in `docs/docs/`, homepage/landing in `docs/src/`). Run `npm run dev` in `docs/` to start the docs dev server. `docs/design/` holds per-feature design records (that directory is NOT part of the docs site).
 
 ## Routes and navigation
-- `src/router.tsx`: `/rooms`, `/rooms/add`, `/accounts`, `/ai`, `/settings`, `/listen`, `/listen/add` (`/listen/search` redirects to it), `/listen/watchlater`, `/listen/fav/:mediaId`, `/listen/video/:bvid`, `/listen/video/:bvid/comments`, plus the standalone `/danmaku/:roomId` window route.
+- `src/router.tsx`: `/rooms`, `/rooms/add`, `/accounts`, `/ai`, `/settings`, `/listen`, `/listen/add` (`/listen/search` redirects to it), `/listen/watchlater`, `/listen/fav/:mediaId`, `/listen/video/:bvid`, `/listen/video/:bvid/comments`, plus the standalone window routes `/danmaku/:roomId` (live danmaku) and `/video-danmaku` (video danmaku, loaded by the `video-danmaku` window).
 - There is no "看直播 / 听视频" mode switch. Main-window navigation is the sidebar only: 直播 / 账号 / AI / 视频, with 设置 pinned at the bottom (`AppSidebar.tsx` → `WorkspaceSidebar.tsx`). The collapse toggle sits at the bottom of the sidebar, below 设置 (icon button; label 收起); it switches to an icon-only rail (`sidebarCollapsed` in selections). The brand logo/name stay in the title bar. Write docs against these exact labels.
 - `AppLayout` supplies the sidebar; `WorkspaceLayout` owns the title bar, resizable sidebar, page area and the listen mini player.
 
@@ -50,12 +59,12 @@
 - All frontend-to-Rust IPC goes through `src/lib/tauri.ts` (`tauriCommands` namespaces). When adding a new Tauri command, add the TS wrapper there instead of calling `invoke()` ad hoc.
 - Rust commands are registered centrally in `src-tauri/src/lib.rs` via `tauri::generate_handler!`. New commands must be added there. (`commands::room::refresh_all_rooms` is a plain helper called from `setup()` and the AI `app.refresh_rooms` tool, not an IPC command.)
 - Window permissions must be declared in `src-tauri/capabilities/default.json` (e.g., `core:window:allow-start-dragging`, `core:window:allow-set-always-on-top`). The capability applies to windows `main` + `danmaku` + `video-danmaku`.
-- All windows use `decorations: false` — custom title bars. The main window is 960×680 (min 800×600, `transparent: true` + `shadow: false`, `visible: false` until setup decides); there is a single persistent live danmaku window with fixed label `danmaku`, created at runtime in `commands/room.rs` (`create_danmaku_window`) with `.transparent(true)` for opacity support, dock attachment, and no taskbar entry. It is never destroyed on room switch. The separate `video-danmaku` window (听视频「弹幕模式」) is created on demand in `commands/video_window.rs` and destroyed by `close_video_danmaku_window`; it shares the shell/dock/stealth/geometry implementation with the live window.
+- All windows use `decorations: false` — custom title bars. The main window is 960×680 (min 800×600, `transparent: true` + `shadow: false`, `visible: false` until setup decides); there is a single persistent live danmaku window with fixed label `danmaku`, created at runtime in `commands/room.rs` (`create_danmaku_window`) with `.transparent(true)` for opacity support, dock attachment, and no taskbar entry. It survives `switch_room` (never rebuilt on room switch), but `exit_room` **does destroy it** and restores the main window; re-entering a room creates it again. The separate `video-danmaku` window (听视频「弹幕模式」) is created on demand in `commands/video_window.rs` and destroyed by `close_video_danmaku_window`; it shares the shell/dock/stealth/geometry implementation with the live window.
 - No `drawer-*` windows are created anywhere, and the old `close_drawer_windows` / `exit_room` prefix cleanup has been removed — don't document drawer windows as a feature.
 - Fast room switching: `switch_room` (used by tray room menu and the danmaku-window RoomSwitcher popover) switches rooms in place inside the persistent window — it saves `currentRoomId`, refreshes the tray, updates the window title, and emits `room-switched`; the danmaku window listens for that event and navigates to `/danmaku/{room_id}` in place. Visibility is preserved (hidden stays hidden; visible stays visible without stealing focus). `open_danmaku_window` (RoomPage's enter-room path) shares the bookkeeping but additionally shows + focuses the window and hides the main window, and emits `danmaku-entered` to `main`.
 - Both the tray room submenu and the RoomSwitcher popover list only currently-live rooms. Live status is cached in `AppState.live_status` by a 60s poll (`refresh_live_status_cache`, spawned in lib.rs setup); until the first successful fetch the tray falls back to listing all saved rooms. The popover fetches fresh status on open and shows a loading/empty hint. The status map is keyed by **UID** (from `get_status_info_by_uids`), not room id — always match via `room.uid` / `r.uid`.
-- Danmaku window close hides to tray (not disconnect). Separate exit button for actual disconnect.
-- Tray single-click toggles the current window's visibility only (never swaps windows): the current window is the danmaku window while a room is connected (the `danmaku` window exists, even if hidden), otherwise the main window. Danmaku and main windows are mutually exclusive — entering a room hides the main window, and `exit_room` (a real disconnect, via the danmaku window's exit button) immediately restores it; hiding the danmaku window to tray is display-only, not a disconnect. The tray left-click handler fires only on `button_state == Up` (a physical click emits both Down and Up `Click` events). There is no tray menu item for switching/summoning windows.
+- Danmaku window close (title-bar hide) hides to tray, not a disconnect; the live window's exit button calls `exit_room` (destroy + restore main), and the video window's exit button destroys `video-danmaku` and restores the video page.
+- Tray single-click toggles the current window's visibility only (never swaps windows): the current window is chosen in this order: `video-danmaku` if it exists, otherwise the live `danmaku` window while a room is connected, otherwise `main`. Tray single-click and the global show/hide shortcut both use this same resolution, so an open video window is toggled rather than the main window. Danmaku and main windows are mutually exclusive — entering a room hides the main window, and `exit_room` (a real disconnect, via the danmaku window's exit button) immediately restores it; hiding the danmaku window to tray is display-only, not a disconnect. The tray left-click handler fires only on `button_state == Up` (a physical click emits both Down and Up `Click` events). There is no tray menu item for switching/summoning windows.
 - Danmaku title-bar buttons (order): 置顶 / 锁定 / 仅输入框 / 窗口透传 / 隐身 / 隐藏到托盘 / 房间切换 / 退出直播间. Every button except 退出直播间 can be hidden via `appearance.titleBarButtons`; the settings grid lists them in a slightly different order — don't treat that as a bug.
 - Danmaku window modes are Rust-driven where geometry/topmost/hit-testing matter: `set_danmaku_input_only` (240–520 × 48 logical, bottom-edge anchored, dock-exclusive), `set_danmaku_input_only_emotes` (temporary 360×400 panel), `set_danmaku_stealth`, dock commands (`dock_expand` / `dock_apply_expand` / `dock_collapse` / `dock_exit` / `get_dock_state`). Frontend only switches rendering shape and listens to `danmaku-input-only`, `danmaku-input-only-emotes`, `danmaku-stealth`, `dock-changed`.
 - Video audio and live audio are mutually exclusive: entering a room emits `danmaku-entered`, which pauses the video player (queue and progress are kept; the mini player resumes it manually).
@@ -69,6 +78,7 @@
 - Tool calls are recorded in the AI-only log `ai.log` (`ai/audit.rs`, same dir as the main app log): startup writes the tool catalog, every `call_tool` writes one line (tool, ok, duration, summary, truncated args); over 1MB it rotates to `ai.log.old` at next startup. The AIPage shows neither tool list nor call history — there are no `ai_list_tools`/`ai_call_tool`/`ai_audit_*` commands and no `ai-tool-activity` event.
 - Three permission modes (`aiPermissionMode` in `app_metadata`): `confirmAll` (every non-read op asks), `autonomous` (default; only `Costly`/`Destructive` ask), `full` (never asks). Risk levels live in each `ToolSpec` in `ai/registry.rs` — change them there, not in the frontend.
 - Confirmation flow: dispatch generates an id → emits `ai-confirm-request` to `main` → `ConfirmRequestDialog` → `ai_confirm_response` wakes the waiter. Timeout is 55s and returns `NEEDS_CONFIRMATION` with a retryable id. The main window is temporarily shown if it was hidden, then restored.
+- `live{action:"watch_start"}` 的 `withTranscript` 只对「当前正在收听且已开启 STT」的房间生效：转录来自当前房间音频流的 tee，后台其他房间没有音频源，会返回 `transcriptHint` 并只收集弹幕。
 - `ai/context.rs` keeps a Rust-side ring buffer (danmaku 2000 / gifts 500 / activity 500 + metrics). The frontend zustand store is unreachable from Rust, so `bili/ws_client.rs` writes to this buffer next to each `emit`. `live{action:"get_context"}` is the main "understand the room" tool.
 - `send_queue.rs` is no longer dead code: AI sends go through `send_via_queue` (`SendPriority::Ai`) so they obey the user's send interval. `QueueItem` carries a `respond` oneshot for real results and a `seq` field for FIFO within the same priority (BinaryHeap is a max-heap, so `seq` compares reversed).
 - MCP transport is Streamable HTTP on fixed `127.0.0.1:23332/mcp` with `Authorization: Bearer <token>` (`aiMcpToken` in `app_metadata`). Only `initialize` / `notifications/initialized` / `tools/list` / `tools/call` / `ping` are implemented — no SSE, no stdio (the single-instance plugin makes a client-spawned stdio process exit immediately).

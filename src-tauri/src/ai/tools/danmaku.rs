@@ -245,14 +245,18 @@ pub async fn send_emoticon(
     })
 }
 
-/// 给直播间点赞（`clickTimes` 1~100）。
+/// 给直播间点赞（`clickTime` 1~100，旧名 `clickTimes` 兼容）。
 pub async fn like(
     _app: &tauri::AppHandle,
     state: &AppState,
     raw: &serde_json::Value,
 ) -> Result<serde_json::Value, ToolError> {
     let room_id = resolve_room(raw, state)?;
-    let click_times = args::capped(raw, "clickTimes", 10, 1, 100) as u32;
+    // 与 IPC send_like 的 clickTime 对齐；旧名 clickTimes 继续兼容
+    let click_times = args::opt_u64(raw, "clickTime")
+        .or_else(|| args::opt_u64(raw, "clickTimes"))
+        .map(|count| count.clamp(1, 100))
+        .unwrap_or(10) as u32;
 
     // 主播 uid 优先取参数，其次从已保存房间记录
     let anchor_id = match args::opt_u64(raw, "anchorId") {
@@ -276,7 +280,7 @@ pub async fn like(
         return Ok(serde_json::json!({
             "liked": true,
             "roomId": room_id,
-            "clickTimes": click_times,
+            "clickTime": click_times,
             "mock": true,
         }));
     }
@@ -290,7 +294,7 @@ pub async fn like(
     Ok(serde_json::json!({
         "liked": response.code == 0,
         "roomId": room_id,
-        "clickTimes": click_times,
+        "clickTime": click_times,
         "code": response.code,
     }))
 }

@@ -93,6 +93,18 @@ pub async fn search(
                 .map_err(super::classify_business_error)?;
             vec![crate::models::room::SearchRoomResult::from(info)]
         }
+        "uid" => {
+            let uid = keyword
+                .chars()
+                .filter(|ch| ch.is_ascii_digit())
+                .collect::<String>()
+                .parse::<u64>()
+                .map_err(|_| ToolError::invalid_args(format!("无法从 {keyword} 解析 UID")))?;
+            vec![api
+                .resolve_room_by_uid(uid)
+                .await
+                .map_err(super::classify_business_error)?]
+        }
         _ => api
             .search_rooms_by_name(keyword.trim(), 1)
             .await

@@ -402,3 +402,34 @@ html[data-theme="dark"] .landing {
     scroll-behavior: auto !important;
   }
 }
+
+/* 能力补充区：视频弹幕窗 / AI 接入（MCP） */
+.lp-capabilities {
+  padding: 72px 0;
+  border-top: 1px solid var(--line);
+}
+.lp-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.lp-capability-grid article {
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.lp-capability-grid h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 580;
+  letter-spacing: -0.01em;
+}
+.lp-capability-grid p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--fg-muted);
+}

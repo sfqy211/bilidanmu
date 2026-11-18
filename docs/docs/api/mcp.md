@@ -96,7 +96,7 @@
 | `get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false)、`includeEmoticons`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者；纯表情默认过滤，开启后带 `type=emoticon` |
 | `query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8)、`includeEmoticons`(默认 false) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样；纯表情默认过滤，开启后带 `type=emoticon` |
 | `get_stats` | read | — | 只返回实时指标，不含弹幕正文 |
-| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false)、`withSenders`(默认 false) | 对任意在播房间开后台长会话；`withSenders` 只是会话默认值，collect 可按次覆盖 |
+| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false)、`withSenders`(默认 false) | 对任意在播房间开后台长会话；`withSenders` 只是会话默认值，collect 可按次覆盖。`withTranscript` 仅当会话房间就是当前正在收听且已开启 STT 的房间时生效，其他房间会返回 `transcriptHint` 并只收弹幕 |
 | `watch_collect` | read | `sessionId`*、`cursor`、`limit`(1-1000)、`types`(默认 `danmaku`+`gift`，自动带 `super_chat`)、`keyword`、`duplicateMode`(merge/keep)、`emoticonMode`(默认 drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取。默认 `merge`：相同正文的**文字弹幕**合并成 `danmakuGroup`（`count`/`firstSeq`/`lastSeq`），只出现一次的仍返回单条（带 `seq`，可用于 `watch_senders`）；默认不带发送者（`username`/`uid` 被移除），传 `includeSenders=true` 即热切换，不重连；纯表情默认丢弃（`emoticonMode=drop`），保留时用 `type=emoticon` / `isEmoticon` / `emojiOnly` 明确标识，合并组为 `emoticonGroup` |
 | `watch_senders` | read | `sessionId`*、`seq`、`content`、`fromSeq`、`toSeq` | 默认不返回发送者；需要时按 `seq`（单条）或 `content`（某段相同弹幕）查发送者次数与首末时间，附最多 10 条样本 |
 | `watch_digest` | read | `sessionId`*、`topN`、`includeSenders`、`senderLimit` | 只取统计：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量 |
@@ -109,7 +109,7 @@
 | action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
 | `list` | read | `onlyLive`(默认 false) | 已保存房间 + 实时开播状态 |
-| `search` | read | `keyword`*、`mode`(`roomId`/`link`/`name`) | 搜索直播间 |
+| `search` | read | `keyword`*、`mode`(`roomId`/`link`/`name`/`uid`) | 搜索直播间；`uid` 模式按主播 UID 反查房间 |
 | `get` | read | `roomId`* | 房间详情（含主播 uid，送礼需要） |
 | `live_status` | read | — | 全部已保存房间的开播状态 |
 | `follow_lives` | read | — | 关注列表中正在直播的主播 |
@@ -123,7 +123,7 @@
 | `get_emoticons` | read | `roomId` | 房间表情包（优先本地缓存） |
 | `send` | **costly** | `roomId`、`message`*(≤40 字)、`color`、`mode` | 发送文字弹幕，经发送队列限流 |
 | `send_emoticon` | **costly** | `roomId`、`emoticonUnique`*、`emoticonOptions` | 发送表情弹幕 |
-| `like` | write | `roomId`、`anchorId`、`clickTimes`(1-100) | 给直播间点赞 |
+| `like` | write | `roomId`、`anchorId`、`clickTime`(1-100) | 给直播间点赞；与 IPC 同名，旧名 `clickTimes` 仍兼容 |
 | `auto_send_start` | **costly** | `roomId`、`entries`*（≤20 条，含 `message`/`dmType`/`emoticonOptions`）、`intervalMs`(≥300，默认 3000，会抬到用户设置的最小发送间隔)、`timeLimitSecs` | 后台循环发送，一次确认覆盖整段循环 |
 | `auto_send_stop` | write | — | 停止循环发送 |
 | `auto_like_start` | write | `roomId`、`anchorId`、`targetTotal`(1-1000，默认 100)、`batchSize`(1-100，默认 20)、`intervalMs`(≥500，默认 5000) | 分批点赞到目标次数后自动停止 |
@@ -149,7 +149,7 @@
 | `get_info` | read | `bvid`* | 视频详情（含 `aid`、分P `cid`） |
 | `get_subtitle` | read | `bvid`*、`cid` | 字幕逐行文本 |
 | `get_danmaku` | read | `bvid`*、`cid`、`segment`(6 分钟一段，从 1 开始) | 视频内弹幕 |
-| `danmaku_send` | **costly** | `bvid`*、`message`*、`progress`*(秒)、`cid` | 向视频指定时间点发送公开弹幕（20 秒内同文案拒绝） |
+| `danmaku_send` | **costly** | `bvid`*、`message`*(1–100 字)、`progress`*(秒)、`cid` | 向视频指定时间点发送公开弹幕（20 秒内同文案拒绝） |
 | `get_comments` | read | `bvid`*、`page`、`sort`(1 热度 / 0 时间) | 一级评论 |
 | `get_replies` | read | `bvid`*、`root`*、`page` | 楼中楼回复 |
 | `fav_folders` | read | — | 收藏夹列表 |
@@ -158,8 +158,8 @@
 | `watch_later_remove` | write | `aid`* | 从稍后再看移除一个视频（aid 来自 `watch_later`） |
 | `play` | write | `bvid`* | 在桌面端打开并播放 |
 | `stop` | write | — | 停止视频音频 |
-| `comment_like` | write | `oid`*、`rpid`*、`like` | 评论点赞/取消 |
-| `comment_post` | **costly** | `oid`*、`message`*、`root`、`parent` | 发表公开评论 |
+| `comment_like` | write | `bvid`* / `oid`（二选一）、`rpid`*、`like` | 评论点赞/取消；推荐用 `bvid`，`oid`（aid）为旧调用兼容 |
+| `comment_post` | **costly** | `bvid`* / `oid`（二选一）、`message`*、`root`、`parent` | 发表公开评论；推荐用 `bvid` |
 
 ### account
 

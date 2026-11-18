@@ -471,13 +471,13 @@ watch_start 已自动附带房间摘要，需要完整内容时再用它。",
         ToolSpec {
             name: "room_search",
             title: "搜索直播间",
-            description: "按房间号、直播间链接或主播名搜索直播间。结果里含 roomId，可用于 room_join。",
+            description: "按房间号、直播间链接、主播名或主播 UID 搜索直播间。结果里含 roomId，可用于 room_join。",
             risk: Risk::Read,
             input_schema: schema(json!({
                 "type": "object",
                 "properties": {
-                    "keyword": { "type": "string", "description": "房间号 / 链接 / 主播名" },
-                    "mode": { "type": "string", "enum": ["roomId", "link", "name"], "default": "name", "description": "搜索方式" }
+                    "keyword": { "type": "string", "description": "房间号 / 链接 / 主播名 / 主播 UID" },
+                    "mode": { "type": "string", "enum": ["roomId", "link", "name", "uid"], "default": "name", "description": "搜索方式" }
                 },
                 "required": ["keyword"],
                 "additionalProperties": false
@@ -585,14 +585,14 @@ watch_start 已自动附带房间摘要，需要完整内容时再用它。",
         ToolSpec {
             name: "danmaku_like",
             title: "给直播间点赞",
-            description: "给当前直播间点赞。clickTimes 为次数，1~100。需登录。",
+            description: "给当前直播间点赞。clickTime 为次数，1~100（与 IPC 参数同名；旧名 clickTimes 仍兼容）。需登录。",
             risk: Risk::Write,
             input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "roomId": { "type": "integer", "description": "房间号，省略则用当前直播间" },
                     "anchorId": { "type": "integer", "description": "主播 uid，省略则从已保存房间读取" },
-                    "clickTimes": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+                    "clickTime": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
                 },
                 "additionalProperties": false
             })),
@@ -825,7 +825,7 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
                 "type": "object",
                 "properties": {
                     "bvid": { "type": "string" },
-                    "message": { "type": "string", "description": "弹幕正文（1–100 字）" },
+                    "message": { "type": "string", "minLength": 1, "maxLength": 100, "description": "弹幕正文（1–100 字）" },
                     "progress": { "type": "number", "minimum": 0, "description": "视频内时间（秒）" },
                     "cid": { "type": "integer", "description": "分P id，省略取第一个分P" }
                 },
@@ -933,16 +933,18 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
         ToolSpec {
             name: "video_comment_like",
             title: "评论点赞",
-            description: "给某条视频评论点赞或取消点赞。需要登录。oid 为视频 aid，rpid 为评论 id。",
+            description: "给某条视频评论点赞或取消点赞。需要登录。用 bvid 标识视频（推荐），或传旧参数 oid（aid）；rpid 为评论 id。",
             risk: Risk::Write,
             input_schema: schema(json!({
                 "type": "object",
                 "properties": {
-                    "oid": { "type": "integer", "description": "视频 aid" },
+                    "bvid": { "type": "string", "description": "视频 BV 号（推荐）" },
+                    "oid": { "type": "integer", "description": "视频 aid；与 bvid 二选一（旧调用兼容）" },
                     "rpid": { "type": "integer", "description": "评论 id" },
                     "like": { "type": "boolean", "default": true, "description": "true 点赞，false 取消" }
                 },
-                "required": ["oid", "rpid"],
+                "anyOf": [{ "required": ["bvid"] }, { "required": ["oid"] }],
+                "required": ["rpid"],
                 "additionalProperties": false
             })),
         },
@@ -954,12 +956,14 @@ batchSize 为每批次数，intervalMs 为批次间隔。",
             input_schema: schema(json!({
                 "type": "object",
                 "properties": {
-                    "oid": { "type": "integer", "description": "视频 aid" },
+                    "bvid": { "type": "string", "description": "视频 BV 号（推荐）" },
+                    "oid": { "type": "integer", "description": "视频 aid；与 bvid 二选一（旧调用兼容）" },
                     "message": { "type": "string", "description": "评论正文" },
                     "root": { "type": "integer", "description": "回复楼中楼时的顶层评论 rpid" },
                     "parent": { "type": "integer", "description": "直接父评论 rpid" }
                 },
-                "required": ["oid", "message"],
+                "anyOf": [{ "required": ["bvid"] }, { "required": ["oid"] }],
+                "required": ["message"],
                 "additionalProperties": false
             })),
         },
