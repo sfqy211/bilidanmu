@@ -4,6 +4,7 @@
 //! 房间：心跳保活、断线重连、事件写入带 `seq` 的环形缓冲。AI 通过游标增量拉取，
 //! 自己决定什么时候总结。会话不切换当前直播间、不开窗口、不写前端状态。
 
+use crate::ai::context::TranscriptEntry;
 use crate::bili::api::BiliApiClient;
 use crate::bili::protocol::{decode_packets, heartbeat_packet, parse_danmaku_events, ParsedPacket};
 use crate::models::message::DanmakuEvent;
@@ -164,6 +165,21 @@ impl WatchManager {
             .unwrap_or_else(|error| error.into_inner())
             .get(session_id)
             .cloned()
+    }
+
+    /// 把 LiveContext 已累积的字幕回填进会话缓冲开头（withTranscript 会话起步就有历史可读）。
+    /// 调用方必须在订阅 transcript_bus **之前**读取缓冲，否则同一条字幕可能走两条路进来。
+    pub fn backfill_transcripts(&self, session_id: &str, entries: &[TranscriptEntry]) {
+        let Some(session) = self.get(session_id) else {
+            return;
+        };
+        let mut guard = lock(&session);
+        if guard.ended {
+            return;
+        }
+        for entry in entries {
+            push_transcript_inner(&mut guard, &entry.text, entry.audio_ts_ms, entry.timestamp as u64);
+        }
     }
 
     pub fn list(&self) -> Vec<SessionSummary> {
@@ -346,11 +362,26 @@ fn push_transcript(session: &Arc<Mutex<WatchSession>>, transcript: SttTranscript
     if !transcript.is_final {
         return;
     }
-    let text = transcript.text.trim().to_string();
+    let mut guard = lock(session);
+    push_transcript_inner(
+        &mut guard,
+        &transcript.text,
+        transcript.audio_ts_ms,
+        now_secs_u64(),
+    );
+}
+
+/// 已持锁的写入路径：live 推送与上下文回填共用同一套淘汰与计数。
+fn push_transcript_inner(
+    guard: &mut WatchSession,
+    raw_text: &str,
+    audio_ts_ms: i64,
+    timestamp: u64,
+) {
+    let text = raw_text.trim().to_string();
     if text.is_empty() {
         return;
     }
-    let mut guard = lock(session);
     let seq = guard.next_seq;
     guard.next_seq += 1;
     guard.received += 1;
@@ -370,8 +401,8 @@ fn push_transcript(session: &Arc<Mutex<WatchSession>>, transcript: SttTranscript
         seq,
         StoredEvent::Transcript {
             text,
-            audio_ts_ms: transcript.audio_ts_ms,
-            timestamp: now_secs_u64(),
+            audio_ts_ms,
+            timestamp,
         },
     ));
 }

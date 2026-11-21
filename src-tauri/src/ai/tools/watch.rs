@@ -4,6 +4,7 @@
 //! 长会话用于「这场播了几个小时，帮我总结」。
 
 use super::{api_with_main, args, current_room_id};
+use crate::ai::context::TranscriptEntry;
 use crate::ai::emoticon;
 use crate::ai::spec::ToolError;
 use crate::ai::watch::{StoredEvent, DEFAULT_MAX_EVENTS};
@@ -14,6 +15,8 @@ use std::collections::HashMap;
 
 /// 一次 collect 最多返回的条数上限
 const MAX_COLLECT: u64 = 1000;
+/// withTranscript 会话起步时从上下文缓冲回填的字幕条数
+const TRANSCRIPT_BACKFILL_LIMIT: usize = 200;
 
 /// 默认只返回弹幕与礼物；进场/点赞/SC/舰长等按需通过 types 打开
 const DEFAULT_TYPES: &[&str] = &["danmaku", "gift"];
@@ -113,6 +116,18 @@ pub async fn start(
         }
     }
 
+    // 回填素材在订阅广播**之前**读：STT 发射循环先写上下文再发广播，
+    // 这个顺序保证同一条字幕不会既进回填又进订阅流。
+    let transcript_backfill: Vec<TranscriptEntry> = if with_transcript {
+        state
+            .live_context
+            .lock()
+            .map(|context| context.recent_transcripts(TRANSCRIPT_BACKFILL_LIMIT))
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
     let transcript_rx = with_transcript.then(|| state.transcript_bus.subscribe());
     let summary = state
         .live_watch
@@ -130,6 +145,11 @@ pub async fn start(
             transcript_rx,
         )
         .map_err(ToolError::failed)?;
+    if !transcript_backfill.is_empty() {
+        state
+            .live_watch
+            .backfill_transcripts(&summary.session_id, &transcript_backfill);
+    }
 
     let mut payload = serde_json::to_value(&summary)
         .map_err(|error| ToolError::failed(format!("序列化会话失败: {error}")))?;

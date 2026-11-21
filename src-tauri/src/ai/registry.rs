@@ -27,6 +27,7 @@ pub async fn dispatch_tool(
         // ── 直播上下文 ────────────────────────────────────────
         "live_get_context" => tools::live::get_context(app, state, args).await,
         "live_query_danmaku" => tools::live::query_danmaku(app, state, args).await,
+        "live_query_transcript" => tools::live::query_transcript(app, state, args).await,
         "live_get_stats" => tools::live::get_stats(app, state, args).await,
         "live_watch_start" => tools::watch::start(app, state, args).await,
         "live_watch_collect" => tools::watch::collect(app, state, args).await,
@@ -160,6 +161,7 @@ pub fn all_specs() -> Vec<ToolSpec> {
             title: "直播间全貌",
             description: "理解当前直播间的首选工具。一次返回：房间与主播名、实时标题、是否开播与已播时长、人气/在线/看过/点赞、每分钟弹幕数、\
 最近的弹幕条目、最近礼物与醒目留言、发言最多的观众、礼物汇总。\
+需要语音字幕时传 includeTranscript，或改用 live_query_transcript 做关键词检索。\
 用户问『现在直播间什么情况』『大家在聊什么』时先调它，不要自己拼多条事件。",
             risk: Risk::Read,
             input_schema: schema(json!({
@@ -168,7 +170,9 @@ pub fn all_specs() -> Vec<ToolSpec> {
                     "danmakuLimit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 40, "description": "返回最近多少条弹幕" },
                     "giftLimit": { "type": "integer", "minimum": 0, "maximum": 200, "default": 20, "description": "返回最近多少条礼物/SC" },
                     "includeActivity": { "type": "boolean", "default": false, "description": "是否附带进场/点赞等轻量活动" },
-                    "includeEmoticons": { "type": "boolean", "default": false, "description": "是否返回纯表情消息；默认过滤，开启后它们带 type=emoticon 标识" }
+                    "includeEmoticons": { "type": "boolean", "default": false, "description": "是否返回纯表情消息；默认过滤，开启后它们带 type=emoticon 标识" },
+                    "includeTranscript": { "type": "boolean", "default": false, "description": "是否附带最近语音字幕（recentTranscripts）；只在 STT 开启时积累" },
+                    "transcriptLimit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 30, "description": "includeTranscript 时返回多少条字幕" }
                 },
                 "additionalProperties": false
             })),
@@ -203,6 +207,23 @@ pub fn all_specs() -> Vec<ToolSpec> {
                 "additionalProperties": false
             })),
         },
+        ToolSpec {
+            name: "live_query_transcript",
+            title: "检索语音字幕",
+            description: "检索当前房间语音识别（STT）产生的字幕片段，看主播「刚才说了什么」用它。\
+字幕只在 STT 运行期间于内存累积（最多 500 条 / 5 万字），切换房间或退出应用即清空，无法回溯更早内容；\
+只支持当前正在收听的房间，后台房间没有音频源。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {
+                    "keyword": { "type": "string", "description": "关键词过滤（不区分大小写）" },
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 50 },
+                    "since": { "type": "integer", "minimum": 0, "description": "只返回该 Unix 秒之后识别的片段" }
+                },
+                "additionalProperties": false
+            })),
+        },
 
         // ── 长会话（任意房间后台采集） ─────────────────────────
         ToolSpec {
@@ -211,6 +232,7 @@ pub fn all_specs() -> Vec<ToolSpec> {
             description: "对任意正在直播的房间开一个后台长会话：独立连接、30 秒心跳、断线重连，
 事件写入带 seq 的环形缓冲，不切换当前直播间、不开窗口。主播下播可自动结束（stopOnEnd），
 保底时长默认取设置里的 4 小时（可在 AI 接入页修改，0 = 不限）。
+withTranscript 时会把当前房间已缓冲的最近 200 条语音字幕回填进会话起点。
 用于「一场播几个小时，帮我总结」；只想此刻看一眼请用 live_query_danmaku。",
             risk: Risk::Write,
             input_schema: schema(json!({
@@ -1034,10 +1056,11 @@ pub const DOMAINS: &[DomainSpec] = &[
     DomainSpec {
         name: "live",
         title: "直播间",
-        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、get_stats、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list / watch_senders（后台长会话；collect 默认合并重复且不带发送者，按需用 watch_senders 查）。",
+        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、query_transcript（当前房间语音字幕检索）、get_stats、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list / watch_senders（后台长会话；collect 默认合并重复且不带发送者，按需用 watch_senders 查）。",
         actions: &[
             ("get_context", "live_get_context"),
             ("query_danmaku", "live_query_danmaku"),
+            ("query_transcript", "live_query_transcript"),
             ("get_stats", "live_get_stats"),
             ("watch_start", "live_watch_start"),
             ("watch_collect", "live_watch_collect"),

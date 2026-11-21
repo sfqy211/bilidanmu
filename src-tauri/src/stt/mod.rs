@@ -82,8 +82,15 @@ impl SttManager {
                             Some(transcript) => {
                                 log::trace!("STT transcript: {} (final={})", transcript.text, transcript.is_final);
                                 let _ = app_handle.emit("stt-transcript", transcript.clone());
-                                // 同步给 AI 长会话（MCP 侧按需订阅；无人订阅时 send 返回错误，可忽略）
                                 if let Some(state) = app_handle.try_state::<crate::AppState>() {
+                                    // 只把定稿片段写进 AI 上下文缓冲（partial 会大量刷屏）；
+                                    // 先写缓冲再发广播，watch 会话回填时按此顺序读取可避免重叠
+                                    if transcript.is_final {
+                                        if let Ok(mut context) = state.live_context.lock() {
+                                            context.push_transcript(&transcript.text, transcript.audio_ts_ms, transcript.epoch);
+                                        }
+                                    }
+                                    // 同步给 AI 长会话（MCP 侧按需订阅；无人订阅时 send 返回错误，可忽略）
                                     let _ = state.transcript_bus.send(transcript);
                                 }
                             }

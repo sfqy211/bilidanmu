@@ -64,7 +64,7 @@
 | 域 | action |
 | --- | --- |
 | `app` | status、refresh_rooms、reveal_window、permission |
-| `live` | get_context、query_danmaku、get_stats、watch_start、watch_collect、watch_digest、watch_status、watch_stop、watch_list、watch_senders |
+| `live` | get_context、query_danmaku、query_transcript、get_stats、watch_start、watch_collect、watch_digest、watch_status、watch_stop、watch_list、watch_senders |
 | `room` | list、search、get、live_status、follow_lives、join、leave |
 | `danmaku` | get_emoticons、send、send_emoticon、like、auto_send_start、auto_send_stop、auto_like_start、auto_like_stop、auto_status、template_list、template_save、template_delete |
 | `gift` | list、bag、send |
@@ -93,10 +93,11 @@
 
 | action | 风险 | 参数 | 说明 |
 | --- | --- | --- | --- |
-| `get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false)、`includeEmoticons`(默认 false) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者；纯表情默认过滤，开启后带 `type=emoticon` |
+| `get_context` | read | `danmakuLimit`(1-300, 默认 40)、`giftLimit`(0-200, 默认 20)、`includeActivity`(默认 false)、`includeEmoticons`(默认 false)、`includeTranscript`(默认 false)、`transcriptLimit`(1-300, 默认 30) | 直播间全貌：房间/标题/开播时长/人气/在线/看过/点赞/弹幕速率 + 最近弹幕 + 礼物聚合 + TOP 发言者；纯表情默认过滤，开启后带 `type=emoticon`；`includeTranscript` 时附带 `recentTranscripts` |
 | `query_danmaku` | read | `keyword`、`limit`(1-300, 默认 50)、`roomId`、`seconds`(3-60, 默认 8)、`includeEmoticons`(默认 false) | 不带 `roomId` 时检索当前房间缓冲；带 `roomId` 时对任意直播间做 3–60 秒临时只读采样；纯表情默认过滤，开启后带 `type=emoticon` |
+| `query_transcript` | read | `keyword`、`limit`(1-300, 默认 50)、`since`(Unix 秒) | 检索当前房间语音识别（STT）产生的字幕片段（`text`/`audioTsMs`/`epoch`/`timestamp`）。字幕只在 STT 运行期间于内存累积（最多 500 条 / 5 万字），切换房间或退出应用即清空；只支持当前正在收听的房间，后台房间没有音频源 |
 | `get_stats` | read | — | 只返回实时指标，不含弹幕正文 |
-| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false)、`withSenders`(默认 false) | 对任意在播房间开后台长会话；`withSenders` 只是会话默认值，collect 可按次覆盖。`withTranscript` 仅当会话房间就是当前正在收听且已开启 STT 的房间时生效，其他房间会返回 `transcriptHint` 并只收弹幕 |
+| `watch_start` | write | `roomId`*、`maxMinutes`(0=跟随设置)、`maxEvents`(默认 20000)、`stopOnEnd`(默认 true)、`withTranscript`(默认 false)、`withSenders`(默认 false) | 对任意在播房间开后台长会话；`withSenders` 只是会话默认值，collect 可按次覆盖。`withTranscript` 仅当会话房间就是当前正在收听且已开启 STT 的房间时生效，其他房间会返回 `transcriptHint` 并只收弹幕；生效时会把当前房间已缓冲的最近 200 条字幕回填进会话起点 |
 | `watch_collect` | read | `sessionId`*、`cursor`、`limit`(1-1000)、`types`(默认 `danmaku`+`gift`，自动带 `super_chat`)、`keyword`、`duplicateMode`(merge/keep)、`emoticonMode`(默认 drop)、`includeSenders`、`senderLimit` | 按 seq 游标增量拉取。默认 `merge`：相同正文的**文字弹幕**合并成 `danmakuGroup`（`count`/`firstSeq`/`lastSeq`），只出现一次的仍返回单条（带 `seq`，可用于 `watch_senders`）；默认不带发送者（`username`/`uid` 被移除），传 `includeSenders=true` 即热切换，不重连；纯表情默认丢弃（`emoticonMode=drop`），保留时用 `type=emoticon` / `isEmoticon` / `emojiOnly` 明确标识，合并组为 `emoticonGroup` |
 | `watch_senders` | read | `sessionId`*、`seq`、`content`、`fromSeq`、`toSeq` | 默认不返回发送者；需要时按 `seq`（单条）或 `content`（某段相同弹幕）查发送者次数与首末时间，附最多 10 条样本 |
 | `watch_digest` | read | `sessionId`*、`topN`、`includeSenders`、`senderLimit` | 只取统计：类型分布、独立用户、TOP 发言者、表情聚合、礼物/SC 汇总、每分钟弹幕量 |

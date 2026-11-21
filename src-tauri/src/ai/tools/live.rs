@@ -19,6 +19,8 @@ pub async fn get_context(
     let include_emoticons = args::bool_or(raw, "includeEmoticons", false);
     let gift_limit = args::capped(raw, "giftLimit", 20, 0, 200) as usize;
     let include_activity = args::bool_or(raw, "includeActivity", false);
+    let include_transcript = args::bool_or(raw, "includeTranscript", false);
+    let transcript_limit = args::capped(raw, "transcriptLimit", 30, 1, 300) as usize;
 
     let context = state
         .live_context
@@ -112,6 +114,16 @@ pub async fn get_context(
                 .recent_activity(50)
                 .into_iter()
                 .map(compact_event)
+                .collect(),
+        );
+    }
+
+    if include_transcript {
+        result["recentTranscripts"] = serde_json::Value::Array(
+            context
+                .recent_transcripts(transcript_limit)
+                .iter()
+                .map(compact_transcript)
                 .collect(),
         );
     }
@@ -229,6 +241,48 @@ pub async fn query_danmaku(
     }))
 }
 
+/// 检索当前房间缓冲的语音字幕（STT 开启期间累积的定稿片段）。
+/// 字幕只存在于内存滚动缓冲，比弹幕少得多——直接全量取出再在工具侧过滤即可。
+pub async fn query_transcript(
+    _app: &tauri::AppHandle,
+    state: &AppState,
+    raw: &serde_json::Value,
+) -> Result<serde_json::Value, ToolError> {
+    let keyword = args::opt_string(raw, "keyword");
+    let limit = args::capped(raw, "limit", 50, 1, 300) as usize;
+    let since = args::opt_u64(raw, "since");
+
+    let context = state
+        .live_context
+        .lock()
+        .map_err(|_| ToolError::failed("读取直播间上下文失败（锁中毒）"))?;
+    let room_id = context.room_id.ok_or_else(ToolError::not_in_room)?;
+    let mut entries = context.recent_transcripts(usize::MAX);
+    drop(context);
+
+    if let Some(keyword) = keyword.as_deref() {
+        let needle = keyword.trim().to_lowercase();
+        if !needle.is_empty() {
+            entries.retain(|entry| entry.text.to_lowercase().contains(&needle));
+        }
+    }
+    if let Some(since) = since {
+        entries.retain(|entry| entry.timestamp >= since as i64);
+    }
+    let total = entries.len();
+    if entries.len() > limit {
+        entries = entries.split_off(entries.len() - limit);
+    }
+
+    Ok(serde_json::json!({
+        "roomId": room_id,
+        "count": entries.len(),
+        "matched": total,
+        "transcripts": entries.iter().map(compact_transcript).collect::<Vec<_>>(),
+        "hint": "字幕只在 STT 运行期间于内存累积（最多 500 条），切换房间或退出应用即清空；更早的内容无法回溯",
+    }))
+}
+
 /// 只取指标，不拉弹幕正文——用于高频轮询场景。
 pub async fn get_stats(
     _app: &tauri::AppHandle,
@@ -253,6 +307,16 @@ pub async fn get_stats(
         "title": context.title,
         "serverTime": now_secs(),
     }))
+}
+
+/// 字幕条目的模型友好形状：与 TranscriptEntry 的 camelCase 序列化保持一致
+pub(crate) fn compact_transcript(entry: &crate::ai::context::TranscriptEntry) -> serde_json::Value {
+    serde_json::json!({
+        "text": entry.text,
+        "audioTsMs": entry.audio_ts_ms,
+        "epoch": entry.epoch,
+        "timestamp": entry.timestamp,
+    })
 }
 
 /// 事件压缩成模型友好的形状：去掉 UI 专用字段（颜色、背景图、表情选项等），
