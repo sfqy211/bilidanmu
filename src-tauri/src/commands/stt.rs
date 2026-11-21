@@ -131,11 +131,10 @@ pub async fn open_stt_model_dir(
     Ok(())
 }
 
-/// Start the STT pipeline.
-#[tauri::command]
-pub async fn start_stt(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
+/// 确保 STT 管线已启动（幂等）。`start_stt` 命令与 AI 工具共用一条路径。
+pub(crate) async fn ensure_stt_pipeline(
+    app: &tauri::AppHandle,
+    state: &AppState,
 ) -> Result<(), String> {
     let mut manager_lock = state.stt_manager.lock().await;
     if manager_lock.is_some() {
@@ -144,8 +143,8 @@ pub async fn start_stt(
     }
 
     // Read model_id from settings
-    let settings = settings_store::load_settings(&state).map_err(|e| format!("读取设置失败: {e}"))?;
-    let model_dir = get_model_dir(&app, state.inner(), &settings.stt.model_id)?;
+    let settings = settings_store::load_settings(state).map_err(|e| format!("读取设置失败: {e}"))?;
+    let model_dir = get_model_dir(app, state, &settings.stt.model_id)?;
     log::info!("start_stt: model_id={}, dir={}", settings.stt.model_id, model_dir);
 
     // 离线模型依赖 Silero VAD（下载器自动附带）；缺失时提前报错而非静默失败
@@ -164,22 +163,36 @@ pub async fn start_stt(
     }
 
     let stream_proxy = state.stream_proxy.clone();
-    let manager = SttManager::start(model_dir, app, stream_proxy).await?;
+    let manager = SttManager::start(model_dir, app.clone(), stream_proxy).await?;
     *manager_lock = Some(manager);
 
     log::info!("STT pipeline started");
     Ok(())
 }
 
-/// Stop the STT pipeline.
-#[tauri::command]
-pub async fn stop_stt(state: State<'_, AppState>) -> Result<(), String> {
+/// 停止 STT 管线（幂等）。`stop_stt` 命令与 AI 工具共用一条路径。
+pub(crate) async fn stop_stt_pipeline(state: &AppState) -> Result<(), String> {
     let mut manager_lock = state.stt_manager.lock().await;
     if let Some(mut manager) = manager_lock.take() {
         manager.stop().await?;
         log::info!("STT pipeline stopped");
     }
     Ok(())
+}
+
+/// Start the STT pipeline.
+#[tauri::command]
+pub async fn start_stt(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    ensure_stt_pipeline(&app, state.inner()).await
+}
+
+/// Stop the STT pipeline.
+#[tauri::command]
+pub async fn stop_stt(state: State<'_, AppState>) -> Result<(), String> {
+    stop_stt_pipeline(state.inner()).await
 }
 
 /// Switch to a different STT model.

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex as StdMutex;
 use tokio::sync::{Mutex as TokioMutex, OnceCell};
 use tokio::sync::mpsc;
@@ -40,6 +40,8 @@ pub struct StreamProxyServer {
     proxy_client: reqwest::Client,
     stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
     active_stt_stream: Arc<AtomicU64>,
+    /// /live-audio 活跃客户端数（音频播放器连接数）：STT 只在这个数 > 0 时才有数据流
+    audio_clients: Arc<AtomicUsize>,
 }
 
 impl StreamProxyServer {
@@ -49,7 +51,13 @@ impl StreamProxyServer {
             proxy_client,
             stt_sender: Arc::new(StdMutex::new(None)),
             active_stt_stream: Arc::new(AtomicU64::new(0)),
+            audio_clients: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    /// 当前 /live-audio 活跃连接数（>0 表示音频正在播放）
+    pub fn audio_client_count(&self) -> usize {
+        self.audio_clients.load(Ordering::Relaxed)
     }
 
     /// 绑定 127.0.0.1:0、启动 hyper 服务，返回 StreamProxyState（包装在 Arc 中）
@@ -57,6 +65,7 @@ impl StreamProxyServer {
         proxy_client: reqwest::Client,
         stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
         active_stt_stream: Arc<AtomicU64>,
+        audio_clients: Arc<AtomicUsize>,
     ) -> Result<Arc<StreamProxyState>, String> {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
@@ -92,6 +101,7 @@ impl StreamProxyServer {
                 let proxy_client = proxy_client_clone.clone();
                 let stt_sender = stt_sender_clone.clone();
                 let active_stt_stream = active_stt_stream_clone.clone();
+                let audio_clients = audio_clients.clone();
 
                 tokio::spawn(async move {
                     let service = service_fn(move |req: Request<Incoming>| {
@@ -100,8 +110,9 @@ impl StreamProxyServer {
                         let proxy_client = proxy_client.clone();
                         let stt_sender = stt_sender.clone();
                         let active_stt_stream = active_stt_stream.clone();
+                        let audio_clients = audio_clients.clone();
                         async move {
-                            handle_proxy_request(req, stream_url, vod_url, proxy_client, stt_sender, active_stt_stream).await
+                            handle_proxy_request(req, stream_url, vod_url, proxy_client, stt_sender, active_stt_stream, audio_clients).await
                         }
                     });
 
@@ -129,9 +140,10 @@ impl StreamProxyServer {
     async fn ensure_started(&self) -> Result<Arc<StreamProxyState>, String> {
         let stt_sender = self.stt_sender.clone();
         let active_stt_stream = self.active_stt_stream.clone();
+        let audio_clients = self.audio_clients.clone();
         let proxy_client = self.proxy_client.clone();
         self.state
-            .get_or_try_init(|| Self::start_inner(proxy_client, stt_sender, active_stt_stream))
+            .get_or_try_init(|| Self::start_inner(proxy_client, stt_sender, active_stt_stream, audio_clients))
             .await
             .map(Arc::clone)
     }
@@ -202,6 +214,7 @@ async fn handle_proxy_request(
     proxy_client: reqwest::Client,
     stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
     active_stt_stream: Arc<AtomicU64>,
+    audio_clients: Arc<AtomicUsize>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
     // CORS preflight
     if req.method() == Method::OPTIONS {
@@ -217,7 +230,7 @@ async fn handle_proxy_request(
 
     match req.uri().path() {
         "/live-audio" => {
-            handle_live_audio(req, stream_url, proxy_client, stt_sender, active_stt_stream).await
+            handle_live_audio(req, stream_url, proxy_client, stt_sender, active_stt_stream, audio_clients).await
         }
         // 听视频模式：DASH 音轨代理，Range/206 直通以支持进度条拖动
         "/vod-audio" => handle_vod_audio(req, vod_url, proxy_client).await,
@@ -309,6 +322,7 @@ async fn handle_live_audio(
     proxy_client: reqwest::Client,
     stt_sender: Arc<StdMutex<Option<mpsc::Sender<PipelineMessage>>>>,
     active_stt_stream: Arc<AtomicU64>,
+    audio_clients: Arc<AtomicUsize>,
 ) -> Result<Response<BoxBody<Bytes, std::io::Error>>, std::io::Error> {
     if req.method() != Method::GET {
         return Ok(Response::builder()
@@ -356,6 +370,13 @@ async fn handle_live_audio(
 
     let stt_stream_id = active_stt_stream.fetch_add(1, Ordering::Relaxed) + 1;
 
+    // 活跃音频客户端计数：STT 与 MCP 状态都靠它判断「音频是否在播」。
+    // 守卫被 move 进流式 body 的闭包，连接断开（body 被 drop）时递减。
+    audio_clients.fetch_add(1, Ordering::Relaxed);
+    let client_guard = AudioClientGuard {
+        counter: audio_clients.clone(),
+    };
+
     // 通知 STT 管线重置音频时间轴：新连接是 CDN 重新拉起的完整流，
     // 播放器 currentTime 也随新 MSE 实例归零，两侧需要同时回到新起点。
     // （旧连接已入队的残余字节会在该消息之前被处理，顺序天然正确。）
@@ -369,6 +390,7 @@ async fn handle_live_audio(
     // mpegts.js 在启动/重连时可能短暂存在多个 /live-audio 连接；
     // STT 只接收最新连接，避免同一段音频被并发旧连接重复送入识别器。
     let stream = response.bytes_stream().map(move |result: Result<Bytes, reqwest::Error>| {
+        let _alive = &client_guard;
         match result {
             Ok(bytes) => {
                 // Tee to STT pipeline (Bytes::clone is reference-counted, zero-copy)
@@ -394,4 +416,15 @@ async fn handle_live_audio(
         .header("Access-Control-Allow-Origin", "*")
         .body(body)
         .unwrap())
+}
+
+/// /live-audio 活跃客户端计数守卫：随流式 body 一起被 drop，连接断开时计数回落
+struct AudioClientGuard {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for AudioClientGuard {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::Relaxed);
+    }
 }

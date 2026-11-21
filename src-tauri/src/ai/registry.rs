@@ -29,6 +29,11 @@ pub async fn dispatch_tool(
         "live_query_danmaku" => tools::live::query_danmaku(app, state, args).await,
         "live_query_transcript" => tools::live::query_transcript(app, state, args).await,
         "live_get_stats" => tools::live::get_stats(app, state, args).await,
+        "live_stt_status" => tools::live::stt_status(app, state, args).await,
+        "live_stt_start" => tools::live::stt_start(app, state, args).await,
+        "live_stt_stop" => tools::live::stt_stop(app, state, args).await,
+        "live_audio_play" => tools::live::audio_play(app, state, args).await,
+        "live_audio_stop" => tools::live::audio_stop(app, state, args).await,
         "live_watch_start" => tools::watch::start(app, state, args).await,
         "live_watch_collect" => tools::watch::collect(app, state, args).await,
         "live_watch_digest" => tools::watch::digest(app, state, args).await,
@@ -221,6 +226,64 @@ pub fn all_specs() -> Vec<ToolSpec> {
                     "limit": { "type": "integer", "minimum": 1, "maximum": 300, "default": 50 },
                     "since": { "type": "integer", "minimum": 0, "description": "只返回该 Unix 秒之后识别的片段" }
                 },
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_stt_status",
+            title: "语音字幕状态",
+            description: "查询语音字幕与音频状态：设置开关（enabled）、识别管线（running）、音频播放（audioClients>0）、\
+真正在产出字幕（listening = running 且音频在播）、已缓冲字幕条数。开字幕前先看它。",
+            risk: Risk::Read,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_stt_start",
+            title: "开启语音字幕",
+            description: "开启当前房间的语音字幕：写入 stt.enabled 设置（与弹幕窗的实时字幕开关同步）并启动识别管线。\
+字幕数据依赖音频播放：若音频没在播只翻开关，配合 live_audio_play 使用；主播说话即可产出字幕（live_query_transcript 读取）。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_stt_stop",
+            title: "关闭语音字幕",
+            description: "关闭语音字幕并停止识别管线，同时写回 stt.enabled=false（与弹幕窗开关同步）。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_audio_play",
+            title: "播放直播音频",
+            description: "让弹幕窗开始播放当前直播间音频（效果与用户点播放按钮一致）。开语音字幕前音频必须在播放，\
+否则识别管线拿不到音频流。注意：这会让用户听到直播声音。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            })),
+        },
+        ToolSpec {
+            name: "live_audio_stop",
+            title: "停止直播音频",
+            description: "让弹幕窗停止播放当前直播间音频（效果与用户点停止按钮一致）。字幕随之失去数据源。",
+            risk: Risk::Write,
+            input_schema: schema(json!({
+                "type": "object",
+                "properties": {},
                 "additionalProperties": false
             })),
         },
@@ -1056,12 +1119,17 @@ pub const DOMAINS: &[DomainSpec] = &[
     DomainSpec {
         name: "live",
         title: "直播间",
-        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、query_transcript（当前房间语音字幕检索）、get_stats、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list / watch_senders（后台长会话；collect 默认合并重复且不带发送者，按需用 watch_senders 查）。",
+        description: "直播间上下文与长会话。action: get_context（房间全貌，首选）、query_danmaku（当前房间检索；带 roomId 做短采样）、query_transcript（当前房间语音字幕检索）、get_stats、stt_status / stt_start / stt_stop（语音字幕）、audio_play / audio_stop（弹幕窗音频）、watch_start / watch_collect / watch_digest / watch_status / watch_stop / watch_list / watch_senders（后台长会话；collect 默认合并重复且不带发送者，按需用 watch_senders 查）。",
         actions: &[
             ("get_context", "live_get_context"),
             ("query_danmaku", "live_query_danmaku"),
             ("query_transcript", "live_query_transcript"),
             ("get_stats", "live_get_stats"),
+            ("stt_status", "live_stt_status"),
+            ("stt_start", "live_stt_start"),
+            ("stt_stop", "live_stt_stop"),
+            ("audio_play", "live_audio_play"),
+            ("audio_stop", "live_audio_stop"),
             ("watch_start", "live_watch_start"),
             ("watch_collect", "live_watch_collect"),
             ("watch_digest", "live_watch_digest"),

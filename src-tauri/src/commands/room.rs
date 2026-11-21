@@ -7,7 +7,7 @@ use crate::settings_store;
 use crate::tray;
 use crate::window_state;
 use crate::AppState;
-use tauri::{Manager, State, WebviewUrl};
+use tauri::{Emitter, Manager, State, WebviewUrl};
 
 /// 常驻弹幕窗口的固定 label。弹幕窗口全应用唯一：切换直播间时窗口不销毁，
 /// 仅在窗口内原地切换路由。
@@ -684,6 +684,30 @@ pub async fn open_danmaku_window(
     create_danmaku_window(&app, Some(room_id), state.inner()).await?;
     hide_main_window(&app);
     Ok(())
+}
+
+/// 控制弹幕窗音频播放（AI/MCP 用）。播放器状态在 webview 内，Rust 只发事件，
+/// 弹幕窗的 global-shortcut-action 监听器执行真正的播放/停止——
+/// 与全局快捷键转发共用同一条事件通道。
+pub async fn set_live_audio_playback_inner(
+    app: &tauri::AppHandle,
+    play: bool,
+) -> Result<(), String> {
+    if app.get_webview_window(DANMAKU_WINDOW_LABEL).is_none() {
+        return Err("弹幕窗口不存在（未进入直播间）".to_string());
+    }
+    app.emit_to(
+        DANMAKU_WINDOW_LABEL,
+        "global-shortcut-action",
+        if play { "playAudio" } else { "stopAudio" },
+    )
+    .map_err(|e| format!("发送音频控制事件失败: {e}"))
+}
+
+/// 控制弹幕窗音频播放：true 播放、false 停止。
+#[tauri::command]
+pub async fn set_live_audio_playback(play: bool, app: tauri::AppHandle) -> Result<(), String> {
+    set_live_audio_playback_inner(&app, play).await
 }
 
 /// 快速切换直播间：常驻弹幕窗口不销毁，仅在窗口内原地切换。

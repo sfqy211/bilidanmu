@@ -432,13 +432,23 @@ export function DanmakuPage() {
     toggleMute: audioToggleMute,
   } = useAudioPlayer(roomId, audioSettings.defaultVolume / 100);
   // 全局快捷键的音频动作：播放器状态在 webview 内，由 Rust 经事件转发到这里执行
+  // playAudio/stopAudio 是 AI/MCP 的确定性控制（与 toggleAudio 的翻转语义区分开）
   useTauriEvent<string>("global-shortcut-action", (action) => {
     if (action === "toggleAudio") {
       if (audioPlaying) void audioStop();
       else void audioPlay();
+    } else if (action === "playAudio") {
+      if (!audioPlaying) void audioPlay();
+    } else if (action === "stopAudio") {
+      if (audioPlaying) void audioStop();
     } else if (action === "toggleMute") {
       audioToggleMute();
     }
+  });
+  // 其他窗口（含 AI/MCP）改了设置：同步到本地 store，字幕联动 effect 才能跟上
+  const setSettings = useSettingsStore((s) => s.setSettings);
+  useTauriEvent<SettingsType>("settings-changed", (incoming) => {
+    setSettings(incoming);
   });
   // 字幕对齐需要播放进度作为调度时钟（暂停时字幕冻结）
   const getAudioCurrentTime = useCallback(() => audioRef.current?.currentTime ?? 0, []);

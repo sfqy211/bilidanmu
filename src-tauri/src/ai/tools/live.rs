@@ -319,6 +319,138 @@ pub(crate) fn compact_transcript(entry: &crate::ai::context::TranscriptEntry) ->
     })
 }
 
+// ── 语音字幕与音频控制（AI/MCP） ────────────────────────────
+
+/// STT 状态总览：设置开关、管线运行、音频播放（由流代理活跃连接数判断）。
+/// `listening` = 管线在跑且有音频客户端连接，只有这个状态才会真正产出字幕。
+async fn stt_status_payload(state: &AppState) -> Result<serde_json::Value, ToolError> {
+    let settings = crate::settings_store::load_settings(state)
+        .map_err(|e| ToolError::failed(format!("读取设置失败: {e}")))?;
+    let (room_id, buffered_transcripts) = {
+        let context = state
+            .live_context
+            .lock()
+            .map_err(|_| ToolError::failed("读取直播间上下文失败（锁中毒）"))?;
+        (context.room_id, context.transcript_count())
+    };
+    let running = state.stt_manager.lock().await.is_some();
+    let audio_clients = state.stream_proxy.audio_client_count();
+    let listening = running && audio_clients > 0;
+
+    let mut payload = serde_json::json!({
+        "roomId": room_id,
+        "enabled": settings.stt.enabled,
+        "running": running,
+        "modelId": settings.stt.model_id,
+        "audioClients": audio_clients,
+        "listening": listening,
+        "bufferedTranscripts": buffered_transcripts,
+    });
+    if running && audio_clients == 0 {
+        payload["hint"] = serde_json::json!(
+            "字幕管线在跑但音频没有播放（没有 /live-audio 连接），不会有新字幕；用 live audio_play 开启音频"
+        );
+    } else if !running && settings.stt.enabled {
+        payload["hint"] = serde_json::json!("开关已打开但管线未运行，用 live stt_start 启动");
+    }
+    Ok(payload)
+}
+
+/// 查询语音字幕与音频状态。
+pub async fn stt_status(
+    _app: &tauri::AppHandle,
+    state: &AppState,
+    _raw: &serde_json::Value,
+) -> Result<serde_json::Value, ToolError> {
+    stt_status_payload(state).await
+}
+
+/// 开启语音字幕：写 stt.enabled 设置（与弹幕窗开关同一事实源）并确保管线启动。
+/// 字幕数据依赖音频播放：音频没播时只翻开关，音频一播字幕就出来。
+pub async fn stt_start(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    _raw: &serde_json::Value,
+) -> Result<serde_json::Value, ToolError> {
+    {
+        let context = state
+            .live_context
+            .lock()
+            .map_err(|_| ToolError::failed("读取直播间上下文失败（锁中毒）"))?;
+        if context.room_id.is_none() {
+            return Err(ToolError::not_in_room());
+        }
+    }
+
+    let mut settings = crate::settings_store::load_settings(state)
+        .map_err(|e| ToolError::failed(format!("读取设置失败: {e}")))?;
+    if !settings.stt.enabled {
+        settings.stt.enabled = true;
+        crate::settings_store::save_settings(state, &settings)
+            .map_err(|e| ToolError::failed(format!("保存设置失败: {e}")))?;
+        // 广播给各窗口：弹幕窗的联动 effect 依赖 store 里的开关状态，
+        // 不同步的话音频一播它就会把 MCP 刚启动的管线停掉
+        use tauri::Emitter;
+        let _ = app.emit("settings-changed", &settings);
+    }
+    crate::commands::stt::ensure_stt_pipeline(app, state)
+        .await
+        .map_err(ToolError::failed)?;
+
+    let mut payload = stt_status_payload(state).await?;
+    payload["started"] = serde_json::json!(true);
+    Ok(payload)
+}
+
+/// 关闭语音字幕：写回 stt.enabled=false 并停止管线（与弹幕窗开关同一事实源）。
+pub async fn stt_stop(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    _raw: &serde_json::Value,
+) -> Result<serde_json::Value, ToolError> {
+    let mut settings = crate::settings_store::load_settings(state)
+        .map_err(|e| ToolError::failed(format!("读取设置失败: {e}")))?;
+    settings.stt.enabled = false;
+    crate::settings_store::save_settings(state, &settings)
+        .map_err(|e| ToolError::failed(format!("保存设置失败: {e}")))?;
+    use tauri::Emitter;
+    let _ = app.emit("settings-changed", &settings);
+    crate::commands::stt::stop_stt_pipeline(state)
+        .await
+        .map_err(ToolError::failed)?;
+
+    let mut payload = stt_status_payload(state).await?;
+    payload["stopped"] = serde_json::json!(true);
+    Ok(payload)
+}
+
+/// 播放弹幕窗音频（发给弹幕窗执行，效果与用户点播放按钮一致）。
+pub async fn audio_play(
+    app: &tauri::AppHandle,
+    _state: &AppState,
+    _raw: &serde_json::Value,
+) -> Result<serde_json::Value, ToolError> {
+    crate::commands::room::set_live_audio_playback_inner(app, true)
+        .await
+        .map_err(ToolError::failed)?;
+    Ok(serde_json::json!({
+        "play": true,
+        "hint": "播放命令已发给弹幕窗；字幕需要 STT 开启（live stt_status 查看 listening）",
+    }))
+}
+
+/// 停止弹幕窗音频播放。
+pub async fn audio_stop(
+    app: &tauri::AppHandle,
+    _state: &AppState,
+    _raw: &serde_json::Value,
+) -> Result<serde_json::Value, ToolError> {
+    crate::commands::room::set_live_audio_playback_inner(app, false)
+        .await
+        .map_err(ToolError::failed)?;
+    Ok(serde_json::json!({ "play": false }))
+}
+
 /// 事件压缩成模型友好的形状：去掉 UI 专用字段（颜色、背景图、表情选项等），
 /// 保留语义字段。原始字段对模型是噪音，还会吃 token。
 pub(crate) fn compact_event(event: &crate::models::message::DanmakuEvent) -> serde_json::Value {

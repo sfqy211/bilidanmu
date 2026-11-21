@@ -223,6 +223,10 @@ export const tauriCommands = {
     set: (enabled: boolean) => invoke<boolean>("set_danmaku_stealth", { enabled }),
     get: () => invoke<{ enabled: boolean; visible: boolean }>("get_danmaku_stealth")
   },
+  /** 弹幕窗音频控制（AI/MCP 用）：Rust 发事件，弹幕窗监听执行播放/停止 */
+  audio: {
+    setPlayback: (play: boolean) => invoke<void>("set_live_audio_playback", { play })
+  },
   proxy: {
     image: (url: string, persistent?: boolean) =>
       invoke<string>("proxy_image", { url, persistent: persistent ?? false }),

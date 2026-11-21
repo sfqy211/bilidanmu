@@ -481,6 +481,7 @@ pub fn run() {
             commands::room::search_room,
             commands::room::add_room,
             commands::room::remove_room,
+            commands::room::set_live_audio_playback,
             commands::room::get_room_info,
             commands::room::get_rooms,
             commands::room::get_live_time,
