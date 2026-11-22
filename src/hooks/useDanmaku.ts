@@ -1,16 +1,8 @@
 import { useCallback, useState } from "react";
 import { tauriCommands, type SendGiftOptions } from "@/lib/tauri";
 import { useDanmakuStore } from "@/stores/danmaku-store";
-
-/** 从各种错误格式中提取消息 */
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return fallback;
-}
+import { i18n } from "@/i18n";
+import { describeDesktopError } from "@/i18n/errors";
 
 export function useDanmaku() {
   const incrementSentCount = useDanmakuStore((state) => state.incrementSentCount);
@@ -26,7 +18,7 @@ export function useDanmaku() {
         setLastError(null);
         return result;
       } catch (error) {
-        const message = extractErrorMessage(error, "发送弹幕失败");
+        const message = describeDesktopError(error, i18n.t("desktop:liveWindow.sendFailed"));
         setLastError(message);
         throw error;
       } finally {
@@ -47,7 +39,7 @@ export function useDanmaku() {
         setLastError(null);
         return result;
       } catch (error) {
-        const message = extractErrorMessage(error, "发送表情弹幕失败");
+        const message = describeDesktopError(error, i18n.t("desktop:liveWindow.sendEmoteFailed"));
         setLastError(message);
         throw error;
       } finally {
@@ -72,7 +64,7 @@ export function useDanmaku() {
         setLastError(null);
         return result;
       } catch (error) {
-        const message = extractErrorMessage(error, "发送礼物失败");
+        const message = describeDesktopError(error, i18n.t("desktop:gifts.sendFailed"));
         setLastError(message);
         throw error;
       } finally {

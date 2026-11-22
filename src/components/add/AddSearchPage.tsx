@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
@@ -43,6 +44,7 @@ export function AddSearchPage<T>({
   idle?: { text: string; icon: LucideIcon };
   externalError?: { message: string; key: number } | null;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const [mode, setMode] = useState(defaultMode);
   const [query, setQuery] = useState("");
@@ -56,7 +58,7 @@ export function AddSearchPage<T>({
 
   const handleSearch = async () => {
     const trimmed = query.trim();
-    if (!trimmed) { showError("请输入搜索内容"); return; }
+    if (!trimmed) { showError(translate("search.required")); return; }
     setLoading(true);
     setError(null);
     try {
@@ -64,7 +66,7 @@ export function AddSearchPage<T>({
       setResults(found);
       setSearched(true);
     } catch (reason) {
-      showError(reason instanceof Error ? reason.message : "搜索失败");
+      showError(reason instanceof Error ? reason.message : translate("search.failed"));
       setResults([]);
       setSearched(true);
     } finally {
@@ -72,7 +74,7 @@ export function AddSearchPage<T>({
     }
   };
 
-  const heading = searched ? "搜索结果" : initial?.title ?? "";
+  const heading = searched ? translate("search.results") : initial?.title ?? "";
   const count = searched ? results.length : initial?.items.length ?? 0;
   const message = error ?? externalError?.message ?? null;
   const IdleIcon = idle?.icon;
@@ -99,7 +101,7 @@ export function AddSearchPage<T>({
           {/* 原生 select 的弹层由系统绘制，无法跟随暗色主题，改用自绘 Select */}
           <div className="add-search-mode">
             <Select value={mode} onValueChange={setMode}>
-              <SelectTrigger aria-label="搜索方式" className="add-search-mode-trigger" />
+              <SelectTrigger aria-label={translate("search.mode")} className="add-search-mode-trigger" />
               <SelectContent>
                 {modes.map((item) => (
                   <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
@@ -113,8 +115,8 @@ export function AddSearchPage<T>({
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.nativeEvent.isComposing && !loading) void handleSearch();
             }}
-            placeholder={modes.find((item) => item.value === mode)?.placeholder ?? "输入搜索内容"}
-            aria-label="搜索内容"
+            placeholder={modes.find((item) => item.value === mode)?.placeholder ?? translate("search.inputHint")}
+            aria-label={translate("search.input")}
             className="h-8 min-w-0 flex-1 px-3 text-[13px]"
           />
           <button
@@ -122,7 +124,7 @@ export function AddSearchPage<T>({
             disabled={loading}
             className="workspace-button workspace-button-primary shrink-0"
           >
-            {loading ? "搜索中..." : "搜索"}
+            {loading ? translate("search.searching") : translate("search.search")}
           </button>
         </div>
         {message && <InlineMessage key={`${msgKey}-${externalError?.key ?? 0}`} type="error" className="mt-3">{message}</InlineMessage>}
@@ -136,15 +138,15 @@ export function AddSearchPage<T>({
             </h3>
             {(searched || initial) && (
               <div className="flex items-center gap-2">
-                <span className="numeric text-xs text-ink-muted">{count} 个</span>
+                <span className="numeric text-xs text-ink-muted">{translate("search.count", { count })}</span>
                 {!searched && initial?.onRefresh && (
                   <button
                     type="button"
                     onClick={initial.onRefresh}
                     disabled={initial.loading}
                     className="workspace-button workspace-icon-button"
-                    aria-label={`刷新${initial.title}`}
-                    title={`刷新${initial.title}`}
+                    aria-label={translate("search.refresh", { value: initial.title })}
+                    title={translate("search.refresh", { value: initial.title })}
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${initial.loading ? "animate-spin" : ""}`} />
                   </button>
@@ -161,7 +163,7 @@ export function AddSearchPage<T>({
             )
           ) : initial ? (
             initial.loading ? (
-              <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
+              <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("search.loading")}</div>
             ) : initial.items.length > 0 ? (
               <div className="flex flex-col gap-2">{initial.items.map((item) => <div key={itemKey(item)}>{renderRow(item)}</div>)}</div>
             ) : (

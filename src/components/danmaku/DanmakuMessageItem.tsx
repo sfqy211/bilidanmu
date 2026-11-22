@@ -7,6 +7,7 @@ import {
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useTranslation } from "@/i18n";
 
 function blockUser(uid: number, username: string) {
   const { patchSettings, settings } = useSettingsStore.getState();
@@ -25,6 +26,7 @@ type ClientMessageProps = Pick<
 >;
 
 export const DanmakuMessageItem = memo(function DanmakuMessageItem(props: ClientMessageProps) {
+  const { t } = useTranslation("desktop");
   const showMedal = useSettingsStore((state) => state.settings.appearance.showMedal);
   const hideGloryLevel = useSettingsStore((state) => state.settings.appearance.hideGloryLevel);
   const hideFanMedal = useSettingsStore((state) => state.settings.appearance.hideFanMedal);
@@ -46,9 +48,26 @@ export const DanmakuMessageItem = memo(function DanmakuMessageItem(props: Client
     plainPriceMessages, priceColors,
   ]);
 
+  const labels = useMemo(() => ({
+    contextMenu: t("message.contextMenu"),
+    copyUsername: t("message.copyUsername"),
+    copyContent: t("message.copyContent"),
+    blockUser: t("message.blockUser"),
+    openProfile: t("message.openProfile"),
+    moderator: t("message.moderator"),
+    contributionRank: (rank: number) => t("message.contributionRank", { rank }),
+    wealthLevel: (level: number) => t("message.wealthLevel", { level }),
+  }), [t]);
+  const item = props.item.type === "live" || props.item.type === "preparing"
+    ? { ...props.item, content: t(props.item.type === "live" ? "message.live" : "message.preparing") }
+    : props.item;
+
+  // The pinned UI accepts these labels once the upstream revision is advanced.
+  const localizedProps = { ...props, item, labels };
+
   return (
     <SharedDanmakuMessageItem
-      {...props}
+      {...localizedProps}
       appearance={appearance}
       imageComponent={ProxiedImage}
       onBlockUser={blockUser}

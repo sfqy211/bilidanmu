@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import type {
   ButtonHTMLAttributes,
   CSSProperties,
@@ -47,6 +48,7 @@ export function PanelShell({
   hideHeader = false,
   ariaLabel,
 }: PanelShellProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const showHeader = !hideHeader && Boolean(title);
   return (
     <section
@@ -65,7 +67,7 @@ export function PanelShell({
           <div className="panel-actions">
             {extra}
             {onClose && (
-              <PanelIconButton label="关闭" onClick={onClose}>
+              <PanelIconButton label={translate("panel.close")} onClick={onClose}>
                 <X className="h-3.5 w-3.5" />
               </PanelIconButton>
             )}

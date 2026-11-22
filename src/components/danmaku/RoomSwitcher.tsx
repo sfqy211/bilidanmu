@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ListVideo } from "lucide-react";
 import { PanelIconButton, PanelListRow, PanelShell } from "@/components/ui/DanmakuPanel";
 import { usePanelDismiss } from "@/hooks/usePanelDismiss";
+import { useTranslation } from "@/i18n";
 import { useRoomStore } from "@/stores/room-store";
 import { tauriCommands } from "@/lib/tauri";
 
@@ -11,6 +12,7 @@ interface RoomSwitcherProps {
 
 /** 标题栏房间切换器：Popover 仅列出开播中的已保存房间，点击走 switch_room 原地切换 */
 export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
+  const { t } = useTranslation("danmaku");
   const rooms = useRoomStore((state) => state.rooms);
   const [open, setOpen] = useState(false);
   // null = 未拉取/拉取失败；{} = 已拉取但无人开播
@@ -77,7 +79,7 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
     // 拦下 mousedown 冒泡，避免标题栏把 Popover 区域的按下当作窗口拖动
     <div ref={containerRef} className="relative" onMouseDown={(e) => e.stopPropagation()}>
       <PanelIconButton
-        label="切换直播间"
+        label={t("switchRoom")}
         active={open}
         onClick={() => setOpen((value) => !value)}
       >
@@ -88,16 +90,16 @@ export function RoomSwitcher({ roomId }: RoomSwitcherProps) {
         <PanelShell
           variant="menu"
           hideHeader
-          ariaLabel="切换直播间"
+          ariaLabel={t("switchRoom")}
           maxHeight="224px"
           className="absolute right-0 top-full z-50 mt-1 w-56"
         >
           {liveStatus === null ? (
             <p className="panel-note px-2 py-1.5">
-              {statusLoading ? "正在获取开播状态…" : "开播状态获取失败"}
+              {t(statusLoading ? "loadingRooms" : "loadRoomsFailed")}
             </p>
           ) : liveRooms.length === 0 ? (
-            <p className="panel-note px-2 py-1.5">暂无正在直播的房间</p>
+            <p className="panel-note px-2 py-1.5">{t("noLiveRooms")}</p>
           ) : (
             <div className="panel-list">
               {liveRooms.map((room) => {

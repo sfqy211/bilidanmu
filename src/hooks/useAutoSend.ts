@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { tauriCommands } from "@/lib/tauri";
 import type { AutoSendEntry } from "@/lib/tauri";
@@ -20,6 +21,7 @@ interface AutoSendStoppedPayload {
 }
 
 export function useAutoSend(roomId: number | null) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [isRunning, setIsRunning] = useState(false);
   const [lastSentMessage, setLastSentMessage] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -34,13 +36,13 @@ export function useAutoSend(roomId: number | null) {
   const start = useCallback(
     async (entries: AutoSendEntry[], intervalMs: number, timeLimitSecs?: number) => {
       if (!roomId) {
-        const error = "当前房间无效";
+        const error = desktopI18n.t("desktop:autoSendErrors.invalidRoom");
         setLastError(error);
         throw new Error(error);
       }
 
       if (entries.length === 0) {
-        const error = "自动发送内容不能为空";
+        const error = desktopI18n.t("desktop:autoSendErrors.empty");
         setLastError(error);
         throw new Error(error);
       }
@@ -52,7 +54,7 @@ export function useAutoSend(roomId: number | null) {
         await tauriCommands.danmaku.startAutoSend(roomId, entries, intervalMs, timeLimitSecs);
         setIsRunning(true);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "启动自动发送失败";
+        const message = error instanceof Error ? error.message : desktopI18n.t("desktop:autoSendErrors.startFailed");
         setIsRunning(false);
         setLastError(message);
         throw error;
@@ -86,7 +88,7 @@ export function useAutoSend(roomId: number | null) {
     }
 
     setIsRunning(false);
-    setLastError(payload.error || "自动发送失败");
+    setLastError(payload.error || translate("autoSendErrors.failed"));
     setStopReason("error");
   });
 

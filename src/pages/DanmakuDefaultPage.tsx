@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ListVideo, LogOut, X } from "lucide-react";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
+import { useTranslation } from "@/i18n";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { tauriCommands } from "@/lib/tauri";
@@ -18,6 +19,7 @@ type LiveStatusMap = Record<string, { isLive: boolean; title: string }>;
  * 点击经 switch_room 进入（room-switched 事件驱动切路由）；右上角退出回主页面。
  */
 export function DanmakuDefaultPage() {
+  const { t } = useTranslation(["danmaku", "common"]);
   const navigate = useNavigate();
   const rooms = useRoomStore((state) => state.rooms);
   const opacity = useSettingsStore((state) => state.settings.appearance.opacity);
@@ -57,7 +59,7 @@ export function DanmakuDefaultPage() {
       // 成功后由 room-switched 事件驱动切路由，这里只负责兜住失败
       await tauriCommands.room.switchRoom(targetRoomId);
     } catch (err) {
-      setError(`进入直播间失败：${String(err)}`);
+      setError(String(err));
     } finally {
       setEntering(null);
     }
@@ -89,12 +91,12 @@ export function DanmakuDefaultPage() {
         className="danmaku-bg-bar flex select-none items-center pl-3"
         onMouseDown={handleTitleBarMouseDown}
       >
-        <span className="flex-1 truncate text-sm text-ink-muted">弹幕窗口</span>
+        <span className="flex-1 truncate text-sm text-ink-muted">{t("window")}</span>
         <button
           type="button"
           onClick={() => appWindow.close()}
           className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.06]"
-          title="隐藏到托盘"
+          title={t("common:window.hide")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -102,7 +104,7 @@ export function DanmakuDefaultPage() {
           type="button"
           onClick={exitToMain}
           className="flex h-6 w-6 items-center justify-center text-ink-muted transition hover:bg-rose-500 hover:text-white dark:hover:bg-rose-500"
-          title="回到主页面"
+          title={t("backToMain")}
         >
           <LogOut className="h-3.5 w-3.5" />
         </button>
@@ -113,19 +115,19 @@ export function DanmakuDefaultPage() {
         {rooms.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <ListVideo className="h-8 w-8 text-ink-muted opacity-50" />
-            <p className="text-sm text-ink-muted">还没有添加直播间</p>
+            <p className="text-sm text-ink-muted">{t("noRooms")}</p>
             <button
               type="button"
               onClick={exitToMain}
               className="rounded-md px-3 py-1.5 text-xs text-brand transition hover:bg-brand/10"
             >
-              打开主页面添加
+              {t("addFromMain")}
             </button>
           </div>
         ) : (
           <>
             <p className="px-1.5 pb-1.5 pt-1 text-[11px] text-ink-muted">
-              选择一个直播间进入 · 直播中的排在最前
+              {t("chooseRoom")}
             </p>
             <div className="space-y-0.5">
               {sortedRooms.map((room) => {
@@ -154,7 +156,7 @@ export function DanmakuDefaultPage() {
                       )}
                     </span>
                     {live && (
-                      <span className="shrink-0 text-[10px] font-medium text-rose-500">直播中</span>
+                      <span className="shrink-0 text-[10px] font-medium text-rose-500">{t("live")}</span>
                     )}
                   </button>
                 );
@@ -162,7 +164,7 @@ export function DanmakuDefaultPage() {
             </div>
           </>
         )}
-        {error && <p className="px-2 pt-2 text-xs text-rose-600 dark:text-rose-300">{error}</p>}
+        {error !== null && <p className="px-2 pt-2 text-xs text-rose-600 dark:text-rose-300">{t("enterFailed", { detail: error })}</p>}
       </div>
     </main>
   );

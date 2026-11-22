@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Radio, Users } from "lucide-react";
 import { PanelListRow, PanelShell } from "@/components/ui/DanmakuPanel";
@@ -11,6 +12,7 @@ interface AccountSwitcherProps {
 }
 
 export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const { accounts, setActiveAccount, isAnonymous } = useAuthStore();
   const [sendingAccountId, setSendingAccountId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -60,7 +62,7 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
     return (
       <div className="inline-flex items-center gap-1 rounded-md bg-[var(--panel-control-bg)] px-2.5 py-1 text-xs text-ink-muted">
         <Users className="h-3.5 w-3.5" />
-        匿名模式
+        {translate("sender.anonymous")}
       </div>
     );
   }
@@ -70,7 +72,7 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
   // 未手动切换时显示观看账号，切换后显示发送账号
   const effectiveSendingId = sendingAccountId ?? viewingAccountIdRef.current;
   const sendingAccount = accounts.find((a) => a.accountId === effectiveSendingId);
-  const displayName = sendingAccount?.username ?? "切换账号";
+  const displayName = sendingAccount?.username ?? translate("sender.switch");
 
   return (
     <div ref={containerRef} className="relative">
@@ -90,7 +92,7 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
         <PanelShell
           variant="menu"
           hideHeader
-          ariaLabel="切换发送账号"
+          ariaLabel={translate("sender.switchSender")}
           maxHeight="192px"
           className="absolute bottom-full left-0 z-50 mb-1 w-48"
         >
@@ -114,7 +116,7 @@ export function AccountSwitcher({ viewingAccountId }: AccountSwitcherProps) {
                       {isViewing && (
                         <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1 py-0.5 text-[10px] text-blue-500 dark:bg-blue-500/10 dark:text-blue-400">
                           <Radio className="h-2.5 w-2.5" />
-                          弹幕/音频
+                          {translate("sender.receive")}
                         </span>
                       )}
                       {isSelected && <Check className="h-3.5 w-3.5" />}

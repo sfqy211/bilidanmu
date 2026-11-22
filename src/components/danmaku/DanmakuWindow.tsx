@@ -37,6 +37,7 @@ import {
 } from "@/hooks/useDanmakuWindowModes";
 import { useSettingsStore } from "@/stores/settings-store";
 import { DockCollapsedBar } from "@/components/DockCollapsedBar";
+import { useTranslation } from "@/i18n";
 import type { TitleBarButtons } from "@/types/bilibili";
 import "./DanmakuWindow.css";
 
@@ -105,6 +106,7 @@ function DanmakuTitleBar({
   /** 组件未接入仅输入框能力时隐藏该按钮（能力本身保留在组件里可随时启用） */
   showInputOnly: boolean;
 }) {
+  const { t } = useTranslation(["danmaku", "common"]);
   const visible = useSettingsStore(
     (state) => state.settings.appearance.titleBarButtons,
   );
@@ -119,21 +121,21 @@ function DanmakuTitleBar({
   }[] = [
     {
       key: "pin",
-      title: controls.pinned ? "取消置顶" : "置顶",
+      title: t(controls.pinned ? "unpin" : "pin"),
       active: controls.pinned,
       onClick: controls.onTogglePin,
       icon: controls.pinned ? <Pin /> : <PinOff />,
     },
     {
       key: "lock",
-      title: controls.locked ? "解锁位置" : "锁定位置",
+      title: t(controls.locked ? "unlock" : "lock"),
       active: controls.locked,
       onClick: controls.onToggleLock,
       icon: controls.locked ? <Lock /> : <Unlock />,
     },
     {
       key: "inputOnly",
-      title: "仅输入框模式",
+      title: t("inputOnly"),
       enabled: showInputOnly,
       disabled: controls.inputOnlyBusy,
       onClick: controls.onToggleInputOnly,
@@ -141,21 +143,21 @@ function DanmakuTitleBar({
     },
     {
       key: "passthrough",
-      title: controls.passthrough ? "关闭窗口透传" : "开启窗口透传",
+      title: t(controls.passthrough ? "passthroughOff" : "passthroughOn"),
       active: controls.passthrough,
       onClick: controls.onTogglePassthrough,
       icon: <MousePointerClick />,
     },
     {
       key: "stealth",
-      title: controls.stealth ? "关闭隐身" : "开启隐身（鼠标离开自动隐藏）",
+      title: t(controls.stealth ? "stealthOff" : "stealthOn"),
       active: controls.stealth,
       onClick: controls.onToggleStealth,
       icon: <Ghost />,
     },
     {
       key: "close",
-      title: "隐藏到托盘",
+      title: t("common:window.hide"),
       onClick: controls.onHide,
       icon: <X />,
     },
@@ -164,7 +166,7 @@ function DanmakuTitleBar({
     <header
       className="danmaku-window-titlebar danmaku-bg-bar"
       role="toolbar"
-      aria-label="窗口控制"
+      aria-label={t("toolbar")}
       data-interactive
       onMouseDown={(event) => {
         if (
@@ -205,6 +207,7 @@ function DanmakuTitleBar({
 }
 
 function DanmakuAudioControls({ audio }: { audio: DanmakuWindowAudio }) {
+  const { t } = useTranslation("danmaku");
   const [volumeOpen, setVolumeOpen] = useState(false);
   return (
     <div className="danmaku-window-audio danmaku-bg-panel" data-interactive>
@@ -230,7 +233,7 @@ function DanmakuAudioControls({ audio }: { audio: DanmakuWindowAudio }) {
         onMouseLeave={() => setVolumeOpen(false)}
       >
         <DanmakuWindowButton
-          title={audio.muted || audio.volume === 0 ? "取消静音" : "静音"}
+          title={t(audio.muted || audio.volume === 0 ? "unmute" : "mute")}
           onClick={audio.onToggleMute}
         >
           {audio.muted || audio.volume === 0 ? <VolumeX /> : <Volume2 />}
@@ -240,7 +243,7 @@ function DanmakuAudioControls({ audio }: { audio: DanmakuWindowAudio }) {
         >
           <input
             type="range"
-            aria-label="音量"
+            aria-label={t("volume")}
             min={0}
             max={100}
             value={audio.muted ? 0 : Math.round(audio.volume)}

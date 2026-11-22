@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useEffect, useState } from "react";
 import { MonitorPlay, Plus } from "lucide-react";
 import { AddSearchPage, type AddSearchMode } from "@/components/add/AddSearchPage";
@@ -7,15 +8,16 @@ import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { SearchRoomMode, SearchRoomResult } from "@/types/bilibili";
 
-const searchModes: AddSearchMode[] = [
-  { value: "name", label: "主播名字", placeholder: "输入主播名字搜索直播间" },
-  { value: "roomId", label: "直播间号", placeholder: "输入直播间号" },
-  { value: "link", label: "直播链接", placeholder: "粘贴 bilibili 直播间链接" },
-  { value: "uid", label: "UID", placeholder: "输入主播 UID" }
-];
 
 /** 添加主播子页：与添加视频共用 AddSearchPage 的搜索框与结果区。 */
 export function RoomAddPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const searchModes: AddSearchMode[] = [
+    { value: "name", label: translate("addRoom.streamer"), placeholder: translate("addRoom.streamerHint") },
+    { value: "roomId", label: translate("addRoom.roomId"), placeholder: translate("addRoom.roomIdHint") },
+    { value: "link", label: translate("addRoom.link"), placeholder: translate("addRoom.linkHint") },
+    { value: "uid", label: "UID", placeholder: translate("addRoom.uidHint") }
+  ];
   const { rooms, addRoom } = useRoomStore();
   const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
   const [followLives, setFollowLives] = useState<SearchRoomResult[]>([]);
@@ -30,7 +32,7 @@ export function RoomAddPage() {
     try {
       setFollowLives(await tauriCommands.room.getFollowLives());
     } catch (reason) {
-      showError(reason instanceof Error ? reason.message : "获取关注直播失败");
+      showError(reason instanceof Error ? reason.message : translate("addRoom.followingFailed"));
       setFollowLives([]);
     } finally {
       setFollowLoading(false);
@@ -47,7 +49,7 @@ export function RoomAddPage() {
     try {
       addRoom(await tauriCommands.room.add(roomId));
     } catch (reason) {
-      showError(reason instanceof Error ? reason.message : "添加失败");
+      showError(reason instanceof Error ? reason.message : translate("addRoom.failed"));
     } finally {
       setAddingRoomIds((prev) => {
         const next = new Set(prev);
@@ -77,14 +79,14 @@ export function RoomAddPage() {
         </div>
         <span className="numeric shrink-0 text-xs text-slate-400 dark:text-slate-500">{room.roomId}</span>
         {added ? (
-          <span className="shrink-0 px-2 text-xs text-slate-400 dark:text-slate-500">已添加</span>
+          <span className="shrink-0 px-2 text-xs text-slate-400 dark:text-slate-500">{translate("addRoom.added")}</span>
         ) : (
           <button
             onClick={() => void handleAdd(room.roomId)}
             disabled={addingRoomIds.has(room.roomId)}
             className="workspace-button workspace-icon-button shrink-0"
-            title="添加"
-            aria-label={`添加 ${room.uname}`}
+            title={translate("addRoom.add")}
+            aria-label={translate("addRoom.addStreamer", { value: room.uname })}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -95,18 +97,18 @@ export function RoomAddPage() {
 
   return (
     <AddSearchPage<SearchRoomResult>
-      title="添加直播间"
-      description="搜索直播间，或从正在直播的关注中直接添加。"
+      title={translate("addRoom.title")}
+      description={translate("addRoom.description")}
       backTo="/rooms"
-      backLabel="返回直播间列表"
+      backLabel={translate("addRoom.back")}
       modes={searchModes}
       defaultMode="name"
       onSearch={(query, mode) => tauriCommands.room.search(query, mode as SearchRoomMode)}
       itemKey={(room) => String(room.roomId)}
       renderRow={renderRow}
-      emptyResultText="没有匹配的直播间"
-      initial={{ title: "正在直播的关注", items: followLives, loading: followLoading,
-        onRefresh: () => void loadFollowLives(), emptyText: "关注的主播当前没有正在直播的", icon: MonitorPlay }}
+      emptyResultText={translate("addRoom.empty")}
+      initial={{ title: translate("addRoom.following"), items: followLives, loading: followLoading,
+        onRefresh: () => void loadFollowLives(), emptyText: translate("addRoom.followingEmpty"), icon: MonitorPlay }}
       externalError={error}
     />
   );

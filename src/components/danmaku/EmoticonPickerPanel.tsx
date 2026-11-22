@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Settings2, Star } from "lucide-react";
 import {
@@ -12,7 +13,7 @@ import type { Emoticon, EmoticonPackage } from "@/types/bilibili";
 import { makePkgKey } from "@/types/bilibili";
 
 function getPackageLabel(pkg: EmoticonPackage): string {
-  return pkg.pkgName || `表情包 ${pkg.pkgId}`;
+  return pkg.pkgName || desktopI18n.t("desktop:emotes.unnamedPack", { value: pkg.pkgId });
 }
 
 function getPackageSortPriority(pkgType?: number): number {
@@ -36,7 +37,7 @@ function getEmoticonLabel(emoticon: Emoticon): string {
     const last = parts[parts.length - 1];
     if (last && last.length > 1) return last;
   }
-  return "表情";
+  return desktopI18n.t("desktop:emotes.title");
 }
 
 const HIDDEN_ROOM_PREFIX = "emoticon_hidden_room_";
@@ -125,6 +126,7 @@ export function EmoticonPickerPanel({
   onSelectEmoticon: (emoticon: Emoticon) => void;
   onToggleFavorite?: (emoticon: Emoticon) => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [managing, setManaging] = useState(false);
   const [hidden, setHidden] = useState<{ global: Set<number>; room: Set<number> }>(
     () => loadHiddenPkgIds(roomId, accountId),
@@ -159,11 +161,11 @@ export function EmoticonPickerPanel({
   const displayPackages = managing ? sortedPackages : visiblePackages;
 
   return (
-    <FloatingPanel title="表情选择器" onClose={() => { setManaging(false); onClose(); }}>
+    <FloatingPanel title={translate("emotes.picker")} onClose={() => { setManaging(false); onClose(); }}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <PanelNote>{managing ? "点击表情包切换显示/隐藏" : "点击大表情后直接发送"}</PanelNote>
+        <PanelNote>{managing ? translate("emotes.manageHint") : translate("emotes.sendHint")}</PanelNote>
         <PanelIconButton
-          label={managing ? "完成管理" : "管理表情包"}
+          label={managing ? translate("emotes.finish") : translate("emotes.manage")}
           active={managing}
           onClick={() => setManaging((v) => !v)}
         >
@@ -172,14 +174,14 @@ export function EmoticonPickerPanel({
       </div>
 
       {loading ? (
-        <PanelEmpty>正在加载表情列表...</PanelEmpty>
+        <PanelEmpty>{translate("emotes.loading")}</PanelEmpty>
       ) : error ? (
         <div className="space-y-2">
           <p className="panel-error">{error}</p>
-          <PanelButton onClick={onReload}>重新加载</PanelButton>
+          <PanelButton onClick={onReload}>{translate("emotes.retry")}</PanelButton>
         </div>
       ) : packages.length === 0 ? (
-        <PanelEmpty>当前房间没有可用表情。</PanelEmpty>
+        <PanelEmpty>{translate("emotes.empty")}</PanelEmpty>
       ) : (
         <>
           <div className="mb-3 overflow-x-auto pb-1">
@@ -200,7 +202,7 @@ export function EmoticonPickerPanel({
                       onSelectPackage(makePkgKey(pkg));
                     }
                   }}
-                  title={managing ? (pkgHidden ? `显示 ${getPackageLabel(pkg)}` : `隐藏 ${getPackageLabel(pkg)}`) : getPackageLabel(pkg)}
+                  title={managing ? (pkgHidden ? translate("emotes.show", { value: getPackageLabel(pkg) }) : translate("emotes.hide", { value: getPackageLabel(pkg) })) : getPackageLabel(pkg)}
                   className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition ${
                     managing
                       ? pkgHidden
@@ -221,7 +223,7 @@ export function EmoticonPickerPanel({
                       className={`h-7 w-7 object-contain ${pkgHidden ? "grayscale" : ""}`}
                     />
                   ) : (
-                    <span className="text-[10px]">包</span>
+                    <span className="text-[10px]">{translate("emotes.pack")}</span>
                   )}
                   {managing && (
                     <span className="absolute -right-1 -top-1 rounded-full bg-[var(--panel-control-bg)] p-0.5 shadow-sm">
@@ -242,7 +244,7 @@ export function EmoticonPickerPanel({
             <div className="grid grid-cols-5 gap-px">
               {activePackage?.pkgId === -1 && (activePackage.emoticons.length === 0) ? (
                 <div className="col-span-4 flex h-full items-center justify-center text-xs text-ink-muted">
-                  点击其他表情上的 ⭐ 添加收藏
+                  {translate("emotes.favoriteHint")}
                 </div>
               ) : activePackage?.emoticons.map((emoticon, index) => {
                 const available = (emoticon.perm ?? 1) !== 0 && Boolean(emoticon.emoticonUnique);
@@ -257,7 +259,7 @@ export function EmoticonPickerPanel({
                       type="button"
                       disabled={!available || sending}
                       onClick={() => onSelectEmoticon(emoticon)}
-                      title={emoticon.descript ?? emoticon.emoji ?? "表情"}
+                      title={emoticon.descript ?? emoticon.emoji ?? translate("emotes.title")}
                       className={`flex h-full w-full flex-col items-center rounded-md p-1 text-center transition ${
                         available
                           ? "bg-[var(--panel-control-bg)] hover:bg-[var(--panel-hover)]"
@@ -279,7 +281,7 @@ export function EmoticonPickerPanel({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleFavorite(emoticon); }}
                         className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-[var(--panel-hover)]"
-                        title={isFav ? "取消收藏" : "收藏"}
+                        title={isFav ? translate("emotes.unfavorite") : translate("emotes.favorite")}
                       >
                         <Star
                           className={`h-3 w-3 ${isFav ? "fill-amber-400 text-amber-400" : "text-ink-muted/60"}`}

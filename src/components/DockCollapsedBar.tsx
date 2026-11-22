@@ -1,4 +1,5 @@
 import type { DockSide } from "@/hooks/useWindowDock";
+import { useTranslation } from "@/i18n";
 import { useSettingsStore } from "@/stores/settings-store";
 
 interface DockCollapsedBarProps {
@@ -22,6 +23,7 @@ interface DockCollapsedBarProps {
  * 整体粗细由 Rust 侧 DOCK_WIDTH / COLLAPSED_LENGTH 决定。
  */
 export function DockCollapsedBar({ side, onExpand }: DockCollapsedBarProps) {
+  const { t } = useTranslation("danmaku");
   const isTop = side === "top";
   const dockBar = useSettingsStore((s) => s.settings.appearance.danmakuWindow);
   const enabled = dockBar?.dockEnabled ?? true;
@@ -35,7 +37,7 @@ export function DockCollapsedBar({ side, onExpand }: DockCollapsedBarProps) {
   return (
     <div
       onMouseEnter={onExpand}
-      title="悬停展开"
+      title={t("dockExpand")}
       className={`danmaku-dock-bar flex h-full w-full items-center justify-center p-0.5 ${
         isTop
           ? "rounded-b-md"

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { PanelRow } from "@/components/ui/DanmakuPanel";
@@ -14,7 +15,7 @@ function commitAppearance(patch: Partial<Settings["appearance"]>) {
   const { settings, patchSettings, saveSettings } = useSettingsStore.getState();
   patchSettings({ appearance: { ...settings.appearance, ...patch } });
   void saveSettings().catch((reason) =>
-    toast.error(`保存外观设置失败。${String(reason)}`),
+    toast.error(desktopI18n.t("desktop:windowAppearance.saveFailed", { value: String(reason) })),
   );
 }
 
@@ -48,10 +49,11 @@ function AppearanceSelect({
 }
 
 function DanmakuWindowThemeSettings() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const appearance = useSettingsStore((state) => state.settings.appearance);
   return (
     <AppearanceSelect
-      label="主题"
+      label={translate("windowAppearance.theme")}
       value={appearance.autoThemeFromBackground ? "background" : appearance.theme}
       onChange={(theme) =>
         commitAppearance(
@@ -64,10 +66,10 @@ function DanmakuWindowThemeSettings() {
         )
       }
       options={[
-        { value: "dark", label: "深色" },
-        { value: "light", label: "浅色" },
-        { value: "background", label: "跟随背景" },
-        { value: "system", label: "跟随系统" },
+        { value: "dark", label: translate("windowAppearance.dark") },
+        { value: "light", label: translate("windowAppearance.light") },
+        { value: "background", label: translate("windowAppearance.background") },
+        { value: "system", label: translate("windowAppearance.system") },
       ]}
     />
   );

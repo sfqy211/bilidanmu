@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Play, Square, Star, X, Loader2, Circle } from "lucide-react";
 import {
@@ -42,11 +43,6 @@ interface AutoSendPanelProps {
 
 type TabKey = "text" | "emotion" | "like";
 
-const AUTO_SEND_TABS: Array<{ value: TabKey; label: string }> = [
-  { value: "text", label: "文字" },
-  { value: "emotion", label: "表情" },
-  { value: "like", label: "点赞" },
-];
 
 // ─── 文字 Tab 内容区 ───
 
@@ -57,6 +53,7 @@ function TextTabContent({
   isRunning: boolean;
   onEntriesChange: (entries: AutoSendEntry[]) => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [messagesInput, setMessagesInput] = useState("");
 
   const entries = useMemo(
@@ -77,10 +74,10 @@ function TextTabContent({
         value={messagesInput}
         onChange={(e) => setMessagesInput(e.target.value)}
         disabled={isRunning}
-        placeholder={"每行一条循环弹幕\n第一条"}
+        placeholder={translate("autoSend.placeholder")}
         rows={2}
       />
-      <PanelNote>共 {entries.length} 条</PanelNote>
+      <PanelNote>{translate("autoSend.count", { count: entries.length })}</PanelNote>
     </div>
   );
 }
@@ -96,6 +93,7 @@ function EmotionTabContent({
   emoticonPackages: EmoticonPackage[];
   onEntriesChange: (entries: AutoSendEntry[]) => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [selectedMap, setSelectedMap] = useState<Map<string, string>>(new Map());
   const [activePkgKey, setActivePkgKey] = useState<string | null>(null);
 
@@ -134,7 +132,7 @@ function EmotionTabContent({
       {/* 已选表情 */}
       <div className="panel-card">
         <div className="mb-2 flex items-center justify-between">
-          <span className="panel-row-label">已选表情 ({selectedEntries.length})</span>
+          <span className="panel-row-label">{translate("autoSend.selected", { count: selectedEntries.length })}</span>
           {selectedEntries.length > 0 ? (
             <button
               type="button"
@@ -142,12 +140,12 @@ function EmotionTabContent({
               disabled={isRunning}
               className="text-xs text-rose-500 transition hover:text-rose-600 disabled:opacity-50 dark:text-rose-400"
             >
-              清空
+              {translate("autoSend.clear")}
             </button>
           ) : null}
         </div>
         {selectedEntries.length === 0 ? (
-          <PanelNote>点击下方表情添加</PanelNote>
+          <PanelNote>{translate("autoSend.chooseEmotes")}</PanelNote>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {selectedEntries.map((entry) => {
@@ -193,14 +191,14 @@ function EmotionTabContent({
                       ? "bg-brand/10 ring-1 ring-inset ring-brand/30"
                       : "hover:bg-[var(--panel-hover)]"
                   }`}
-                  title={pkg.pkgName || `包 ${pkg.pkgId}`}
+                  title={pkg.pkgName || translate("autoSend.unnamedPack", { value: pkg.pkgId })}
                 >
                   {pkg.pkgId === -1 ? (
                     <Star className={`h-5 w-5 ${active ? "fill-amber-400 text-amber-400" : "text-amber-400"}`} />
                   ) : preview ? (
                     <ProxiedImage src={preview.url} alt={pkg.pkgName} persistent className="h-7 w-7 object-contain" />
                   ) : (
-                    <span className="px-1 text-xs text-ink-muted">{pkg.pkgName || `包 ${pkg.pkgId}`}</span>
+                    <span className="px-1 text-xs text-ink-muted">{pkg.pkgName || translate("autoSend.unnamedPack", { value: pkg.pkgId })}</span>
                   )}
                 </button>
               );
@@ -233,7 +231,7 @@ function EmotionTabContent({
           ) : null}
         </>
       ) : (
-        <PanelNote>请先在弹幕页打开表情选择器加载表情列表</PanelNote>
+        <PanelNote>{translate("autoSend.loadEmotes")}</PanelNote>
       )}
     </div>
   );
@@ -242,6 +240,12 @@ function EmotionTabContent({
 // ─── 主面板 ───
 
 export function AutoSendPanel(props: AutoSendPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const AUTO_SEND_TABS: Array<{ value: TabKey; label: string }> = [
+    { value: "text", label: translate("autoSend.text") },
+    { value: "emotion", label: translate("autoSend.emotes") },
+    { value: "like", label: translate("autoSend.like") },
+  ];
   const {
     isRunning,
     lastSentMessage,
@@ -308,7 +312,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
 
   return (
     <FloatingPanel
-      title="循环发送"
+      title={translate("autoSend.repeat")}
       onClose={onClose}
       extra={
         (isRunning || like.isRunning)
@@ -335,7 +339,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
           {/* 间隔（仅文字/表情 tab，点赞 tab 上方已有批次间隔） */}
           {activeTab !== "like" && (
             <div className="flex items-center gap-1.5">
-              <label className="shrink-0 text-xs text-ink-muted">间隔</label>
+              <label className="shrink-0 text-xs text-ink-muted">{translate("autoSend.interval")}</label>
               <PanelInput
                 value={intervalSec}
                 onChange={(e) => setIntervalSec(e.target.value)}
@@ -343,14 +347,14 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 inputMode="decimal"
                 className="w-14"
               />
-              <span className="text-xs text-ink-muted">秒</span>
+              <span className="text-xs text-ink-muted">{translate("autoSend.seconds")}</span>
             </div>
           )}
 
           {/* 限时（仅文字/表情 tab） */}
           {activeTab !== "like" && (
             <div className="flex items-center gap-1.5">
-              <label className="shrink-0 text-xs text-ink-muted">限时</label>
+              <label className="shrink-0 text-xs text-ink-muted">{translate("autoSend.duration")}</label>
               <PanelInput
                 value={timeLimitSec}
                 onChange={(e) => setTimeLimitSec(e.target.value)}
@@ -359,7 +363,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 placeholder="0"
                 className="w-14"
               />
-              <span className="text-xs text-ink-muted">秒</span>
+              <span className="text-xs text-ink-muted">{translate("autoSend.seconds")}</span>
             </div>
           )}
 
@@ -367,8 +371,8 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
             variant={running ? "stop" : "primary"}
             onClick={handleToggle}
             disabled={!running && !canStart}
-            title={running ? "停止" : activeTab === "like" && !like.anchorId ? "缺少主播信息" : "开始"}
-            aria-label={running ? "停止" : "开始"}
+            title={running ? translate("autoSend.stop") : activeTab === "like" && !like.anchorId ? translate("autoSend.missingStreamer") : translate("autoSend.start")}
+            aria-label={running ? translate("autoSend.stop") : translate("autoSend.start")}
             className="ml-auto w-8 shrink-0 px-0"
           >
             {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-4 w-4" />}
@@ -381,7 +385,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
         items={AUTO_SEND_TABS}
         value={activeTab}
         onChange={setActiveTab}
-        ariaLabel="循环发送类型"
+        ariaLabel={translate("autoSend.type")}
       />
 
       {/* Tab 内容区 */}
@@ -394,7 +398,7 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-1.5">
             <div className="flex flex-col gap-0.5">
-              <label className="text-[11px] text-ink-muted">目标总数</label>
+              <label className="text-[11px] text-ink-muted">{translate("autoSend.total")}</label>
               <PanelInput
                 value={likeTarget}
                 onChange={(e) => setLikeTarget(e.target.value)}
@@ -402,10 +406,10 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 inputMode="numeric"
                 placeholder="100"
               />
-              <PanelNote>上限 1000</PanelNote>
+              <PanelNote>{translate("autoSend.max")}</PanelNote>
             </div>
             <div className="flex flex-col gap-0.5">
-              <label className="text-[11px] text-ink-muted">批次大小</label>
+              <label className="text-[11px] text-ink-muted">{translate("autoSend.batchSize")}</label>
               <PanelInput
                 value={likeBatchSize}
                 onChange={(e) => setLikeBatchSize(e.target.value)}
@@ -413,10 +417,10 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 inputMode="numeric"
                 placeholder="5"
               />
-              <PanelNote>每批 ≤100</PanelNote>
+              <PanelNote>{translate("autoSend.batchMax")}</PanelNote>
             </div>
             <div className="flex flex-col gap-0.5">
-              <label className="text-[11px] text-ink-muted">批次间隔</label>
+              <label className="text-[11px] text-ink-muted">{translate("autoSend.batchInterval")}</label>
               <PanelInput
                 value={likeIntervalSec}
                 onChange={(e) => setLikeIntervalSec(e.target.value)}
@@ -424,20 +428,20 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 inputMode="decimal"
                 placeholder="1.5"
               />
-              <PanelNote>秒，最小 0.5</PanelNote>
+              <PanelNote>{translate("autoSend.minimum")}</PanelNote>
             </div>
           </div>
 
           {/* 状态 */}
           <div className="space-y-1">
             {like.stopReason === "completed" ? (
-              <PanelNote>✓ 点赞完成</PanelNote>
+              <PanelNote>{translate("autoSend.likesDone")}</PanelNote>
             ) : like.stopReason === "manual" ? (
-              <PanelNote>已手动停止</PanelNote>
+              <PanelNote>{translate("autoSend.stopped")}</PanelNote>
             ) : like.stopReason === "error" ? (
-              <p className="panel-error">已停止（错误）</p>
+              <p className="panel-error">{translate("autoSend.stoppedError")}</p>
             ) : null}
-            {like.error ? <p className="panel-error">错误：{like.error}</p> : null}
+            {like.error ? <p className="panel-error">{translate("autoSend.error")}{like.error}</p> : null}
           </div>
         </div>
       )}
@@ -445,12 +449,12 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
       {/* 运行状态 */}
       <div className="mt-3 space-y-1">
         {lastSentMessage ? (
-          <PanelNote>最近发送：{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}</PanelNote>
+          <PanelNote>{translate("autoSend.lastSent")}{lastSentMessage.length > 30 ? `${lastSentMessage.slice(0, 30)}…` : lastSentMessage}</PanelNote>
         ) : null}
-        {lastIndex !== null ? <PanelNote>当前条目索引：#{lastIndex + 1}</PanelNote> : null}
-        {sentCount > 0 ? <PanelNote>累计发送：{sentCount} 条</PanelNote> : null}
-        {stopReason ? <PanelNote>停止原因：{stopReason}</PanelNote> : null}
-        {error ? <p className="panel-error">错误：{error}</p> : null}
+        {lastIndex !== null ? <PanelNote>{translate("autoSend.index")}{lastIndex + 1}</PanelNote> : null}
+        {sentCount > 0 ? <PanelNote>{translate("autoSend.sentCount", { count: sentCount })}</PanelNote> : null}
+        {stopReason ? <PanelNote>{translate("autoSend.stopReason")}{stopReason}</PanelNote> : null}
+        {error ? <p className="panel-error">{translate("autoSend.error")}{error}</p> : null}
       </div>
     </FloatingPanel>
   );

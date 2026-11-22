@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import type { RefObject } from "react";
 
 interface WindowSplitterProps {
@@ -29,9 +30,10 @@ export function WindowSplitter({
   resetRatio = 0.5,
   containerRef,
   disabled = false,
-  label = "调整上下区域比例",
+  label,
   className = "",
 }: WindowSplitterProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const ratioFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const container = containerRef?.current ?? event.currentTarget.parentElement;
     if (!container) return null;
@@ -47,7 +49,7 @@ export function WindowSplitter({
       className={`video-window-divider ${className}`}
       data-interactive
       role="separator"
-      aria-label={label}
+      aria-label={label ?? translate("splitter.resize")}
       aria-orientation="horizontal"
       aria-valuemin={0}
       aria-valuemax={100}

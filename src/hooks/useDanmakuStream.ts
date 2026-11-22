@@ -3,6 +3,7 @@ import { tauriCommands } from "@/lib/tauri";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { useDanmakuStore } from "@/stores/danmaku-store";
 import type { DanmakuMessage, LikeCountUpdatePayload } from "@/types/danmaku";
+import { i18n } from "@/i18n";
 
 interface WsDisconnectedPayload {
   reason?: string;
@@ -10,6 +11,7 @@ interface WsDisconnectedPayload {
 
 interface WsErrorPayload {
   message?: string;
+  retryInSeconds?: number;
 }
 
 export function useDanmakuStream(roomId: number | null) {
@@ -98,8 +100,8 @@ export function useDanmakuStream(roomId: number | null) {
   });
 
   useTauriEvent<WsErrorPayload>("danmaku-error", (payload) => {
-    setWsStatus("error");
-    setLastError(payload.message ?? "弹幕流发生错误");
+    setWsStatus(payload.retryInSeconds !== undefined ? "reconnecting" : "error");
+    setLastError(payload.message ?? i18n.t("desktop:liveWindow.streamError"));
   });
 
   useTauriEvent<{ popularity: number }>("ws-heartbeat", (payload) => {

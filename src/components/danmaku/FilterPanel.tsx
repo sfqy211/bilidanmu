@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import {
@@ -19,6 +20,7 @@ interface FilterPanelProps {
 type FilterTab = "keywords" | "users";
 
 export function FilterPanel({ onClose }: FilterPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const settings = useSettingsStore((state) => state.settings);
   const patchSettings = useSettingsStore((state) => state.patchSettings);
   const { blockedUsers, blockedKeywords } = settings.filter;
@@ -64,20 +66,20 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
   const hasAnyItems = blockedKeywords.length > 0 || blockedUsers.length > 0;
 
   return (
-    <FloatingPanel title="屏蔽管理" onClose={onClose}>
+    <FloatingPanel title={translate("filters.title")} onClose={onClose}>
       <div className="mb-3 flex items-center gap-2">
         <PanelTabs
           className="min-w-0 flex-1"
           items={[
-            { value: "keywords" as const, label: "屏蔽关键词" },
-            { value: "users" as const, label: "屏蔽用户" },
+            { value: "keywords" as const, label: translate("filters.keywords") },
+            { value: "users" as const, label: translate("filters.users") },
           ]}
           value={activeTab}
           onChange={setActiveTab}
-          ariaLabel="屏蔽类型"
+          ariaLabel={translate("filters.types")}
         />
         {hasAnyItems && (
-          <PanelIconButton label="一键清空" onClick={handleClearAll}>
+          <PanelIconButton label={translate("filters.clear")} onClick={handleClearAll}>
             <Trash2 className="h-3.5 w-3.5" />
           </PanelIconButton>
         )}
@@ -90,14 +92,14 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleAddKeyword(); }}
-              placeholder="输入关键词"
+              placeholder={translate("filters.placeholder")}
               className="flex-1"
             />
             <PanelButton
               variant="primary"
               onClick={handleAddKeyword}
               disabled={!keywordInput.trim()}
-              aria-label="添加屏蔽关键词"
+              aria-label={translate("filters.add")}
               className="w-8 shrink-0 px-0"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -114,7 +116,7 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
                   <button
                     type="button"
                     onClick={() => handleRemoveKeyword(kw)}
-                    aria-label={`移除关键词 ${kw}`}
+                    aria-label={translate("filters.removeKeyword", { value: kw })}
                     className="inline-flex h-3.5 w-3.5 items-center justify-center text-brand/70 transition hover:text-brand"
                   >
                     <X className="h-3 w-3" />
@@ -123,7 +125,7 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
               ))}
             </div>
           ) : (
-            <PanelEmpty>暂无屏蔽关键词</PanelEmpty>
+            <PanelEmpty>{translate("filters.noKeywords")}</PanelEmpty>
           )}
         </div>
       ) : blockedUsers.length > 0 ? (
@@ -134,7 +136,7 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
               label={user.username}
               description={String(user.uid)}
               right={
-                <PanelIconButton label={`移除 ${user.username}`} onClick={() => handleRemoveUser(user.uid)}>
+                <PanelIconButton label={translate("filters.removeUser", { value: user.username })} onClick={() => handleRemoveUser(user.uid)}>
                   <X className="h-3 w-3" />
                 </PanelIconButton>
               }
@@ -142,7 +144,7 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
           ))}
         </div>
       ) : (
-        <PanelEmpty>暂无屏蔽用户。在弹幕上右键选择「屏蔽此用户」即可添加。</PanelEmpty>
+        <PanelEmpty>{translate("filters.noUsers")}</PanelEmpty>
       )}
     </FloatingPanel>
   );

@@ -1,3 +1,5 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
+import { formatNumber } from "@/i18n/format";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Coins, RefreshCw, Send, Wheat } from "lucide-react";
 import { PanelButton, PanelEmpty, PanelNote, PanelTabs } from "@/components/ui/DanmakuPanel";
@@ -40,6 +42,7 @@ export function GiftPanel({
   onSend: (giftId: number, giftNum: number, options?: SendGiftOptions) => Promise<BiliResponse>;
   onClose: () => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [tab, setTab] = useState<"gifts" | "bag">("gifts");
   const [gifts, setGifts] = useState<GiftConfig[] | null>(null);
   const [bag, setBag] = useState<GiftBagItem[] | null>(null);
@@ -81,7 +84,7 @@ export function GiftPanel({
           ? walletResult.reason
           : null;
     if (failureReason != null) {
-      setError(extractErrorMessage(failureReason, "礼物信息加载失败"));
+      setError(extractErrorMessage(failureReason, desktopI18n.t("desktop:gifts.loadFailed")));
     }
     setLoading(false);
   }, [roomId]);
@@ -139,7 +142,7 @@ export function GiftPanel({
           price: selected.gift.price
         });
       }
-      setSuccessText(`已送出 ${name} ×${effectiveCount}`);
+      setSuccessText(desktopI18n.t("desktop:gifts.sent", { value: name, value2: effectiveCount }));
       setSelected(null);
       setCount(1);
       setConfirming(false);
@@ -171,7 +174,7 @@ export function GiftPanel({
         );
       }
     } catch (e) {
-      setSendError(extractErrorMessage(e, "发送礼物失败"));
+      setSendError(extractErrorMessage(e, desktopI18n.t("desktop:gifts.sendFailed")));
       setConfirming(false);
     } finally {
       setSending(false);
@@ -180,20 +183,20 @@ export function GiftPanel({
 
   const totalLabel = isGold
     ? formatYuan(goldUnitPrice * effectiveCount)
-    : `${(silverUnitPrice * effectiveCount).toLocaleString()} 瓜子`;
+    : translate("gifts.seeds", { value: formatNumber(silverUnitPrice * effectiveCount) });
 
   const balanceChips = wallet ? (
     <span className="flex items-center gap-2.5 text-[11px]">
       <span
         className="flex items-center gap-1 text-amber-500"
-        title={`金瓜子余额 ${wallet.gold.toLocaleString()}（1000 金瓜子 = 1 元）`}
+        title={translate("gifts.goldWallet", { value: formatNumber(wallet.gold) })}
       >
         <Coins className="h-3 w-3" />
         {formatYuan(wallet.gold)}
       </span>
-      <span className="flex items-center gap-1 text-ink-muted" title="银瓜子余额">
+      <span className="flex items-center gap-1 text-ink-muted" title={translate("gifts.silverWallet")}>
         <Wheat className="h-3 w-3" />
-        {wallet.silver.toLocaleString()}
+        {formatNumber(wallet.silver)}
       </span>
     </span>
   ) : null;
@@ -207,12 +210,12 @@ export function GiftPanel({
     confirming && isGold ? (
       <div className="w-full space-y-2">
         <p className="text-xs text-ink">
-          确认花费 <span className="font-medium text-amber-500">{totalLabel}</span>{" "}
-          送出 {selectedName} ×{effectiveCount}？
+          {translate("gifts.confirmCost") + " "}<span className="font-medium text-amber-500">{totalLabel}</span>{" "}
+          {translate("gifts.sendVerb") + " "}{selectedName} ×{effectiveCount}？
         </p>
         <PanelNote>
-          当前金瓜子余额：{wallet ? formatYuan(wallet.gold) : "—"}
-          {wallet && <span className="ml-1">({wallet.gold.toLocaleString()} 金瓜子)</span>}
+          {translate("gifts.goldBalance")}{wallet ? formatYuan(wallet.gold) : "—"}
+          {wallet && <span className="ml-1">{translate("gifts.goldUnits", { value: formatNumber(wallet.gold) })}</span>}
         </PanelNote>
         <div className="flex gap-2">
           <PanelButton
@@ -221,9 +224,9 @@ export function GiftPanel({
             onClick={() => void handleSend()}
           >
             <Send className="h-3 w-3" />
-            {sending ? "发送中..." : "确认发送"}
+            {sending ? translate("gifts.sending") : translate("gifts.confirm")}
           </PanelButton>
-          <PanelButton onClick={() => setConfirming(false)}>取消</PanelButton>
+          <PanelButton onClick={() => setConfirming(false)}>{translate("gifts.cancel")}</PanelButton>
         </div>
       </div>
     ) : (
@@ -231,7 +234,7 @@ export function GiftPanel({
         <span className="text-xs text-ink">
           {selectedName} ×{effectiveCount}
           {!isGold && silverUnitPrice > 0 && (
-            <span className="ml-1 text-ink-muted">合计 {totalLabel}</span>
+            <span className="ml-1 text-ink-muted">{translate("gifts.total") + " "}{totalLabel}</span>
           )}
         </span>
         <div className="flex items-center gap-1">
@@ -259,12 +262,12 @@ export function GiftPanel({
                   : "bg-[var(--panel-control-bg)] text-ink-muted hover:bg-[var(--panel-hover)]"
               }`}
             >
-              全部
+              {translate("gifts.all")}
             </button>
           )}
         </div>
         {sendBlocked ? (
-          <span className="ml-auto text-[11px] text-ink-muted">未获取到主播信息，无法送礼</span>
+          <span className="ml-auto text-[11px] text-ink-muted">{translate("gifts.missingStreamer")}</span>
         ) : (
           <PanelButton
             variant="primary"
@@ -273,7 +276,7 @@ export function GiftPanel({
             className="ml-auto"
           >
             <Send className="h-3 w-3" />
-            {sending ? "发送中..." : isGold ? formatYuan(goldUnitPrice * effectiveCount) : "发送"}
+            {sending ? translate("gifts.sending") : isGold ? formatYuan(goldUnitPrice * effectiveCount) : translate("gifts.send")}
           </PanelButton>
         )}
       </div>
@@ -281,15 +284,15 @@ export function GiftPanel({
   ) : undefined;
 
   return (
-    <FloatingPanel title="礼物打赏" onClose={onClose} extra={balanceChips} footer={actionFooter}>
+    <FloatingPanel title={translate("gifts.title")} onClose={onClose} extra={balanceChips} footer={actionFooter}>
       {loading ? (
-        <PanelEmpty>正在加载礼物列表...</PanelEmpty>
+        <PanelEmpty>{translate("gifts.loading")}</PanelEmpty>
       ) : error ? (
         <div className="space-y-2">
           <p className="panel-error">{error}</p>
           <PanelButton onClick={() => void load()}>
             <RefreshCw className="h-3 w-3" />
-            重新加载
+            {translate("gifts.reload")}
           </PanelButton>
         </div>
       ) : (
@@ -299,22 +302,22 @@ export function GiftPanel({
             <PanelTabs
               className="flex-1"
               items={[
-                { value: "gifts" as const, label: "礼物" },
-                { value: "bag" as const, label: "背包" },
+                { value: "gifts" as const, label: translate("gifts.list") },
+                { value: "bag" as const, label: translate("gifts.bag") },
               ]}
               value={tab}
               onChange={(value) => { setTab(value); setSelected(null); }}
-              ariaLabel="礼物类型"
+              ariaLabel={translate("gifts.type")}
             />
             <p className="panel-note">
-              {tab === "gifts" ? "金瓜子礼物发送前需确认" : "背包礼物不扣费"}
+              {tab === "gifts" ? translate("gifts.goldHint") : translate("gifts.bagHint")}
             </p>
           </div>
 
           {/* 礼物格子：固定两行高度，更多礼物在内部滚动 */}
           {tab === "gifts" ? (
             (gifts?.length ?? 0) === 0 ? (
-              <PanelEmpty>当前房间没有可用礼物。</PanelEmpty>
+              <PanelEmpty>{translate("gifts.noGifts")}</PanelEmpty>
             ) : (
               <div className={gridMaxHeightClass + " overflow-y-auto"}>
                 <div className="grid grid-cols-5 gap-px">
@@ -349,7 +352,7 @@ export function GiftPanel({
                           {gift.name}
                         </span>
                         <span className={`text-[10px] ${gold ? "text-amber-500" : "text-ink-muted"}`}>
-                          {gold ? formatYuan(gift.price) : `${gift.price} 瓜子`}
+                          {gold ? formatYuan(gift.price) : translate("gifts.seeds", { value: gift.price })}
                         </span>
                       </button>
                     );
@@ -358,7 +361,7 @@ export function GiftPanel({
               </div>
             )
           ) : (bag?.length ?? 0) === 0 ? (
-            <PanelEmpty>背包里没有礼物。</PanelEmpty>
+            <PanelEmpty>{translate("gifts.emptyBag")}</PanelEmpty>
           ) : (
             <div className={gridMaxHeightClass + " overflow-y-auto"}>
               <div className="grid grid-cols-5 gap-px">
@@ -389,7 +392,7 @@ export function GiftPanel({
                         {item.giftName}
                       </span>
                       <span className="text-[10px] text-ink-muted">
-                        持有 {item.giftNum}
+                        {translate("gifts.owned") + " "}{item.giftNum}
                       </span>
                     </button>
                   );

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +24,7 @@ import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { Room } from "@/types/bilibili";
+import { formatDate } from "@/i18n/format";
 
 // 计数与序号统一两位数字（01、03），对齐分区头与筛选胶囊的排版
 const pad2 = (value: number) => String(value).padStart(2, "0");
@@ -40,33 +42,35 @@ const formatDuration = (elapsedMs: number) => {
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
-  if (days > 0) return `${days}天${hours}小时`;
-  if (hours > 0) return `${hours}小时${String(minutes).padStart(2, "0")}分`;
-  return `${minutes}分钟`;
+  if (days > 0) return desktopI18n.t("desktop:rooms.durationDays", { days, hours });
+  if (hours > 0) return desktopI18n.t("desktop:rooms.durationHours", { hours, minutes: pad2(minutes) });
+  return desktopI18n.t("desktop:rooms.durationMinutes", { minutes });
 };
 
 // 上次直播时间：今天/昨天带时刻，更早只到日期
 const formatLastLive = (startSec: number) => {
   const date = new Date(startSec * 1000);
   const nowDate = new Date();
-  const hhmm = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  const hhmm = formatDate(date, { hour: "2-digit", minute: "2-digit" });
   const sameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   const yesterday = new Date(nowDate);
   yesterday.setDate(nowDate.getDate() - 1);
-  if (sameDay(date, nowDate)) return `今天 ${hhmm}`;
-  if (sameDay(date, yesterday)) return `昨天 ${hhmm}`;
-  if (date.getFullYear() === nowDate.getFullYear()) return `${date.getMonth() + 1}月${date.getDate()}日`;
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  if (sameDay(date, nowDate)) return desktopI18n.t("desktop:rooms.today", { value: hhmm });
+  if (sameDay(date, yesterday)) return desktopI18n.t("desktop:rooms.yesterday", { value: hhmm });
+  return formatDate(date, {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === nowDate.getFullYear() ? undefined : "numeric",
+  });
 };
 
 const formatFullTime = (startSec: number) => {
-  const date = new Date(startSec * 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return formatDate(new Date(startSec * 1000), { dateStyle: "short", timeStyle: "short" });
 };
 
 export function RoomPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const { rooms, currentRoomId, viewMode, favoriteIds, setFavoriteIds, toggleFavorite, removeRoom, setCurrentRoomId, setViewMode } =
     useRoomStore();
@@ -292,9 +296,9 @@ export function RoomPage() {
   }, []);
 
   const statusTabs: { value: StatusTab; label: string; count: number }[] = [
-    { value: "all", label: "全部", count: rooms.length },
-    { value: "live", label: "直播中", count: liveCount },
-    { value: "offline", label: "未开播", count: rooms.length - liveCount },
+    { value: "all", label: translate("rooms.all"), count: rooms.length },
+    { value: "live", label: translate("rooms.live"), count: liveCount },
+    { value: "offline", label: translate("rooms.offline"), count: rooms.length - liveCount },
   ];
 
   // 时间段（列表行与封面卡共用）：直播中=已播时长（开播时间取接口下发，兜底本地记录）；
@@ -305,14 +309,14 @@ export function RoomPage() {
       if (!startSec) return null;
       const elapsedMs = now - startSec * 1000;
       return {
-        text: elapsedMs < 60_000 ? "刚开播" : `已播 ${formatDuration(elapsedMs)}`,
-        tooltip: `开播于 ${formatFullTime(startSec)}`,
+        text: elapsedMs < 60_000 ? translate("rooms.justLive") : translate("rooms.elapsed", { value: formatDuration(elapsedMs) }),
+        tooltip: translate("rooms.startedAt", { value: formatFullTime(startSec) }),
       };
     }
     if (!room.lastLiveStart) return null;
     return {
       text: formatLastLive(room.lastLiveStart),
-      tooltip: `上次直播：${formatFullTime(room.lastLiveStart)}`,
+      tooltip: translate("rooms.lastLive", { value: formatFullTime(room.lastLiveStart) }),
     };
   };
 
@@ -327,9 +331,9 @@ export function RoomPage() {
         onClick={opts.onToggle}
         className="room-section-toggle"
         aria-expanded={opts.expanded}
-        aria-label={opts.expanded ? `收起${opts.label}分区` : `展开${opts.label}分区`}
+        aria-label={opts.expanded ? translate("rooms.collapseSection", { value: opts.label }) : translate("rooms.expandSection", { value: opts.label })}
       >
-        {opts.expanded ? "收起" : "展开"}
+        {opts.expanded ? translate("rooms.collapse") : translate("rooms.expand")}
         {opts.expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
       </button>
     </div>
@@ -342,7 +346,7 @@ export function RoomPage() {
         <section className="room-section">
           {renderSectionHeader({
             live: true,
-            label: "正在直播",
+            label: translate("rooms.sectionLive"),
             count: liveRooms.length,
             expanded: liveExpanded,
             onToggle: () => setLiveExpanded((v) => !v),
@@ -354,7 +358,7 @@ export function RoomPage() {
         <section className="room-section">
           {renderSectionHeader({
             live: false,
-            label: "未开播",
+            label: translate("rooms.offline"),
             count: offlineRooms.length,
             expanded: offlineExpanded,
             onToggle: () => setOfflineExpanded((v) => !v),
@@ -384,27 +388,27 @@ export function RoomPage() {
       >
         <div className="flex min-w-0 items-center gap-2">
           <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={room.uname}>{room.uname}</p>
-          {active && <span className="room-current-label shrink-0 text-[11px] font-medium">当前</span>}
+          {active && <span className="room-current-label shrink-0 text-[11px] font-medium">{translate("rooms.current")}</span>}
         </div>
         <span className="min-w-0 truncate text-[13px] text-ink-muted" title={room.title || undefined}>
-          {room.title || "暂无直播标题"}
+          {room.title || translate("rooms.noTitle")}
         </span>
         {isLive ? (
           <span
             className="room-row-status room-row-status-live"
-            title={timeInfo?.tooltip ?? "直播中"}
+            title={timeInfo?.tooltip ?? translate("rooms.live")}
           >
             <span className="room-row-dot h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
-            直播中
+            {translate("rooms.live")}
             {timeInfo && <span className="room-row-time numeric">{timeInfo.text}</span>}
           </span>
         ) : (
           <span
             className="room-row-status"
-            title={timeInfo?.tooltip ?? "未开播"}
+            title={timeInfo?.tooltip ?? translate("rooms.offline")}
           >
             <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-            未开播
+            {translate("rooms.offline")}
             {timeInfo && <span className="room-row-time numeric">{timeInfo.text}</span>}
           </span>
         )}
@@ -418,7 +422,7 @@ export function RoomPage() {
                 : "text-slate-500 hover:bg-brand/10 hover:text-brand dark:text-slate-400 dark:hover:bg-brand/15 dark:hover:text-brand"
             }`}
             aria-pressed={favoriteIds.includes(room.roomId)}
-            title={favoriteIds.includes(room.roomId) ? "取消收藏" : "收藏"}
+            title={favoriteIds.includes(room.roomId) ? translate("rooms.unfavorite") : translate("rooms.favorite")}
           >
             <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
           </button>
@@ -429,7 +433,7 @@ export function RoomPage() {
               void tauriCommands.room.openDanmaku(room.roomId);
             }}
             className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-brand/10 hover:text-brand dark:text-slate-400 dark:hover:bg-brand/15 dark:hover:text-brand"
-            title="打开弹幕"
+            title={translate("rooms.open")}
           >
             <MonitorPlay className="h-4 w-4" />
           </button>
@@ -444,7 +448,7 @@ export function RoomPage() {
               }
             }}
             className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
-            title="删除"
+            title={translate("rooms.delete")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -470,16 +474,16 @@ export function RoomPage() {
         placeholder={<MonitorPlay className="h-10 w-10" />}
         current={active}
         badges={<>
-          {active && <span className="room-cover-badge room-cover-current shrink-0 px-2 py-0.5 text-[11px] font-medium">当前</span>}
+          {active && <span className="room-cover-badge room-cover-current shrink-0 px-2 py-0.5 text-[11px] font-medium">{translate("rooms.current")}</span>}
           {isLive ? (
-            <span className="room-cover-live flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium" title={timeInfo?.tooltip ?? "直播中"}>
+            <span className="room-cover-live flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium" title={timeInfo?.tooltip ?? translate("rooms.live")}>
               <span className="room-cover-live-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
-              直播中
+              {translate("rooms.live")}
               {timeInfo && <span className="room-cover-time numeric">{timeInfo.text}</span>}
             </span>
           ) : (
-            <span className="room-cover-badge shrink-0 px-2 py-0.5 text-[11px]" title={timeInfo?.tooltip ?? "未开播"}>
-              未开播
+            <span className="room-cover-badge shrink-0 px-2 py-0.5 text-[11px]" title={timeInfo?.tooltip ?? translate("rooms.offline")}>
+              {translate("rooms.offline")}
               {timeInfo && <span className="room-cover-time numeric">{timeInfo.text}</span>}
             </span>
           )}
@@ -487,15 +491,15 @@ export function RoomPage() {
         avatar={room.avatar}
         name={room.uname}
         title={room.title}
-        titleFallback="暂无直播标题"
+        titleFallback={translate("rooms.noTitle")}
         showAvatar={showAvatars}
         actions={<>
           <button
             onClick={() => handleToggleFavorite(room)}
             className={`cover-card-button ${favoriteIds.includes(room.roomId) ? "text-brand" : ""}`}
-            aria-label={favoriteIds.includes(room.roomId) ? `取消收藏 ${room.uname}` : `收藏 ${room.uname}`}
+            aria-label={favoriteIds.includes(room.roomId) ? translate("rooms.unfavoriteRoom", { value: room.uname }) : translate("rooms.favoriteRoom", { value: room.uname })}
             aria-pressed={favoriteIds.includes(room.roomId)}
-            title={favoriteIds.includes(room.roomId) ? "取消收藏" : "收藏"}
+            title={favoriteIds.includes(room.roomId) ? translate("rooms.unfavorite") : translate("rooms.favorite")}
           >
             <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
           </button>
@@ -506,8 +510,8 @@ export function RoomPage() {
               void tauriCommands.room.openDanmaku(room.roomId);
             }}
             className="cover-card-button"
-            aria-label={`打开 ${room.uname} 的弹幕`}
-            title="打开弹幕"
+            aria-label={translate("rooms.openRoom", { value: room.uname })}
+            title={translate("rooms.open")}
           >
             <MonitorPlay className="h-4 w-4" />
           </button>
@@ -522,8 +526,8 @@ export function RoomPage() {
               }
             }}
             className="cover-card-button is-danger"
-            aria-label={`删除 ${room.uname} 的直播间`}
-            title="删除"
+            aria-label={translate("rooms.deleteRoom", { value: room.uname })}
+            title={translate("rooms.delete")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -541,13 +545,13 @@ export function RoomPage() {
         }
       }}
     >
-      <PageHeader title="直播间" description={
+      <PageHeader title={translate("rooms.title")} description={
               <p className="flex items-center gap-2">
-                <span><span className="numeric">{rooms.length}</span> 个直播间</span>
+                <span className="numeric">{translate("rooms.count", { count: rooms.length })}</span>
                 {liveCount > 0 && (
                   <>
                     <span aria-hidden="true">·</span>
-                    <span><span className="numeric">{pad2(liveCount)}</span> 个直播中</span>
+                    <span className="numeric">{translate("rooms.liveCount", { count: liveCount })}</span>
                   </>
               )}
             </p>
@@ -558,16 +562,16 @@ export function RoomPage() {
               <input
                 value={filterText}
                 onChange={(event) => setFilterText(event.target.value)}
-                placeholder="搜索直播间..."
-                aria-label="搜索直播间：UID、房间号、主播名或标题"
-                title="模糊筛选：UID、房间号、主播名、直播间标题"
+                placeholder={translate("rooms.searchShort")}
+                aria-label={translate("rooms.search")}
+                title={translate("rooms.searchHint")}
                 className="room-search h-8 w-52 max-w-full pl-9 pr-7 text-[13px]"
               />
               {filterText && (
                 <button
                   onClick={() => setFilterText("")}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200"
-                  title="清除筛选"
+                  title={translate("rooms.clear")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -577,8 +581,8 @@ export function RoomPage() {
               onClick={() => setManageOpen(true)}
               disabled={favoriteIds.length === 0}
               className="room-tool-button inline-flex h-8 w-8 shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="管理收藏"
-              title="管理收藏"
+              aria-label={translate("rooms.manageFavorites")}
+              title={translate("rooms.manageFavorites")}
             >
               <ListChecks className="h-4 w-4" />
             </button>
@@ -588,8 +592,8 @@ export function RoomPage() {
                 favoriteOnly ? "text-brand" : ""
               }`}
               aria-pressed={favoriteOnly}
-              aria-label={favoriteOnly ? "显示全部直播间" : "只看收藏的直播间"}
-              title={favoriteOnly ? "显示全部直播间" : "只看收藏"}
+              aria-label={favoriteOnly ? translate("rooms.showAll") : translate("rooms.showFavorites")}
+              title={favoriteOnly ? translate("rooms.showAll") : translate("rooms.favoritesOnly")}
             >
               <Star className={`h-4 w-4 ${favoriteOnly ? "fill-brand" : ""}`} />
             </button>
@@ -597,18 +601,18 @@ export function RoomPage() {
               onClick={() => void handleRefreshLiveStatus()}
               disabled={refreshing}
               className="room-tool-button ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="刷新直播状态"
-              title="刷新直播状态"
+              aria-label={translate("rooms.refresh")}
+              title={translate("rooms.refresh")}
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
-            <div className="room-view-toggle" role="group" aria-label="显示方式">
+            <div className="room-view-toggle" role="group" aria-label={translate("rooms.view")}>
               <button
                 onClick={() => handleSetViewMode("list")}
                 className={`room-view-option ${viewMode === "list" ? "room-view-option-active" : ""}`}
                 aria-pressed={viewMode === "list"}
-                aria-label="切换为列表显示"
-                title="列表显示"
+                aria-label={translate("rooms.switchList")}
+                title={translate("rooms.list")}
               >
                 <List className="h-4 w-4" />
               </button>
@@ -616,8 +620,8 @@ export function RoomPage() {
                 onClick={() => handleSetViewMode("card")}
                 className={`room-view-option ${viewMode === "card" ? "room-view-option-active" : ""}`}
                 aria-pressed={viewMode === "card"}
-                aria-label="切换为封面显示"
-                title="封面显示"
+                aria-label={translate("rooms.switchCover")}
+                title={translate("rooms.cover")}
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
@@ -627,14 +631,14 @@ export function RoomPage() {
               className="workspace-button workspace-button-primary workspace-button-pill ml-1"
             >
               <Plus className="h-4 w-4" />
-              添加
+              {translate("rooms.add")}
             </button>
           </div>
       } />
 
       {rooms.length > 0 && (
         <div className="app-rise mb-4">
-          <div className="room-tabs" role="tablist" aria-label="按直播状态筛选">
+          <div className="room-tabs" role="tablist" aria-label={translate("rooms.filter")}>
             {statusTabs.map((tab) => (
               <button
                 key={tab.value}
@@ -655,15 +659,15 @@ export function RoomPage() {
         <div className="app-rise mb-4 flex items-center gap-3 rounded-lg bg-brand/[0.06] px-3 py-2.5 shadow-sm ring-1 ring-brand/20">
           <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900 dark:text-white">测试直播间（虚拟）</p>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">本地模拟弹幕流，无需连接真实直播间</p>
+            <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{translate("rooms.mockTitle")}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{translate("rooms.mockDescription")}</p>
           </div>
           <button
             onClick={() => {
               void tauriCommands.room.openDanmaku(0);
             }}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-brand/10 hover:text-brand dark:hover:bg-brand/15 dark:hover:text-brand"
-            title="打开弹幕"
+            title={translate("rooms.open")}
           >
             <MonitorPlay className="h-4 w-4" />
           </button>
@@ -674,15 +678,15 @@ export function RoomPage() {
         {rooms.length === 0 ? (
           <div className="workspace-empty">
             <div>
-              <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200">还没有添加直播间</p>
+              <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200">{translate("rooms.empty")}</p>
               <p className="mt-1.5 text-[13px] text-slate-400 dark:text-slate-500">
-                点击右上角「添加」，搜索主播、房间号或粘贴直播链接
+                {translate("rooms.addHint")}
               </p>
             </div>
           </div>
         ) : previewRooms.length === 0 ? (
           <div className="workspace-empty">
-            {favoriteOnly && !filterActive ? "还没有收藏的直播间，点击房间卡片上的星标进行收藏" : "没有匹配的直播间"}
+            {favoriteOnly && !filterActive ? translate("rooms.favoritesEmpty") : translate("rooms.noMatches")}
           </div>
         ) : viewMode === "list" ? (
           <div className="app-rise">

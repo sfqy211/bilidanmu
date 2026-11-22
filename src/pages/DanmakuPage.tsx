@@ -1,5 +1,7 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "@/i18n";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -40,7 +42,8 @@ import { DanmakuWindow } from "@/components/danmaku/DanmakuWindow";
 import { DanmakuWindowAppearanceSettings } from "@/components/danmaku/DanmakuWindowAppearanceSettings";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
-import { HIDE_APPEARANCE_OPTIONS, ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS } from "@/components/settings/constants";
+import { HIDE_APPEARANCE_KEYS, ACTIVITY_BAR_MODES, ACTIVITY_FILTERS } from "@/components/settings/constants";
+import { formatNumber } from "@/i18n/format";
 import { OpacitySlider } from "@/components/settings/OpacitySlider";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDanmakuStore } from "@/stores/danmaku-store";
@@ -135,6 +138,8 @@ const PANEL = {
 } as const;
 
 export function DanmakuPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const { t } = useTranslation("danmaku");
   const { roomId: roomIdParam } = useParams();
   // 房间号 0 是合法值（虚拟直播间），仅 NaN/缺失视为无房间
   const roomId = useMemo(() => {
@@ -233,6 +238,8 @@ export function DanmakuPage() {
   const storeDanmakuMessages = useDanmakuStore((state) => state.danmakuMessages);
   const storeGiftMessages = useDanmakuStore((state) => state.giftMessages);
   const totalLikeCount = useDanmakuStore((state) => state.totalLikeCount);
+  const wsStatus = useDanmakuStore((state) => state.wsStatus);
+  const wsError = useDanmakuStore((state) => state.lastError);
   const guardCount = useDanmakuStore((state) => state.guardCount);
 
   // 礼物栏筛选
@@ -323,11 +330,11 @@ export function DanmakuPage() {
   // 收藏虚拟包（始终显示，空时展示提示）
   const favoritePkg = useMemo<EmoticonPackage>(() => ({
     pkgId: -1,
-    pkgName: "收藏",
+    pkgName: translate("liveWindow.favorites"),
     pkgType: -1,
     currentCover: filteredFavorites[0]?.url,
     emoticons: filteredFavorites,
-  }), [filteredFavorites]);
+  }), [filteredFavorites, translate]);
 
   // 当前账号的表情包列表（含收藏包）
   const emoticonPackages = useMemo(() => {
@@ -387,12 +394,12 @@ export function DanmakuPage() {
     const ms = now - liveTime * 1000;
     if (ms < 0) return null;
     const totalMin = Math.floor(ms / 60000);
-    if (totalMin < 1) return "刚刚开播";
+    if (totalMin < 1) return translate("liveWindow.justLive");
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
     if (h > 0) return `${h}h${m}m`;
     return `${m}m`;
-  }, [liveTime, now]);
+  }, [liveTime, now, translate]);
 
   const { send, sendEmoticon, sendGift, sending } = useDanmaku();
   const audioSettings = useSettingsStore((s) => s.settings.audio);
@@ -511,11 +518,11 @@ export function DanmakuPage() {
   }, [settingsOpen, sttAvailable, sttSettings.modelId]);
 
   const subtitleHint = !sttAvailable
-    ? "语音识别当前不可用"
+    ? translate("liveWindow.speechUnavailable")
     : subtitleModelReady === false
-      ? "未安装识别模型，请到 设置 → 实时字幕 安装"
+      ? translate("liveWindow.speechModelMissing")
       : sttSettings.enabled && !audioPlaying
-        ? "开始播放直播音频后才会生成字幕"
+        ? translate("liveWindow.speechStartAudio")
         : undefined;
 
   const handleAudioPlay = useCallback(async () => {
@@ -795,7 +802,7 @@ export function DanmakuPage() {
         return packages[0] ? makePkgKey(packages[0]) : null;
       });
     } catch (error) {
-      setEmoticonError(error instanceof Error ? error.message : "加载表情失败");
+      setEmoticonError(error instanceof Error ? error.message : desktopI18n.t("desktop:liveWindow.loadEmotesFailed"));
     } finally {
       setLoadingEmoticons(false);
     }
@@ -832,7 +839,7 @@ export function DanmakuPage() {
     } catch (error) {
       // 从 danmaku store 获取错误消息（useDanmaku 已经设置了）
       const storeError = useDanmakuStore.getState().lastError;
-      setSendError(storeError ?? "发送弹幕失败");
+      setSendError(storeError ?? translate("liveWindow.sendFailed"));
       setSendErrorKey((k) => k + 1);
     }
   };
@@ -947,8 +954,8 @@ export function DanmakuPage() {
     <DanmakuWindow
       className="danmaku-bg-main select-none"
       style={{ ...appearanceStyle, "--bg-a": bgAlpha } as React.CSSProperties}
-      title={displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : `房间 ${roomId ?? ""}`}
-      exitLabel="退出直播间"
+      title={displayRoomInfo ? `${displayRoomInfo.uname} - ${displayRoomInfo.title}` : t("room", { id: roomId ?? "" })}
+      exitLabel={t("exitRoom")}
       onExit={async () => {
         // 断开连接，最多等 1 秒
         const timeout = new Promise((r) => setTimeout(r, 1000));
@@ -978,7 +985,7 @@ export function DanmakuPage() {
             {/* 紧凑栏没有底色，输入框只靠一圈中性浅灰描边划出边界；描边深浅由 --field-ring-a
                 跟着「不透明度」设置走：设置越高（窗口越实）描边越浅，越低（越透）描边越深 */}
             <DanmakuInput value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
-              aria-label="发送直播弹幕" disabled={isAnonymous}
+              aria-label={t("sendLive")} disabled={isAnonymous}
               style={{ "--field-ring-a": inputOnlyRingAlpha } as React.CSSProperties}
               className="min-w-0 flex-1 rounded bg-transparent px-2 py-1.5 text-sm outline-none ring-1 ring-inset ring-[rgb(148_163_184_/_var(--field-ring-a))] focus:ring-brand/70"
             />
@@ -988,8 +995,8 @@ export function DanmakuPage() {
               type="button"
               onMouseDown={(event) => handleInputOnlyGrip(event, locked)}
               className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded bg-black/5 text-ink-muted transition hover:bg-black/10 hover:text-ink active:cursor-grabbing dark:bg-white/10 dark:hover:bg-white/[0.18]"
-              title={locked ? "点击恢复完整窗口（位置已锁定）" : "点击恢复完整窗口 · 按住拖动移动窗口"}
-              aria-label="恢复完整窗口，或拖动移动窗口"
+              title={t(locked ? "restoreLockedHint" : "restoreDragHint")}
+              aria-label={t("restoreWindow")}
             >
               {/* 必须是看得见的图标：紧凑栏没有底色，一根 25% 透明度的细竖条在桌面上等于隐形 */}
               <Expand className="h-3.5 w-3.5" />
@@ -1001,7 +1008,7 @@ export function DanmakuPage() {
       audio={{
         playing: audioPlaying, loading: audioConnecting, disabled: !roomId, error: audioError,
         volume: audioVolume * 100, muted: audioMuted,
-        playLabel: "播放音频", pauseLabel: "停止音频",
+        playLabel: t("playAudio"), pauseLabel: t("stopAudio"),
         onTogglePlay: () => { void (audioPlaying ? handleAudioStop() : handleAudioPlay()); },
         onToggleMute: () => {
           if (audioMuted) audioToggleMute();
@@ -1010,6 +1017,11 @@ export function DanmakuPage() {
         },
         onVolumeChange: (volume) => { if (audioMuted) audioToggleMute(); audioSetVolume(volume / 100); },
         status: (<span className="ml-auto flex items-center gap-3 text-[11px] text-ink-muted">
+          {wsStatus === "connecting" || wsStatus === "reconnecting" || wsStatus === "error" ? (
+            <span role="status" title={wsError ?? undefined}>
+              {translate(wsStatus === "error" ? "liveWindow.connectionError" : `liveWindow.${wsStatus}`)}
+            </span>
+          ) : null}
           {danmakuCount > 0 && (
             <span className="flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
@@ -1019,12 +1031,12 @@ export function DanmakuPage() {
           {giftTotal > 0 && (
             <span className="flex items-center gap-1">
               <Gift className="h-3 w-3" />
-              ¥{giftTotal.toFixed(2)}
+              {formatNumber(giftTotal, { style: "currency", currency: "CNY", currencyDisplay: "narrowSymbol" })}
               {superChatCount > 0 && (
                 <span className="text-ink-muted">({superChatCount}SC)</span>
               )}
               {guardCount > 0 && (
-                <span className="text-ink-muted">({guardCount}舰)</span>
+                <span className="text-ink-muted">({translate("liveWindow.guardCount", { count: guardCount })})</span>
               )}
             </span>
           )}
@@ -1037,31 +1049,19 @@ export function DanmakuPage() {
           {onlineCount > 0 && (
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              {onlineCount >= 10000
-                ? `${(onlineCount / 10000).toFixed(1)}万`
-                : onlineCount >= 1000
-                  ? `${(onlineCount / 1000).toFixed(1)}k`
-                  : String(onlineCount)}
+              {formatNumber(onlineCount, { notation: "compact", maximumFractionDigits: 1 })}
             </span>
           )}
           {watchedCount > 0 && (
-            <span className="flex items-center gap-1" title="本场累计看过人数">
+            <span className="flex items-center gap-1" title={translate("liveWindow.watched")}>
               <Eye className="h-3 w-3" />
-              {watchedCount >= 10000
-                ? `${(watchedCount / 10000).toFixed(1)}万`
-                : watchedCount >= 1000
-                  ? `${(watchedCount / 1000).toFixed(1)}k`
-                  : String(watchedCount)}
+              {formatNumber(watchedCount, { notation: "compact", maximumFractionDigits: 1 })}
             </span>
           )}
           {totalLikeCount > 0 && (
             <span className="flex items-center gap-1">
               <ThumbsUp className="h-3 w-3" />
-              {totalLikeCount >= 10000
-                ? `${(totalLikeCount / 10000).toFixed(1)}万`
-                : totalLikeCount >= 1000
-                  ? `${(totalLikeCount / 1000).toFixed(1)}k`
-                  : String(totalLikeCount)}
+              {formatNumber(totalLikeCount, { notation: "compact", maximumFractionDigits: 1 })}
             </span>
           )}
         </span>),
@@ -1079,7 +1079,7 @@ export function DanmakuPage() {
               type="button"
               onClick={() => { if (!isAnonymous) togglePanel(PANEL.AUTO_SEND); }}
               disabled={isAnonymous}
-              title={isAnonymous ? "匿名模式下不可用" : "自动发送"}
+              title={isAnonymous ? translate("liveWindow.anonymousUnavailable") : translate("liveWindow.autoSend")}
               className={`rounded inline-flex items-center p-1.5 text-xs transition ${
                 isAnonymous ? "cursor-not-allowed opacity-40"
                   : autoSendRunning ? "danmaku-btn-active text-brand"
@@ -1093,7 +1093,7 @@ export function DanmakuPage() {
               type="button"
               onClick={() => { if (!isAnonymous) void handleToggleEmoticonPicker(); }}
               disabled={isAnonymous}
-              title={isAnonymous ? "匿名模式下不可用" : "表情"}
+              title={isAnonymous ? translate("liveWindow.anonymousUnavailable") : translate("liveWindow.emotes")}
               className={`rounded inline-flex items-center p-1.5 text-xs transition ${
                 isAnonymous ? "cursor-not-allowed opacity-40"
                   : activePanel === PANEL.EMOTICON ? "bg-brand/10 text-brand"
@@ -1107,7 +1107,7 @@ export function DanmakuPage() {
                 type="button"
                 onClick={() => { if (!isAnonymous) togglePanel(PANEL.GIFT); }}
                 disabled={isAnonymous}
-                title={isAnonymous ? "匿名模式下不可用" : "礼物打赏"}
+                title={isAnonymous ? translate("liveWindow.anonymousUnavailable") : translate("liveWindow.sendGift")}
                 className={`rounded inline-flex items-center p-1.5 text-xs transition ${
                   isAnonymous ? "cursor-not-allowed opacity-40"
                     : activePanel === PANEL.GIFT ? "bg-brand/10 text-brand"
@@ -1121,7 +1121,7 @@ export function DanmakuPage() {
             <button
               type="button"
               onClick={() => togglePanel(PANEL.FILTER)}
-              title="屏蔽管理"
+              title={translate("liveWindow.filters")}
               className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
                 activePanel === PANEL.FILTER ? "bg-brand/10 text-brand"
                   : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
@@ -1132,7 +1132,7 @@ export function DanmakuPage() {
             <button
               type="button"
               onClick={() => togglePanel(PANEL.SETTINGS)}
-              title="设置"
+              title={translate("liveWindow.settings")}
               className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
                 activePanel === PANEL.SETTINGS ? "bg-brand/10 text-brand"
                   : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
@@ -1143,7 +1143,7 @@ export function DanmakuPage() {
             <button
               type="button"
               onClick={() => togglePanel(PANEL.CLIPBOARD)}
-              title="快捷消息"
+              title={translate("liveWindow.quickMessages")}
               className={`danmaku-bg-bar rounded inline-flex items-center p-1.5 text-xs transition ${
                 activePanel === PANEL.CLIPBOARD ? "bg-brand/10 text-brand"
                   : "text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
@@ -1160,7 +1160,7 @@ export function DanmakuPage() {
                 <button
                   type="button"
                   onClick={() => setBarMenuOpen((v) => !v)}
-                  title="更多功能"
+                  title={translate("liveWindow.more")}
                   aria-expanded={barMenuOpen}
                   className={`ml-1 flex h-7 w-7 items-center justify-center rounded transition ${
                     barMenuOpen ? "bg-brand/10 text-brand" : "text-ink-muted hover:bg-[#ebebeb] hover:text-ink dark:hover:bg-white/[0.06]"
@@ -1172,19 +1172,19 @@ export function DanmakuPage() {
                   <PanelShell
                     variant="menu"
                     hideHeader
-                    ariaLabel="更多功能"
+                    ariaLabel={translate("liveWindow.more")}
                     className="absolute bottom-full left-0 z-30 mb-1"
                   >
                     <div className="flex items-center gap-1">
                       {[
-                        { key: PANEL.AUTO_SEND, label: "自动发送", Icon: Zap, disabled: isAnonymous },
-                        { key: PANEL.EMOTICON, label: "表情", Icon: Smile, disabled: isAnonymous },
+                        { key: PANEL.AUTO_SEND, label: translate("liveWindow.autoSend"), Icon: Zap, disabled: isAnonymous },
+                        { key: PANEL.EMOTICON, label: translate("liveWindow.emotes"), Icon: Smile, disabled: isAnonymous },
                         ...(giftSendEnabled
-                          ? [{ key: PANEL.GIFT, label: "礼物", Icon: Gift, disabled: isAnonymous }]
+                          ? [{ key: PANEL.GIFT, label: translate("liveWindow.gifts"), Icon: Gift, disabled: isAnonymous }]
                           : []),
-                        { key: PANEL.FILTER, label: "屏蔽管理", Icon: ShieldBan, disabled: false },
-                        { key: PANEL.SETTINGS, label: "设置", Icon: Settings, disabled: false },
-                        { key: PANEL.CLIPBOARD, label: "快捷消息", Icon: ClipboardList, disabled: false },
+                        { key: PANEL.FILTER, label: translate("liveWindow.filters"), Icon: ShieldBan, disabled: false },
+                        { key: PANEL.SETTINGS, label: translate("liveWindow.settings"), Icon: Settings, disabled: false },
+                        { key: PANEL.CLIPBOARD, label: translate("liveWindow.quickMessages"), Icon: ClipboardList, disabled: false },
                       ].map(({ key, label, Icon, disabled }) => (
                         <button
                           key={key}
@@ -1211,8 +1211,8 @@ export function DanmakuPage() {
               </div>
             )}
             <DanmakuInput multiline value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
-              aria-label="发送直播弹幕" disabled={isAnonymous}
-              placeholder={isAnonymous ? "匿名模式下无法发送弹幕" : "请输入文字"}
+              aria-label={t("sendLive")} disabled={isAnonymous}
+              placeholder={isAnonymous ? translate("liveWindow.anonymousCannotSend") : translate("liveWindow.input")}
               className={`min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm outline-none ${
                 isAnonymous ? "cursor-not-allowed text-ink-muted placeholder:text-ink-muted" : "text-ink placeholder:text-ink-muted"
               }`}
@@ -1226,7 +1226,7 @@ export function DanmakuPage() {
                     ? "cursor-not-allowed text-ink-muted opacity-40"
                     : "text-brand hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-brand/10"
                 }`}
-                title={isAnonymous ? "匿名模式下不可用" : sending ? "发送中" : "发送"}
+                title={isAnonymous ? translate("liveWindow.anonymousUnavailable") : sending ? translate("liveWindow.sending") : translate("liveWindow.send")}
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -1247,7 +1247,7 @@ export function DanmakuPage() {
               <div data-interactive="" className="flex shrink-0 items-center gap-1 px-2.5 py-1">
                 {showBatteryFilter ? (
                   <div className="flex w-full items-center gap-1">
-                    <span className="shrink-0 text-xs text-ink-muted">电池≥</span>
+                    <span className="shrink-0 text-xs text-ink-muted">{translate("liveWindow.batteryMinimum")}</span>
                     <input
                       type="number"
                       min={0}
@@ -1266,7 +1266,7 @@ export function DanmakuPage() {
                       }}
                       className="shrink-0 rounded px-1.5 py-0.5 text-xs text-brand transition hover:bg-brand/10"
                     >
-                      确定
+                      {translate("liveWindow.confirm")}
                     </button>
                     <button
                       type="button"
@@ -1277,7 +1277,7 @@ export function DanmakuPage() {
                       }}
                       className="shrink-0 rounded px-1.5 py-0.5 text-xs text-ink-muted transition hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]"
                     >
-                      取消
+                      {translate("liveWindow.cancel")}
                     </button>
                   </div>
                 ) : (
@@ -1287,29 +1287,29 @@ export function DanmakuPage() {
                       onClick={() => setShowGift((v) => !v)}
                       className={`rounded px-1.5 py-0.5 text-xs transition ${showGift ? "bg-brand/10 text-brand" : "text-ink-muted"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                     >
-                      送礼
+                      {translate("liveWindow.giftFilter")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowGuard((v) => !v)}
                       className={`rounded px-1.5 py-0.5 text-xs transition ${showGuard ? "bg-brand/10 text-brand" : "text-ink-muted"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                     >
-                      上舰
+                      {translate("liveWindow.guardFilter")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowSuperChat((v) => !v)}
                       className={`rounded px-1.5 py-0.5 text-xs transition ${showSuperChat ? "bg-brand/10 text-brand" : "text-ink-muted"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
                     >
-                      醒目留言
+                      {translate("liveWindow.superChat")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowBatteryFilter(true)}
                       className={`ml-auto inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs transition ${batteryFilter > 0 ? "bg-brand/10 text-brand" : "text-ink-muted"} hover:bg-[#ebebeb] dark:hover:bg-white/[0.04]`}
-                      title="按电池筛选"
+                      title={translate("liveWindow.filterByPrice")}
                     >
-                      电池筛选
+                      {translate("liveWindow.priceFilter")}
                     </button>
                   </>
                 )}
@@ -1323,7 +1323,7 @@ export function DanmakuPage() {
               >
                 {giftMessages.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-xs text-ink-muted select-none pointer-events-none">
-                    送礼、醒目留言、上舰消息等显示在这里
+                    {translate("liveWindow.noGifts")}
                   </div>
                 ) : (
                   <div
@@ -1412,7 +1412,7 @@ export function DanmakuPage() {
                 >
                   {danmakuMessages.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-xs text-ink-muted select-none pointer-events-none">
-                      展示本场直播的弹幕互动消息
+                      {t("noMessages")}
                     </div>
                   ) : (
                     <div
@@ -1499,7 +1499,7 @@ export function DanmakuPage() {
                     </div>
                   ) : (
                     <span className="text-xs text-ink-muted select-none pointer-events-none">
-                      进场、点赞等消息显示在这里
+                      {translate("liveWindow.noActivity")}
                     </span>
                   )}
                 </div>
@@ -1508,9 +1508,9 @@ export function DanmakuPage() {
                   {/* 内容过滤 — 与礼物栏过滤按钮同款式、同位置（栏内顶部左侧） */}
                   <div data-interactive="" className="flex shrink-0 items-center gap-1 px-2.5 py-1">
                     {([
-                      ["all", "全部"],
-                      ["entry", "进场"],
-                      ["like", "点赞"],
+                      ["all", translate("liveWindow.all")],
+                      ["entry", translate("liveWindow.entries")],
+                      ["like", translate("liveWindow.likes")],
                     ] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -1540,7 +1540,7 @@ export function DanmakuPage() {
                   >
                     {activityMessages.length === 0 ? (
                       <div className="flex h-full items-center justify-center text-xs text-ink-muted select-none pointer-events-none">
-                        进场、点赞等消息显示在这里
+                        {translate("liveWindow.noActivity")}
                       </div>
                     ) : (
                       <div
@@ -1588,7 +1588,7 @@ export function DanmakuPage() {
       {activePanel && (
       <div ref={panelHostRef} className="absolute inset-x-0 bottom-0 z-20">
         {settingsOpen && (
-          <FloatingPanel title="外观设置" onClose={() => setActivePanel(null)}>
+          <FloatingPanel title={translate("liveWindow.appearance")} onClose={() => setActivePanel(null)}>
             <DanmakuWindowAppearanceSettings>
               <div className="space-y-1">
                 <OpacitySlider
@@ -1601,18 +1601,18 @@ export function DanmakuPage() {
 
                 {/* 实时字幕：与 设置 → 实时字幕 → 启用语音识别 是同一项，
                     放在这里是为了看直播时不用为了关字幕跑回主窗口 */}
-                <PanelRow label="实时字幕" hint={subtitleHint}>
+                <PanelRow label={translate("liveWindow.captions")} hint={subtitleHint}>
                   <PanelSegmented
-                    ariaLabel="实时字幕"
+                    ariaLabel={translate("liveWindow.captions")}
                     items={[
                       {
                         value: "on" as const,
-                        label: "开启",
+                        label: translate("liveWindow.on"),
                         // 只在「打开」时要求可用，避免模型缺失时连关都关不掉
                         disabled: !sttAvailable || subtitleModelReady === false,
                         title: subtitleHint,
                       },
-                      { value: "off" as const, label: "关闭" },
+                      { value: "off" as const, label: translate("liveWindow.off") },
                     ]}
                     value={settings.stt.enabled ? "on" : "off"}
                     onChange={(value) =>
@@ -1621,13 +1621,13 @@ export function DanmakuPage() {
                   />
                 </PanelRow>
 
-                <PanelRow label="表情样式">
+                <PanelRow label={translate("liveWindow.emoteStyle")}>
                   <PanelSegmented
-                    ariaLabel="表情样式"
+                    ariaLabel={translate("liveWindow.emoteStyle")}
                     items={[
-                      { value: "hidden" as const, label: "不显示" },
-                      { value: "text" as const, label: "文字" },
-                      { value: "image" as const, label: "图片" },
+                      { value: "hidden" as const, label: translate("liveWindow.hidden") },
+                      { value: "text" as const, label: translate("liveWindow.text") },
+                      { value: "image" as const, label: translate("liveWindow.image") },
                     ]}
                     value={settings.appearance.emoticonStyle}
                     onChange={(value) =>
@@ -1640,12 +1640,12 @@ export function DanmakuPage() {
 
                 {/* 礼物图标：仅礼物打赏功能启用（gift-send 构建）时显示 */}
                 {giftSendEnabled && (
-                  <PanelRow label="礼物图标">
+                  <PanelRow label={translate("liveWindow.giftIcons")}>
                     <PanelSegmented
-                      ariaLabel="礼物图标"
+                      ariaLabel={translate("liveWindow.giftIcons")}
                       items={[
-                        { value: "show" as const, label: "显示" },
-                        { value: "hide" as const, label: "不显示" },
+                        { value: "show" as const, label: translate("liveWindow.show") },
+                        { value: "hide" as const, label: translate("liveWindow.hidden") },
                       ]}
                       value={(settings.appearance.showGiftIcons ?? true) ? "show" : "hide"}
                       onChange={(value) =>
@@ -1657,14 +1657,14 @@ export function DanmakuPage() {
                   </PanelRow>
                 )}
 
-                <PanelRow label="吸附动画">
+                <PanelRow label={translate("liveWindow.dockAnimation")}>
                   <PanelSegmented
-                    ariaLabel="吸附动画速度"
+                    ariaLabel={translate("liveWindow.dockSpeed")}
                     items={[
-                      { value: "350" as const, label: "慢" },
-                      { value: "220" as const, label: "标准" },
-                      { value: "120" as const, label: "快" },
-                      { value: "0" as const, label: "关" },
+                      { value: "350" as const, label: translate("liveWindow.slow") },
+                      { value: "220" as const, label: translate("liveWindow.normal") },
+                      { value: "120" as const, label: translate("liveWindow.fast") },
+                      { value: "0" as const, label: translate("liveWindow.noAnimation") },
                     ]}
                     value={String(settings.appearance.dockAnimMs)}
                     onChange={(value) =>
@@ -1673,9 +1673,9 @@ export function DanmakuPage() {
                   />
                 </PanelRow>
 
-                <PanelSection title="隐藏元素">
+                <PanelSection title={translate("liveWindow.hideElements")}>
                   <div className="flex flex-wrap gap-1.5">
-                    {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
+                    {HIDE_APPEARANCE_KEYS.map((key) => (
                       <PanelChip
                         key={key}
                         selected={settings.appearance[key]}
@@ -1685,7 +1685,7 @@ export function DanmakuPage() {
                           })
                         }
                       >
-                        {label}
+                        {translate(`prefs.${key}`)}
                       </PanelChip>
                     ))}
                     {/* 气泡背景默认显示，所以这里的按钮语义是「取消气泡背景」，
@@ -1701,17 +1701,17 @@ export function DanmakuPage() {
                         })
                       }
                     >
-                      气泡背景
+                      {translate("liveWindow.bubbleBackground")}
                     </PanelChip>
                   </div>
                 </PanelSection>
 
-                <PanelRow label="活动栏">
+                <PanelRow label={translate("liveWindow.activity")}>
                   <PanelSegmented
-                    ariaLabel="活动栏模式"
-                    items={ACTIVITY_BAR_MODE_OPTIONS.map(({ value, label }) => ({
+                    ariaLabel={translate("liveWindow.activityMode")}
+                    items={ACTIVITY_BAR_MODES.map((value) => ({
                       value,
-                      label,
+                      label: translate(`prefs.${value}`),
                     }))}
                     value={settings.appearance.activityBarMode}
                     onChange={(value) =>
@@ -1725,12 +1725,12 @@ export function DanmakuPage() {
                   />
                 </PanelRow>
                 {settings.appearance.activityBarMode === "scroll" && (
-                  <PanelRow label="活动栏过滤">
+                  <PanelRow label={translate("liveWindow.activityFilter")}>
                     <PanelSegmented
-                      ariaLabel="活动栏过滤"
-                      items={ACTIVITY_FILTER_OPTIONS.map(({ value, label }) => ({
+                      ariaLabel={translate("liveWindow.activityFilter")}
+                      items={ACTIVITY_FILTERS.map((value) => ({
                         value,
-                        label,
+                        label: translate(`prefs.${value}`),
                       }))}
                       value={settings.appearance.activityFilter}
                       onChange={(value) =>
@@ -1745,12 +1745,12 @@ export function DanmakuPage() {
                   </PanelRow>
                 )}
 
-                <PanelRow label="弹幕栏简化醒目留言">
+                <PanelRow label={translate("liveWindow.compactSuperChatRow")}>
                   <PanelSegmented
-                    ariaLabel="简化醒目留言"
+                    ariaLabel={translate("liveWindow.compactSuperChat")}
                     items={[
-                      { value: "hide" as const, label: "不显示" },
-                      { value: "show" as const, label: "显示" },
+                      { value: "hide" as const, label: translate("liveWindow.hidden") },
+                      { value: "show" as const, label: translate("liveWindow.show") },
                     ]}
                     value={settings.appearance.scInDanmaku ? "show" : "hide"}
                     onChange={(value) =>
@@ -1761,12 +1761,12 @@ export function DanmakuPage() {
                   />
                 </PanelRow>
 
-                <PanelRow label="金额着色">
+                <PanelRow label={translate("liveWindow.priceColor")}>
                   <PanelSegmented
-                    ariaLabel="金额着色"
+                    ariaLabel={translate("liveWindow.priceColor")}
                     items={[
-                      { value: "color" as const, label: "彩色" },
-                      { value: "plain" as const, label: "与普通弹幕一致" },
+                      { value: "color" as const, label: translate("liveWindow.colored") },
+                      { value: "plain" as const, label: translate("liveWindow.plain") },
                     ]}
                     value={(settings.appearance.plainPriceMessages ?? false) ? "plain" : "color"}
                     onChange={(value) =>

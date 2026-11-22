@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { tauriCommands } from "@/lib/tauri";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
@@ -20,6 +21,7 @@ interface AutoLikeStoppedPayload {
 }
 
 export function useAutoLike(roomId: number | null) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [isRunning, setIsRunning] = useState(false);
   const [sentTotal, setSentTotal] = useState(0);
   const [targetTotal, setTargetTotal] = useState(0);
@@ -32,7 +34,7 @@ export function useAutoLike(roomId: number | null) {
   const start = useCallback(
     async (anchorId: number, target: number, batchSize: number, intervalMs: number) => {
       if (!roomId) {
-        const error = "当前房间无效";
+        const error = desktopI18n.t("desktop:autoLikeErrors.invalidRoom");
         setLastError(error);
         throw new Error(error);
       }
@@ -46,7 +48,7 @@ export function useAutoLike(roomId: number | null) {
         await tauriCommands.danmaku.startAutoLike(roomId, anchorId, target, batchSize, intervalMs);
         setIsRunning(true);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "启动自动点赞失败";
+        const message = error instanceof Error ? error.message : desktopI18n.t("desktop:autoLikeErrors.startFailed");
         setIsRunning(false);
         setLastError(message);
         throw error;
@@ -74,7 +76,7 @@ export function useAutoLike(roomId: number | null) {
     if (roomId && payload.roomId !== roomId) return;
 
     setIsRunning(false);
-    setLastError(payload.error || "自动点赞失败");
+    setLastError(payload.error || translate("autoLikeErrors.failed"));
     setStopReason("error");
   });
 

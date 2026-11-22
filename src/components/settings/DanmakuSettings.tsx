@@ -1,6 +1,7 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useState } from "react";
 import { Ghost, ListVideo, Lock, MousePointerClick, Pin, TextCursorInput, Unlock, X } from "lucide-react";
-import { ACTIVITY_BAR_MODE_OPTIONS, ACTIVITY_FILTER_OPTIONS, HIDE_APPEARANCE_OPTIONS } from "./constants";
+import { ACTIVITY_BAR_MODES, ACTIVITY_FILTERS, HIDE_APPEARANCE_KEYS } from "./constants";
 import { SettingsChoice, SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 import type { Settings } from "@/types/bilibili";
 
@@ -9,20 +10,21 @@ import type { Settings } from "@/types/bilibili";
  * 图标与弹幕窗标题栏实际按钮保持一致，便于对号入座。
  * 退出直播间必须保留，不在清单内、不可关闭。
  */
-const TITLE_BAR_BUTTONS = [
-  { key: "pin", label: "置顶", Icon: Pin },
-  { key: "lock", label: "锁定", Icon: Lock },
-  { key: "inputOnly", label: "仅输入框", Icon: TextCursorInput },
-  { key: "passthrough", label: "窗口透传", Icon: MousePointerClick },
-  { key: "stealth", label: "隐身", Icon: Ghost },
-  { key: "roomSwitcher", label: "房间切换", Icon: ListVideo },
-  { key: "close", label: "隐藏到托盘", Icon: X },
-] as const;
 
 /** 独立强调色预设（与设置页主题色板同源的常用色） */
 const ACCENT_PRESETS = ["#E11D48", "#e95780", "#467fba", "#469480", "#7C3AED", "#D97706"];
 
 export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const TITLE_BAR_BUTTONS = [
+    { key: "pin", label: translate("danmakuSettings.pin"), Icon: Pin },
+    { key: "lock", label: translate("danmakuSettings.lock"), Icon: Lock },
+    { key: "inputOnly", label: translate("danmakuSettings.inputOnly"), Icon: TextCursorInput },
+    { key: "passthrough", label: translate("danmakuSettings.clickThrough"), Icon: MousePointerClick },
+    { key: "stealth", label: translate("danmakuSettings.stealth"), Icon: Ghost },
+    { key: "roomSwitcher", label: translate("danmakuSettings.switchRoom"), Icon: ListVideo },
+    { key: "close", label: translate("danmakuSettings.hideToTray"), Icon: X },
+  ] as const;
   const appearance = settings.appearance;
   // 兜底：旧持久化数据可能没有 danmakuWindow（深合并修好前写入的数据）
   const dw = appearance.danmakuWindow ?? {
@@ -35,23 +37,23 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
   const update = (patch: Partial<Settings["appearance"]>) => patchSettings({ appearance: { ...appearance, ...patch } });
   return (
     <>
-      <SettingsGroup title="窗口与文字">
-        <SettingsRange title="弹幕字号" value={appearance.fontSize} min={10} max={32} unit="px" onChange={(fontSize) => update({ fontSize })} />
-        <SettingsRange title="窗口不透明度" description="数值越低，背景越透明。" value={appearance.opacity} min={10} max={100} unit="%" onChange={(opacity) => update({ opacity })} />
-        <SettingsChoice title="侧边吸附动画" value={String(appearance.dockAnimMs)} onChange={(value) => update({ dockAnimMs: Number(value) })}
-          options={[{ value: "0", label: "关闭" }, { value: "120", label: "快" }, { value: "220", label: "标准" }, { value: "350", label: "慢" },
-            ...([0, 120, 220, 350].includes(appearance.dockAnimMs) ? [] : [{ value: String(appearance.dockAnimMs), label: `自定义 · ${appearance.dockAnimMs} ms` }])]} />
+      <SettingsGroup title={translate("danmakuSettings.windowText")}>
+        <SettingsRange title={translate("danmakuSettings.textSize")} value={appearance.fontSize} min={10} max={32} unit="px" onChange={(fontSize) => update({ fontSize })} />
+        <SettingsRange title={translate("danmakuSettings.opacity")} description={translate("danmakuSettings.opacityHint")} value={appearance.opacity} min={10} max={100} unit="%" onChange={(opacity) => update({ opacity })} />
+        <SettingsChoice title={translate("danmakuSettings.dockAnimation")} value={String(appearance.dockAnimMs)} onChange={(value) => update({ dockAnimMs: Number(value) })}
+          options={[{ value: "0", label: translate("danmakuSettings.off") }, { value: "120", label: translate("danmakuSettings.fast") }, { value: "220", label: translate("danmakuSettings.standard") }, { value: "350", label: translate("danmakuSettings.slow") },
+            ...([0, 120, 220, 350].includes(appearance.dockAnimMs) ? [] : [{ value: String(appearance.dockAnimMs), label: translate("danmakuSettings.customSpeed", { value: appearance.dockAnimMs }) }])]} />
         <SettingsToggle
-          title="跟随屏幕背景亮暗"
-          description="采样弹幕窗背后的屏幕：背景偏暗时用深色主题、偏亮时用浅色主题，亮度跨越阈值后平滑切换。关闭则使用上面的主题设置。"
+          title={translate("danmakuSettings.followBackground")}
+          description={translate("danmakuSettings.backgroundHint")}
           checked={appearance.autoThemeFromBackground ?? false}
           onChange={(autoThemeFromBackground) => update({ autoThemeFromBackground })}
         />
       </SettingsGroup>
-      <SettingsGroup title="弹幕窗外观" description="强调色与功能栏形态改动即时生效并保存。">
-        <SettingsChoice title="强调色" value={dw.accentMode}
+      <SettingsGroup title={translate("danmakuSettings.appearance")} description={translate("danmakuSettings.appearanceHint")}>
+        <SettingsChoice title={translate("danmakuSettings.accent")} value={dw.accentMode}
           onChange={(accentMode) => update({ danmakuWindow: { ...dw, accentMode: accentMode as typeof dw.accentMode } })}
-          options={[{ value: "follow", label: "跟随主题色" }, { value: "custom", label: "独立强调色" }]} />
+          options={[{ value: "follow", label: translate("danmakuSettings.matchTheme") }, { value: "custom", label: translate("danmakuSettings.independentAccent") }]} />
         {dw.accentMode === "custom" && (
           <div className="settings-row-block">
             <div className="flex flex-wrap items-center gap-2">
@@ -61,21 +63,21 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
                   className={`h-7 w-7 rounded-full border-2 transition ${dw.accentColor === color ? "border-ink" : "border-transparent hover:border-ink/30"}`}
                   style={{ background: color }} />
               ))}
-              <input type="color" aria-label="自定义强调色" value={/^#[\da-fA-F]{6}$/.test(dw.accentColor) ? dw.accentColor : "#E11D48"}
+              <input type="color" aria-label={translate("danmakuSettings.customAccent")} value={/^#[\da-fA-F]{6}$/.test(dw.accentColor) ? dw.accentColor : "#E11D48"}
                 onChange={(event) => update({ danmakuWindow: { ...dw, accentColor: event.target.value } })}
                 className="h-7 w-9 cursor-pointer rounded border border-subtle bg-transparent" />
             </div>
           </div>
         )}
-        <SettingsChoice title="功能栏" value={dw.functionBar}
+        <SettingsChoice title={translate("danmakuSettings.actionBar")} value={dw.functionBar}
           onChange={(functionBar) => update({ danmakuWindow: { ...dw, functionBar: functionBar as typeof dw.functionBar } })}
-          options={[{ value: "pinned", label: "常驻按钮行" }, { value: "compact", label: "收纳进输入框" }]} />
-        <SettingsToggle title="显示收起条" description="关闭后窗口贴边收缩时完全不可见（对齐 QQ），鼠标移到该位置仍会展开。"
+          options={[{ value: "pinned", label: translate("danmakuSettings.allActions") }, { value: "compact", label: translate("danmakuSettings.compactActions") }]} />
+        <SettingsToggle title={translate("danmakuSettings.showDock")} description={translate("danmakuSettings.showDockHint")}
           checked={dw.dockEnabled ?? true} onChange={(dockEnabled) => update({ danmakuWindow: { ...dw, dockEnabled } })} />
-        <SettingsToggle title="收起条提示线" description="收起条中央的短指示线，提示此处可悬停展开。"
+        <SettingsToggle title={translate("danmakuSettings.dockIndicator")} description={translate("danmakuSettings.dockIndicatorHint")}
           checked={dw.dockIndicator ?? true} onChange={(dockIndicator) => update({ danmakuWindow: { ...dw, dockIndicator } })} />
       </SettingsGroup>
-      <SettingsGroup title="标题栏按钮" description="点击图标切换该按钮在弹幕窗口标题栏的显示；退出直播间按钮固定保留。">
+      <SettingsGroup title={translate("danmakuSettings.titleButtons")} description={translate("danmakuSettings.titleButtonsHint")}>
         <div className="settings-row-block">
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {TITLE_BAR_BUTTONS.map(({ key, label, Icon }) => {
@@ -85,7 +87,7 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
                   key={key}
                   type="button"
                   aria-pressed={visible}
-                  title={visible ? `点击隐藏「${label}」` : `点击显示「${label}」`}
+                  title={visible ? translate("danmakuSettings.hideButton", { value: label }) : translate("danmakuSettings.showButton", { value: label })}
                   onClick={() => update({ titleBarButtons: { ...appearance.titleBarButtons, [key]: !visible } })}
                   className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-[11px] transition ${
                     visible
@@ -101,41 +103,43 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
           </div>
         </div>
       </SettingsGroup>
-      <SettingsGroup title="消息内容">
-        <SettingsChoice title="表情显示" value={appearance.emoticonStyle} onChange={(emoticonStyle) => update({ emoticonStyle: emoticonStyle as Settings["appearance"]["emoticonStyle"] })}
-          options={[{ value: "image", label: "图片" }, { value: "text", label: "文字" }, { value: "hidden", label: "不显示" }]} />
-        <SettingsToggle title="弹幕栏显示简化醒目留言" description="礼物栏中的完整醒目留言卡片不受影响。" checked={appearance.scInDanmaku} onChange={(scInDanmaku) => update({ scInDanmaku })} />
+      <SettingsGroup title={translate("danmakuSettings.messageContent")}>
+        <SettingsChoice title={translate("danmakuSettings.emotes")} value={appearance.emoticonStyle} onChange={(emoticonStyle) => update({ emoticonStyle: emoticonStyle as Settings["appearance"]["emoticonStyle"] })}
+          options={[{ value: "image", label: translate("danmakuSettings.image") }, { value: "text", label: translate("danmakuSettings.text") }, { value: "hidden", label: translate("danmakuSettings.hidden") }]} />
+        <SettingsToggle title={translate("danmakuSettings.compactSuperChat")} description={translate("danmakuSettings.compactSuperChatHint")} checked={appearance.scInDanmaku} onChange={(scInDanmaku) => update({ scInDanmaku })} />
         <SettingsToggle
-          title="金额消息与普通弹幕一致"
-          description="关闭醒目留言、礼物、舰长的彩色胶囊与着色，金额仍以纯文字显示。各档位具体颜色在「外观 → 金额档位配色」里调整。"
+          title={translate("danmakuSettings.plainPrice")}
+          description={translate("danmakuSettings.plainPriceHint")}
           checked={appearance.plainPriceMessages ?? false}
           onChange={(plainPriceMessages) => update({ plainPriceMessages })}
         />
         <details className="settings-details">
-          <summary>用户信息与徽章</summary>
-          <SettingsToggle title="显示用户徽章" description="控制荣耀等级与粉丝牌的总开关。" checked={appearance.showMedal} onChange={(showMedal) => update({ showMedal })} />
-          {HIDE_APPEARANCE_OPTIONS.map(({ key, label }) => (
-            <SettingsToggle key={key} title={`${key === "hideUserIdColor" ? "保留" : "显示"}${label}`}
+          <summary>{translate("danmakuSettings.users")}</summary>
+          <SettingsToggle title={translate("danmakuSettings.showBadges")} description={translate("danmakuSettings.showBadgesHint")} checked={appearance.showMedal} onChange={(showMedal) => update({ showMedal })} />
+          {HIDE_APPEARANCE_KEYS.map((key) => (
+            <SettingsToggle key={key} title={translate(key === "hideUserIdColor" ? "prefs.keepLabel" : "prefs.showLabel", { label: translate(`prefs.${key}`) })}
               checked={!appearance[key]} onChange={(visible) => update({ [key]: !visible })}
               disabled={!appearance.showMedal && (key === "hideGloryLevel" || key === "hideFanMedal")} />
           ))}
           {/* 语义与上面一组相反：这里勾选 = 显示，默认开启 */}
-          <SettingsToggle title="显示气泡背景"
-            description="使用 B 站聊天气泡皮肤的用户，其弹幕按该皮肤的半透明渐变色铺满整行背景。"
+          <SettingsToggle title={translate("danmakuSettings.bubble")}
+            description={translate("danmakuSettings.bubbleHint")}
             checked={!appearance.hideBubbleColor}
             onChange={(visible) => update({ hideBubbleColor: !visible })} />
         </details>
       </SettingsGroup>
-      <SettingsGroup title="活动栏" description="管理直播间的进场与点赞消息。">
-        <SettingsChoice title="显示方式" value={appearance.activityBarMode} options={ACTIVITY_BAR_MODE_OPTIONS}
+      <SettingsGroup title={translate("danmakuSettings.activity")} description={translate("danmakuSettings.activityHint")}>
+        <SettingsChoice title={translate("danmakuSettings.activityMode")} value={appearance.activityBarMode}
+          options={ACTIVITY_BAR_MODES.map((value) => ({ value, label: translate(`prefs.${value}`) }))}
           onChange={(activityBarMode) => update({ activityBarMode: activityBarMode as Settings["appearance"]["activityBarMode"] })} />
-        <SettingsChoice title="显示内容" value={appearance.activityFilter} options={ACTIVITY_FILTER_OPTIONS}
-          disabled={appearance.activityBarMode === "hidden"} description={appearance.activityBarMode === "hidden" ? "先启用活动栏，再选择显示内容。" : undefined}
+        <SettingsChoice title={translate("danmakuSettings.activityContent")} value={appearance.activityFilter}
+          options={ACTIVITY_FILTERS.map((value) => ({ value, label: translate(`prefs.${value}`) }))}
+          disabled={appearance.activityBarMode === "hidden"} description={appearance.activityBarMode === "hidden" ? translate("danmakuSettings.activityDisabled") : undefined}
           onChange={(activityFilter) => update({ activityFilter: activityFilter as Settings["appearance"]["activityFilter"] })} />
       </SettingsGroup>
-      <SettingsGroup title="直播互动" description="与 B 站服务端的互动上报。">
-        <SettingsToggle title="进入直播间上报"
-          description="进入直播间时向 B 站发送进入动作。观看时长、粉丝团亲密度等以服务端收到该上报为准；仅登录账号生效，匿名模式下不会发送。"
+      <SettingsGroup title={translate("danmakuSettings.liveInteractions")} description={translate("danmakuSettings.liveInteractionsHint")}>
+        <SettingsToggle title={translate("danmakuSettings.reportEntry")}
+          description={translate("danmakuSettings.reportEntryHint")}
           checked={settings.receive?.entryAction ?? false}
           onChange={(entryAction) => patchSettings({ receive: { ...settings.receive, entryAction } })} />
       </SettingsGroup>
@@ -145,6 +149,7 @@ export function DanmakuSettings({ settings, patchSettings }: SettingsPanelProps)
 }
 
 function BlockSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [keyword, setKeyword] = useState("");
   const { blockedKeywords, blockedUsers } = settings.filter;
   const addKeyword = () => {
@@ -154,35 +159,35 @@ function BlockSettings({ settings, patchSettings }: SettingsPanelProps) {
     setKeyword("");
   };
   return (
-    <SettingsGroup title="屏蔽管理" description="屏蔽名单对所有直播间生效，也可以在弹幕窗口中管理。">
+    <SettingsGroup title={translate("danmakuSettings.filters")} description={translate("danmakuSettings.filtersHint")}>
       <div className="settings-row-block">
-        <label htmlFor="settings-block-keyword" className="text-[13px] text-ink">屏蔽关键词</label>
+        <label htmlFor="settings-block-keyword" className="text-[13px] text-ink">{translate("danmakuSettings.keywords")}</label>
         <div className="mt-2 flex gap-2">
           <input id="settings-block-keyword" type="text" value={keyword} onChange={(event) => setKeyword(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); addKeyword(); } }}
-            placeholder="输入关键词" className="h-8 min-w-0 flex-1 px-3 text-[13px]" />
-          <button type="button" className="settings-action" disabled={!keyword.trim()} onClick={addKeyword}>添加</button>
+            placeholder={translate("danmakuSettings.keyword")} className="h-8 min-w-0 flex-1 px-3 text-[13px]" />
+          <button type="button" className="settings-action" disabled={!keyword.trim()} onClick={addKeyword}>{translate("danmakuSettings.add")}</button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {blockedKeywords.map((value) => (
             <span key={value} className="inline-flex max-w-full items-center gap-1 rounded-md bg-ink/[0.05] px-2 py-1 text-xs text-ink-muted">
               <span className="truncate" title={value}>{value}</span>
-              <button type="button" aria-label={`移除关键词 ${value}`} onClick={() => patchSettings({ filter: { ...settings.filter, blockedKeywords: blockedKeywords.filter((item) => item !== value) } })}>
+              <button type="button" aria-label={translate("danmakuSettings.removeKeyword", { value: value })} onClick={() => patchSettings({ filter: { ...settings.filter, blockedKeywords: blockedKeywords.filter((item) => item !== value) } })}>
                 <X className="h-3.5 w-3.5" />
               </button>
             </span>
           ))}
-          {!blockedKeywords.length && <p className="text-xs text-ink-muted">暂无屏蔽关键词</p>}
+          {!blockedKeywords.length && <p className="text-xs text-ink-muted">{translate("danmakuSettings.emptyKeywords")}</p>}
         </div>
       </div>
       <details className="settings-details">
-        <summary>屏蔽用户 · {blockedUsers.length}</summary>
-        {!blockedUsers.length && <p className="px-3 pb-3 text-xs text-ink-muted">在弹幕消息的右键菜单中添加屏蔽用户。</p>}
+        <summary>{translate("danmakuSettings.blockedUsers") + " "}{blockedUsers.length}</summary>
+        {!blockedUsers.length && <p className="px-3 pb-3 text-xs text-ink-muted">{translate("danmakuSettings.blockedUsersHint")}</p>}
         {blockedUsers.map((user) => (
           <div key={user.uid} className="settings-row">
             <span className="min-w-0 truncate text-[13px] text-ink">{user.username} <span className="numeric text-xs text-ink-muted">{user.uid}</span></span>
-            <button type="button" className="settings-action" aria-label={`解除屏蔽 ${user.username}`}
-              onClick={() => patchSettings({ filter: { ...settings.filter, blockedUsers: blockedUsers.filter((item) => item.uid !== user.uid) } })}>解除屏蔽</button>
+            <button type="button" className="settings-action" aria-label={translate("danmakuSettings.unblockUser", { value: user.username })}
+              onClick={() => patchSettings({ filter: { ...settings.filter, blockedUsers: blockedUsers.filter((item) => item.uid !== user.uid) } })}>{translate("danmakuSettings.unblock")}</button>
           </div>
         ))}
       </details>
