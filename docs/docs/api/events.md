@@ -72,11 +72,12 @@ interface ScTranslationPayload {
 
 ### `danmaku-error`
 
-弹幕流错误。
+弹幕流错误。有自动重连计划时，载荷同时包含距离下一次尝试的秒数。
 
 ```typescript
 interface DanmakuErrorPayload {
   message: string
+  retryInSeconds?: number
 }
 ```
 

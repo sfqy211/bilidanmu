@@ -52,8 +52,11 @@ impl DanmakuWsClient {
                         match result {
                             Ok(()) => break,
                             Err(error) => {
-                                let _ = app_handle.emit("danmaku-error", serde_json::json!({"message": error}));
                                 let wait_sec = backoffs[attempt.min(backoffs.len() - 1)];
+                                let _ = app_handle.emit("danmaku-error", serde_json::json!({
+                                    "message": error,
+                                    "retryInSeconds": wait_sec,
+                                }));
                                 attempt = attempt.saturating_add(1);
                                 sleep(Duration::from_secs(wait_sec)).await;
                             }
