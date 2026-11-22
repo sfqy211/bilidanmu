@@ -1485,7 +1485,7 @@ export function DanmakuPage() {
             >
               {activityBarMode === "latest" ? (
                 <div
-                  className="flex h-full items-center overflow-hidden px-2.5"
+                  className="danmaku-activity-latest flex h-full items-center overflow-hidden px-2.5"
                   onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                   onContextMenu={(e) => {
                     if (!import.meta.env.DEV && e.target === e.currentTarget) {

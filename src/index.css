@@ -169,6 +169,24 @@ textarea,
   background-color: rgb(var(--brand-rgb) / calc(var(--bg-a) * 0.14));
 }
 
+/* ── 活动栏「只看最新」的单行约束 ──
+   状态条固定 32px 高，只够一行；进场消息的昵称没有长度上限，换行后两行会被
+   垂直居中并上下裁切。这里只压缩昵称（省略号），给后面的动作文字留出空间，
+   动作文字本身始终单行显示。 */
+.danmaku-activity-latest .danmaku-message-content {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.danmaku-activity-latest .danmaku-username {
+  display: inline-block;
+  max-width: calc(100% - 8em);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
 /* ── 侧边吸附收起条 ──
    跟随亮/暗主题：亮色用浅色玻璃 + 深色描边，暗色用半透明墨色。
    之前写死 bg-slate-900/75，导致亮色主题下也是一条深色块。 */
