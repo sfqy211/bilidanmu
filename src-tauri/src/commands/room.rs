@@ -228,9 +228,23 @@ pub async fn clear_room_specific_emoticons(state: State<'_, AppState>) -> Result
 }
 
 fn danmaku_window_title(state: &AppState, room_id: u64) -> String {
+    let messages = crate::settings_store::load_locale(state).messages();
     room_store::get_room_display_info(state, room_id)
         .map(|(uname, room_title)| format!("{uname} - {room_title}"))
-        .unwrap_or_else(|| format!("房间 {room_id}"))
+        .unwrap_or_else(|| format!("{} {room_id}", messages.room))
+}
+
+pub(crate) fn refresh_danmaku_window_title(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    let state = window.state::<AppState>();
+    let url = window.url()?;
+    let route = url.path().trim_end_matches('/');
+    if route == "/danmaku" {
+        let messages = crate::settings_store::load_locale(state.inner()).messages();
+        window.set_title(messages.danmaku_window)?;
+    } else if let Some(room_id) = route.strip_prefix("/danmaku/").and_then(|id| id.parse().ok()) {
+        window.set_title(&danmaku_window_title(state.inner(), room_id))?;
+    }
+    Ok(())
 }
 
 /// 切换当前房间并做全部联动：保存选择、刷新托盘、通知前端原地切路由。
@@ -317,7 +331,7 @@ async fn create_danmaku_window(
 
     let title = room_id
         .map(|id| danmaku_window_title(state, id))
-        .unwrap_or_else(|| "弹幕窗口".to_string());
+        .unwrap_or_else(|| crate::settings_store::load_locale(state).messages().danmaku_window.into());
 
     // 窗口壳与视频弹幕窗共用同一模板（无边框/透明/置顶/不进任务栏/后台节流开关）
     let builder =

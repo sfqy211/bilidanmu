@@ -534,6 +534,8 @@ impl Default for VisualSetting {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
+    #[serde(default, deserialize_with = "crate::locale::deserialize_setting")]
+    pub locale: crate::locale::Locale,
     #[serde(default)]
     pub visual: VisualSetting,
     pub send_interval: RangeSetting,
@@ -580,6 +582,7 @@ fn default_startup_view() -> String {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            locale: crate::locale::Locale::default(),
             visual: VisualSetting::default(),
             send_interval: RangeSetting { min: 1.5, max: 3.0 },
             rate_limit: RateLimitSetting {

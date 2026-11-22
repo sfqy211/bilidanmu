@@ -36,6 +36,7 @@ promo/
 # 本地临时测试，保留测试开发指南
 /tests/*
 !/tests/README.md
+!/tests/check-locales.mjs
 !/tests/test-video-window.ps1
 !/tests/video-window.html
 !/tests/video-window-fixture.tsx

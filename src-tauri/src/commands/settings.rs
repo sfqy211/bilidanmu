@@ -1,5 +1,6 @@
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
+use crate::locale::Locale;
 use crate::models::settings::Settings;
 use crate::settings_store;
 use crate::AppState;
@@ -13,6 +14,26 @@ pub fn is_stt_available() -> bool {
 #[tauri::command]
 pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
     settings_store::load_settings(&state)
+}
+
+#[tauri::command]
+pub async fn set_locale(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    locale: String,
+) -> Result<Locale, String> {
+    let locale = Locale::parse(&locale).ok_or("INVALID_LOCALE")?;
+    let changed = settings_store::save_locale(&state, locale).map_err(|error| {
+        log::warn!("Could not save locale: {error}");
+        "LOCALE_SAVE_FAILED"
+    })?;
+    if changed {
+        if let Err(error) = app.emit("locale-changed", ()) {
+            log::warn!("Could not notify windows of locale change: {error}");
+        }
+        crate::locale::refresh_native_ui(&app);
+    }
+    Ok(locale)
 }
 
 #[tauri::command]

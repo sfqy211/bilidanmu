@@ -151,11 +151,14 @@ const settings = await tauriCommands.settings.get()
 | 命令 | 参数 | 返回 | 说明 |
 | --- | --- | --- | --- |
 | `get_settings` | — | `Settings` | 获取设置 |
-| `update_settings` | `settings` | `void` | 保存设置（同时同步 `dock_enabled`、主题跟随等内存镜像） |
+| `update_settings` | `settings` | `void` | 保存普通设置，保留数据库中的界面语言，并同步 `dock_enabled`、主题跟随等内存镜像 |
+| `set_locale` | `locale: "zh-CN" \| "en"` | `"zh-CN" \| "en"` | 立即保存界面语言，语言实际变化后广播 `locale-changed` 并刷新原生界面 |
 | `is_stt_available` | — | `boolean` | STT 是否可用（当前恒为 `true`） |
 | `get_shortcut_errors` | — | `string[]` | 最近一次全局快捷键注册失败清单 |
 
 `Settings.stt` 中的 `customModelDir: string \| null` 记录自定义模型目录（空 = 默认 `{appDataDir}/models/stt`），由 `set_stt_model_dir` 写入。
+
+`Settings.locale` 是已保存的界面语言。旧数据库缺少该值或值无法识别时，`get_settings` 返回 `"zh-CN"`。调用 `set_locale` 时，不支持的语言返回 `INVALID_LOCALE`，落盘失败返回 `LOCALE_SAVE_FAILED`。
 
 ## 状态命令 (`state`)
 

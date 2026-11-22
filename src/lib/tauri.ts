@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Locale } from "@/i18n/languages";
 import type { AiMemoryEntry, AiPermissionMode, McpStatus } from "@/types/ai";
 import type {
   AudioStreamInfo,
@@ -199,6 +200,7 @@ export const tauriCommands = {
       invoke<void>("control_video_playback", { bvid, cid, control }),
   },
   settings: {
+    setLocale: (locale: Locale) => invoke<Locale>("set_locale", { locale }),
     get: () => invoke<Settings>("get_settings"),
     update: (settings: Settings) => invoke<void>("update_settings", { settings }),
     isSttAvailable: () => invoke<boolean>("is_stt_available"),

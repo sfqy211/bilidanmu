@@ -162,6 +162,7 @@ interface WsHeartbeatPayload {
 | 事件 | 载荷 | 说明 |
 | --- | --- | --- |
 | `settings-changed` | `Settings` | **前端发出**（`settings-store.patchSettings`），用于跨窗口同步设置 |
+| `locale-changed` | `null` | Rust 在界面语言变更落盘后广播。窗口收到后调用 `get_settings` 读取当前语言 |
 | `global-shortcut-action` | `"toggleAudio" \| "toggleMute"` | Rust 转发全局快捷键到弹幕窗前端执行 |
 
 ## STT 事件
@@ -258,6 +259,7 @@ interface SttModelDownloadEvent {
 | `video-stt` | Rust → 前端 | `commands/video_stt.rs` |
 | `download-progress` | Rust → 前端 | `commands/download.rs` |
 | `settings-changed` | 前端 → 前端（跨窗口） | `stores/settings-store.ts` |
+| `locale-changed` | Rust → 前端（跨窗口） | `commands/settings.rs` |
 | `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |
 | `ai-permission-changed` | Rust → 前端 | `ai/commands.rs` |
 | `ai-navigate` | Rust → 主窗口 | `ai/tools/video.rs` |

@@ -1,4 +1,5 @@
 import type { PriceColors } from "@danmaku-core/ui/types";
+import type { Locale } from "@/i18n/languages";
 
 export type SearchRoomMode = "name" | "roomId" | "link" | "uid";
 
@@ -334,6 +335,7 @@ export interface TitleBarButtons {
 }
 
 export interface Settings {
+  locale: Locale;
   visual: VisualSetting;
   sendInterval: { min: number; max: number };
   rateLimit: { maxPerWindow: number; windowSec: number };

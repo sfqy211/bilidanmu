@@ -61,13 +61,15 @@ pub fn create_tray(app: &App) -> tauri::Result<()> {
 }
 
 pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
-    let tray = app
-        .try_state::<TrayIcon>()
-        .ok_or_else(|| "托盘未初始化".to_string())?;
-
-    let menu = build_tray_menu(app).map_err(|error| error.to_string())?;
-    tray.set_menu(Some(menu))
-        .map_err(|error| format!("刷新托盘菜单失败: {error}"))
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        if let Some(tray) = handle.try_state::<TrayIcon>() {
+            if let Err(error) = build_tray_menu(&handle).and_then(|menu| tray.set_menu(Some(menu))) {
+                log::warn!("刷新托盘菜单失败: {error}");
+            }
+        }
+    })
+    .map_err(|error| format!("调度托盘刷新失败: {error}"))
 }
 
 fn load_tray_icon(app: &App) -> Option<Image<'_>> {
@@ -138,6 +140,7 @@ fn toggle_window(window: &tauri::WebviewWindow) {
 /// 弹幕窗口保持 maximizable=false，确保其窗口样式始终不含 WS_MAXIMIZEBOX，
 /// 避免拖到屏幕边缘触发 Windows Snap 吸附/分屏。
 fn show_window(window: &tauri::WebviewWindow) {
+    crate::locale::refresh_native_ui(window.app_handle());
     if window.label().starts_with("danmaku") {
         let _ = window.set_maximizable(false);
     }
@@ -223,6 +226,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     // 账号子菜单（显示所有已登录账号）
     let state = app.state::<AppState>();
+    let messages = crate::settings_store::load_locale(state.inner()).messages();
 
     // 从 AppState 读取（已由 setup 或 restore_login 填充）
     let credentials = state.credentials.lock().unwrap();
@@ -230,10 +234,10 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let metas = state.account_metas.lock().unwrap();
 
     if credentials.is_empty() {
-        let empty = MenuItem::with_id(app, "account-empty", "账号：未登录", false, None::<&str>)?;
+        let empty = MenuItem::with_id(app, "account-empty", messages.account_empty, false, None::<&str>)?;
         menu.append(&empty)?;
     } else {
-        let account_submenu = Submenu::with_id(app, "accounts", "账号", true)?;
+        let account_submenu = Submenu::with_id(app, "accounts", messages.accounts, true)?;
 
         for (uid, _cred) in credentials.iter() {
             let is_active = active_id.as_deref() == Some(uid.as_str());
@@ -289,14 +293,14 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     if visible_rooms.is_empty() {
         let label = if live_status.is_some() {
-            "直播间：暂无开播"
+            messages.rooms_offline
         } else {
-            "直播间：暂无"
+            messages.rooms_empty
         };
         let empty = MenuItem::with_id(app, "rooms-empty", label, false, None::<&str>)?;
         menu.append(&empty)?;
     } else {
-        let room_submenu = Submenu::with_id(app, "rooms", "直播间", true)?;
+        let room_submenu = Submenu::with_id(app, "rooms", messages.rooms, true)?;
         for room in visible_rooms.into_iter().take(10) {
             let is_current = current_room_id == Some(room.room_id);
             // 菜单项带上直播间标题：优先轮询缓存的实时标题，退回本地保存的标题
@@ -326,7 +330,7 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
 
-    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", messages.quit, true, None::<&str>)?;
     menu.append(&quit)?;
 
     Ok(menu)

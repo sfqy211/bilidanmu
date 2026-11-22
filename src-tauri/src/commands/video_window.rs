@@ -59,6 +59,22 @@ pub struct VideoWindowState {
     window_lock: tokio::sync::Mutex<()>,
 }
 
+fn video_window_title<'a>(app: &AppHandle, title: &'a str) -> &'a str {
+    if title.trim().is_empty() {
+        let state = app.state::<crate::AppState>();
+        crate::settings_store::load_locale(state.inner()).messages().video_danmaku
+    } else {
+        title
+    }
+}
+
+pub(crate) fn refresh_window_title(window: &WebviewWindow) -> tauri::Result<()> {
+    let state = window.state::<VideoWindowState>();
+    let title = state.snapshot.lock().unwrap_or_else(|error| error.into_inner())
+        .as_ref().map(|snapshot| snapshot.title.clone()).unwrap_or_default();
+    window.set_title(video_window_title(window.app_handle(), &title))
+}
+
 #[tauri::command]
 pub fn publish_video_playback(
     window: WebviewWindow,
@@ -82,7 +98,7 @@ pub fn publish_video_playback(
     *current = Some(snapshot.clone());
     if let Some(window) = app.get_webview_window(LABEL) {
         if title_changed {
-            let _ = window.set_title(&snapshot.title);
+            let _ = window.set_title(video_window_title(&app, &snapshot.title));
         }
         window
             .emit("video-playback", &snapshot)
@@ -119,17 +135,11 @@ pub async fn open_video_danmaku_window(
     state: State<'_, VideoWindowState>,
 ) -> Result<(), String> {
     let _guard = state.window_lock.lock().await;
-    if state
-        .snapshot
-        .lock()
-        .map_err(|e| e.to_string())?
-        .as_ref()
-        .and_then(|s| s.cid)
-        .is_none()
-    {
-        return Err("请等待视频解析完成".into());
-    }
+    let title = state.snapshot.lock().map_err(|e| e.to_string())?
+        .as_ref().filter(|s| s.cid.is_some()).map(|s| s.title.clone())
+        .ok_or("请等待视频解析完成")?;
     if let Some(window) = app.get_webview_window(LABEL) {
+        let _ = refresh_window_title(&window);
         let _ = window.unminimize();
         window.show().map_err(|e| e.to_string())?;
         // 隐身态下唤出窗口必须显形并保持到光标进入一次，与直播弹幕窗一致
@@ -147,7 +157,7 @@ pub async fn open_video_danmaku_window(
             &app,
             LABEL,
             WebviewUrl::App("/video-danmaku".into()),
-            "视频弹幕",
+            video_window_title(&app, &title),
         )
         .map_err(|e| e.to_string())?
         .inner_size(w, h)

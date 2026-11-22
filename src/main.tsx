@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
 import { router } from "@/router";
+import { initializeLocale } from "@/i18n/locale-sync";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
 import { applyVisualTheme } from "@/lib/visual-theme";
 import { queryClient } from "@/lib/query-client";
@@ -16,11 +17,11 @@ import "./index.css";
 import "@danmaku-core/ui/styles.css";
 
 async function bootstrap() {
-  try {
-    const settings = await tauriCommands.settings.get();
+  const settings = await initializeLocale();
+  if (settings) {
     useSettingsStore.getState().setSettings(settings);
     applyVisualTheme(useSettingsStore.getState().settings);
-  } catch {
+  } else {
     applyTheme(getStoredTheme() ?? "system");
   }
 

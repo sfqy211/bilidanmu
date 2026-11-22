@@ -4,6 +4,7 @@ import { tauriCommands } from "@/lib/tauri";
 import type { Settings } from "@/types/bilibili";
 import { DEFAULT_VISUAL, normalizeVisual } from "@/lib/visual-defaults";
 import { DEFAULT_PRICE_COLORS } from "@/lib/price-chip";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/languages";
 
 /** 需要深合并的子对象键 */
 const DEEP_KEYS = [
@@ -13,7 +14,7 @@ const DEEP_KEYS = [
 
 /** 将部分设置与默认值深合并，确保所有子对象字段完整 */
 function mergeSettings(base: Settings, incoming: Partial<Settings>): Settings {
-  const merged = { ...base, ...incoming };
+  const merged = { ...base, ...incoming, locale: base.locale };
   for (const key of DEEP_KEYS) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 跨 key 联合类型无法静态推断
     (merged as any)[key] = { ...(base[key] as object), ...((incoming[key] ?? {}) as object) };
@@ -42,6 +43,7 @@ function mergeSettings(base: Settings, incoming: Partial<Settings>): Settings {
 }
 
 export const defaultSettings: Settings = {
+  locale: DEFAULT_LOCALE,
   visual: DEFAULT_VISUAL,
   sendInterval: { min: 1.5, max: 3 },
   rateLimit: { maxPerWindow: 20, windowSec: 30 },
@@ -147,6 +149,7 @@ interface SettingsState {
   settings: Settings;
   sttAvailable: boolean;
   setSettings: (settings: Settings) => void;
+  setLocale: (locale: Locale) => void;
   setSttAvailable: (available: boolean) => void;
   patchSettings: (partial: Partial<Settings>) => void;
   saveSettings: () => Promise<void>;
@@ -161,9 +164,12 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: defaultSettings,
   sttAvailable: true, // optimistic default; updated on app init
-  setSettings: (settings) => set({
-    settings: mergeSettings(defaultSettings, settings),
-  }),
+  setSettings: (settings) => set((state) => ({
+    settings: mergeSettings({ ...defaultSettings, locale: state.settings.locale }, settings),
+  })),
+  setLocale: (locale) => set((state) => state.settings.locale === locale
+    ? state
+    : { settings: { ...state.settings, locale } }),
   setSttAvailable: (sttAvailable) => set({ sttAvailable }),
   patchSettings: (partial) => {
     set((state) => ({

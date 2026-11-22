@@ -5,6 +5,7 @@ mod commands;
 mod credential_store;
 mod db;
 mod emoticon_store;
+mod locale;
 mod mcp;
 mod message_template_store;
 mod models;
@@ -208,8 +209,6 @@ pub fn run() {
         }
         })
         .setup(|app| {
-            tray::create_tray(app)?;
-
             // 虚拟直播间（环境变量 BILIDANMU_MOCK=1 启用，见 bili::mock 模块说明）
             if bili::mock::is_enabled() {
                 bili::mock::spawn();
@@ -225,6 +224,7 @@ pub fn run() {
                     *db = Some(connection);
                 }
             }
+            tray::create_tray(app)?;
 
             // 数据库就绪后按设置注册全局快捷键（未绑定的动作跳过）
             shortcuts::apply_shortcuts(app.handle());
@@ -552,6 +552,7 @@ pub fn run() {
             commands::proxy::clear_image_cache,
             commands::proxy::get_cache_stats,
             commands::settings::get_settings,
+            commands::settings::set_locale,
             commands::settings::update_settings,
             commands::settings::is_stt_available,
             commands::selections::load_selections,

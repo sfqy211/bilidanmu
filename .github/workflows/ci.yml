@@ -104,6 +104,9 @@ jobs:
       - name: TypeScript typecheck
         run: npm run typecheck
 
+      - name: Check translation catalogs
+        run: npm run check:locales
+
       - name: Build renderer
         run: npm run build:renderer
 
