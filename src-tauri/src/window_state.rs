@@ -272,16 +272,15 @@ fn save_normal_geometry(app: &AppHandle, label: &str) {
     }
 }
 
-/// 把窗口矩形夹进它中心所在显示器的工作区；找不到对应显示器时退回主显示器。
-/// 坐标一律物理像素（全局坐标系）。
-pub(crate) fn clamp_into_work_area(
+/// 找矩形中心所在的显示器；找不到对应显示器时退回当前/主显示器。
+pub(crate) fn monitor_for_rect(
     window: &WebviewWindow,
     x: i32,
     y: i32,
     w_px: i32,
     h_px: i32,
-) -> (i32, i32) {
-    let monitor = window
+) -> Option<tauri::Monitor> {
+    window
         .available_monitors()
         .unwrap_or_default()
         .into_iter()
@@ -295,8 +294,20 @@ pub(crate) fn clamp_into_work_area(
                 && cy >= pos.y
                 && cy < pos.y + size.height as i32
         })
-        .or_else(|| window.primary_monitor().ok().flatten());
-    let Some(monitor) = monitor else {
+        .or_else(|| window.current_monitor().ok().flatten())
+        .or_else(|| window.primary_monitor().ok().flatten())
+}
+
+/// 把窗口矩形夹进它中心所在显示器的工作区；找不到对应显示器时退回当前/主显示器。
+/// 坐标一律物理像素（全局坐标系）。
+pub(crate) fn clamp_into_work_area(
+    window: &WebviewWindow,
+    x: i32,
+    y: i32,
+    w_px: i32,
+    h_px: i32,
+) -> (i32, i32) {
+    let Some(monitor) = monitor_for_rect(window, x, y, w_px, h_px) else {
         return (x, y);
     };
     let area = monitor.work_area();

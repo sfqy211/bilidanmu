@@ -1,5 +1,7 @@
-//! 侧边吸附（贴边收缩）：把窗口拖到屏幕左/右/上边缘后收缩为细条，
+//! 侧边吸附（贴边收缩）：把窗口拖到屏幕左/右/上边缘并松手后收缩为细条，
 //! 鼠标悬停展开、离开后延迟收回、展开后拖离边缘退出吸附（QQ 模式）。
+//! 拖动过程中不判定吸附，避免多显示器跨屏时被中途的屏幕边界吸走；
+//! 松手后先把窗口完整弹回工作区，等鼠标离开窗口再自动收起吸附。
 //! 底边不参与（与任务栏抢区域）。对两个弹幕小窗（直播弹幕窗 danmaku / 视频弹幕窗 video-danmaku）生效，其它窗口不参与。
 
 use crate::window_state::{DANMAKU_MAX_H, DANMAKU_MAX_W, DANMAKU_MIN_H, DANMAKU_MIN_W};
@@ -72,6 +74,10 @@ fn dock_width_px(monitor: &tauri::Monitor) -> u32 {
 const ENTER_THRESHOLD: i32 = 12;
 /// 退出吸附的边缘距离阈值（滞回，大于进入阈值）
 const EXIT_THRESHOLD: i32 = 28;
+/// 松手后的停稳判定：窗口位置连续稳定该时长才允许进入吸附。
+/// 多显示器拖动跨过屏幕交界时，窗口会短暂贴住内部边界；若只按光标离开/贴边
+/// 立即判定，会在拖动途中就触发吸附。先要求窗口停稳，再按最终位置决定。
+const SETTLE_AFTER_MS: u128 = 200;
 
 /// 光标轮询间隔（毫秒）：吸附各态需要收回延迟判定精度，用高频；
 /// normal 态只做贴边检测，用低频降低常驻空转开销
@@ -236,29 +242,48 @@ pub fn normal_geometry(
     Some((window.outer_position().ok()?, window.outer_size().ok()?))
 }
 
-/// 进入吸附：记录正常几何，收缩为贴边细条
+/// 进入吸附：记录（已夹回工作区的）正常几何，收缩为贴边细条。
+/// 松手时窗口可能还停在屏外一段距离，记录恢复基准前先夹回工作区，
+/// 否则之后展开/退出吸附会把越界位置带回来。
 fn enter_dock(app: &AppHandle, window: &WebviewWindow, side: DockSide) {
     let state = app.state::<AppState>();
     let label = window.label().to_string();
     log::info!("[dock] 进入吸附: {label} side={side:?}");
 
-    let Ok(pos) = window.outer_position() else { return };
-    let Ok(size) = window.outer_size() else { return };
-    let Some(monitor) = window.current_monitor().ok().flatten() else { return };
+    let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) else {
+        return;
+    };
+    let (x, y) = crate::window_state::clamp_into_work_area(
+        window,
+        pos.x,
+        pos.y,
+        size.width as i32,
+        size.height as i32,
+    );
+    let pos = PhysicalPosition::new(x, y);
+    let Some(monitor) = crate::window_state::monitor_for_rect(
+        window,
+        pos.x,
+        pos.y,
+        size.width as i32,
+        size.height as i32,
+    ) else {
+        return;
+    };
 
     // 记录吸附前几何
     {
         let mut docks = lock_docks(state.inner());
-            docks.insert(
-                label.clone(),
-                DockState {
-                    side,
-                    phase: DockPhase::Collapsed,
-                    normal_pos: pos,
-                    normal_size: size,
-                    geometry_applied: false,
-                },
-            );
+        docks.insert(
+            label.clone(),
+            DockState {
+                side,
+                phase: DockPhase::Collapsed,
+                normal_pos: pos,
+                normal_size: size,
+                geometry_applied: false,
+            },
+        );
     }
 
     // 放宽尺寸约束才能缩成细条
@@ -513,7 +538,7 @@ fn cursor_window_geometry(
     ))
 }
 
-/// 光标是否已离开窗口区域（松手/移开的判定，替代不可靠的前端 mouseleave）。
+/// 光标是否已离开窗口区域（展开态收回判定的辅助信号）。
 /// 获取失败按"未离开"处理，避免误发起收回。
 fn cursor_outside(window: &WebviewWindow, app: &AppHandle) -> bool {
     match cursor_window_geometry(window, app) {
@@ -521,6 +546,96 @@ fn cursor_outside(window: &WebviewWindow, app: &AppHandle) -> bool {
             cx < left || cx >= right || cy < top || cy >= bottom
         }
         None => false,
+    }
+}
+
+/// 主鼠标键是否仍按住（Windows 全局查询）。
+/// 拖动跨屏时窗口可能短暂贴住显示器交界，而窗口跟随有延迟、光标会瞬时跑到
+/// 窗口外；此时只看几何会误判成"已松手"。按键仍按下就不做松手/吸附判定，
+/// 保证拖动途中不触发回弹或吸附。非 Windows 平台没有等价查询，退回停稳判定。
+#[cfg(target_os = "windows")]
+fn primary_button_down() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn primary_button_down() -> bool {
+    false
+}
+
+/// 拖动结束判定：区分「拖动经过屏幕边界」和「拖动结束停在边界」。
+/// 轮询每个 tick 调用 [`DragSettle::observe`]；拖动期间发生过移动、
+/// 随后主键松开且窗口位置稳定 `SETTLE_AFTER_MS`，才算一次拖动结束（released），
+/// 用于把窗口弹回工作区。吸附另由「光标离开窗口 + 贴边」决定。
+struct DragSettle {
+    last_position: Option<PhysicalPosition<i32>>,
+    settled_since: std::time::Instant,
+    armed: bool,
+}
+
+/// 一次轮询的拖动状态。
+struct DragObservation {
+    /// 本次 tick 是否为某次拖动的结束（只返回一次）
+    released: bool,
+    /// 窗口位置是否已停稳；吸附仍要求光标离开窗口，停稳用于排除拖动途中
+    settled: bool,
+}
+
+impl DragSettle {
+    fn new(now: std::time::Instant) -> Self {
+        Self {
+            last_position: None,
+            settled_since: now,
+            armed: false,
+        }
+    }
+
+    /// 丢弃待判定状态（进入仅输入框/隐身/冷却，或已消费本次拖动时调用）。
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+
+    /// 回弹等程序性移动后同步基准位置，避免下一帧把它当成一次新的拖动。
+    fn note_programmatic_position(
+        &mut self,
+        position: PhysicalPosition<i32>,
+        now: std::time::Instant,
+    ) {
+        self.last_position = Some(position);
+        self.settled_since = now;
+        self.armed = false;
+    }
+
+    /// 记录一次轮询：`released` 表示一次拖动刚结束，`settled` 表示窗口已停稳。
+    /// `released` 返回 true 时会消费待判定状态，保证一次拖动只判定一次。
+    fn observe(
+        &mut self,
+        position: Option<PhysicalPosition<i32>>,
+        button_down: bool,
+        now: std::time::Instant,
+    ) -> DragObservation {
+        let moved = match (self.last_position, position) {
+            (Some(previous), Some(current)) => previous != current,
+            _ => false,
+        };
+        // 首帧也要落位，否则后续永远没有可比较的基准
+        if position.is_some() {
+            self.last_position = position;
+        }
+        if moved {
+            self.settled_since = now;
+            // 位置变化即视为一次拖动/移动；是否真正进入吸附由后面的
+            // 「主键已松开 + 停稳 + 光标离开窗口」共同决定。
+            self.armed = true;
+        }
+
+        let settled = now.duration_since(self.settled_since).as_millis() >= SETTLE_AFTER_MS;
+        let released = self.armed && !button_down && settled;
+        if released {
+            self.armed = false;
+        }
+        DragObservation { released, settled }
     }
 }
 
@@ -535,16 +650,16 @@ fn cursor_over_window(window: &WebviewWindow, app: &AppHandle) -> bool {
     }
 }
 
-/// 判定是否贴到屏幕左/右/上边缘（不含底）。返回 Some(side) 表示应进入吸附。
+/// 判定矩形是否贴到屏幕左/右/上边缘（不含底）。返回 Some(side) 表示应进入吸附。
 /// 贴边语义对齐 QQ：窗口边缘"碰到或越过"屏幕边缘即算贴边，
 /// 允许窗口被拖出屏幕外一段距离（此时窗口边缘已在屏幕外侧，仍视为贴边）。
 /// 角落归属左右优先：同时贴近左/右与上时归左右，顶吸仅在未贴左右时生效。
-fn detect_edge(window: &WebviewWindow) -> Option<DockSide> {
-    let pos = window.outer_position().ok()?;
-    let size = window.outer_size().ok()?;
-    let monitor = window.current_monitor().ok().flatten()?;
-    let work = monitor.position();
-    let work_size = monitor.size();
+fn detect_edge_in(
+    work: PhysicalPosition<i32>,
+    work_size: PhysicalSize<u32>,
+    pos: PhysicalPosition<i32>,
+    size: PhysicalSize<u32>,
+) -> Option<DockSide> {
     let work_right = work.x + work_size.width as i32;
     let win_right = pos.x + size.width as i32;
 
@@ -564,6 +679,54 @@ fn detect_edge(window: &WebviewWindow) -> Option<DockSide> {
     } else {
         None
     }
+}
+
+/// 松手后把窗口完整弹回工作区，保持正常窗口形态。
+/// 这一步不进入吸附：吸附仍由后续「光标离开窗口」判定触发，
+/// 所以松手后窗口先完整显示，鼠标移开后才收起。
+/// 返回新的落点（未移动时 None），供调用方同步拖动跟踪基准。
+fn bounce_back_into_work_area(window: &WebviewWindow) -> Option<PhysicalPosition<i32>> {
+    let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) else {
+        return None;
+    };
+    let (x, y) = crate::window_state::clamp_into_work_area(
+        window,
+        pos.x,
+        pos.y,
+        size.width as i32,
+        size.height as i32,
+    );
+    if x == pos.x && y == pos.y {
+        return None;
+    }
+    let target = PhysicalPosition::new(x, y);
+    let _ = window.set_position(target);
+    Some(target)
+}
+
+/// 松手后光标是否真的移动过。
+/// 回弹会把窗口相对光标的位置挪到屏幕边界，光标可能恰好落在窗口外侧，
+/// 仅凭 cursor_outside 会立刻判定为「已移开」；要求至少移动一小段距离。
+fn cursor_moved_since(app: &AppHandle, origin: Option<PhysicalPosition<f64>>) -> bool {
+    let Some(origin) = origin else { return true };
+    let Ok(current) = app.cursor_position() else { return true };
+    (current.x - origin.x).abs() + (current.y - origin.y).abs() > 6.0
+}
+
+/// 按窗口中心所在显示器判定是否贴边。
+/// 用中心所在显示器而不是 current_monitor，避免多屏内部边界上窗口跨在
+/// 两块屏幕之间时判定到错误的那一块，漏掉内部边缘的吸附。
+fn detect_edge_for_window(window: &WebviewWindow) -> Option<DockSide> {
+    let pos = window.outer_position().ok()?;
+    let size = window.outer_size().ok()?;
+    let monitor = crate::window_state::monitor_for_rect(
+        window,
+        pos.x,
+        pos.y,
+        size.width as i32,
+        size.height as i32,
+    )?;
+    detect_edge_in(*monitor.position(), *monitor.size(), pos, size)
 }
 
 /// 窗口是否已拖离所在边缘（退出吸附判定，滞回阈值）
@@ -604,8 +767,9 @@ fn far_from_edges(window: &WebviewWindow) -> bool {
 
 /// 给可吸附窗口挂接吸附逻辑：
 /// - Moved 仅处理"展开态拖离边缘退出吸附"（QQ 模式）；
-/// - 进入吸附（松手贴边）与展开收回（光标离开）由光标轮询驱动，
-///   因为 Moved 在拖动中持续触发且松手后停止，无法区分"是否松手/光标是否离开"。
+/// - 进入吸附（松手贴边）与展开收回（光标离开）由轮询驱动：
+///   Moved 在拖动中持续触发且松手后停止，无法区分是否松手；
+///   轮询结合窗口位置停稳与鼠标按键状态做判定。
 pub fn attach(window: &WebviewWindow, app: &AppHandle) {
     if !is_dockable(window.label()) {
         return;
@@ -635,7 +799,8 @@ pub fn attach(window: &WebviewWindow, app: &AppHandle) {
     start_polling(window, app);
 }
 
-/// 启动该窗口的光标轮询：驱动"松手贴边进入吸附"与"光标离开展开窗口收回"。
+/// 启动该窗口的光标轮询：驱动"松手回弹"、"光标离开窗口后贴边吸附"与
+/// "光标离开展开窗口收回"。
 fn start_polling(window: &WebviewWindow, app: &AppHandle) {
     let label = window.label().to_string();
     stop_polling(&label); // 防御：先停掉同名旧任务
@@ -647,6 +812,11 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         // 光标持续在窗口外的累计时间（用于收回延迟）
         let mut outside_since: Option<std::time::Instant> = None;
+        // 窗口位置停稳 + 拖动结束判定：拖动途中窗口会跟随光标移动，跨屏时还会
+        // 短暂贴住显示器内部边界；只有拖动结束且位置稳定后才允许进入吸附
+        let mut drag_settle = DragSettle::new(std::time::Instant::now());
+        // 松手时的光标位置：回弹后再要求光标真正移动过，才允许吸附
+        let mut released_cursor: Option<PhysicalPosition<f64>> = None;
 
         let mut first_tick = true;
         loop {
@@ -678,29 +848,58 @@ fn start_polling(window: &WebviewWindow, app: &AppHandle) {
             };
             tokio::time::sleep(std::time::Duration::from_millis(interval_ms)).await;
 
+            let button_down = primary_button_down();
+            let drag = drag_settle.observe(
+                win.outer_position().ok(),
+                button_down,
+                std::time::Instant::now(),
+            );
+
             match current {
-                // 正常态：贴边 + 光标离开窗口（= 已松手）→ 进入吸附
+                // 正常态：松手先弹回工作区（保持完整窗口），之后光标离开窗口
+                // 且窗口停稳、贴边时才进入吸附。拖动途中绝不吸附，避免多屏
+                // 跨边界时被中途的屏幕边界吸走。
                 None => {
                     // 仅输入框模式不参与吸附（进入该模式时会先解除既有吸附）。
                     // 按窗口 label 读各自的标志：直播窗 danmaku_input_only / 视频窗 video_input_only
                     if crate::window_state::input_only_active(state.inner(), &label) {
+                        drag_settle.disarm();
+                        released_cursor = None;
                         outside_since = None;
                         continue;
                     }
                     // 隐身模式不参与吸附：开启时会主动退出吸附，这里兜底防止
                     // 隐身期间窗口点击穿透、吸附交互全部失效
                     if crate::window_stealth::is_active(state.inner(), &label) {
+                        drag_settle.disarm();
+                        released_cursor = None;
                         outside_since = None;
                         continue;
                     }
+                    // 松手：把窗口完整弹回工作区，但不立即吸附
+                    if drag.released {
+                        if let Some(target) = bounce_back_into_work_area(&win) {
+                            drag_settle
+                                .note_programmatic_position(target, std::time::Instant::now());
+                        }
+                        released_cursor = app_handle.cursor_position().ok();
+                    }
                     let in_cooldown = lock_cooldowns(state.inner()).contains(&label);
                     if in_cooldown {
-                        // 冷却中：拖离三条边缘后解除冷却
+                        // 冷却中：拖离三条边缘后解除冷却；期间的拖动不保留待判定状态
+                        drag_settle.disarm();
+                        released_cursor = None;
                         if far_from_edges(&win) {
                             lock_cooldowns(state.inner()).remove(&label);
                         }
-                    } else if let Some(side) = detect_edge(&win) {
-                        if cursor_outside(&win, &app_handle) {
+                    } else if !drag.released
+                        && drag.settled
+                        && !button_down
+                        && cursor_outside(&win, &app_handle)
+                        && cursor_moved_since(&app_handle, released_cursor)
+                    {
+                        // 鼠标已移开窗口，且窗口停稳、贴边 → 自动收起吸附
+                        if let Some(side) = detect_edge_for_window(&win) {
                             enter_dock(&app_handle, &win, side);
                         }
                     }
@@ -887,4 +1086,93 @@ pub fn get_dock_state(label: String, app: AppHandle) -> Result<DockStateSnapshot
             side: None,
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{detect_edge_in, DragSettle, DockSide, SETTLE_AFTER_MS};
+    use std::time::{Duration, Instant};
+    use tauri::{PhysicalPosition, PhysicalSize};
+
+    fn at(x: i32, y: i32) -> Option<PhysicalPosition<i32>> {
+        Some(PhysicalPosition::new(x, y))
+    }
+
+    #[test]
+    fn stationary_window_never_arms_docking() {
+        let t0 = Instant::now();
+        let mut settle = DragSettle::new(t0);
+        assert!(!settle.observe(at(100, 100), false, t0).released);
+        assert!(!settle.observe(at(100, 100), false, t0 + Duration::from_secs(1)).released);
+    }
+
+    #[test]
+    fn drag_across_monitor_boundary_only_fires_after_release() {
+        let t0 = Instant::now();
+        let mut settle = DragSettle::new(t0);
+        assert!(!settle.observe(at(100, 100), false, t0).released);
+
+        // 拖动经过显示器交界：位置持续变化，按住期间始终不算松手
+        for (index, x) in [300, 500, 700, 900].into_iter().enumerate() {
+            let t = t0 + Duration::from_millis(50 * (index as u64 + 1));
+            assert!(!settle.observe(at(x, 100), true, t).released, "拖动途中不应判定松手");
+        }
+
+        // 停在交界处继续按住：仍然不算松手
+        let held = t0 + Duration::from_millis(500);
+        assert!(!settle.observe(at(900, 100), true, held).released, "按住不动也不应判定松手");
+
+        // 松手：窗口早已停稳，回弹判定立即生效
+        let released = t0 + Duration::from_millis(550);
+        assert!(settle.observe(at(900, 100), false, released).released, "松手后应触发回弹");
+
+        // 一次拖动只判定一次
+        assert!(!settle.observe(at(900, 100), false, released + Duration::from_secs(1)).released);
+    }
+
+    #[test]
+    fn edge_detection_prefers_left_right_then_top() {
+        let work = PhysicalPosition::new(0, 0);
+        let work_size = PhysicalSize::new(1920, 1080);
+        let size = PhysicalSize::new(400, 300);
+        assert_eq!(
+            detect_edge_in(work, work_size, PhysicalPosition::new(0, 500), size),
+            Some(DockSide::Left)
+        );
+        assert_eq!(
+            detect_edge_in(work, work_size, PhysicalPosition::new(1520, 500), size),
+            Some(DockSide::Right)
+        );
+        assert_eq!(
+            detect_edge_in(work, work_size, PhysicalPosition::new(700, 0), size),
+            Some(DockSide::Top)
+        );
+        assert_eq!(
+            detect_edge_in(work, work_size, PhysicalPosition::new(700, 400), size),
+            None
+        );
+        // 左侧与顶部同时命中时左右优先
+        assert_eq!(
+            detect_edge_in(work, work_size, PhysicalPosition::new(0, 0), size),
+            Some(DockSide::Left)
+        );
+    }
+
+    #[test]
+    fn release_within_one_poll_still_arms() {
+        let t0 = Instant::now();
+        let mut settle = DragSettle::new(t0);
+        assert!(!settle.observe(at(100, 100), false, t0).released);
+
+        // 按下但这一帧还没移动
+        let pressed = t0 + Duration::from_millis(100);
+        assert!(!settle.observe(at(100, 100), true, pressed).released);
+
+        // 两帧之间完成移动并松手：位置变化仍会记录，停稳后再判定
+        let moved = pressed + Duration::from_millis(100);
+        assert!(!settle.observe(at(900, 100), false, moved).released);
+
+        let settled = moved + Duration::from_millis(SETTLE_AFTER_MS as u64);
+        assert!(settle.observe(at(900, 100), false, settled).released);
+    }
 }
