@@ -1,9 +1,11 @@
 // 浏览器专用 IPC 替身，所有发送与窗口操作留在本地。
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import type { Locale } from "../src/i18n/languages";
 
 const parameters = new URLSearchParams(location.search);
 const surface = parameters.get("surface") ?? "window";
-mockWindows(surface === "main" ? "main" : surface === "live" ? "danmaku" : "video-danmaku");
+const windowLabel = surface === "main" || surface === "settings" ? "main" : surface === "live" ? "danmaku" : "video-danmaku";
+mockWindows(windowLabel);
 const calls: { command: string; args: any }[] = [];
 const state = {
   revision: 1, bvid: "BVtest1", aid: 1, cid: 101, title: "时间轴与字幕联动 · 视频弹幕窗口",
@@ -14,7 +16,11 @@ let subtitleError = false;
 let danmakuError = false;
 let sendError = false;
 let cursor = { x: 30, y: 20 };
+let stealthEnabled = false;
+const stealthVisible = () => !stealthEnabled || (cursor.x >= 0 && cursor.x < innerWidth && cursor.y >= 0 && cursor.y < innerHeight);
 let backgroundLuminance: number | null = null;
+let savedLocale = parameters.get("locale");
+let localeSaveError = false;
 const initialRatio = parameters.get("subtitleRatio");
 const saved = { videoDanmakuAppearance: { subtitleFontSize: 15, ...(initialRatio === null ? {} : { subtitleRatio: Number(initialRatio) }) } };
 const { emit } = await import("@tauri-apps/api/event");
@@ -25,16 +31,33 @@ const broadcast = async (patch: object) => {
 mockIPC(async (command, args: any) => {
   calls.push({ command, args });
   switch (command) {
+    case "get_settings": {
+      const { locale: _default, ...settings } = defaultSettings;
+      return savedLocale === null ? settings : { ...settings, locale: savedLocale };
+    }
+    case "get_follow_lives": return [];
+    case "get_rooms": return [];
+    case "list_fav_folders":
+    case "list_watch_later": return [];
+    case "ai_mcp_status": return { running: false, endpoint: "" };
+    case "ai_get_permission_mode": return "autonomous";
+    case "ai_get_watch_max_minutes": return 240;
+    case "set_locale":
+      if (localeSaveError) throw "LOCALE_SAVE_FAILED";
+      await changeSavedLocale(args.locale);
+      return args.locale;
     case "get_dock_state": return { phase: "normal", side: "left" };
     case "get_danmaku_input_only": return false;
-    case "get_danmaku_stealth": return { enabled: false, visible: true };
+    case "get_danmaku_stealth": return { enabled: stealthEnabled, visible: stealthVisible() };
     case "get_live_time": return null;
     case "list_stt_models": return [];
     case "get_rooms_live_status": return { 1: { isLive: true }, 2: { isLive: true } };
     case "set_danmaku_input_only":
       await emit("danmaku-input-only", args.enabled); return args.enabled;
     case "set_danmaku_stealth":
-      await emit("danmaku-stealth", { label: "danmaku", enabled: args.enabled, visible: true }); return args.enabled;
+      stealthEnabled = args.enabled;
+      await emit("danmaku-stealth", { label: windowLabel, enabled: stealthEnabled, visible: stealthVisible() });
+      return stealthEnabled;
     case "switch_room": await emit("room-switched", args.roomId); return;
     case "send_danmaku": return { code: 0, message: "ok" };
     case "get_video_playback": return { ...state };
@@ -77,7 +100,13 @@ const { createRoot } = await import("react-dom/client");
 const { QueryClientProvider } = await import("@tanstack/react-query");
 const { queryClient } = await import("../src/lib/query-client");
 const { useAuthStore } = await import("../src/stores/auth-store");
-const { useSettingsStore } = await import("../src/stores/settings-store");
+const { defaultSettings, useSettingsStore } = await import("../src/stores/settings-store");
+const { initializeLocale } = await import("../src/i18n/locale-sync");
+async function changeSavedLocale(locale: Locale) {
+  savedLocale = locale;
+  await emit("locale-changed", null);
+}
+await initializeLocale();
 const { useTheme } = await import("../src/hooks/useTheme");
 function FixtureTheme({ children }: { children: import("react").ReactNode }) {
   useTheme();
@@ -88,7 +117,36 @@ await import("../src/index.css");
 await import("@danmaku-core/ui/styles.css");
 const root = createRoot(document.getElementById("root")!);
 let player: any;
-if (surface === "main") {
+if (surface === "settings") {
+  const { MemoryRouter, Routes, Route } = await import("react-router-dom");
+  const { Toaster } = await import("sonner");
+  const { SettingsPage } = await import("../src/pages/SettingsPage");
+  const { RoomPage } = await import("../src/pages/RoomPage");
+  const { RoomAddPage } = await import("../src/pages/RoomAddPage");
+  const { ListenHomePage } = await import("../src/pages/ListenHomePage");
+  const { VideoAddPage } = await import("../src/pages/VideoAddPage");
+  const { AIPage } = await import("../src/pages/AIPage");
+  const { AppSidebar } = await import("../src/components/layout/AppSidebar");
+  const { TitleBar } = await import("../src/components/layout/TitleBar");
+  root.render(
+    <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={["/settings"]}>
+      <TitleBar />
+      <div className="flex h-[calc(100vh-40px)]">
+        <AppSidebar />
+        <Routes>
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/rooms" element={<RoomPage />} />
+          <Route path="/rooms/add" element={<RoomAddPage />} />
+          <Route path="/listen" element={<ListenHomePage />} />
+          <Route path="/listen/add" element={<VideoAddPage />} />
+          <Route path="/ai" element={<AIPage />} />
+          <Route path="*" element={<div />} />
+        </Routes>
+      </div>
+      <Toaster />
+    </MemoryRouter></QueryClientProvider>,
+  );
+} else if (surface === "main") {
   const { MemoryRouter, Routes, Route } = await import("react-router-dom");
   const { VideoPlayerPage } = await import("../src/pages/VideoPlayerPage");
   const { VideoWindowBridge } = await import("../src/components/listen/VideoWindowBridge");
@@ -116,9 +174,13 @@ if (surface === "main") {
 }
 
 Object.assign(window, { videoTest: {
-  calls, state, saved, broadcast, emit, player, settingsStore: useSettingsStore,
+  calls, state, saved, broadcast, emit, player, changeSavedLocale, settingsStore: useSettingsStore,
+  setLocaleSaveError: (value: boolean) => { localeSaveError = value; },
   setLuminance: (value: number | null) => { backgroundLuminance = value; },
-  setCursor: (next: typeof cursor) => { cursor = next; },
+  setCursor: (next: typeof cursor) => {
+    cursor = next;
+    if (stealthEnabled) void emit("danmaku-stealth", { label: windowLabel, enabled: true, visible: stealthVisible() });
+  },
   setErrors: async (errors: { subtitle?: boolean; danmaku?: boolean; send?: boolean }) => {
     subtitleError = errors.subtitle ?? false; danmakuError = errors.danmaku ?? false; sendError = errors.send ?? false;
     queryClient.clear(); await broadcast({});

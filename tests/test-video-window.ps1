@@ -1,4 +1,4 @@
-﻿param([string]$Origin = 'http://127.0.0.1:3000')
+﻿param([string]$Origin = 'http://localhost:3000')
 $ErrorActionPreference = 'Stop'
 $session = 'video-window-regression'
 $fixturePath = (Join-Path $PSScriptRoot 'video-window.html').Replace('\', '/')
@@ -98,7 +98,7 @@ assert(document.querySelector('.video-window-divider').getAttribute('aria-valuen
     Invoke-Browser press End
     Assert-Page @'
 assert(document.querySelector('.video-window-divider').getAttribute('aria-valuenow') === '100', '设置滑块可到 100%');
-button('关闭设置').click();
+document.querySelector('[aria-label="视频弹幕外观设置"] button[aria-label="关闭"]').click();
 '@
     Invoke-Browser dblclick '.video-window-divider'
     Assert-Page @'
@@ -246,11 +246,12 @@ await settle();
 assert(document.documentElement.classList.contains('dark'), '响应系统深色主题');
 videoTest.setLuminance(0.2);
 '@
-    Invoke-Browser check 'input[aria-label="跟随屏幕背景亮暗"]'
+    Invoke-Browser click 'button[aria-label="主题"]'
+    Invoke-Browser find role option click --name '跟随背景' --exact
     Assert-Page @'
 await new Promise((resolve) => setTimeout(resolve, 300));
 assert(videoTest.settingsStore.getState().backgroundThemeOverride === 'dark', '偏暗屏幕背景使用深色');
-assert(document.querySelector('button[aria-label="主题"]').disabled, '背景跟随期间锁定手动主题');
+assert(document.querySelector('button[aria-label="主题"]').textContent.includes('跟随背景'), '背景跟随选项保持选中');
 videoTest.setLuminance(0.5);
 await new Promise((resolve) => setTimeout(resolve, 200));
 assert(videoTest.settingsStore.getState().backgroundThemeOverride === 'dark', '背景亮度中间区间保持主题');
@@ -260,46 +261,26 @@ assert(videoTest.settingsStore.getState().backgroundThemeOverride === 'light' &&
 assert(videoTest.calls.some(({command}) => command === 'sample_background_luminance'), '调用背景亮度采样');
 assert(videoTest.calls.some(({command,args}) => command === 'update_settings' && args.settings.appearance.autoThemeFromBackground), '背景跟随设置持久化');
 '@
-    Invoke-Browser uncheck 'input[aria-label="跟随屏幕背景亮暗"]'
+    Invoke-Browser click 'button[aria-label="主题"]'
+    Invoke-Browser find role option click --name '跟随系统' --exact
     Invoke-Browser set media light
     Assert-Page @'
 await settle();
 assert(videoTest.settingsStore.getState().backgroundThemeOverride === null, '关闭背景跟随清除主题覆盖');
 '@
-    Invoke-Browser click 'button[aria-label="浅色主题预设"]'
-    Invoke-Browser find role option click --name '薄荷' --exact
-    Invoke-Browser click 'button[aria-label="强调色"]'
-    Invoke-Browser find role option click --name '独立强调色' --exact
     Assert-Page @'
-const input = document.querySelector('input[aria-label="自定义强调色"]');
-Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '#467fba');
-input.dispatchEvent(new Event('input', {bubbles: true}));
+const { patchSettings, settings } = videoTest.settingsStore.getState();
+patchSettings({
+  visual: { ...settings.visual, light: { ...settings.visual.light, background: '#EDF6F1', contentFontFamily: 'serif' } },
+  appearance: { ...settings.appearance, titleBarButtons: { ...settings.appearance.titleBarButtons, pin: false } },
+});
 await settle();
-const root = document.querySelector('main');
-assert(getComputedStyle(root).getPropertyValue('--app-page').trim().toUpperCase() === '#EDF6F1', '主题预设背景应用到透明窗口');
-assert(root.style.getPropertyValue('--brand-rgb') === '70 127 186', '独立强调色作用于视频窗口');
-'@
-    Invoke-Browser click 'button[aria-label="强调色"]'
-    Invoke-Browser find role option click --name '跟随主题色' --exact
-    Invoke-Browser click 'button[aria-label="内容字体"]'
-    Invoke-Browser click '[role="listbox"][data-state="open"] [role="option"]:last-child'
-    Assert-Page @'
-await settle();
-assert(!document.querySelector('main').style.getPropertyValue('--brand-rgb'), '恢复主题强调色时移除局部覆盖');
-assert(videoTest.settingsStore.getState().settings.visual.light.contentFontFamily === 'serif', '内容字体写入现有主题配置');
+assert(getComputedStyle(document.querySelector('main')).getPropertyValue('--app-page').trim().toUpperCase() === '#EDF6F1', '跟随主窗口保存的背景颜色');
 assert(/SimSun|宋体/.test(getComputedStyle(document.querySelector('.content-typography')).fontFamily), '内容字体应用到字幕与弹幕');
-'@
-    Invoke-Browser scrollintoview '.danmaku-window-appearance-details summary'
-    Invoke-Browser click '.danmaku-window-appearance-details summary'
-    Invoke-Browser scrollintoview 'button[aria-label="置顶按钮"]'
-    Invoke-Browser click 'button[aria-label="置顶按钮"]'
-    Assert-Page @'
-await settle();
 assert(!document.querySelector('.danmaku-window-titlebar button[aria-label="取消置顶"]'), '标题栏按钮隐藏即时生效');
 assert(document.querySelector('.danmaku-window-titlebar button[aria-label="退出弹幕模式，返回视频页"]'), '退出入口始终可用');
 '@
-    Invoke-Browser click 'button[aria-label="置顶按钮"]'
-    Invoke-Browser click 'button[aria-label="关闭设置"]'
+    Invoke-Browser click '[aria-label="视频弹幕外观设置"] button[aria-label="关闭"]'
     Assert-Page @'
 videoTest.settingsStore.getState().setSettings(videoTest.initialSettings);
 await settle();
@@ -363,20 +344,19 @@ assert(videoTest.calls.filter(({command}) => command === 'send_video_danmaku').l
 button('窗口设置').click(); await settle();
 assert(document.querySelector('[aria-label="视频弹幕外观设置"]'), '精简外观设置');
 assert(!document.querySelector('[aria-label="视频弹幕外观设置"]').textContent.includes('礼物'), '设置适配视频功能');
-assert(document.querySelector('input[aria-label="字幕与弹幕自动跟随"]').checked, '旧设置缺少字段时补默认值');
+assert([...document.querySelectorAll('label.panel-check')].find((label) => label.textContent.includes('字幕与弹幕自动跟随')).querySelector('input').checked, '旧设置缺少字段时补默认值');
 '@
-    Invoke-Browser scrollintoview 'input[aria-label="显示行内时间"]'
-    Invoke-Browser uncheck 'input[aria-label="显示行内时间"]'
     Assert-Page @'
+[...document.querySelectorAll('label.panel-check')].find((label) => label.textContent.includes('显示行内时间')).querySelector('input').click();
 await settle();
 assert(document.querySelectorAll('.video-timeline-time').length === 0, '显示时间开关');
-button('关闭设置').click();
+document.querySelector('[aria-label="视频弹幕外观设置"] button[aria-label="关闭"]').click();
 button('切换视频').click(); await settle();
 assert(document.querySelector('[aria-label="切换视频"]').getAttribute('aria-pressed') === 'true', '播放列表开启');
 button('切换视频').click(); await settle();
-assert(!document.querySelector('.video-window-videos'), '再次点击收起播放列表');
+assert(document.querySelector('button[aria-label="切换视频"]').getAttribute('aria-pressed') === 'false', '再次点击收起播放列表');
 button('切换视频').click(); await settle();
-document.querySelectorAll('.video-window-videos > div > button')[1].click(); await settle();
+document.querySelectorAll('.video-window-panel-host .panel-list button')[1].click(); await settle();
 assert(videoTest.state.cid === 102, '切换分 P');
 assert(document.body.textContent.includes('这个视频还没有字幕'), '空字幕');
 assert(document.body.textContent.includes('当前时段还没有弹幕'), '空弹幕');
@@ -389,15 +369,16 @@ assert(videoTest.calls.filter(({command}) => command === 'plugin:window|start_dr
 button('解锁位置').click(); await settle();
 videoTest.setCursor({x: -200, y: -200});
 button('开启隐身（鼠标离开自动隐藏）').click();
-for (let attempt = 0; attempt < 20 && getComputedStyle(document.querySelector('main')).opacity !== '0'; attempt++) {
+const opacityLayer = document.querySelector('main').parentElement;
+for (let attempt = 0; attempt < 20 && getComputedStyle(opacityLayer).opacity !== '0'; attempt++) {
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
-assert(getComputedStyle(document.querySelector('main')).opacity === '0', '离开窗口后隐身');
+assert(getComputedStyle(opacityLayer).opacity === '0', '离开窗口后隐身');
 videoTest.setCursor({x: 30, y: 20});
-for (let attempt = 0; attempt < 20 && getComputedStyle(document.querySelector('main')).opacity !== '1'; attempt++) {
+for (let attempt = 0; attempt < 20 && getComputedStyle(opacityLayer).opacity !== '1'; attempt++) {
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
-assert(getComputedStyle(document.querySelector('main')).opacity === '1', '悬停后显形');
+assert(getComputedStyle(opacityLayer).opacity === '1', '悬停后显形');
 button('关闭隐身').click();
 button('开启窗口透传').click();
 videoTest.setCursor({x: 5, y: 90}); await settle();
@@ -405,10 +386,7 @@ assert(videoTest.calls.filter(({command}) => command === 'plugin:window|set_igno
 videoTest.setCursor({x: 15, y: 20}); await settle();
 assert(videoTest.calls.filter(({command}) => command === 'plugin:window|set_ignore_cursor_events').at(-1).args.value === false, '交互区恢复鼠标事件');
 button('关闭窗口透传').click(); await settle();
-button('仅输入框模式').click(); await settle();
-assert(document.querySelector('.is-input-only') && !document.querySelector('.video-window-timelines'), '仅输入框模式');
-button('恢复完整窗口').click(); await settle();
-assert(document.querySelector('.video-window-timelines'), '恢复完整模式');
+assert(!button('仅输入框模式') && document.querySelector('.video-window-timelines'), '视频窗保持完整形态');
 '@
     Invoke-Browser set viewport 360 420
     Assert-Page @'
@@ -448,7 +426,7 @@ assert(document.body.textContent.includes('直播消息接入回归') && documen
 button('静音').click(); await settle(); assert(button('取消静音'), '共享音量栏支持直播静音');
 button('取消静音').click(); await settle(); assert(button('静音'), '直播解除静音');
 document.querySelector('button[title="设置"]').click(); await settle();
-assert(document.querySelector('.danmaku-window-appearance') && button('主题') && button('强调色') && button('内容字体'), '直播页复用同一外观设置组件');
+assert(document.querySelector('.danmaku-window-appearance') && button('主题'), '直播页复用同一外观设置组件');
 assert(document.body.textContent.includes('实时字幕') && document.body.textContent.includes('吸附动画'), '直播专属设置继续可用');
 document.querySelector('button[title="设置"]').click(); await settle();
 '@
