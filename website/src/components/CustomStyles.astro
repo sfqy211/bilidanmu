@@ -1,0 +1,51 @@
+---
+// BiliDanmu 品牌令牌。字体走系统字体栈，保证中文排版和离线构建都不依赖远程字体。
+---
+
+<style is:inline>
+  :root {
+    --aw-font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC',
+      'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+    --aw-font-serif: Georgia, 'Songti SC', 'SimSun', serif;
+    --aw-font-heading: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC',
+      'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+
+    --aw-color-primary: rgb(242 84 125);
+    --aw-color-secondary: rgb(194 46 88);
+    --aw-color-accent: rgb(255 143 174);
+
+    --aw-color-text-heading: rgb(23 24 28);
+    --aw-color-text-default: rgb(23 24 28);
+    --aw-color-text-muted: rgb(23 24 28 / 66%);
+    --aw-color-bg-page: rgb(247 246 242);
+
+    --aw-color-bg-page-dark: rgb(23 24 28);
+
+    ::selection {
+      background-color: rgb(255 231 238);
+      color: rgb(194 46 88);
+    }
+  }
+
+  .dark {
+    --aw-font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC',
+      'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+    --aw-font-serif: Georgia, 'Songti SC', 'SimSun', serif;
+    --aw-font-heading: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC',
+      'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+
+    --aw-color-primary: rgb(242 84 125);
+    --aw-color-secondary: rgb(255 143 174);
+    --aw-color-accent: rgb(255 143 174);
+
+    --aw-color-text-heading: rgb(247 246 242);
+    --aw-color-text-default: rgb(233 230 223);
+    --aw-color-text-muted: rgb(233 230 223 / 66%);
+    --aw-color-bg-page: rgb(23 24 28);
+
+    ::selection {
+      background-color: rgb(194 46 88);
+      color: rgb(255 255 255);
+    }
+  }
+</style>

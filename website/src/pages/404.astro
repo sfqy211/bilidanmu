@@ -1,0 +1,27 @@
+---
+import Layout from '~/layouts/Layout.astro';
+import { getPermalink } from '~/utils/permalinks';
+
+const title = '页面不存在';
+---
+
+<Layout metadata={{ title }}>
+  <section class="flex items-center h-full p-16">
+    <div class="container flex flex-col items-center justify-center px-5 mx-auto my-8">
+      <div class="max-w-md text-center">
+        <h2 class="mb-8 font-bold text-9xl">
+          <span class="sr-only">Error</span>
+          <span class="text-primary">404</span>
+        </h2>
+        <p class="text-3xl font-semibold md:text-3xl">这个页面不存在。</p>
+        <p class="mt-4 mb-8 text-lg text-muted dark:text-slate-400">
+          可能是链接过期，或者文档已经搬到新的地址。
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a href={getPermalink('/')} class="btn btn-primary">回到首页</a>
+          <a href={getPermalink('/docs/')} class="btn">查看文档</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>

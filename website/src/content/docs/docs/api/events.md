@@ -1,0 +1,271 @@
+---
+title: "事件列表"
+sidebar:
+  order: 3
+---
+后端通过 Tauri 的事件机制向前端推送实时数据。前端使用 `listen`（或封装好的 `useTauriEvent`）订阅。
+
+## 监听方式
+
+```typescript
+import { listen } from '@tauri-apps/api/event'
+
+await listen<DanmakuMessage>('danmaku-received', (event) => {
+  console.log(event.payload)
+})
+```
+
+Rust 侧除 `emit_to("main", ...)` 两处外，其余都是 `app.emit(...)` 全局广播，因此同一个事件会被主窗口和弹幕窗同时收到——监听方需要按窗口 label 或业务状态自行过滤。
+
+## 弹幕消息事件
+
+### `danmaku-received`
+
+一条已解析的直播消息。`type` 决定渲染到哪一栏。
+
+```typescript
+interface DanmakuMessage {
+  id: string
+  roomId: number
+  type: 'danmaku' | 'gift' | 'superChat' | 'guard' | 'entry' | 'like' | 'system' | 'live' | 'preparing'
+  username: string
+  content: string
+  contentTrans?: string      // 醒目留言的机翻文案
+  timestamp: number          // Unix 秒（各命令原始单位不一，Rust 侧已归一化）
+  avatar?: string
+  medal?: Medal
+  wealthLevel?: number
+  price?: number
+  giftName?: string
+  count?: number
+  uid?: number
+  color?: number
+  guardLevel?: number
+  isAdmin?: boolean
+  dmType?: number
+  backgroundColor?: string
+  backgroundBottomColor?: string
+  backgroundPriceColor?: string
+  messageFontColor?: string
+  backgroundImage?: string
+  emots?: Record<string, InlineEmoticon>
+  emoticonOptions?: BigEmoticonOptions
+  replyUid?: number
+  replyUsername?: string
+  contributionRank?: number  // 高能榜前 3 名
+  bubbleColor?: string       // 气泡背景色 `#RRGGBBAA,#RRGGBBAA,#RRGGBBAA`（起/止/边框）
+}
+```
+
+> `bubbleColor` 随 `DANMU_MSG` 的 `info[0][11]` 一起下发，无需额外请求。
+> 相邻的 `info[0][10]` 是气泡样式 ID（`0` = 无气泡），`info[0][17]` 是 v2 样式 ID。
+> 注意根级 `dm_v2` 字段虽然存在但恒为空串，气泡数据不在那里。
+
+### `danmaku-sc-translation`
+
+醒目留言的翻译后补（`SUPER_CHAT_MESSAGE_JPN` 与原文分两条到达）。
+
+```typescript
+interface ScTranslationPayload {
+  roomId: number
+  id: string
+  contentTrans: string
+}
+```
+
+### `danmaku-error`
+
+弹幕流错误。有自动重连计划时，载荷同时包含距离下一次尝试的秒数。
+
+```typescript
+interface DanmakuErrorPayload {
+  message: string
+  retryInSeconds?: number
+}
+```
+
+## 连接事件
+
+### `ws-connected`
+
+WebSocket 认证成功。
+
+```typescript
+interface WsConnectedPayload {
+  roomId: number
+}
+```
+
+### `ws-disconnected`
+
+WebSocket 断开。`reason` 为 `manual`（主动断开）、关闭帧文本或 `socket ended`。
+
+```typescript
+interface WsDisconnectedPayload {
+  reason: string
+}
+```
+
+### `ws-heartbeat`
+
+心跳回复，`popularity` 为原始人气值（不是在线人数）。
+
+```typescript
+interface WsHeartbeatPayload {
+  popularity: number
+}
+```
+
+## 房间互动事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `like-count-update` | `{ roomId, clickCount }` | 本场累计点赞数 |
+| `online-count-update` | `{ roomId, onlineCount }` | 在线人数 |
+| `watched-count-update` | `{ roomId, watchedCount }` | 累计看过人数 |
+| `room-title-changed` | `{ roomId, title }` | 主播修改标题 |
+
+## 自动发送事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `auto-send-tick` | `{ roomId, message, dmType, index }` | 成功发送一条 |
+| `auto-send-error` | `{ roomId, message, dmType, index, error }` | 某条发送失败 |
+| `auto-send-stopped` | `{ reason }` | 停止；`reason` = `manual` / `error` / `time_limit` |
+
+## 自动点赞事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `auto-like-tick` | `{ roomId, sentTotal, targetTotal }` | 点赞进度 |
+| `auto-like-error` | `{ roomId, sentTotal, error }` | 发送失败 |
+| `auto-like-stopped` | `{ reason, sentTotal }` | 停止；`reason` = `manual` / `error` / `completed` |
+
+## 房间与窗口事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `rooms-updated` | `()` | 后台刷新完房间标题/封面，前端应重新拉列表 |
+| `room-switched` | `roomId: number` | 原地切换直播间（托盘或标题栏切换器触发） |
+| `room-exited` | `roomId: number` | 退出直播间（`emit_to("main")`；弹幕窗销毁时兜底发 `0`） |
+| `danmaku-entered` | `roomId: number` | 进入直播间（`emit_to("main")`，用于暂停视频音频） |
+| `danmaku-input-only` | `boolean` | 仅输入框模式开关结果 |
+| `danmaku-input-only-emotes` | `boolean` | 紧凑模式下表情面板展开/收起 |
+| `danmaku-stealth` | `{ label, visible, enabled }` | 隐身状态变化 |
+| `dock-changed` | `{ label, phase, side? }` | 吸附状态变化；`phase` = `collapsed` / `expanded` / `collapsing`，`side` = `left` / `right` / `top` |
+
+## 账号事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `account-switched` | `{ accountId, credential }` | 托盘切换账号后广播 |
+| `account-switch-error` | `string` | 切换失败的错误信息 |
+
+## 设置与快捷键
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `settings-changed` | `Settings` | **前端发出**（`settings-store.patchSettings`），用于跨窗口同步设置 |
+| `locale-changed` | `null` | Rust 在界面语言变更落盘后广播。窗口收到后调用 `get_settings` 读取当前语言 |
+| `global-shortcut-action` | `"toggleAudio" \| "toggleMute"` | Rust 转发全局快捷键到弹幕窗前端执行 |
+
+## STT 事件
+
+### `stt-transcript`
+
+字幕更新。
+
+```typescript
+interface SttTranscript {
+  text: string
+  isFinal: boolean
+  /** 音频流内时间戳（毫秒，自当前 tee 连接起点起算），用于与播放进度对齐 */
+  audioTsMs: number
+  /** 时间轴世代：tee 连接切换时递增，变化即需重新锚定 */
+  epoch: number
+}
+```
+
+### `video-stt`
+
+视频整段语音识别的进度与增量字幕。前端按 `bvid + cid` 过滤；带 `line` 的事件只追加字幕，不更新进度。
+
+```typescript
+interface VideoSttEvent {
+  bvid: string
+  cid: number
+  /** downloading | decoding | recognizing | done | cancelled | error */
+  phase: string
+  /** 当前阶段内的进度（0~1） */
+  progress: number
+  /** recognizing 阶段新增的一行字幕 */
+  line?: SubtitleLine
+  /** 仅 error 时有值 */
+  message?: string
+}
+```
+
+### `stt-model-download`
+
+识别模型下载进度与状态。
+
+```typescript
+interface SttModelDownloadEvent {
+  modelId: string
+  /** downloading | decompressing | done | cancelled | error */
+  status: string
+  downloaded: number
+  total: number
+  /** 仅 error 时有值 */
+  error: string | null
+}
+```
+
+## 下载事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `download-progress` | `{ filename, downloaded, total }` | 安装包下载进度，前端换算百分比 |
+
+## AI 工具事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `ai-confirm-request` | `{ id, tool, title, message, risk }` | AI 请求执行需确认的操作，主窗口弹确认框；用户决定后经 `ai_confirm_response` 回传 |
+| `ai-permission-changed` | `"confirmAll" \| "autonomous" \| "full"` | 权限模式变更，界面同步按钮状态 |
+| `ai-navigate` | `{ path }` | 请求主窗口跳到指定路由（如 `/listen/video/{bvid}` 打开视频播放页） |
+
+`ai-confirm-request` 的 `id` 是关联键：Rust 侧等待用户决定，超时（55 秒）后该 id
+失效，`ai_confirm_response` 会返回 `false`。
+
+## 视频弹幕窗口事件
+
+| 事件 | 载荷 | 说明 |
+| --- | --- | --- |
+| `video-playback` | `PlaybackSnapshot`，字段见 [IPC 视频弹幕窗口命令](/bilidanmu/docs/api/ipc/#视频弹幕窗口命令-videowindow) | Rust → `video-danmaku`，更新播放状态、当前分 P、进度和队列 |
+| `video-playback-control` | `{ bvid: string \| null, cid: number \| null, control: { action: 'togglePlay' } \| { action: 'seek' \| 'volume', value: number } \| { action: 'selectTrack', value: string } }` | Rust → 主窗口，主窗口核对视频身份后操作唯一音轨 |
+
+## 事件一览
+
+| 事件 | 方向 | 来源模块 |
+| --- | --- | --- |
+| `ws-connected` / `ws-disconnected` / `ws-heartbeat` | Rust → 前端 | `bili/ws_client.rs` |
+| `danmaku-received` / `danmaku-sc-translation` / `danmaku-error` | Rust → 前端 | `bili/ws_client.rs` |
+| `like-count-update` / `online-count-update` / `watched-count-update` / `room-title-changed` | Rust → 前端 | `bili/ws_client.rs` |
+| `auto-send-*` / `auto-like-*` | Rust → 前端 | `commands/danmaku.rs` |
+| `room-switched` / `rooms-updated` / `danmaku-input-only` / `danmaku-input-only-emotes` | Rust → 前端 | `commands/room.rs` |
+| `danmaku-entered` / `room-exited` | Rust → 主窗口 | `commands/room.rs`、`lib.rs` |
+| `dock-changed` | Rust → 前端 | `window_dock.rs` |
+| `danmaku-stealth`（载荷带 `label`，直播与视频弹幕窗共用） | Rust → 前端 | `window_stealth.rs` |
+| `account-switched` / `account-switch-error` | Rust → 前端 | `commands/auth.rs`、`tray.rs` |
+| `global-shortcut-action` | Rust → 前端 | `shortcuts.rs` |
+| `stt-transcript` / `stt-model-download` | Rust → 前端 | `stt/mod.rs`、`commands/stt_download.rs` |
+| `video-stt` | Rust → 前端 | `commands/video_stt.rs` |
+| `download-progress` | Rust → 前端 | `commands/download.rs` |
+| `settings-changed` | 前端 → 前端（跨窗口） | `stores/settings-store.ts` |
+| `locale-changed` | Rust → 前端（跨窗口） | `commands/settings.rs` |
+| `ai-confirm-request` | Rust → 主窗口 | `ai/dispatch.rs` |
+| `ai-permission-changed` | Rust → 前端 | `ai/commands.rs` |
+| `ai-navigate` | Rust → 主窗口 | `ai/tools/video.rs` |
+| `video-playback` | Rust → 视频弹幕窗口 | `commands/video_window.rs` |
+| `video-playback-control` | Rust → 主窗口 | `commands/video_window.rs` |

@@ -1,0 +1,45 @@
+---
+title: 常见问题
+description: BiliDanmu 的下载、平台支持、登录、数据与礼物打赏问题。
+---
+
+## BiliDanmu 免费吗？
+
+免费且开源，代码以 **AGPL-3.0** 发布在 [GitHub](https://github.com/sfqy211/bilidanmu)。没有广告、订阅或账号体系，设置与数据都保存在本机。
+
+## 支持哪些平台？
+
+- Windows 10 / 11（x64）
+- macOS（Universal，Apple Silicon + Intel）
+- Linux（x64，AppImage）
+
+macOS 版暂未签名公证，首次打开需右键应用选择「打开」。Windows 如果提示缺少 WebView2，请安装 [Microsoft WebView2 运行时](https://developer.microsoft.com/microsoft-edge/webview2/)。
+
+## 必须登录 B 站账号吗？
+
+匿名模式即可接收弹幕和直播音频；发送弹幕、表情、礼物，以及收藏夹、稍后再看、评论互动需要登录。登录使用 B 站 TV 端二维码，账号 Cookie 保存在本机。
+
+## 会不会影响直播间？
+
+BiliDanmu 只读取公开弹幕流和音频，不会向直播间发送无关内容。你主动发送的弹幕、表情和点赞都通过自己的账号完成。
+
+## 为什么没有发送礼物？
+
+发送礼物由 Cargo feature `gift-send` 门控，官方构建默认关闭。需要时可按 README 自行编译开启。
+
+## 数据存在哪里？
+
+设置、房间、收藏、消息模板与表情收藏保存在本机 SQLite；账号 Cookie 使用本地存储，不会上传到第三方。图片缓存可在设置中分类清理。
+
+## 弹幕窗找不到了怎么办？
+
+弹幕窗的关闭按钮是**隐藏到托盘**，不是断开直播间。点击任务栏右侧的 BiliDanmu 托盘图标即可再次显示；右键托盘图标还能切换直播间、切换账号或退出软件。
+
+## 视频和直播能同时听吗？
+
+不能。进入直播间会自动暂停视频音频，队列和进度会保留；回到视频页或迷你播放条后可以继续播放。
+
+## 相关
+
+- [快速开始](../guide/quick-start/)
+- [功能一览](../guide/features/)

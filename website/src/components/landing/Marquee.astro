@@ -1,0 +1,33 @@
+---
+const items = [
+  '透明弹幕窗',
+  '贴边收起',
+  '仅输入框',
+  '窗口透传',
+  '隐身模式',
+  '直播互动',
+  '听视频',
+  '视频弹幕窗',
+  '本地语音转字幕',
+  'AI 接入 MCP',
+];
+---
+
+<div
+  class="lp-marquee border-y py-3.5"
+  style="background: var(--lp-soft); border-color: var(--lp-line)"
+  aria-hidden="true"
+>
+  <div class="lp-marquee-track items-center gap-8 text-sm font-semibold" style="color: var(--lp-muted)">
+    {
+      [0, 1].map(() =>
+        items.map((item) => (
+          <span class="inline-flex items-center gap-8 whitespace-nowrap">
+            <span>{item}</span>
+            <span class="h-1 w-1 rounded-full" style="background: var(--lp-pink)"></span>
+          </span>
+        ))
+      )
+    }
+  </div>
+</div>

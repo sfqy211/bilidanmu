@@ -1,0 +1,25 @@
+---
+const stats = [
+  { value: '10–100%', label: '弹幕窗背景透明度' },
+  { value: '3', label: 'Windows · macOS · Linux' },
+  { value: '0', label: '广告、订阅与账号体系' },
+  { value: '45s', label: '从打开到进入直播间' },
+];
+---
+
+<section class="lp-section pb-4 pt-12 sm:pt-16">
+  <div class="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 px-5 sm:px-8 lg:grid-cols-4">
+    {
+      stats.map((item) => (
+        <div class="border-l pl-5 first:border-l-0 first:pl-0 lg:pl-6" style="border-color: var(--lp-line)">
+          <div class="font-heading text-[clamp(1.8rem,3.4vw,2.6rem)] font-black tracking-[-0.04em]">
+            {item.value}
+          </div>
+          <div class="mt-1 text-xs font-medium tracking-wide" style="color: var(--lp-muted)">
+            {item.label}
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>

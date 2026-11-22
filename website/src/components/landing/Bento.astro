@@ -1,0 +1,211 @@
+---
+import { Icon } from 'astro-icon/components';
+import cover0 from '~/assets/images/bilidanmu/cover-0.svg';
+import settingsPanel from '~/assets/images/bilidanmu/settings-panel.webp';
+---
+
+<section id="features" class="lp-section relative scroll-mt-24 overflow-hidden py-16 sm:py-24">
+  <div class="lp-aurora"></div>
+
+  <div class="relative mx-auto max-w-7xl px-5 sm:px-8">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="lp-eyebrow">核心功能</p>
+        <h2 class="lp-h2 mt-3">少即是多。</h2>
+      </div>
+      <p class="lp-lead max-w-sm sm:text-right">需要时它在，不需要时退到屏幕边缘。</p>
+    </div>
+
+    <div class="mt-10 grid grid-cols-1 gap-4 md:grid-cols-12">
+      <!-- 直播互动 -->
+      <article class="lp-bento-card is-dark flex flex-col justify-between p-5 sm:p-6 md:col-span-7">
+        <div>
+          <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-pink-300">
+            <Icon name="tabler:message-circle" class="h-4 w-4" /> 直播互动
+          </div>
+          <h3 class="lp-card-title mt-2 text-white">礼物、SC、上舰</h3>
+        </div>
+
+        <div class="mt-6 space-y-2 text-[11px]">
+          <div class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 backdrop-blur">
+            <span><span class="font-semibold text-pink-300">拾光</span><span class="text-white/50"> 送出 小心心 × 10</span></span>
+            <span class="font-semibold text-pink-200">￥1.00</span>
+          </div>
+          <div class="rounded-xl border border-sky-300/20 bg-sky-400/10 px-3 py-2.5 backdrop-blur">
+            <span class="font-semibold text-sky-200">星河23</span>
+            <span class="text-white/60"> 愿每个夜晚，都有好音乐相伴。</span>
+          </div>
+          <div class="rounded-xl border border-emerald-300/15 bg-emerald-400/10 px-3 py-2.5 backdrop-blur">
+            <span class="font-semibold text-emerald-200">晚风</span>
+            <span class="text-white/60"> 戴上耳机，世界安静了</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 贴边收起 -->
+      <article class="lp-bento-card flex flex-col justify-between p-5 sm:p-6 md:col-span-5">
+        <div>
+          <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em]" style="color: var(--lp-pink-dark)">
+            <Icon name="tabler:arrows-minimize" class="h-4 w-4" /> 贴边收起
+          </div>
+          <h3 class="lp-card-title mt-2">靠近就出</h3>
+        </div>
+
+        <div class="relative mt-6 h-40 overflow-hidden rounded-2xl" style="background: color-mix(in srgb, var(--lp-soft) 70%, transparent)">
+          <div
+            class="absolute bottom-5 left-5 top-5 w-[46%] rounded-lg border bg-white/70 p-2.5 shadow-lg backdrop-blur"
+            style="border-color: var(--lp-line)"
+          >
+            <div class="flex gap-1">
+              <span class="h-1.5 w-1.5 rounded-full bg-black/15"></span>
+              <span class="h-1.5 w-1.5 rounded-full bg-black/10"></span>
+              <span class="h-1.5 w-1.5 rounded-full bg-black/10"></span>
+            </div>
+            <div class="mt-3 space-y-1.5">
+              <div class="h-1.5 w-5/6 rounded-full bg-black/10"></div>
+              <div class="h-1.5 w-2/3 rounded-full bg-black/8"></div>
+              <div class="h-1.5 w-3/4 rounded-full bg-black/8"></div>
+            </div>
+          </div>
+
+          <div class="lp-edge absolute inset-y-0 right-[16%] w-px"></div>
+          <div
+            class="absolute right-[15.1%] top-1/2 h-20 w-2 -translate-y-1/2 rounded-full shadow-[0_0_22px_rgba(242,84,125,0.65)]"
+            style="background: var(--lp-pink)"
+          ></div>
+          <div class="absolute right-[8%] top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-white/90 shadow-lg">
+            <Icon name="tabler:pointer" class="h-4 w-4" style="color: var(--lp-pink-dark)" />
+          </div>
+          <span class="absolute bottom-4 left-5 text-[10px] font-medium" style="color: var(--lp-muted)">
+            移开 250ms 收起
+          </span>
+        </div>
+      </article>
+
+      <!-- 仅输入框 -->
+      <article class="lp-bento-card p-5 sm:p-6 md:col-span-4">
+        <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em]" style="color: var(--lp-pink-dark)">
+          <Icon name="tabler:keyboard" class="h-4 w-4" /> 仅输入框
+        </div>
+        <h3 class="lp-card-title mt-2">一行就够</h3>
+
+        <div class="mt-6 rounded-2xl p-3" style="background: color-mix(in srgb, var(--lp-soft) 70%, transparent)">
+          <div class="flex items-center gap-2 rounded-xl border bg-white/80 p-2.5 shadow-sm backdrop-blur" style="border-color: var(--lp-line)">
+            <Icon name="tabler:mood-smile" class="h-4 w-4" style="color: var(--lp-muted)" />
+            <span class="flex-1 text-xs" style="color: var(--lp-muted)">说点什么…</span>
+            <span class="rounded-full px-3 py-1.5 text-[10px] font-semibold text-white" style="background: var(--lp-pink)">发送</span>
+          </div>
+          <div class="mt-2 flex justify-between text-[10px]" style="color: var(--lp-muted)">
+            <span>底边锚定</span><span>Enter ↵</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 听视频 -->
+      <article class="lp-bento-card p-5 sm:p-6 md:col-span-4">
+        <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em]" style="color: var(--lp-pink-dark)">
+          <Icon name="tabler:headphones" class="h-4 w-4" /> 听视频
+        </div>
+        <h3 class="lp-card-title mt-2">不看也在听</h3>
+
+        <div class="mt-6 rounded-2xl border bg-white/70 p-3 shadow-sm backdrop-blur" style="border-color: var(--lp-line)">
+          <div class="flex items-center gap-3">
+            <img src={cover0.src} alt="" class="h-11 w-11 rounded-lg object-cover" />
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-xs font-semibold">慢慢来 · 给思绪一点空白</div>
+              <div class="text-[10px]" style="color: var(--lp-muted)">给自己的片刻安静</div>
+            </div>
+            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white" style="background: var(--lp-pink)">
+              <Icon name="tabler:player-play-filled" class="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <div class="mt-3 h-1 rounded-full bg-black/10">
+            <div class="h-1 w-1/3 rounded-full" style="background: var(--lp-pink)"></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 外观 -->
+      <article class="lp-bento-card overflow-hidden p-5 sm:p-6 md:col-span-4">
+        <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em]" style="color: var(--lp-pink-dark)">
+          <Icon name="tabler:palette" class="h-4 w-4" /> 外观
+        </div>
+        <h3 class="lp-card-title mt-2">自己调</h3>
+
+        <div class="mt-5 overflow-hidden rounded-xl border" style="border-color: var(--lp-line)">
+          <img
+            src={settingsPanel.src}
+            alt="BiliDanmu 外观设置面板"
+            class="h-40 w-full object-cover object-center"
+          />
+        </div>
+      </article>
+
+      <!-- 视频弹幕窗 -->
+      <article class="lp-bento-card p-5 sm:p-6 md:col-span-7">
+        <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em]" style="color: var(--lp-pink-dark)">
+          <Icon name="tabler:subtitles" class="h-4 w-4" /> 视频弹幕窗
+        </div>
+        <h3 class="lp-card-title mt-2">字幕和弹幕，一起走</h3>
+
+        <div class="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-[#111218] p-3">
+          <div class="mb-3 flex items-center justify-between rounded-lg bg-white/[0.04] px-3 py-2">
+            <span class="flex items-center gap-2 text-[10px] text-white/55">
+              <span class="grid h-6 w-6 place-items-center rounded-full bg-pink-500 text-white">
+                <Icon name="tabler:player-play-filled" class="h-3 w-3" />
+              </span>
+              正在播放 · 00:38 / 04:08
+            </span>
+            <span class="text-[9px] text-white/30">字幕 + 弹幕</span>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="space-y-2 rounded-xl bg-white/[0.04] p-3">
+              {
+                [
+                  ['00:00', '让世界慢下来。'],
+                  ['00:38', '把喜欢的声音，放在身边。'],
+                  ['01:02', '不必一直看着屏幕。'],
+                ].map(([time, text], index) => (
+                  <div class:list={['flex gap-2 text-[10px]', index === 1 ? 'text-pink-300' : 'text-white/45']}>
+                    <span class="tabular-nums">{time}</span>
+                    <span>{text}</span>
+                  </div>
+                ))
+              }
+            </div>
+            <div class="space-y-2 rounded-xl bg-white/[0.04] p-3">
+              {
+                [
+                  ['拾光', '愿每个夜晚，都有好音乐。', 'text-pink-300'],
+                  ['晚风', '世界安静了。', 'text-sky-300'],
+                  ['远山', '喜欢这样的夜晚。', 'text-emerald-300'],
+                ].map(([name, text, color]) => (
+                  <div class="flex gap-2 text-[10px] text-white/45">
+                    <span class:list={['shrink-0 font-semibold', color]}>{name}</span>
+                    <span>{text}</span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- AI 接入 -->
+      <article class="lp-bento-card is-pink flex flex-col justify-between p-5 sm:p-6 md:col-span-5">
+        <div>
+          <div class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-white/70">
+            <Icon name="tabler:sparkles" class="h-4 w-4" /> AI 接入
+          </div>
+          <h3 class="lp-card-title mt-2 text-white">本地 MCP</h3>
+          <p class="mt-2 text-xs leading-6 text-white/70">外部 AI 读懂直播间，token 只在本机。</p>
+        </div>
+
+        <div class="mt-5 rounded-xl border border-white/15 bg-black/25 p-3 font-mono text-[10px] leading-5 text-white/70 backdrop-blur">
+          <div class="text-white/40">$ curl 127.0.0.1:23332/mcp</div>
+          <div>{`{ "tool": "live", "action": "get_context" }`}</div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>

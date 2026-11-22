@@ -1,0 +1,38 @@
+/* Starlight 文档主题：与首页同一套「晨光」令牌。 */
+:root {
+  --sl-font: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC',
+    'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+  --sl-font-mono: 'Cascadia Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+
+  --sl-color-accent-low: #ffe7ee;
+  --sl-color-accent: #f2547d;
+  --sl-color-accent-high: #c22e58;
+  --sl-color-text-accent: #c22e58;
+
+  --sl-color-bg: #f7f6f2;
+  --sl-color-bg-nav: #f7f6f2;
+  --sl-color-bg-sidebar: #f1eee7;
+  --sl-color-hairline: #e3dfd7;
+  --sl-color-hairline-shade: #e3dfd7;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #3a1d27;
+  --sl-color-accent: #f2547d;
+  --sl-color-accent-high: #ffd4e0;
+  --sl-color-text-accent: #ff8fae;
+
+  --sl-color-bg: #17181c;
+  --sl-color-bg-nav: #17181c;
+  --sl-color-bg-sidebar: #1f2025;
+  --sl-color-hairline: #2f3037;
+  --sl-color-hairline-shade: #2f3037;
+}
+
+.sl-markdown-content {
+  line-height: 1.85;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  letter-spacing: -0.01em;
+}

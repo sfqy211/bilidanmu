@@ -1,0 +1,68 @@
+site:
+  name: BiliDanmu
+  site: 'https://sfqy211.github.io'
+  base: '/bilidanmu'
+  trailingSlash: true
+
+# Default SEO metadata
+metadata:
+  title:
+    default: BiliDanmu — 桌面弹幕伴侣
+    template: '%s — BiliDanmu'
+  description: '把 B 站直播弹幕与视频装进桌面：透明弹幕窗、贴边收起、直播互动、听视频与语音转字幕。'
+  robots:
+    index: true
+    follow: true
+  openGraph:
+    site_name: BiliDanmu
+    images:
+      - url: '~/assets/images/default.png'
+        width: 1200
+        height: 628
+    type: website
+  twitter:
+    cardType: summary_large_image
+
+i18n:
+  language: zh-CN
+  textDirection: ltr
+
+apps:
+  blog:
+    isEnabled: false
+    postsPerPage: 8
+
+    post:
+      isEnabled: false
+      permalink: '/%slug%'
+      robots:
+        index: false
+
+    list:
+      isEnabled: false
+      pathname: 'blog'
+      robots:
+        index: false
+
+    category:
+      isEnabled: false
+      pathname: 'category'
+      robots:
+        index: false
+
+    tag:
+      isEnabled: false
+      pathname: 'tag'
+      robots:
+        index: false
+
+    isRelatedPostsEnabled: false
+    relatedPostsCount: 0
+
+analytics:
+  vendors:
+    googleAnalytics:
+      id: null
+
+ui:
+  theme: 'system' # Values: "system" | "light" | "dark" | "light:only" | "dark:only"

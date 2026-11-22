@@ -1,0 +1,80 @@
+---
+import { Icon } from 'astro-icon/components';
+
+const faqs = [
+  {
+    q: '免费吗？',
+    a: '免费开源，AGPL-3.0，无广告。',
+  },
+  {
+    q: '支持哪些平台？',
+    a: 'Windows、macOS、Linux。',
+  },
+  {
+    q: '要登录吗？',
+    a: '匿名可看可听；发送和收藏需登录。',
+  },
+  {
+    q: '弹幕窗找不到？',
+    a: '关闭是隐藏到托盘，点托盘图标回来。',
+  },
+];
+---
+
+<section id="faq" class="lp-section scroll-mt-24 py-16 sm:py-24">
+  <div class="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[0.78fr_1.22fr] lg:gap-16">
+    <div class="self-start lg:sticky lg:top-28">
+      <p class="lp-eyebrow">常见问题</p>
+      <h2 class="lp-h2 mt-3">下载之前。</h2>
+      <p class="lp-lead mt-4 max-w-sm">还有问题，去 GitHub。</p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a
+          href="https://github.com/sfqy211/bilidanmu/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 text-sm font-semibold"
+          style="color: var(--lp-pink-dark)"
+        >
+          去提问
+          <Icon name="tabler:arrow-up-right" class="h-4 w-4" />
+        </a>
+        <a
+          href="./docs/guide/quick-start/"
+          class="inline-flex items-center gap-1.5 text-sm font-semibold"
+          style="color: var(--lp-muted)"
+        >
+          快速开始
+          <Icon name="tabler:arrow-right" class="h-4 w-4" />
+        </a>
+      </div>
+    </div>
+
+    <div class="border-t" style="border-color: var(--lp-line)">
+      {
+        faqs.map((item, index) => (
+          <details
+            class="lp-faq-item border-b py-5"
+            style="border-color: var(--lp-line)"
+            name="landing-faq"
+            open={index === 0}
+          >
+            <summary class="flex items-center justify-between gap-5">
+              <h3 class="text-base font-semibold tracking-tight sm:text-lg" style="color: var(--lp-ink)">
+                {item.q}
+              </h3>
+              <span
+                class="lp-faq-icon grid h-7 w-7 shrink-0 place-items-center rounded-full border"
+                style="border-color: var(--lp-line)"
+              >
+                <Icon name="tabler:plus" class="h-4 w-4" />
+              </span>
+            </summary>
+            <p class="mt-3 max-w-2xl text-sm leading-7" style="color: var(--lp-muted)">
+              {item.a}
+            </p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
