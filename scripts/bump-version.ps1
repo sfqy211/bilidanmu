@@ -47,6 +47,16 @@ Write-Host "OK: tauri.conf.json -> $Version"
 #    版本号与这里必须同步，否则首页下载按钮会 404。
 #    注意：必须显式用 UTF-8 读写——LandingApp.tsx 含中文注释，
 #    用默认编码（GBK）读写会把注释变成乱码，且会把换行吃掉。
+$WebsiteDownload = "$ProjectRoot\website\src\components\landing\Download.astro"
+if (Test-Path $WebsiteDownload) {
+    $WebsiteText = [System.IO.File]::ReadAllText($WebsiteDownload, [System.Text.UTF8Encoding]::new($false))
+    $WebsiteText = $WebsiteText -replace "const VERSION = '[^']*';", "const VERSION = '$Version';"
+    [System.IO.File]::WriteAllText($WebsiteDownload, $WebsiteText, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "OK: website Download.astro VERSION -> $Version"
+} else {
+    Write-Warning "未找到 $WebsiteDownload，请手动检查官网下载链接"
+}
+
 $LandingFile = "$ProjectRoot\docs\src\components\landing\LandingApp.tsx"
 if (Test-Path $LandingFile) {
     $Landing = [System.IO.File]::ReadAllText($LandingFile, [System.Text.UTF8Encoding]::new($false))
