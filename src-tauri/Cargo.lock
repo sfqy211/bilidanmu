@@ -928,7 +928,7 @@ dependencies = [
 [[package]]
 name = "danmaku-core"
 version = "0.1.0"
-source = "git+https://github.com/sfqy211/danmaku-core.git?rev=712785f8f8b8e6e5ac026f961630a1b1583ce2ae#712785f8f8b8e6e5ac026f961630a1b1583ce2ae"
+source = "git+https://github.com/sfqy211/danmaku-core.git?rev=87d843db6a403f170063b29361caa2c6c1d67658#87d843db6a403f170063b29361caa2c6c1d67658"
 dependencies = [
  "base64 0.22.1",
  "brotli 7.0.0",
