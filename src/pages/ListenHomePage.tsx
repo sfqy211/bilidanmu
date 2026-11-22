@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Clock, ListMusic, Plus, RefreshCw } from "lucide-react";
@@ -7,6 +8,7 @@ import type { FavFolder } from "@/types/bilibili";
 
 /** 听视频入口页：收藏夹与「稍后再看」合并为同一个目录列表。 */
 export function ListenHomePage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const [folders, setFolders] = useState<FavFolder[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
@@ -19,7 +21,7 @@ export function ListenHomePage() {
     try {
       setFolders(await tauriCommands.video.listFavFolders());
     } catch (reason) {
-      setFoldersError(reason instanceof Error ? reason.message : "获取收藏夹失败");
+      setFoldersError(reason instanceof Error ? reason.message : desktopI18n.t("desktop:videoHome.failed"));
     } finally {
       setFoldersLoading(false);
     }
@@ -47,12 +49,12 @@ export function ListenHomePage() {
       onContextMenu={(event) => { if (!import.meta.env.DEV) event.preventDefault(); }}
     >
       <PageHeader
-        title="听视频"
-        description="收藏夹与稍后再看；播放后可从底部播放栏回到正在播放。"
+        title={translate("videoHome.title")}
+        description={translate("videoHome.description")}
         actions={
           <NavLink to="/listen/add" className="workspace-button workspace-button-primary">
             <Plus className="h-4 w-4" />
-            添加视频
+            {translate("videoHome.add")}
           </NavLink>
         }
       />
@@ -60,24 +62,24 @@ export function ListenHomePage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div>
           <div className="app-rise mb-3 flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold text-ink">收藏</h3>
+            <h3 className="text-[13px] font-semibold text-ink">{translate("videoHome.favorites")}</h3>
             <button
               onClick={() => { void loadFolders(); void loadWatchLaterCount(); }}
               disabled={foldersLoading}
               className="workspace-button"
-              title="刷新收藏夹"
+              title={translate("videoHome.refreshFavorites")}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${foldersLoading ? "animate-spin" : ""}`} />
-              刷新
+              {translate("videoHome.refresh")}
             </button>
           </div>
 
           {foldersLoading ? (
-            <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
+            <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("videoHome.loading")}</div>
           ) : foldersError ? (
             <div className="app-rise flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               {foldersError}
-              <button type="button" onClick={() => void loadFolders()} className="workspace-button">重新加载</button>
+              <button type="button" onClick={() => void loadFolders()} className="workspace-button">{translate("videoHome.retry")}</button>
             </div>
           ) : (
             <div className="app-rise list-card">
@@ -88,9 +90,9 @@ export function ListenHomePage() {
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                   <Clock className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">稍后再看</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{translate("videoHome.watchLater")}</span>
                 {watchLaterCount != null && (
-                  <span className="numeric shrink-0 text-xs text-ink-muted">{watchLaterCount} 个视频</span>
+                  <span className="numeric shrink-0 text-xs text-ink-muted">{translate("videoHome.count", { count: watchLaterCount })}</span>
                 )}
               </button>
               {folders.map((folder) => (
@@ -103,11 +105,11 @@ export function ListenHomePage() {
                     <ListMusic className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{folder.title}</span>
-                  <span className="numeric shrink-0 text-xs text-ink-muted">{folder.mediaCount} 个视频</span>
+                  <span className="numeric shrink-0 text-xs text-ink-muted">{translate("videoHome.count", { count: folder.mediaCount })}</span>
                 </button>
               ))}
               {!folders.length && (
-                <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">还没有创建收藏夹</div>
+                <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("videoHome.empty")}</div>
               )}
             </div>
           )}

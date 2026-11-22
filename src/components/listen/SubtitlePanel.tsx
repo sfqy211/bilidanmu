@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -37,6 +38,7 @@ export function SubtitlePanel({
   onRestart?: () => void;
   errorText?: string | null;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const preferences = useSettingsStore((state) => state.settings.listen);
   const reducedMotion = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -102,10 +104,10 @@ export function SubtitlePanel({
   };
 
   return (
-    <section className="listen-subtitles" aria-label="视频字幕">
+    <section className="listen-subtitles" aria-label={translate("subtitles.video")}>
       <header className="listen-subtitle-header">
         <div className="flex min-w-0 items-center gap-3">
-          <h3 className="text-xs font-medium text-ink-muted">字幕</h3>
+          <h3 className="text-xs font-medium text-ink-muted">{translate("subtitles.title")}</h3>
           {badge && (
             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
               {badge}
@@ -116,29 +118,29 @@ export function SubtitlePanel({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {statusText && onStop && (
-            <button type="button" onClick={onStop} className="workspace-button text-xs">停止</button>
+            <button type="button" onClick={onStop} className="workspace-button text-xs">{translate("subtitles.stop")}</button>
           )}
           {!statusText && onRestart && (
-            <button type="button" onClick={onRestart} className="workspace-button text-xs" title="清除并重新识别字幕">
-              重新识别
+            <button type="button" onClick={onRestart} className="workspace-button text-xs" title={translate("subtitles.regenerateHint")}>
+              {translate("subtitles.regenerate")}
             </button>
           )}
           {preferences.subtitleAutoFollow && !following && (
-            <button type="button" onClick={resumeFollowing} className="workspace-button text-xs" title="恢复字幕跟随">
-              <RotateCcw className="h-3.5 w-3.5" />跟随
+            <button type="button" onClick={resumeFollowing} className="workspace-button text-xs" title={translate("subtitles.followHint")}>
+              <RotateCcw className="h-3.5 w-3.5" />{translate("subtitles.follow")}
             </button>
           )}
         </div>
       </header>
       {loading ? (
-        <div className="listen-subtitle-empty" role="status"><Loader2 className="h-4 w-4 animate-spin" />正在加载字幕…</div>
+        <div className="listen-subtitle-empty" role="status"><Loader2 className="h-4 w-4 animate-spin" />{translate("subtitles.loading")}</div>
       ) : !lines.length ? (
         <div className="listen-subtitle-empty" role="status">
           {failed ? (
-            <><span>暂时无法读取字幕</span><button type="button" className="workspace-button" onClick={onRetry}>重新加载</button></>
+            <><span>{translate("subtitles.failed")}</span><button type="button" className="workspace-button" onClick={onRetry}>{translate("subtitles.reload")}</button></>
           ) : (
             <>
-              <p>{emptyTitle ?? "这个视频还没有字幕"}</p>
+              <p>{emptyTitle ?? translate("subtitles.empty")}</p>
               {emptyHint && <p className="text-xs">{emptyHint}</p>}
             </>
           )}
@@ -151,7 +153,7 @@ export function SubtitlePanel({
           )}
         </div>
       ) : (
-        <div ref={scrollRef} data-lyric-scroll tabIndex={0} aria-label="字幕列表"
+        <div ref={scrollRef} data-lyric-scroll tabIndex={0} aria-label={translate("subtitles.list")}
           onWheel={pauseFollowing} onPointerDown={pauseFollowing} onKeyDown={(event) => {
             if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key)) pauseFollowing();
           }} className="listen-subtitle-scroll" style={{ fontSize: `${Math.min(24, Math.max(14, preferences.subtitleFontSize))}px` }}>
@@ -161,7 +163,7 @@ export function SubtitlePanel({
                 aria-current={index === activeIndex ? "true" : undefined}
                 onClick={() => { onSeek(line.from); resumeFollowing(); }}
                 className={cn("listen-subtitle-line", index === activeIndex && "listen-subtitle-current")}
-                title={`跳转到 ${formatTime(line.from)}`}>
+                title={translate("subtitles.seek", { value: formatTime(line.from) })}>
                 {preferences.subtitleShowTime && <span className="listen-subtitle-time numeric">{formatTime(line.from)}</span>}
                 <span className="content-typography min-w-0 break-words">{line.content}</span>
               </button>

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ListMusic, Loader2, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { ProxiedImage } from "@/components/ui/ProxiedImage";
@@ -5,6 +6,7 @@ import { useVideoAudioStore } from "@/stores/video-audio-store";
 
 /** 常驻 mini 播放条：听视频后台播放时固定在主窗口底部，可控制播放/切曲/关闭 */
 export function MiniPlayer() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const location = useLocation();
   const { queue, index, playing, loading, togglePlay, next, prev, stop, canNext, canPrev } = useVideoAudioStore();
@@ -27,7 +29,7 @@ export function MiniPlayer() {
       <button
         onClick={() => navigate(`/listen/video/${track.bvid}`)}
         className="min-w-0 flex-1 text-left"
-        title="打开播放页"
+        title={translate("miniPlayer.open")}
       >
         <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{track.title}</p>
         <p className="truncate text-xs text-slate-500 dark:text-slate-400">{queue.title}</p>
@@ -37,14 +39,14 @@ export function MiniPlayer() {
           onClick={() => void prev()}
           disabled={!canPrev()}
           className="rounded p-1.5 text-slate-500 transition hover:bg-black/5 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-          title="上一首"
+          title={translate("miniPlayer.previous")}
         >
           <SkipBack className="h-4 w-4" />
         </button>
         <button
           onClick={() => void togglePlay()}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-brand-contrast transition hover:opacity-90"
-          title={playing ? "暂停" : "播放"}
+          title={playing ? translate("miniPlayer.pause") : translate("miniPlayer.play")}
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -58,14 +60,14 @@ export function MiniPlayer() {
           onClick={() => void next()}
           disabled={!canNext()}
           className="rounded p-1.5 text-slate-500 transition hover:bg-black/5 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-          title="下一首"
+          title={translate("miniPlayer.next")}
         >
           <SkipForward className="h-4 w-4" />
         </button>
         <button
           onClick={() => stop()}
           className="ml-1 rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/20 dark:hover:text-rose-300"
-          title="停止播放"
+          title={translate("miniPlayer.stop")}
         >
           <X className="h-4 w-4" />
         </button>

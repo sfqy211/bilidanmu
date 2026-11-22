@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ImageIcon, Loader2, PanelsTopLeft } from "lucide-react";
@@ -17,6 +18,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 
 /** 字幕优先的播放页：封面缩成标题旁的小缩略图，阅读区独占整行。 */
 export function VideoPlayerPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const { bvid } = useParams();
   const { video, queue, index, pageIndex, currentTime, error, playVideo, loadVideo, seek } = useVideoAudioStore();
@@ -61,7 +63,7 @@ export function VideoPlayerPage() {
         return audioAutoPlay ? playVideo(info, 0) : loadVideo(info, 0);
       })
       .catch((reason) => {
-        if (!cancelled) useVideoAudioStore.setState({ error: reason instanceof Error ? reason.message : "无法读取视频信息，请稍后重试" });
+        if (!cancelled) useVideoAudioStore.setState({ error: reason instanceof Error ? reason.message : desktopI18n.t("desktop:videoPlayer.parseFailed") });
       });
     return () => { cancelled = true; };
   }, [bvid, isCurrentVideo, trackSignature, queue, index, playVideo, loadVideo, audioAutoPlay, navigate]);
@@ -106,18 +108,18 @@ export function VideoPlayerPage() {
 
   const sttPercent = Math.round(stt.progress * 100);
   const sttStatus = !sttAllowed ? null
-    : stt.status === "downloading" ? `正在获取音频 ${sttPercent}%`
-      : stt.status === "decoding" ? "正在加载识别模型…"
-        : stt.status === "recognizing" ? `正在识别 ${sttPercent}%`
+    : stt.status === "downloading" ? translate("videoPlayer.downloading", { value: sttPercent })
+      : stt.status === "decoding" ? translate("videoPlayer.loadingModel")
+        : stt.status === "recognizing" ? translate("videoPlayer.recognizing", { value: sttPercent })
           : null;
   const sttAction = !sttAllowed || stt.busy || stt.lines.length > 0 ? undefined
-    : sttModelReady === null ? { label: "检查识别模型…", onClick: () => {}, disabled: true }
-      : sttModelReady === false ? { label: "前往设置安装模型", onClick: () => navigate("/settings") }
-        : { label: stt.error ? "重试语音识别" : "用语音识别生成字幕", onClick: () => { void stt.start(); } };
+    : sttModelReady === null ? { label: translate("videoPlayer.checkingModel"), onClick: () => {}, disabled: true }
+      : sttModelReady === false ? { label: translate("videoPlayer.installModel"), onClick: () => navigate("/settings") }
+        : { label: stt.error ? translate("videoPlayer.retrySpeech") : translate("videoPlayer.generateSubtitles"), onClick: () => { void stt.start(); } };
 
   if (error) return <section className="flex h-full flex-col"><InlineMessage type="error">{error}</InlineMessage></section>;
-  if (!isCurrentVideo) return <div className="workspace-empty h-full" role="status"><Loader2 className="h-4 w-4 animate-spin" />正在解析视频…</div>;
-  if (!video || !queue || !track) return <div className="workspace-empty h-full">没有加载中的视频</div>;
+  if (!isCurrentVideo) return <div className="workspace-empty h-full" role="status"><Loader2 className="h-4 w-4 animate-spin" />{translate("videoPlayer.parsing")}</div>;
+  if (!video || !queue || !track) return <div className="workspace-empty h-full">{translate("videoPlayer.noVideo")}</div>;
 
   return (
     <section className="listen-player app-rise"
@@ -127,8 +129,8 @@ export function VideoPlayerPage() {
           <button
             onClick={() => navigate(getRememberedRoute())}
             className="glass-panel inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
-            title="返回上一页"
-            aria-label="返回上一页"
+            title={translate("videoPlayer.back")}
+            aria-label={translate("videoPlayer.back")}
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -142,7 +144,7 @@ export function VideoPlayerPage() {
             <p className="listen-player-meta"><span>{track.ownerName}</span><span aria-hidden="true">·</span><span title={queue.title}>{queue.title}</span></p>
           </div>
           <button type="button" className="workspace-button shrink-0" disabled={openingWindow || !currentCid}
-            title="在独立窗口中查看字幕与弹幕" onClick={async () => {
+            title={translate("videoPlayer.openDanmaku")} onClick={async () => {
               setOpeningWindow(true);
               try {
                 await tauriCommands.videoWindow.publish(getVideoPlaybackSnapshot());
@@ -150,7 +152,7 @@ export function VideoPlayerPage() {
               } catch (reason) { toast.error(String(reason)); }
               finally { setOpeningWindow(false); }
             }}>
-            {openingWindow ? <Loader2 className="h-4 w-4 animate-spin" /> : <PanelsTopLeft className="h-4 w-4" />}弹幕模式
+            {openingWindow ? <Loader2 className="h-4 w-4 animate-spin" /> : <PanelsTopLeft className="h-4 w-4" />}{translate("videoPlayer.danmakuMode")}
           </button>
         </div>
       </header>
@@ -163,11 +165,11 @@ export function VideoPlayerPage() {
           currentTime={currentTime}
           onSeek={seek}
           onRetry={() => setReloadKey((key) => key + 1)}
-          badge={!hasCc && stt.lines.length > 0 ? "AI 生成" : undefined}
-          emptyTitle="这个视频还没有字幕"
+          badge={!hasCc && stt.lines.length > 0 ? translate("videoPlayer.generated") : undefined}
+          emptyTitle={translate("videoPlayer.noSubtitles")}
           emptyHint={sttModelReady === false
-            ? "安装语音识别模型后，可为这个视频生成字幕"
-            : "可先播放音频；点击下方按钮用语音识别生成字幕，生成后可像 CC 字幕一样点击跳转"}
+            ? translate("videoPlayer.installToGenerate")
+            : translate("videoPlayer.generateHint")}
           action={sttAction}
           statusText={sttStatus}
           onStop={stt.busy ? () => { void stt.stop(); } : undefined}

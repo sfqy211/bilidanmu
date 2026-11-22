@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { formatClock } from "@/lib/time";
 
@@ -69,6 +70,7 @@ export function VideoSeekBar({ currentTime, duration, disabled, onSeek, onScrubS
   onSeek: (time: number) => void;
   onScrubStart: () => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const inputRef = useRef<HTMLInputElement>(null);
   const gestureRef = useRef<SeekGesture | null>(null);
   const [preview, setPreview] = useState<SeekPreview | null>(null);
@@ -154,12 +156,12 @@ export function VideoSeekBar({ currentTime, duration, disabled, onSeek, onScrubS
 
   return <div className="video-window-progress video-seek" data-scrubbing={preview ? "" : undefined}
     data-precision={range ? "" : undefined} style={rangeStyle}>
-    <span id={descriptionId} className="sr-only">拖动定位，按住并向上移动进入局部精调，移回进度条恢复全片调节。松开跳转，按 Esc 取消。方向键可微调时间。</span>
+    <span id={descriptionId} className="sr-only">{translate("seek.hint")}</span>
     {range && <div className="video-seek-detail" data-interactive aria-hidden="true">
       <div className="video-seek-detail-surface">
         <div className="video-seek-readout">
           <span className="numeric">{formatSeekTime(time)}</span>
-          <span>精细定位 · {Number(((range.end - range.start) / duration * 100).toFixed(2))}% 范围</span>
+          <span>{translate("seek.precision") + " "}{Number(((range.end - range.start) / duration * 100).toFixed(2))}{translate("seek.range")}</span>
         </div>
         <div className="video-seek-ruler">
           {ticks.map((tick) => <span key={tick.time} className={`video-seek-tick${tick.major ? " is-major" : ""}`} style={{ left: `${tick.percent}%` }}>
@@ -176,8 +178,8 @@ export function VideoSeekBar({ currentTime, duration, disabled, onSeek, onScrubS
         {range && <span className="video-seek-window" />}
         <span className="video-seek-thumb" style={{ left: `${percent}%` }} />
       </div>
-      {!range && <div className="video-seek-hint" aria-hidden="true"><span className="numeric">{formatSeekTime(time)}</span><span>上移精调</span></div>}
-      <input ref={inputRef} type="range" aria-label="视频播放进度" aria-describedby={descriptionId}
+      {!range && <div className="video-seek-hint" aria-hidden="true"><span className="numeric">{formatSeekTime(time)}</span><span>{translate("seek.drag")}</span></div>}
+      <input ref={inputRef} type="range" aria-label={translate("seek.progress")} aria-describedby={descriptionId}
         aria-valuetext={`${formatSeekTime(time)} / ${formatClock(totalDuration)}`} min={0} max={Math.max(1, totalDuration)} step={0.1}
         value={time} disabled={unavailable} onPointerDown={startGesture} onPointerMove={updateGesture}
         onPointerUp={finishGesture} onPointerCancel={cancelPointer} onLostPointerCapture={cancelPointer}

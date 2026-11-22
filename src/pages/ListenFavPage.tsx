@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Disc3, Loader2 } from "lucide-react";
@@ -14,6 +15,7 @@ const BULK_PAGE_SIZE = 50;
 
 /** 收藏夹内容页：夹内视频即"专辑曲目"，点选即听 */
 export function ListenFavPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const { mediaId } = useParams();
   const folderId = Number(mediaId ?? 0) || 0;
@@ -49,7 +51,7 @@ export function ListenFavPage() {
       setResources((prev) => (append ? [...prev, ...result.list] : result.list));
       setPage(targetPage);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "获取收藏夹内容失败");
+      setError(reason instanceof Error ? reason.message : desktopI18n.t("desktop:videoFavorites.failed"));
       setMsgKey((key) => key + 1);
     } finally {
       setLoading(false);
@@ -78,13 +80,13 @@ export function ListenFavPage() {
     try {
       const album: PlayQueue = {
         key: `fav-${folderId}`,
-        title: "收藏夹",
+        title: translate("videoFavorites.title"),
         tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
       };
       await playQueue(album, index);
       navigate(`/listen/video/${video.bvid}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "播放失败");
+      setError(reason instanceof Error ? reason.message : translate("videoFavorites.playFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setPlayingBvid(null);
@@ -98,12 +100,12 @@ export function ListenFavPage() {
     try {
       const album: PlayQueue = {
         key: `fav-${folderId}`,
-        title: "收藏夹",
+        title: translate("videoFavorites.title"),
         tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
       };
       await enterVideoDanmakuMode(album, index);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "打开弹幕模式失败");
+      setError(reason instanceof Error ? reason.message : translate("videoFavorites.danmakuFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setOpeningDanmakuBvid(null);
@@ -133,13 +135,13 @@ export function ListenFavPage() {
       if (all.length === 0) return;
       const album: PlayQueue = {
         key: `fav-${folderId}`,
-        title: "收藏夹",
+        title: translate("videoFavorites.title"),
         tracks: all.map((item) => ({ bvid: item.bvid, cid: null, title: item.title, ownerName: item.upperName, cover: item.cover, duration: item.duration }))
       };
       await playQueue(album, 0);
       navigate(`/listen/video/${all[0].bvid}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "播放全部失败");
+      setError(reason instanceof Error ? reason.message : translate("videoFavorites.playAllFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setPlayingAll(false);
@@ -151,7 +153,7 @@ export function ListenFavPage() {
 
   return (
     <VideoCollectionPage
-      title="收藏夹内容"
+      title={translate("videoFavorites.contents")}
       items={videos}
       total={total}
       loading={loading}
@@ -166,7 +168,7 @@ export function ListenFavPage() {
       onRefresh={() => void load(1, false)}
       onDanmaku={(video, index) => void handleDanmaku(video, index)}
       openingDanmakuBvid={openingDanmakuBvid}
-      emptyText="收藏夹是空的"
+      emptyText={translate("videoFavorites.empty")}
       emptyIcon={Disc3}
       footer={hasMore ? <div ref={loadMoreRef} className="flex justify-center py-3">
         {loadingMore && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}

@@ -22,7 +22,7 @@ export function getVideoPlaybackSnapshot(): VideoPlaybackSnapshot {
     bvid: track?.bvid ?? null,
     aid: video?.aid ?? null,
     cid: cid ?? null,
-    title: track?.title ?? "视频弹幕",
+    title: track?.title ?? "",
     tracks,
     index: state.index,
     playing: state.playing,

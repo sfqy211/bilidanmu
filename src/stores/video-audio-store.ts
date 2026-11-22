@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { i18n } from "@/i18n";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "./settings-store";
 import type { SeasonInfo, VideoInfo } from "@/types/bilibili";
@@ -68,12 +69,6 @@ export type PlayMode = "order" | "shuffle" | "repeat-one" | "repeat-all";
 /** 模式循环切换顺序（点一次按钮切下一个） */
 export const PLAY_MODE_ORDER: PlayMode[] = ["order", "shuffle", "repeat-one", "repeat-all"];
 
-export const PLAY_MODE_LABEL: Record<PlayMode, string> = {
-  order: "顺序播放",
-  shuffle: "随机播放",
-  "repeat-one": "单曲循环",
-  "repeat-all": "列表循环",
-};
 
 interface VideoAudioState {
   /** 当前曲目解析出的完整视频信息（字幕/分 P/合集切换都依赖它） */
@@ -268,7 +263,7 @@ function ensureAudio(get: () => VideoAudioStore, set: (partial: Partial<VideoAud
     void playTrackAt(target);
   });
   el.addEventListener("error", () => {
-    if (el.src) set({ playing: false, loading: false, error: "音频加载失败，请重试" });
+    if (el.src) set({ playing: false, loading: false, error: i18n.t("desktop:player.audioLoadFailed") });
   });
   audioEl = el;
   return el;
@@ -336,7 +331,7 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
       set({ loading: false });
     } catch (e) {
       if (seq !== loadSeq) return;
-      set({ loading: false, error: e instanceof Error ? e.message : "音频加载失败" });
+      set({ loading: false, error: e instanceof Error ? e.message : i18n.t("desktop:player.audioFailed") });
     }
   };
 

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Send, Settings } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ export function VideoWindowComposer({ playback, settingsOpen, settingsReady, onT
   onToggleSettings: () => void;
   onSent: (item: VideoDanmaku) => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const { activeAccountId, isAnonymous } = useAuthStore();
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -37,7 +39,7 @@ export function VideoWindowComposer({ playback, settingsOpen, settingsReady, onT
         onSent(result);
         setMessage((current) => current.trim() === text ? "" : current);
       }
-      toast.success(`弹幕已发送到 ${formatClock(result.progress)}`);
+      toast.success(translate("videoComposer.sent", { value: formatClock(result.progress) }));
     } catch (reason) {
       toast.error(String(reason));
     } finally {
@@ -48,11 +50,11 @@ export function VideoWindowComposer({ playback, settingsOpen, settingsReady, onT
 
   return <div className="video-window-input">
     <AccountSwitcher viewingAccountId={activeAccountId} />
-    <VideoWindowButton title="窗口设置" active={settingsOpen} disabled={!settingsReady} onClick={onToggleSettings}><Settings /></VideoWindowButton>
-    <DanmakuInput aria-label="发送视频弹幕" maxLength={100} value={message} disabled={!canSend || sending}
-      placeholder={canSend ? `发送弹幕到 ${formatClock(currentTime)}` : isAnonymous || !activeAccountId ? "登录账号后发送视频弹幕" : "等待视频加载…"}
+    <VideoWindowButton title={translate("videoComposer.settings")} active={settingsOpen} disabled={!settingsReady} onClick={onToggleSettings}><Settings /></VideoWindowButton>
+    <DanmakuInput aria-label={translate("videoComposer.label")} maxLength={100} value={message} disabled={!canSend || sending}
+      placeholder={canSend ? translate("videoComposer.at", { value: formatClock(currentTime) }) : isAnonymous || !activeAccountId ? translate("videoComposer.signIn") : translate("videoComposer.waiting")}
       onChange={setMessage} onSend={() => void send()} />
-    <VideoWindowButton title="发送弹幕" onClick={() => void send()} disabled={!canSend || !message.trim() || sending}>
+    <VideoWindowButton title={translate("videoComposer.send")} onClick={() => void send()} disabled={!canSend || !message.trim() || sending}>
       {sending ? <Loader2 className="animate-spin" /> : <Send />}
     </VideoWindowButton>
   </div>;

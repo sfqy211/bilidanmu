@@ -1,3 +1,5 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
+import { formatNumber } from "@/i18n/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -45,6 +47,7 @@ interface ReplyTarget {
 /** 视频评论页：未登录可看不可互动，登录后可点赞/发布/回复（点评论体进入回复模式）。
  *  评论内容可选中复制；输入框固定在页面底部；在列表顶部继续上滑返回播放器。 */
 export function VideoCommentsPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const { bvid } = useParams();
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
@@ -92,7 +95,7 @@ export function VideoCommentsPage() {
         if (!cancelled) setAid(info.aid);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "获取视频信息失败");
+          setError(e instanceof Error ? e.message : desktopI18n.t("desktop:comments.videoFailed"));
           setLoading(false);
         }
       }
@@ -121,7 +124,7 @@ export function VideoCommentsPage() {
           return next;
         });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "获取评论失败");
+        setError(e instanceof Error ? e.message : desktopI18n.t("desktop:comments.loadFailed"));
         setMsgKey((k) => k + 1);
       } finally {
         setLoading(false);
@@ -155,7 +158,7 @@ export function VideoCommentsPage() {
         )
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "点赞失败");
+      setError(e instanceof Error ? e.message : translate("comments.likeFailed"));
       setMsgKey((k) => k + 1);
     } finally {
       setLikingId(null);
@@ -191,7 +194,7 @@ export function VideoCommentsPage() {
         [comment.rpid]: { list: result.list, total: result.total, page: 1 },
       }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "获取子评论失败");
+      setError(e instanceof Error ? e.message : translate("comments.repliesFailed"));
       setMsgKey((k) => k + 1);
     } finally {
       setLoadingReplyId(null);
@@ -209,7 +212,7 @@ export function VideoCommentsPage() {
         [rpid]: { list: [...state.list, ...result.list], total: result.total, page: state.page + 1 },
       }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "获取子评论失败");
+      setError(e instanceof Error ? e.message : translate("comments.repliesFailed"));
       setMsgKey((k) => k + 1);
     }
   };
@@ -243,7 +246,7 @@ export function VideoCommentsPage() {
       setDraft("");
       setReplyTo(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "发布失败");
+      setError(e instanceof Error ? e.message : translate("comments.postFailed"));
       setMsgKey((k) => k + 1);
     } finally {
       setSending(false);
@@ -255,7 +258,7 @@ export function VideoCommentsPage() {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   };
 
-  const formatCount = (count: number) => (count >= 10000 ? `${(count / 10000).toFixed(1)}万` : String(count));
+  const formatCount = (count: number) => formatNumber(count, { notation: "compact", maximumFractionDigits: 1 });
 
   // 评论块点击 → 回复该评论（按钮/链接除外）
   const makeCommentClick = (root: number, parent: number, memberName: string) => (event: React.MouseEvent) => {
@@ -331,18 +334,18 @@ export function VideoCommentsPage() {
         <button
           onClick={() => navigate(`/listen/video/${bvid}`)}
           className="glass-panel inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
-          title="返回播放器"
+          title={translate("comments.back")}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="min-w-0">
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">评论区</h2>
-          <p className="mt-1 numeric text-[13px] text-slate-500 dark:text-slate-400">共 {formatCount(total)} 条评论</p>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{translate("comments.title")}</h2>
+          <p className="mt-1 numeric text-[13px] text-slate-500 dark:text-slate-400">{translate("comments.count", { count: total })}</p>
         </div>
         <div className="ml-auto flex shrink-0 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
           {([
-            { value: 1 as const, label: "按点赞" },
-            { value: 0 as const, label: "按时间" },
+            { value: 1 as const, label: translate("comments.mostLiked") },
+            { value: 0 as const, label: translate("comments.newest") },
           ]).map(({ value, label }) => (
             <button
               key={value}
@@ -364,7 +367,7 @@ export function VideoCommentsPage() {
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="app-rise rounded-lg bg-app-surface p-5 shadow-sm dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]">
           {loading ? (
-            <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
+            <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("comments.loading")}</div>
           ) : comments.length > 0 ? (
             <>
               <div className="flex flex-col gap-4">
@@ -382,7 +385,7 @@ export function VideoCommentsPage() {
                             "-mx-2 rounded-lg px-2 py-1 transition-colors",
                             !isAnonymous && "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
                           )}
-                          title={isAnonymous ? undefined : `回复 @${comment.memberName}`}
+                          title={isAnonymous ? undefined : translate("comments.replyTo", { value: comment.memberName })}
                         >
                           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{comment.memberName}</p>
                           <p className="content-typography mt-1 whitespace-pre-wrap break-words text-ink">
@@ -395,14 +398,14 @@ export function VideoCommentsPage() {
                             <button
                               onClick={() => void expandReplies(comment)}
                               className="inline-flex items-center gap-1 transition hover:text-slate-600 dark:hover:text-slate-300"
-                              title="展开子评论"
+                              title={translate("comments.expandReplies")}
                             >
                               {loadingReplyId === comment.rpid ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
                                 <CornerDownRight className="h-3 w-3" />
                               )}
-                              {subState ? "收起回复" : `${formatCount(comment.replyCount)} 条回复`}
+                              {subState ? translate("comments.collapseReplies") : translate("comments.replyCount", { count: comment.replyCount })}
                             </button>
                           )}
                           <button
@@ -416,7 +419,7 @@ export function VideoCommentsPage() {
                                   ? "text-brand dark:text-brand"
                                   : "hover:text-slate-600 dark:hover:text-slate-300"
                             )}
-                            title={isAnonymous ? "登录后可点赞" : isLiked ? "取消点赞" : "点赞"}
+                            title={isAnonymous ? translate("comments.signInToLike") : isLiked ? translate("comments.unlike") : translate("comments.like")}
                           >
                             <ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />
                             {formatCount(comment.like)}
@@ -436,7 +439,7 @@ export function VideoCommentsPage() {
                                     "-mx-1.5 min-w-0 flex-1 rounded px-1.5 py-0.5 transition-colors",
                                     !isAnonymous && "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
                                   )}
-                                  title={isAnonymous ? undefined : `回复 @${sub.memberName}`}
+                                  title={isAnonymous ? undefined : translate("comments.replyTo", { value: sub.memberName })}
                                 >
                                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                                     {sub.memberName}
@@ -459,7 +462,7 @@ export function VideoCommentsPage() {
                                 onClick={() => void loadMoreReplies(comment.rpid)}
                                 className="self-start text-xs text-brand transition hover:text-brand"
                               >
-                                查看更多回复（{subState.list.length}/{subState.total}）
+                                {translate("comments.moreReplies", { count: subState.total, shown: subState.list.length })}
                               </button>
                             )}
                           </div>
@@ -478,7 +481,7 @@ export function VideoCommentsPage() {
           ) : (
             <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               <MessageSquare className="h-8 w-8" strokeWidth={1.6} />
-              还没有评论
+              {translate("comments.empty")}
             </div>
           )}
         </div>
@@ -497,7 +500,7 @@ export function VideoCommentsPage() {
               onClick={() => void handleMenuCopy()}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-slate-600 transition hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/[0.06]"
             >
-              {copied ? "已复制" : "复制评论"}
+              {copied ? translate("comments.copied") : translate("comments.copy")}
             </button>
           </div>
         </>
@@ -522,11 +525,11 @@ export function VideoCommentsPage() {
         {replyTo && (
           <div className="mb-2 flex items-center gap-1.5 text-xs text-brand dark:text-brand">
             <CornerDownRight className="h-3 w-3" />
-            正在回复 @{replyTo.memberName}
+            {translate("comments.replying")}{replyTo.memberName}
             <button
               onClick={() => setReplyTo(null)}
               className="ml-1 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/10"
-              title="取消回复"
+              title={translate("comments.cancelReply")}
             >
               <X className="h-3 w-3" />
             </button>
@@ -542,10 +545,10 @@ export function VideoCommentsPage() {
             }}
             placeholder={
               isAnonymous
-                ? "匿名模式下无法发布评论"
+                ? translate("comments.cannotPost")
                 : replyTo
-                  ? `回复 ${replyTo.memberName}：`
-                  : "发一条友善的评论"
+                  ? translate("comments.replyPlaceholder", { value: replyTo.memberName })
+                  : translate("comments.placeholder")
             }
             disabled={isAnonymous}
             className="h-9 flex-1 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
@@ -554,10 +557,10 @@ export function VideoCommentsPage() {
             onClick={() => void sendComment()}
             disabled={isAnonymous || sending || !draft.trim()}
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
-            title={isAnonymous ? "登录后可发布评论" : "发布"}
+            title={isAnonymous ? translate("comments.signInToPost") : translate("comments.post")}
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            发布
+            {translate("comments.post")}
           </button>
         </div>
       </div>

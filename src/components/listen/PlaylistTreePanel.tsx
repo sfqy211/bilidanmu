@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useMemo, useState } from "react";
 import { ChevronRight, Disc3, Layers, ListMusic, Pause, Play } from "lucide-react";
 import { useVideoAudioStore, type PlayQueue } from "@/stores/video-audio-store";
@@ -18,6 +19,7 @@ interface PageNode {
  * 不在渲染时批量拉取（避免打开面板就发几十个请求）。
  */
 export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClose: () => void }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const queue = useVideoAudioStore((state) => state.queue);
   const index = useVideoAudioStore((state) => state.index);
   const pageIndex = useVideoAudioStore((state) => state.pageIndex);
@@ -40,19 +42,19 @@ export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClos
   const season = video.season;
 
   return (
-    <aside className="listen-playlist-tree" aria-label="播放列表">
+    <aside className="listen-playlist-tree" aria-label={translate("playlist.title")}>
       <header className="listen-playlist-tree-header">
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
             <ListMusic className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate" title={queue?.title}>{queue?.title ?? "播放列表"}</span>
+            <span className="truncate" title={queue?.title}>{queue?.title ?? translate("playlist.title")}</span>
           </p>
           <p className="numeric mt-0.5 text-[11px] text-ink-muted">
             {queue ? `${index + 1} / ${queue.tracks.length}` : "—"}
-            {pages.length > 1 ? ` · ${pages.length} 个分P` : ""}
+            {pages.length > 1 ? ` · ${translate("playlist.parts", { count: pages.length })}` : ""}
           </p>
         </div>
-        <button type="button" onClick={onClose} className="workspace-button workspace-icon-button shrink-0" title="收起列表" aria-label="收起列表">
+        <button type="button" onClick={onClose} className="workspace-button workspace-icon-button shrink-0" title={translate("playlist.collapse")} aria-label={translate("playlist.collapse")}>
           <ChevronRight className="h-4 w-4" />
         </button>
       </header>
@@ -117,8 +119,8 @@ export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClos
             <button type="button" onClick={() => setSeasonOpen((v) => !v)} className="listen-playlist-tree-row" title={season.title}>
               <span className="listen-playlist-tree-index"><Disc3 className="h-3 w-3" /></span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs">合集：{season.title}</span>
-                <span className="block truncate text-[11px] text-ink-muted">{season.episodes.length} 个视频</span>
+                <span className="block truncate text-xs">{translate("playlist.season")}{season.title}</span>
+                <span className="block truncate text-[11px] text-ink-muted">{translate("videoHome.count", { count: season.episodes.length })}</span>
               </span>
               <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform text-ink-muted", seasonOpen && "rotate-90")} />
             </button>
@@ -162,7 +164,7 @@ export function PlaylistTreePanel({ video, onClose }: { video: VideoInfo; onClos
         {!queue && (
           <div className="flex flex-col items-center gap-2 py-8 text-center text-[11px] text-ink-muted">
             <Layers className="h-6 w-6" strokeWidth={1.6} />
-            播放列表为空
+            {translate("playlist.empty")}
           </div>
         )}
       </div>

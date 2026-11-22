@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
@@ -34,7 +35,7 @@ export interface CollectionVideo {
  */
 export function VideoCollectionPage({
   title, items, total, loading, error, errorKey, playingBvid, onPlay, onRefresh,
-  emptyText, emptyIcon: EmptyIcon, backTo = "/listen", backLabel = "返回听视频", footer,
+  emptyText, emptyIcon: EmptyIcon, backTo = "/listen", backLabel, footer,
   onPlayAll, playingAll, currentBvid, isPlaying, onDanmaku, openingDanmakuBvid,
   onRemove, removingBvid,
 }: {
@@ -69,6 +70,7 @@ export function VideoCollectionPage({
   /** 本次正在移除的那一行 */
   removingBvid?: string | null;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
   const [viewMode, setViewMode] = useState<VideoViewMode>(getVideoViewMode);
@@ -110,8 +112,8 @@ export function VideoCollectionPage({
             onClick={(event) => { event.stopPropagation(); onDanmaku(item, index); }}
             disabled={rowBusy}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-brand/10 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
-            title="播放该视频并进入弹幕模式"
-            aria-label={`播放 ${item.title} 并进入弹幕模式`}
+            title={translate("videoCollection.danmaku")}
+            aria-label={translate("videoCollection.danmakuTitle", { value: item.title })}
           >
             {openingDanmakuBvid === item.bvid ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -126,8 +128,8 @@ export function VideoCollectionPage({
             onClick={(event) => { event.stopPropagation(); onRemove(item); }}
             disabled={rowBusy || removingBvid === item.bvid}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
-            title="从稍后再看移除"
-            aria-label={`从稍后再看移除 ${item.title}`}
+            title={translate("videoCollection.remove")}
+            aria-label={translate("videoCollection.removeTitle", { value: item.title })}
           >
             {removingBvid === item.bvid ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -180,8 +182,8 @@ export function VideoCollectionPage({
           <button
             type="button"
             className="cover-card-button"
-            title="播放"
-            aria-label={`播放 ${item.title}`}
+            title={translate("videoCollection.play")}
+            aria-label={translate("videoCollection.playTitle", { value: item.title })}
             onClick={(event) => { event.stopPropagation(); if (!rowBusy) onPlay(item, index); }}
           >
             {isRowLoading ? (
@@ -196,8 +198,8 @@ export function VideoCollectionPage({
             <button
               type="button"
               className="cover-card-button"
-              title="播放该视频并进入弹幕模式"
-              aria-label={`播放 ${item.title} 并进入弹幕模式`}
+              title={translate("videoCollection.danmaku")}
+              aria-label={translate("videoCollection.danmakuTitle", { value: item.title })}
               disabled={rowBusy}
               onClick={(event) => { event.stopPropagation(); onDanmaku(item, index); }}
             >
@@ -212,8 +214,8 @@ export function VideoCollectionPage({
             <button
               type="button"
               className="cover-card-button is-danger"
-              title="从稍后再看移除"
-              aria-label={`从稍后再看移除 ${item.title}`}
+              title={translate("videoCollection.remove")}
+              aria-label={translate("videoCollection.removeTitle", { value: item.title })}
               disabled={rowBusy || removingBvid === item.bvid}
               onClick={(event) => { event.stopPropagation(); onRemove(item); }}
             >
@@ -240,25 +242,25 @@ export function VideoCollectionPage({
             type="button"
             onClick={() => navigate(backTo)}
             className="glass-panel inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
-            title={backLabel}
-            aria-label={backLabel}
+            title={backLabel ?? translate("videoCollection.back")}
+            aria-label={backLabel ?? translate("videoCollection.back")}
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0">
             <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{title}</h2>
-            <p className="numeric mt-1 text-[13px] text-slate-500 dark:text-slate-400">共 {total} 个视频</p>
+            <p className="numeric mt-1 text-[13px] text-slate-500 dark:text-slate-400">{translate("videoCollection.count", { count: total })}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <div className="video-view-toggle" role="group" aria-label="显示方式">
+          <div className="video-view-toggle" role="group" aria-label={translate("videoCollection.view")}>
             <button
               type="button"
               onClick={() => changeView("list")}
               className={`video-view-option ${viewMode === "list" ? "video-view-option-active" : ""}`}
               aria-pressed={viewMode === "list"}
-              aria-label="切换为列表显示"
-              title="列表显示"
+              aria-label={translate("videoCollection.switchList")}
+              title={translate("videoCollection.list")}
             >
               <List className="h-4 w-4" />
             </button>
@@ -267,8 +269,8 @@ export function VideoCollectionPage({
               onClick={() => changeView("cover")}
               className={`video-view-option ${viewMode === "cover" ? "video-view-option-active" : ""}`}
               aria-pressed={viewMode === "cover"}
-              aria-label="切换为封面显示"
-              title="封面显示"
+              aria-label={translate("videoCollection.switchCover")}
+              title={translate("videoCollection.cover")}
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
@@ -278,20 +280,20 @@ export function VideoCollectionPage({
               onClick={onPlayAll}
               disabled={loading || playingAll || items.length === 0}
               className="workspace-button"
-              title="从第一个视频开始播放整个列表"
+              title={translate("videoCollection.playAllHint")}
             >
               {playingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ListMusic className="h-3.5 w-3.5" />}
-              播放全部
+              {translate("videoCollection.playAll")}
             </button>
           )}
           <button
             onClick={onRefresh}
             disabled={loading}
             className="workspace-button"
-            title="刷新"
+            title={translate("videoCollection.refresh")}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-            刷新
+            {translate("videoCollection.refresh")}
           </button>
         </div>
       </header>
@@ -301,7 +303,7 @@ export function VideoCollectionPage({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <div className="app-rise list-card">
-            <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">加载中...</div>
+            <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("videoCollection.loading")}</div>
           </div>
         ) : items.length > 0 ? (
           viewMode === "list" ? (

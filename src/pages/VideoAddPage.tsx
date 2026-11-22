@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useNavigate } from "react-router-dom";
 import { Play, Search } from "lucide-react";
 import { AddSearchPage, type AddSearchMode } from "@/components/add/AddSearchPage";
@@ -14,10 +15,6 @@ interface VideoCandidate {
   duration: number;
 }
 
-const searchModes: AddSearchMode[] = [
-  { value: "keyword", label: "视频名称", placeholder: "输入视频名称搜索" },
-  { value: "bvid", label: "BV 号/链接", placeholder: "粘贴 BV 号或视频链接" }
-];
 
 /** 从输入提取 BV 号：兼容纯 BV 号、完整链接、带参数链接 */
 function extractBvid(input: string): string | null {
@@ -27,6 +24,11 @@ function extractBvid(input: string): string | null {
 
 /** 添加视频子页：与添加主播共用 AddSearchPage，BV 号也会先展示结果供确认。 */
 export function VideoAddPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const searchModes: AddSearchMode[] = [
+    { value: "keyword", label: translate("addVideo.searchByTitle"), placeholder: translate("addVideo.titleHint") },
+    { value: "bvid", label: translate("addVideo.searchByLink"), placeholder: translate("addVideo.linkHint") }
+  ];
   const navigate = useNavigate();
 
   const handleSearch = async (query: string, mode: string): Promise<VideoCandidate[]> => {
@@ -36,7 +38,7 @@ export function VideoAddPage() {
       const info = await tauriCommands.video.getInfo(bvid);
       return [{ bvid: info.bvid, title: info.title, author: info.ownerName, cover: info.cover, duration: info.duration }];
     }
-    if (mode === "bvid") throw new Error("请输入有效的 BV 号或视频链接");
+    if (mode === "bvid") throw new Error(translate("addVideo.invalidLink"));
     const page = await tauriCommands.video.searchVideos(query, 1);
     return page.list.map((item) => ({
       bvid: item.bvid,
@@ -49,10 +51,10 @@ export function VideoAddPage() {
 
   return (
     <AddSearchPage<VideoCandidate>
-      title="添加视频"
-      description="搜索视频，或粘贴 BV 号/链接后确认结果再播放。"
+      title={translate("addVideo.title")}
+      description={translate("addVideo.description")}
       backTo="/listen"
-      backLabel="返回听视频"
+      backLabel={translate("addVideo.back")}
       modes={searchModes}
       defaultMode="keyword"
       onSearch={handleSearch}
@@ -72,15 +74,15 @@ export function VideoAddPage() {
           <button
             onClick={() => navigate(`/listen/video/${video.bvid}`)}
             className="workspace-button workspace-icon-button shrink-0"
-            title="播放"
-            aria-label={`播放 ${video.title}`}
+            title={translate("addVideo.play")}
+            aria-label={translate("addVideo.playVideo", { value: video.title })}
           >
             <Play className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
-      emptyResultText="没有匹配的视频"
-      idle={{ text: "输入视频名称，或粘贴 BV 号/链接开始搜索", icon: Search }}
+      emptyResultText={translate("addVideo.empty")}
+      idle={{ text: translate("addVideo.initial"), icon: Search }}
     />
   );
 }

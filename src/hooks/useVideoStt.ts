@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
 import { tauriCommands } from "@/lib/tauri";
@@ -20,6 +21,7 @@ const BUSY_PHASES: VideoSttPhase[] = ["downloading", "decoding", "recognizing"];
  * - 已完成的轨道来自 Rust 侧会话缓存，秒开。
  */
 export function useVideoStt(bvid?: string | null, cid?: number | null, enabled = true) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [lines, setLines] = useState<SubtitleLine[]>([]);
   const [status, setStatus] = useState<VideoSttStatus>("idle");
   const [progress, setProgress] = useState(0);
@@ -98,7 +100,7 @@ export function useVideoStt(bvid?: string | null, cid?: number | null, enabled =
         break;
       case "error":
         runningRef.current = false;
-        setError(payload.message ?? "语音识别失败");
+        setError(payload.message ?? translate("speech.failed"));
         break;
       case "cancelled":
         runningRef.current = false;

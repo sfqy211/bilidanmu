@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock } from "lucide-react";
@@ -10,6 +11,7 @@ import type { WatchLaterItem } from "@/types/bilibili";
 
 /** 稍后再看：与收藏夹内容页共用同一套列表布局。 */
 export function WatchLaterPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const navigate = useNavigate();
   const playQueue = useVideoAudioStore((state) => state.playQueue);
   const queueKey = useVideoAudioStore((state) => state.queue?.key ?? null);
@@ -29,7 +31,7 @@ export function WatchLaterPage() {
     try {
       setItems(await tauriCommands.video.listWatchLater());
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "获取稍后再看失败");
+      setError(reason instanceof Error ? reason.message : desktopI18n.t("desktop:watchLater.failed"));
       setMsgKey((key) => key + 1);
     } finally {
       setLoading(false);
@@ -54,7 +56,7 @@ export function WatchLaterPage() {
   /** 稍后再看是一次性全量返回的，三种播法共用同一张联播专辑 */
   const buildAlbum = (): PlayQueue => ({
     key: "toview",
-    title: "稍后再看",
+    title: translate("watchLater.title"),
     tracks: videos.map((item) => ({ bvid: item.bvid, cid: item.cid ?? null, title: item.title, ownerName: item.author, cover: item.cover, duration: item.duration }))
   });
 
@@ -65,7 +67,7 @@ export function WatchLaterPage() {
       await playQueue(buildAlbum(), index);
       navigate(`/listen/video/${video.bvid}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "播放失败");
+      setError(reason instanceof Error ? reason.message : translate("watchLater.playFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setPlayingBvid(null);
@@ -79,7 +81,7 @@ export function WatchLaterPage() {
     try {
       await enterVideoDanmakuMode(buildAlbum(), index);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "打开弹幕模式失败");
+      setError(reason instanceof Error ? reason.message : translate("watchLater.danmakuFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setOpeningDanmakuBvid(null);
@@ -94,10 +96,10 @@ export function WatchLaterPage() {
     try {
       setItems((previous) => previous.filter((item) => item.bvid !== video.bvid));
       await tauriCommands.video.removeWatchLater(video.aid);
-      toast.success("已从稍后再看移除");
+      toast.success(translate("watchLater.removed"));
     } catch (reason) {
       setItems(snapshot);
-      setError(reason instanceof Error ? reason.message : "移除失败");
+      setError(reason instanceof Error ? reason.message : translate("watchLater.removeFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setRemovingBvid(null);
@@ -112,7 +114,7 @@ export function WatchLaterPage() {
       await playQueue(buildAlbum(), 0);
       navigate(`/listen/video/${videos[0].bvid}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "播放全部失败");
+      setError(reason instanceof Error ? reason.message : translate("watchLater.playAllFailed"));
       setMsgKey((key) => key + 1);
     } finally {
       setPlayingAll(false);
@@ -121,7 +123,7 @@ export function WatchLaterPage() {
 
   return (
     <VideoCollectionPage
-      title="稍后再看"
+      title={translate("watchLater.title")}
       items={videos}
       total={videos.length}
       loading={loading}
@@ -138,7 +140,7 @@ export function WatchLaterPage() {
       openingDanmakuBvid={openingDanmakuBvid}
       onRemove={(video) => void handleRemove(video)}
       removingBvid={removingBvid}
-      emptyText="稍后再看是空的"
+      emptyText={translate("watchLater.empty")}
       emptyIcon={Clock}
     />
   );

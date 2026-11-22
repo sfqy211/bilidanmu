@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { PanelCheck, PanelField, PanelShell } from "@/components/ui/DanmakuPanel";
 import { DanmakuWindowAppearanceSettings } from "@/components/danmaku/DanmakuWindowAppearanceSettings";
 import type { VideoWindowPreferences } from "@/types/video-window";
@@ -7,17 +8,18 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
   onChange: (preferences: VideoWindowPreferences) => void;
   onClose: () => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const ranges = [
-    { key: "opacity", label: "背景不透明度", min: 10, max: 100, unit: "%" },
+    { key: "opacity", label: translate("videoWindowSettings.opacity"), min: 10, max: 100, unit: "%" },
     // 字幕与弹幕共用同一个字号（与直播弹幕窗同一项全局设置）
-    { key: "danmakuFontSize", label: "字幕与弹幕字号", min: 10, max: 32, unit: "px" },
+    { key: "danmakuFontSize", label: translate("videoWindowSettings.fontSize"), min: 10, max: 32, unit: "px" },
   ] as const;
   return (
     <PanelShell
-      title="窗口设置"
+      title={translate("videoWindowSettings.title")}
       variant="sheet"
       onClose={onClose}
-      ariaLabel="视频弹幕外观设置"
+      ariaLabel={translate("videoWindowSettings.appearance")}
     >
       <DanmakuWindowAppearanceSettings>
         {ranges.map(({ key, label, min, max, unit }) => (
@@ -34,12 +36,12 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
           </PanelField>
         ))}
         <PanelField
-          label="字幕区域比例"
+          label={translate("videoWindowSettings.subtitleRatio")}
           value={`${Math.round(preferences.subtitleRatio * 100)}%`}
         >
           <input
             type="range"
-            aria-label="字幕区域比例"
+            aria-label={translate("videoWindowSettings.subtitleRatio")}
             min={0}
             max={100}
             value={Math.round(preferences.subtitleRatio * 100)}
@@ -48,12 +50,12 @@ export function VideoWindowSettings({ preferences, onChange, onClose }: {
           />
         </PanelField>
         <PanelCheck
-          label="字幕与弹幕自动跟随"
+          label={translate("videoWindowSettings.follow")}
           checked={preferences.autoFollow}
           onChange={(checked) => onChange({ ...preferences, autoFollow: checked })}
         />
         <PanelCheck
-          label="显示行内时间"
+          label={translate("videoWindowSettings.time")}
           checked={preferences.showTime}
           onChange={(checked) => onChange({ ...preferences, showTime: checked })}
         />

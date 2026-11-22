@@ -1,3 +1,4 @@
+import { i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Mpegts from "mpegts.js";
 import { tauriCommands } from "@/lib/tauri";
@@ -158,12 +159,12 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
 
       const audio = audioRef.current;
       if (!audio) {
-        setState((prev) => ({ ...prev, isConnecting: false, error: "音频元素未就绪" }));
+        setState((prev) => ({ ...prev, isConnecting: false, error: desktopI18n.t("desktop:audio.notReady") }));
         return;
       }
 
       if (!Mpegts.isSupported()) {
-        setState((prev) => ({ ...prev, isConnecting: false, error: "浏览器不支持 MSE" }));
+        setState((prev) => ({ ...prev, isConnecting: false, error: desktopI18n.t("desktop:audio.mse") }));
         return;
       }
 
@@ -183,12 +184,12 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       player.on(Mpegts.Events.ERROR, (errorType, errorDetail, errorInfo) => {
         console.error("[audio] mpegts error:", errorType, errorDetail, errorInfo);
         const msg =
-          (errorInfo as { msg?: string } | undefined)?.msg || "音频流错误";
-        scheduleReconnect(`音频流错误：${msg}`);
+          (errorInfo as { msg?: string } | undefined)?.msg || desktopI18n.t("desktop:audio.streamError");
+        scheduleReconnect(desktopI18n.t("desktop:audio.streamErrorDetail", { value: msg }));
       });
       // 上游（CDN/代理）断开时直播流会"正常"结束，不触发 ERROR，必须单独接住
       player.on(Mpegts.Events.LOADING_COMPLETE, () => {
-        scheduleReconnect("直播流被上游关闭");
+        scheduleReconnect(desktopI18n.t("desktop:audio.upstreamClosed"));
       });
 
       player.attachMediaElement(audio);
@@ -215,7 +216,7 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       setState((prev) => ({ ...prev, isPlaying: true, isConnecting: false }));
     } catch (error) {
       console.error("[audio] play failed:", error);
-      const reason = error instanceof Error ? error.message : "获取音频流失败";
+      const reason = error instanceof Error ? error.message : desktopI18n.t("desktop:audio.loadFailed");
       // 未开播/无流是确定态，重试无意义；初始连接失败也直接停在错误态
       // （避免未开播房间无限重试导致播放按钮永远转圈）。
       // 会话中已成功播放过的网络类失败仍走无限退避重连。
@@ -223,7 +224,7 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
         setState((prev) => ({ ...prev, isPlaying: false, isConnecting: false, error: reason }));
         return;
       }
-      scheduleReconnect(`获取音频流失败：${reason}`);
+      scheduleReconnect(desktopI18n.t("desktop:audio.loadFailedDetail", { value: reason }));
     }
   }, [roomId, destroyPlayer, scheduleReconnect]);
 
@@ -242,7 +243,7 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       if (now - stallRef.current.at >= WATCHDOG_STALL_MS) {
         // 重连前先刷新水位，避免 destroyPlayer 尚未生效时重复触发
         stallRef.current = { time: audio.currentTime, at: now };
-        scheduleReconnect("缓冲停滞（播放进度长时间无推进）");
+        scheduleReconnect(desktopI18n.t("desktop:audio.stalled"));
       }
     }, WATCHDOG_INTERVAL_MS);
     return () => clearInterval(timer);

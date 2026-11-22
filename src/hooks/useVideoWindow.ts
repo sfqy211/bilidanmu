@@ -1,3 +1,4 @@
+import { i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -58,14 +59,14 @@ export function useVideoWindowPreferences() {
     let disposed = false;
     void tauriCommands.selections.load([PREFERENCES_KEY]).then((data) => {
       if (!disposed) setLocal(normalizeLocal(data[PREFERENCES_KEY]));
-    }).catch((reason) => toast.error(`读取视频窗口设置失败，使用默认值。${String(reason)}`))
+    }).catch((reason) => toast.error(desktopI18n.t("desktop:videoSettingsErrors.read", { value: String(reason) })))
       .finally(() => { if (!disposed) setReady(true); });
     return () => { disposed = true; };
   }, []);
   useEffect(() => {
     if (!ready) return;
     const timer = window.setTimeout(() => {
-      void tauriCommands.selections.save({ [PREFERENCES_KEY]: local }).catch((reason) => toast.error(`保存窗口设置失败。${String(reason)}`));
+      void tauriCommands.selections.save({ [PREFERENCES_KEY]: local }).catch((reason) => toast.error(desktopI18n.t("desktop:videoSettingsErrors.windowSave", { value: String(reason) })));
     }, 250);
     return () => window.clearTimeout(timer);
   }, [local, ready]);
@@ -76,7 +77,7 @@ export function useVideoWindowPreferences() {
     const { patchSettings, saveSettings } = useSettingsStore.getState();
     const commit = (partial: Partial<Settings>) => {
       patchSettings(partial);
-      void saveSettings().catch((reason) => toast.error(`保存设置失败。${String(reason)}`));
+      void saveSettings().catch((reason) => toast.error(desktopI18n.t("desktop:videoSettingsErrors.save", { value: String(reason) })));
     };
     if (next.opacity !== opacity) commit({ appearance: { opacity: next.opacity } } as Partial<Settings>);
     if (next.danmakuFontSize !== danmakuFontSize) commit({ appearance: { fontSize: next.danmakuFontSize } } as Partial<Settings>);
