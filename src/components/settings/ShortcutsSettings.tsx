@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -6,27 +7,21 @@ import type { Settings } from "@/types/bilibili";
 
 type ShortcutKey = keyof Settings["shortcuts"];
 
-interface ActionDef {
-  key: ShortcutKey;
-  title: string;
-  description?: string;
-  def: string | null;
-}
+const GLOBAL_ACTIONS = [
+  { key: "toggleWindow", title: "shortcuts.toggle", description: "shortcuts.toggleHint", def: "Ctrl+Alt+D" },
+  { key: "toggleInputOnly", title: "shortcuts.compact", description: "shortcuts.compactHint", def: "Ctrl+Alt+B" },
+  { key: "toggleAudio", title: "shortcuts.audio", description: "shortcuts.audioHint", def: null },
+  { key: "toggleMute", title: "shortcuts.mute", description: "shortcuts.muteHint", def: null },
+] as const;
 
-const GLOBAL_ACTIONS: ActionDef[] = [
-  { key: "toggleWindow", title: "显示/隐藏应用窗口", description: "与托盘左键单击相同：连接房间时切换弹幕窗，否则切换主窗口。", def: "Ctrl+Alt+D" },
-  { key: "toggleInputOnly", title: "仅输入框模式", description: "弹幕窗进入/退出仅输入框紧凑模式。", def: "Ctrl+Alt+B" },
-  { key: "toggleAudio", title: "音频播放/暂停", description: "控制直播间音频流的播放与暂停。", def: null },
-  { key: "toggleMute", title: "音频静音", description: "静音/恢复直播间音频。", def: null },
-];
-
-const ZOOM_ACTIONS: ActionDef[] = [
-  { key: "uiZoomIn", title: "界面放大", def: "Ctrl+=" },
-  { key: "uiZoomOut", title: "界面缩小", def: "Ctrl+-" },
-  { key: "uiZoomReset", title: "重置界面缩放", def: "Ctrl+0" },
-];
+const ZOOM_ACTIONS = [
+  { key: "uiZoomIn", title: "shortcuts.zoomIn", def: "Ctrl+=" },
+  { key: "uiZoomOut", title: "shortcuts.zoomOut", def: "Ctrl+-" },
+  { key: "uiZoomReset", title: "shortcuts.resetZoom", def: "Ctrl+0" },
+] as const;
 
 const ALL_ACTIONS = [...GLOBAL_ACTIONS, ...ZOOM_ACTIONS];
+type ActionDef = (typeof ALL_ACTIONS)[number];
 const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta"]);
 
 /** 键盘事件 → 组合键文本（如 "Ctrl+Alt+B"）；无法表达的键返回 null */
@@ -56,6 +51,7 @@ function ShortcutRecorder({
   onReset: () => void;
   isDefault: boolean;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [listening, setListening] = useState(false);
 
   useEffect(() => {
@@ -87,26 +83,26 @@ function ShortcutRecorder({
           className="settings-action text-pink-500"
           onClick={() => setListening(false)}
         >
-          按下新组合…（Esc 取消）
+          {translate("shortcuts.press")}
         </button>
       ) : (
         <button
           type="button"
           className="settings-action min-w-[92px] font-mono text-xs"
           onClick={() => setListening(true)}
-          title="点击后按下新的组合键"
+          title={translate("shortcuts.pressHint")}
         >
-          {value ?? "未设置"}
+          {value ?? translate("shortcuts.unassigned")}
         </button>
       )}
       {value && (
-        <button type="button" className="settings-action" onClick={onClear} title="清除绑定（停用该快捷键）">
-          清除
+        <button type="button" className="settings-action" onClick={onClear} title={translate("shortcuts.clearHint")}>
+          {translate("shortcuts.clear")}
         </button>
       )}
       {!isDefault && (
-        <button type="button" className="settings-action" onClick={onReset} title="恢复默认绑定">
-          默认
+        <button type="button" className="settings-action" onClick={onReset} title={translate("shortcuts.resetHint")}>
+          {translate("shortcuts.default")}
         </button>
       )}
     </div>
@@ -114,6 +110,7 @@ function ShortcutRecorder({
 }
 
 export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [conflict, setConflict] = useState<string | null>(null);
   // 全局快捷键注册失败清单（Rust 侧注册结果，如被其它程序占用）
   const [regErrors, setRegErrors] = useState<string[]>([]);
@@ -135,7 +132,7 @@ export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProp
       if (value !== null) {
         const holder = ALL_ACTIONS.find((a) => a.key !== key && settings.shortcuts[a.key] === value);
         if (holder) {
-          setConflict(`${value} 已绑定到「${holder.title}」`);
+          setConflict(translate("shortcuts.conflict", { value, value2: translate(holder.title) }));
           return;
         }
       }
@@ -144,13 +141,13 @@ export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProp
       // 保存命令在 Rust 侧同步完成快捷键重注册，完成后刷新注册结果
       void useSettingsStore.getState().saveSettings().then(refreshErrors);
     },
-    [settings.shortcuts, patchSettings, refreshErrors]
+    [settings.shortcuts, patchSettings, refreshErrors, translate]
   );
 
   const renderRow = (action: ActionDef) => {
     const value = settings.shortcuts[action.key] ?? null;
     return (
-      <SettingsRow key={action.key} title={action.title} description={action.description}>
+      <SettingsRow key={action.key} title={translate(action.title)} description={"description" in action ? translate(action.description) : undefined}>
         <ShortcutRecorder
           value={value}
           isDefault={value === action.def}
@@ -164,20 +161,20 @@ export function ShortcutsSettings({ settings, patchSettings }: SettingsPanelProp
 
   return (
     <>
-      <SettingsGroup title="全局快捷键" description="在任何应用前台时都能触发；清除绑定即停用，修改后立即生效并保存。">
+      <SettingsGroup title={translate("shortcuts.global")} description={translate("shortcuts.globalHint")}>
         {GLOBAL_ACTIONS.map(renderRow)}
       </SettingsGroup>
-      <SettingsGroup title="应用内快捷键" description="仅在应用窗口内生效。">
+      <SettingsGroup title={translate("shortcuts.app")} description={translate("shortcuts.appHint")}>
         {ZOOM_ACTIONS.map(renderRow)}
-        <SettingsRow title="发送弹幕 / 关闭弹层 / 输入历史">
+        <SettingsRow title={translate("shortcuts.composer")}>
           <span className="text-xs text-ink-muted">Enter / Esc / ↑</span>
         </SettingsRow>
-        <SettingsRow title="调整弹幕字号">
-          <span className="text-xs text-ink-muted">Ctrl + 滚轮</span>
+        <SettingsRow title={translate("shortcuts.danmakuSize")}>
+          <span className="text-xs text-ink-muted">{translate("shortcuts.wheel")}</span>
         </SettingsRow>
       </SettingsGroup>
       <p className="text-xs leading-relaxed text-ink-muted">
-        Enter / Esc / ↑ 属于输入框惯例键，开放修改会破坏打字与输入法体验，暂不提供自定义。
+        {translate("shortcuts.fixed")}
       </p>
       {conflict && (
         <p className="settings-row-block text-xs text-rose-600 dark:text-rose-300" role="alert">

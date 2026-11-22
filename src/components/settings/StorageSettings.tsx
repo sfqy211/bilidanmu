@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { tauriCommands } from "@/lib/tauri";
@@ -7,11 +8,6 @@ interface CacheStats {
   imageSize: number; imageCount: number; emoticonPkgCount: number; emoticonCount: number; emoticonImageSize: number;
 }
 type ClearTarget = "image" | "emoticon" | "all";
-const CLEAR_DETAILS = {
-  image: { title: "清除封面与头像缓存", message: "封面和头像将在下次显示时重新下载。" },
-  emoticon: { title: "清除表情缓存", message: "这将清除所有已缓存的表情包和图片，下次使用时重新获取。" },
-  all: { title: "清除所有图片缓存", message: "这将清除封面、头像和表情数据，不影响账号、设置和语音模型。" },
-};
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -20,11 +16,12 @@ function formatSize(bytes: number) {
 }
 
 export function StorageSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   return (
     <>
-      <SettingsGroup title="消息保留" description="弹幕、礼物、活动三栏分别按此数量保留，超出后批量移除最早的消息。">
-        <SettingsRow title="每栏保留条数" description="填 0 表示不限制，整场直播的消息都保留在内存中；此项控制内存中的消息，不是磁盘缓存。">
-          <input type="number" aria-label="每栏保留条数" min={0} step={50} value={settings.cache.messageLimit}
+      <SettingsGroup title={translate("storage.messages")} description={translate("storage.messagesHint")}>
+        <SettingsRow title={translate("storage.limit")} description={translate("storage.limitHint")}>
+          <input type="number" aria-label={translate("storage.limit")} min={0} step={50} value={settings.cache.messageLimit}
             onChange={(event) => {
               const value = event.target.valueAsNumber;
               if (Number.isFinite(value)) patchSettings({ cache: { messageLimit: Math.max(0, Math.floor(value)) } });
@@ -37,6 +34,12 @@ export function StorageSettings({ settings, patchSettings }: SettingsPanelProps)
 }
 
 function ImageCacheSettings() {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const clearDetails = {
+    image: { title: translate("storage.clearCovers"), message: translate("storage.clearCoversHint") },
+    emoticon: { title: translate("storage.clearEmotes"), message: translate("storage.clearEmotesHint") },
+    all: { title: translate("storage.clearImages"), message: translate("storage.clearImagesHint") },
+  };
   const [stats, setStats] = useState<CacheStats | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,7 @@ function ImageCacheSettings() {
     setLoading(true);
     tauriCommands.proxy.getCacheStats()
       .then((value) => { if (!cancelled) setStats(value); })
-      .catch((reason) => { if (!cancelled) setError(`读取缓存失败：${String(reason)}`); })
+      .catch((reason) => { if (!cancelled) setError(desktopI18n.t("desktop:storage.readFailed", { value: String(reason) })); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refreshKey]);
@@ -66,29 +69,29 @@ function ImageCacheSettings() {
     if (next !== "image") operations.push(tauriCommands.room.clearEmoticonCache());
     const results = await Promise.allSettled(operations);
     const failures = results.filter((result) => result.status === "rejected");
-    if (failures.length) setError(failures.length === results.length ? "缓存清理失败，请重试。" : "部分缓存清理失败，请重试。");
-    else setMessage("缓存已清理");
+    if (failures.length) setError(failures.length === results.length ? translate("storage.clearFailed") : translate("storage.partialFailure"));
+    else setMessage(translate("storage.cleared"));
     setClearing(false);
     setRefreshKey((key) => key + 1);
   };
   return (
-    <SettingsGroup title="图片缓存" description="清理只影响下载缓存，之后使用时会重新获取。">
+    <SettingsGroup title={translate("storage.imageCache")} description={translate("storage.imageHint")}>
       <div className="settings-row">
-        <span className="text-xs text-ink-muted" role="status">{loading ? "正在读取缓存…" : clearing ? "正在清理…" : message || "磁盘占用"}</span>
-        <button type="button" className="settings-action" disabled={loading || clearing} onClick={refresh}>刷新</button>
+        <span className="text-xs text-ink-muted" role="status">{loading ? translate("storage.loading") : clearing ? translate("storage.clearing") : message || translate("storage.size")}</span>
+        <button type="button" className="settings-action" disabled={loading || clearing} onClick={refresh}>{translate("storage.refresh")}</button>
       </div>
-      <SettingsRow title="封面与头像" description={stats ? `${stats.imageCount} 张 · ${formatSize(stats.imageSize)}` : "尚未读取"}>
-        <button type="button" className="settings-action" disabled={clearing || !stats} onClick={() => setTarget("image")}>清除</button>
+      <SettingsRow title={translate("storage.covers")} description={stats ? translate("storage.imageCount", { value: stats.imageCount, value2: formatSize(stats.imageSize) }) : translate("storage.unread")}>
+        <button type="button" className="settings-action" disabled={clearing || !stats} onClick={() => setTarget("image")}>{translate("storage.clear")}</button>
       </SettingsRow>
-      <SettingsRow title="表情包与表情图片" description={stats ? `${stats.emoticonPkgCount} 个包 · ${stats.emoticonCount} 个表情 · ${formatSize(stats.emoticonImageSize)}` : "尚未读取"}>
-        <button type="button" className="settings-action" disabled={clearing || !stats} onClick={() => setTarget("emoticon")}>清除</button>
+      <SettingsRow title={translate("storage.emotes")} description={stats ? translate("storage.emoteCount", { value: stats.emoticonPkgCount, value2: stats.emoticonCount, value3: formatSize(stats.emoticonImageSize) }) : translate("storage.unread")}>
+        <button type="button" className="settings-action" disabled={clearing || !stats} onClick={() => setTarget("emoticon")}>{translate("storage.clear")}</button>
       </SettingsRow>
-      <SettingsRow title="清除所有图片缓存">
-        <button type="button" className="settings-action text-rose-600 dark:text-rose-300" disabled={clearing || !stats} onClick={() => setTarget("all")}>清除所有</button>
+      <SettingsRow title={translate("storage.clearImages")}>
+        <button type="button" className="settings-action text-rose-600 dark:text-rose-300" disabled={clearing || !stats} onClick={() => setTarget("all")}>{translate("storage.clearAll")}</button>
       </SettingsRow>
       {error && <p className="settings-row-block text-xs text-rose-600 dark:text-rose-300" role="alert">{error}</p>}
-      <ConfirmDialog open={target !== null} title={target ? CLEAR_DETAILS[target].title : "清除缓存"}
-        message={target ? CLEAR_DETAILS[target].message : ""} variant="danger"
+      <ConfirmDialog open={target !== null} title={target ? clearDetails[target].title : translate("storage.clearCache")}
+        message={target ? clearDetails[target].message : ""} variant="danger"
         onConfirm={() => { if (target) void clear(target); }} onCancel={() => setTarget(null)} />
     </SettingsGroup>
   );

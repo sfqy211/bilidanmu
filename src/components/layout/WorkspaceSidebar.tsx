@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen, type LucideIcon } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import "./WorkspaceSidebar.css";
 
@@ -21,9 +22,11 @@ export function WorkspaceSidebar({ groups, utilityItems = [], label, collapsed, 
   groups: WorkspaceNavGroup[]; utilityItems?: WorkspaceNavItem[]; label: string;
   collapsed: boolean; onToggleCollapsed: () => void;
 }) {
+  const { t } = useTranslation();
+  const toggleLabel = t(collapsed ? "navigation.expand" : "navigation.collapse");
   const collapsedStyle = collapsed ? { justifyContent: "center", paddingInline: 0 } : undefined;
   const renderItem = ({ to, label: name, icon: Icon, end, active, disabled }: WorkspaceNavItem) => disabled ? (
-    <span key={to} className="workspace-nav-item" aria-disabled="true" title="暂无播放中的音频" style={collapsedStyle}>
+    <span key={to} className="workspace-nav-item" aria-disabled="true" title={t("navigation.noAudio")} style={collapsedStyle}>
       <Icon className="h-4 w-4 shrink-0" strokeWidth={1.7} />{!collapsed && <span className="workspace-nav-label">{name}</span>}
     </span>
   ) : (
@@ -47,13 +50,13 @@ export function WorkspaceSidebar({ groups, utilityItems = [], label, collapsed, 
       </nav>
       <div className="workspace-sidebar-bottom">
         {utilityItems.length > 0 && (
-          <nav aria-label="应用选项" className="workspace-navigation">
+          <nav aria-label={t("navigation.options")} className="workspace-navigation">
             {utilityItems.map(renderItem)}
             <button
               type="button"
               onClick={onToggleCollapsed}
-              title={collapsed ? "展开侧边栏" : "收起侧边栏"}
-              aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+              title={toggleLabel}
+              aria-label={toggleLabel}
               aria-expanded={!collapsed}
               className="workspace-nav-item mt-1 w-full"
               style={collapsedStyle}
@@ -63,7 +66,7 @@ export function WorkspaceSidebar({ groups, utilityItems = [], label, collapsed, 
               ) : (
                 <PanelLeftClose className="h-4 w-4 shrink-0" strokeWidth={1.7} />
               )}
-              {!collapsed && <span className="workspace-nav-label">收起</span>}
+              {!collapsed && <span className="workspace-nav-label">{t("navigation.collapseShort")}</span>}
             </button>
           </nav>
         )}

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useEffect, useState } from "react";
 
 interface OpacitySliderProps {
@@ -16,11 +17,12 @@ interface OpacitySliderProps {
 export function OpacitySlider({
   value,
   onChange,
-  label = "背景透明度",
+  label,
   className = "",
   labelClassName = "text-xs text-slate-500 dark:text-slate-400",
   valueClassName = "text-xs text-slate-500 dark:text-slate-400",
 }: OpacitySliderProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [local, setLocal] = useState(value);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export function OpacitySlider({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <span className={`shrink-0 ${labelClassName}`}>{label}</span>
+      <span className={`shrink-0 ${labelClassName}`}>{label ?? translate("opacity.label")}</span>
       <input
         type="range"
         min={10}

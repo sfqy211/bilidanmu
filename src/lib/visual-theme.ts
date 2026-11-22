@@ -4,8 +4,8 @@ import { applyTheme } from "./theme";
 import { syncBrandAccent } from "./brand-accent";
 
 export const FONT_OPTIONS = [
-  { value: "system", label: "系统" }, { value: "yahei", label: "微软雅黑" },
-  { value: "dengxian", label: "等线" }, { value: "serif", label: "宋体" },
+  { value: "system", label: "fonts.system" }, { value: "yahei", label: "fonts.yahei" },
+  { value: "dengxian", label: "fonts.dengxian" }, { value: "serif", label: "fonts.simsun" },
 ] as const;
 const FONTS: Record<VisualFont, string> = {
   system: '"Segoe UI", "Microsoft YaHei", system-ui, sans-serif',

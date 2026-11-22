@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTranslation } from "@/i18n";
 
 interface CloseDialogProps {
   open: boolean;
@@ -12,6 +13,7 @@ interface CloseDialogProps {
 }
 
 export function CloseDialog({ open, onHide, onExit, onCancel, onRemember }: CloseDialogProps) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [remember, setRemember] = useState(false);
 
@@ -57,9 +59,9 @@ export function CloseDialog({ open, onHide, onExit, onCancel, onRemember }: Clos
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/10 text-brand dark:bg-brand/15 dark:text-brand">
           <X className="h-5 w-5" />
         </div>
-        <h3 className="mt-3 text-base font-medium text-slate-900 dark:text-white">关闭窗口</h3>
+        <h3 className="mt-3 text-base font-medium text-slate-900 dark:text-white">{t("window.close")}</h3>
         <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
-          选择关闭主窗口后的行为
+          {t("window.chooseClose")}
         </p>
 
         <div className="mt-5 flex w-full gap-3">
@@ -67,13 +69,13 @@ export function CloseDialog({ open, onHide, onExit, onCancel, onRemember }: Clos
             onClick={handleHide}
             className="flex-1 rounded px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
-            隐藏到托盘
+            {t("window.hide")}
           </button>
           <button
             onClick={handleExit}
             className="flex-1 rounded bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
           >
-            退出程序
+            {t("window.quit")}
           </button>
         </div>
 
@@ -82,7 +84,7 @@ export function CloseDialog({ open, onHide, onExit, onCancel, onRemember }: Clos
             checked={remember}
             onCheckedChange={(c) => setRemember(!!c)}
           />
-          记住我的选择，下次不再询问
+          {t("window.remember")}
         </label>
       </div>
     </div>

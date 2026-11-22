@@ -3,6 +3,7 @@ import type { CSSProperties, KeyboardEvent, PointerEvent, ReactNode } from "reac
 import { Outlet, useLocation } from "react-router-dom";
 import { TitleBar } from "./TitleBar";
 import { MiniPlayer } from "@/components/listen/MiniPlayer";
+import { useTranslation } from "@/i18n";
 import { rememberRoute } from "@/lib/app-history";
 import { tauriCommands } from "@/lib/tauri";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/stores/ui-store";
 
 export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notice?: ReactNode }) {
+  const { t } = useTranslation();
   const location = useLocation();
   const isVideoRoute = location.pathname.startsWith("/listen/video/");
   useEffect(() => {
@@ -112,12 +114,12 @@ export function WorkspaceLayout({ sidebar, notice }: { sidebar: ReactNode; notic
           className="workspace-sidebar-handle"
           role="separator"
           aria-orientation="vertical"
-          aria-label="调整侧边栏宽度"
+          aria-label={t("navigation.resize")}
           aria-valuemin={SIDEBAR_WIDTH_MIN}
           aria-valuemax={SIDEBAR_WIDTH_MAX}
           aria-valuenow={sidebarWidth ?? undefined}
           tabIndex={0}
-          title="拖动调整侧边栏宽度，双击恢复默认"
+          title={t("navigation.resizeHint")}
           data-dragging={dragging || undefined}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}

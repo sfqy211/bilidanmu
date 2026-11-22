@@ -8,8 +8,8 @@ export const DEFAULT_BRAND = { light: "#E11D48", dark: "#FB7185" };
 
 /** 一套完整配色：强调 + 背景 + 表面 + 前景 */
 export interface ThemePreset {
-  id: string;
-  name: string;
+  id: "midnight" | "graphite" | "abyss" | "violet" | "warm" | "forest"
+    | "paper" | "mist" | "sky" | "mint" | "sand" | "candy";
   accent: string;
   background: string;
   surface: string;
@@ -21,22 +21,22 @@ export interface ThemePreset {
  * 背景最暗、表面略亮一档（保证卡片可辨）、前景高对比、强调色与背景有足够区分。
  */
 export const DARK_THEME_PRESETS: ThemePreset[] = [
-  { id: "midnight", name: "午夜", accent: "#34D399", background: "#111111", surface: "#1F1F1F", foreground: "#FCFCFC" },
-  { id: "graphite", name: "石墨", accent: "#D4D4D8", background: "#18181B", surface: "#27272A", foreground: "#FAFAFA" },
-  { id: "abyss", name: "深海", accent: "#38BDF8", background: "#0B1220", surface: "#152036", foreground: "#E2E8F0" },
-  { id: "violet", name: "暗夜紫", accent: "#A78BFA", background: "#13111C", surface: "#211D2E", foreground: "#EDE9FE" },
-  { id: "warm", name: "暖棕", accent: "#FBBF24", background: "#1A1512", surface: "#292119", foreground: "#F5EDE4" },
-  { id: "forest", name: "深林", accent: "#4ADE80", background: "#0E1612", surface: "#1A2620", foreground: "#E8F5EE" },
+  { id: "midnight", accent: "#34D399", background: "#111111", surface: "#1F1F1F", foreground: "#FCFCFC" },
+  { id: "graphite", accent: "#D4D4D8", background: "#18181B", surface: "#27272A", foreground: "#FAFAFA" },
+  { id: "abyss", accent: "#38BDF8", background: "#0B1220", surface: "#152036", foreground: "#E2E8F0" },
+  { id: "violet", accent: "#A78BFA", background: "#13111C", surface: "#211D2E", foreground: "#EDE9FE" },
+  { id: "warm", accent: "#FBBF24", background: "#1A1512", surface: "#292119", foreground: "#F5EDE4" },
+  { id: "forest", accent: "#4ADE80", background: "#0E1612", surface: "#1A2620", foreground: "#E8F5EE" },
 ];
 
 /** 浅色主题预设：背景偏米白/浅灰，表面更浅或纯白，前景深色 */
 export const LIGHT_THEME_PRESETS: ThemePreset[] = [
-  { id: "paper", name: "素纸", accent: "#E11D48", background: "#F2F2F4", surface: "#FFFFFF", foreground: "#1B1B1F" },
-  { id: "mist", name: "雾灰", accent: "#3F3F46", background: "#ECECEE", surface: "#F8F8F9", foreground: "#18181B" },
-  { id: "sky", name: "晴空", accent: "#0284C7", background: "#EEF4FA", surface: "#FFFFFF", foreground: "#15202B" },
-  { id: "mint", name: "薄荷", accent: "#059669", background: "#EDF6F1", surface: "#FFFFFF", foreground: "#14211B" },
-  { id: "sand", name: "暖沙", accent: "#D97706", background: "#F7F3ED", surface: "#FFFDF9", foreground: "#241B12" },
-  { id: "candy", name: "樱粉", accent: "#DB2777", background: "#FBF0F5", surface: "#FFFFFF", foreground: "#2A1520" },
+  { id: "paper", accent: "#E11D48", background: "#F2F2F4", surface: "#FFFFFF", foreground: "#1B1B1F" },
+  { id: "mist", accent: "#3F3F46", background: "#ECECEE", surface: "#F8F8F9", foreground: "#18181B" },
+  { id: "sky", accent: "#0284C7", background: "#EEF4FA", surface: "#FFFFFF", foreground: "#15202B" },
+  { id: "mint", accent: "#059669", background: "#EDF6F1", surface: "#FFFFFF", foreground: "#14211B" },
+  { id: "sand", accent: "#D97706", background: "#F7F3ED", surface: "#FFFDF9", foreground: "#241B12" },
+  { id: "candy", accent: "#DB2777", background: "#FBF0F5", surface: "#FFFFFF", foreground: "#2A1520" },
 ];
 
 /** 当前模式下可用的主题预设 */

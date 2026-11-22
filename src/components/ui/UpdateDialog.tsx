@@ -1,6 +1,10 @@
+import { i18n, useTranslation as useDesktopTranslation } from "@/i18n";
+import { describeDesktopError } from "@/i18n/errors";
+import { formatDate } from "@/i18n/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, Download, Zap, Loader2 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { tauriCommands } from "@/lib/tauri";
@@ -19,6 +23,7 @@ interface UpdateDialogProps {
 }
 
 export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const dialogRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [progress, setProgress] = useState({ downloaded: 0, total: 0 });
@@ -70,6 +75,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
       setDownloadedFile({ path: filePath, name: filename });
     } catch (e) {
       console.error("下载失败:", e);
+      toast.error(describeDesktopError(e, i18n.t("desktop:update.downloadFailed")));
     } finally {
       setDownloading(null);
     }
@@ -82,6 +88,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
       onDismiss();
     } catch (e) {
       console.error("打开文件失败:", e);
+      toast.error(describeDesktopError(e, i18n.t("desktop:update.openFailed")));
     }
   }, [downloadedFile, onDismiss]);
 
@@ -107,12 +114,12 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
         className="workspace-dialog flex w-full max-w-md flex-col rounded-lg bg-app-surface p-6 shadow-lg dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]"
       >
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-          发现新版本 v{updateInfo.latestVersion}
+          {translate("update.found")}{updateInfo.latestVersion}
         </h3>
         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-          当前版本 v{updateInfo.currentVersion}
+          {translate("update.current")}{updateInfo.currentVersion}
           {updateInfo.publishedAt && (
-            <> · {new Date(updateInfo.publishedAt).toLocaleDateString("zh-CN")}</>
+            <> · {formatDate(new Date(updateInfo.publishedAt), { dateStyle: "medium" })}</>
           )}
         </p>
 
@@ -127,7 +134,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
             <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                下载中 {downloading}
+                {translate("update.downloading") + " "}{downloading}
               </span>
               <span>
                 {formatSize(progress.downloaded)}
@@ -153,13 +160,13 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
                 className="inline-flex items-center gap-1.5 rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-400"
               >
                 <Download className="h-4 w-4" />
-                打开 {downloadedFile.name}
+                {translate("update.open") + " "}{downloadedFile.name}
               </button>
               <button
                 onClick={() => setDownloadedFile(null)}
                 className="rounded px-4 py-2 text-sm text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.04]"
               >
-                重新下载
+                {translate("update.retry")}
               </button>
             </>
           ) : !isDownloading && windowsAssets.length > 0 ? (
@@ -171,7 +178,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
                   className="inline-flex items-center gap-1.5 rounded bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Zap className="h-4 w-4" />
-                  {asset.name.endsWith(".exe") ? "EXE 加速" : asset.name.endsWith(".msi") ? "MSI 加速" : "ZIP 加速"}
+                  {asset.name.endsWith(".exe") ? translate("update.exe") : asset.name.endsWith(".msi") ? translate("update.msi") : translate("update.zip")}
                 </button>
                 <button
                   onClick={() => void handleDownload(asset.downloadUrl, asset.name)}
@@ -191,7 +198,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
               className="inline-flex items-center gap-1.5 rounded bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
             >
               <ExternalLink className="h-4 w-4" />
-              前往 GitHub 下载
+              {translate("update.github")}
             </a>
           ) : null}
           <button
@@ -199,7 +206,7 @@ export function UpdateDialog({ updateInfo, onDismiss }: UpdateDialogProps) {
             disabled={isDownloading}
             className="ml-auto rounded px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
-            稍后提醒
+            {translate("update.later")}
           </button>
         </div>
       </div>

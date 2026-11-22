@@ -1,19 +1,21 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 
 export function ListenSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const update = (patch: Partial<typeof settings.listen>) => patchSettings({ listen: { ...settings.listen, ...patch } });
   return (
     <>
-      <SettingsGroup title="播放">
-        <SettingsToggle title="自动连播" description="当前曲目结束后继续播放列表中的下一首；关闭后每首结束时停止。"
+      <SettingsGroup title={translate("videoSettings.playback")}>
+        <SettingsToggle title={translate("videoSettings.autoNext")} description={translate("videoSettings.autoNextHint")}
           checked={settings.listen.autoNext} onChange={(autoNext) => update({ autoNext })} />
       </SettingsGroup>
-      <SettingsGroup title="字幕" description="用于视频自带字幕，点击字幕仍可跳转到对应时间。">
-        <SettingsRange title="字幕字号" value={settings.listen.subtitleFontSize} min={14} max={24} unit="px"
+      <SettingsGroup title={translate("videoSettings.subtitles")} description={translate("videoSettings.subtitlesHint")}>
+        <SettingsRange title={translate("videoSettings.size")} value={settings.listen.subtitleFontSize} min={14} max={24} unit="px"
           onChange={(subtitleFontSize) => update({ subtitleFontSize })} />
-        <SettingsToggle title="自动跟随播放" description="将当前字幕保持在阅读区中间。手动浏览时暂停跟随，3 秒后恢复。"
+        <SettingsToggle title={translate("videoSettings.autoFollow")} description={translate("videoSettings.autoFollowHint")}
           checked={settings.listen.subtitleAutoFollow} onChange={(subtitleAutoFollow) => update({ subtitleAutoFollow })} />
-        <SettingsToggle title="显示时间标记" description="在字幕旁显示开始时间，方便浏览和定位。"
+        <SettingsToggle title={translate("videoSettings.showTime")} description={translate("videoSettings.showTimeHint")}
           checked={settings.listen.subtitleShowTime} onChange={(subtitleShowTime) => update({ subtitleShowTime })} />
       </SettingsGroup>
     </>

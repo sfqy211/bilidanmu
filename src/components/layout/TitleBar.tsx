@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Maximize, Minus, X } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import { CloseDialog } from "@/components/ui/CloseDialog";
 import { BrandLogo } from "@/components/BrandLogo";
 import { tauriCommands } from "@/lib/tauri";
@@ -10,6 +11,7 @@ import "./TitleBar.css";
 const appWindow = getCurrentWindow();
 
 export function TitleBar() {
+  const { t } = useTranslation();
   const dblClickTimer = useRef(0);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const closeBehavior = useSettingsStore((s) => s.settings.closeBehavior);
@@ -78,7 +80,7 @@ export function TitleBar() {
       <div className="flex h-full">
         <button
           type="button"
-          aria-label="最小化窗口"
+          aria-label={t("window.minimize")}
           onClick={() => appWindow.minimize()}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-black/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
         >
@@ -86,7 +88,7 @@ export function TitleBar() {
         </button>
         <button
           type="button"
-          aria-label="最大化或还原窗口"
+          aria-label={t("window.maximize")}
           onClick={() => appWindow.toggleMaximize()}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-black/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
         >
@@ -94,7 +96,7 @@ export function TitleBar() {
         </button>
         <button
           type="button"
-          aria-label="关闭窗口"
+          aria-label={t("window.close")}
           onClick={handleClose}
           className="flex h-full w-11 items-center justify-center text-slate-400 transition hover:bg-rose-500 hover:text-white dark:text-slate-500 dark:hover:bg-rose-500"
         >

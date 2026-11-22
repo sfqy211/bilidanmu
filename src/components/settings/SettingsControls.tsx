@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useId, type ReactNode } from "react";
 import type { Settings } from "@/types/bilibili";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -55,9 +56,10 @@ export function SettingsChoice({ title, description, value, onChange, options, d
   title: string; description?: string; value: string; onChange: (value: string) => void;
   options: readonly { value: string; label: string }[]; disabled?: boolean; placeholder?: string;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   // 原生 <select> 的展开列表由系统绘制，无法跟随暗色主题与自定义配色，
   // 因此统一用自绘 Select（弹层底色走 --app-surface）
-  const resolved = options.length ? options : [{ value, label: placeholder || "暂无选项" }];
+  const resolved = options.length ? options : [{ value, label: placeholder || translate("settingsControl.empty") }];
   return (
     <SettingsRow title={title} description={description}>
       <div className="settings-select-wrap">

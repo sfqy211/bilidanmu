@@ -1,9 +1,11 @@
 import { Bot, Headphones, MonitorPlay, Settings, UserRound } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import { tauriCommands } from "@/lib/tauri";
 import { useUiStore } from "@/stores/ui-store";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const setCollapsed = useUiStore((state) => state.setSidebarCollapsed);
 
@@ -15,16 +17,16 @@ export function AppSidebar() {
 
   return (
     <WorkspaceSidebar
-      label="主导航"
+      label={t("navigation.main")}
       collapsed={collapsed}
       onToggleCollapsed={toggleCollapsed}
       groups={[{ items: [
-        { to: "/rooms", label: "直播", icon: MonitorPlay },
-        { to: "/accounts", label: "账号", icon: UserRound },
+        { to: "/rooms", label: t("navigation.live"), icon: MonitorPlay },
+        { to: "/accounts", label: t("navigation.accounts"), icon: UserRound },
         { to: "/ai", label: "AI", icon: Bot },
-        { to: "/listen", label: "视频", icon: Headphones },
+        { to: "/listen", label: t("navigation.videos"), icon: Headphones },
       ] }]}
-      utilityItems={[{ to: "/settings", label: "设置", icon: Settings }]}
+      utilityItems={[{ to: "/settings", label: t("navigation.settings"), icon: Settings }]}
     />
   );
 }

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 
@@ -16,12 +17,13 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmText = "确定",
-  cancelText = "取消",
+  confirmText,
+  cancelText,
   variant = "default",
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="rounded px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
           >
-            {cancelText}
+            {cancelText ?? translate("confirm.cancel")}
           </button>
           <button
             onClick={onConfirm}
@@ -72,7 +74,7 @@ export function ConfirmDialog({
                 : "bg-brand hover:bg-brand/90"
             }`}
           >
-            {confirmText}
+            {confirmText ?? translate("confirm.ok")}
           </button>
         </div>
       </div>

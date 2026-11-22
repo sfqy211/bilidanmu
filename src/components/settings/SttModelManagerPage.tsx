@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, Download, ExternalLink, FolderOpen, FolderPen, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -34,6 +35,7 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
   sttModels: SttModelsState;
   onBack: () => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const available = useSettingsStore((state) => state.sttAvailable);
   const { models, loading, error, setError, refresh } = sttModels;
   const [catalog, setCatalog] = useState<SttCatalogEntry[]>([]);
@@ -95,21 +97,21 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
 
   const openDirectory = async () => {
     try { await tauriCommands.stt.openModelDir(); }
-    catch (reason) { setError(`打开模型目录失败：${String(reason)}`); }
+    catch (reason) { setError(translate("speechModels.openFailed", { value: String(reason) })); }
   };
 
   /** 目录选择器：选定后落库并刷新模型列表（Rust 侧会停掉运行中的 STT 管线） */
   const changeDirectory = async () => {
     setError(null);
     try {
-      const picked = await openDialog({ directory: true, multiple: false, title: "选择识别模型目录" });
+      const picked = await openDialog({ directory: true, multiple: false, title: translate("speechModels.chooseFolder") });
       if (typeof picked !== "string") return;
       await tauriCommands.stt.setModelDir(picked);
       // 同步本地 store：设置页下次自动保存带上的是新目录，避免旧值写回覆盖
       patchSettings({ stt: { ...settings.stt, customModelDir: picked } });
       refresh();
     } catch (reason) {
-      setError(`修改模型目录失败：${String(reason)}`);
+      setError(translate("speechModels.changeFailed", { value: String(reason) }));
     }
   };
 
@@ -120,7 +122,7 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
       patchSettings({ stt: { ...settings.stt, customModelDir: null } });
       refresh();
     } catch (reason) {
-      setError(`恢复默认目录失败：${String(reason)}`);
+      setError(translate("speechModels.resetFailed", { value: String(reason) }));
     }
   };
 
@@ -171,28 +173,28 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <button type="button" className="settings-action" onClick={onBack}>
-          <ArrowLeft className="h-3.5 w-3.5" /> 返回
+          <ArrowLeft className="h-3.5 w-3.5" />{" " + translate("speechModels.back")}
         </button>
-        <h3 className="text-[13px] font-semibold text-ink">识别模型管理</h3>
+        <h3 className="text-[13px] font-semibold text-ink">{translate("speechModels.title")}</h3>
       </div>
 
       <SettingsGroup
-        title="模型列表"
-        description="流式档边说边出字延迟最低；离线档按句识别，精度显著更高、延迟 3–5 秒（自动附带 VAD）。按模型大小自行取舍：点击已安装的模型即切换为当前使用；未安装的可直接下载。"
+        title={translate("speechModels.list")}
+        description={translate("speechModels.listHint")}
       >
         {loading || catalogLoading ? (
-          <p className="py-3 text-xs text-ink-muted" role="status">正在读取模型…</p>
+          <p className="py-3 text-xs text-ink-muted" role="status">{translate("speechModels.loading")}</p>
         ) : (
           <>
-            {renderGroup("流式 · 边说边出字",
+            {renderGroup(translate("speechModels.streaming"),
               catalog.filter((e) => e.group === "streaming")
                 .map((entry) => ({ entry, installed: models.includes(entry.id) })))}
-            {renderGroup("离线 · 按句识别（高精度）",
+            {renderGroup(translate("speechModels.offline"),
               catalog.filter((e) => e.group === "offline")
                 .map((entry) => ({ entry, installed: models.includes(entry.id) })))}
             {manualModels.length > 0 && (
               <div>
-                <p className="mb-1.5 mt-3 text-xs font-medium text-ink-muted">其他本地模型</p>
+                <p className="mb-1.5 mt-3 text-xs font-medium text-ink-muted">{translate("speechModels.other")}</p>
                 <div className="space-y-2">
                   {manualModels.map((id) => (
                     <ManagerModelRow
@@ -214,7 +216,7 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
             )}
             {catalog.length === 0 && models.length === 0 && (
               <p className="py-3 text-xs text-ink-muted">
-                未检测到已安装的模型，可从上方目录选择一个下载安装（境内下载自动经镜像加速）。
+                {translate("speechModels.empty")}
               </p>
             )}
           </>
@@ -222,41 +224,40 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
         {error && <p className="pt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">{error}</p>}
       </SettingsGroup>
 
-      <SettingsGroup title="模型文件">
+      <SettingsGroup title={translate("speechModels.files")}>
         <div className="settings-row-block">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[13px] text-ink">模型目录</p>
+            <p className="text-[13px] text-ink">{translate("speechModels.folder")}</p>
             <div className="flex gap-2">
               <button type="button" className="settings-action" disabled={!available} onClick={() => void changeDirectory()}>
-                <FolderPen className="h-3.5 w-3.5" /> 修改目录
+                <FolderPen className="h-3.5 w-3.5" />{" " + translate("speechModels.change")}
               </button>
               {settings.stt.customModelDir && (
                 <button type="button" className="settings-action" disabled={!available} onClick={() => void resetDirectory()}>
-                  <Undo2 className="h-3.5 w-3.5" /> 恢复默认
+                  <Undo2 className="h-3.5 w-3.5" />{" " + translate("speechModels.reset")}
                 </button>
               )}
               <button type="button" className="settings-action" disabled={!available} onClick={refresh}>
-                <RefreshCw className="h-3.5 w-3.5" /> 刷新模型
+                <RefreshCw className="h-3.5 w-3.5" />{" " + translate("speechModels.refresh")}
               </button>
               <button type="button" className="settings-action" disabled={!available} onClick={() => void openDirectory()}>
-                <FolderOpen className="h-3.5 w-3.5" /> 打开目录
+                <FolderOpen className="h-3.5 w-3.5" />{" " + translate("speechModels.open")}
               </button>
             </div>
           </div>
           {sttModels.modelDir && (
             <p className="mt-2 break-all select-text text-xs text-ink-muted">
               {sttModels.modelDir}
-              {settings.stt.customModelDir && <span className="ml-2 text-ink-muted">（自定义）</span>}
+              {settings.stt.customModelDir && <span className="ml-2 text-ink-muted">{translate("speechModels.custom")}</span>}
             </p>
           )}
           <p className="mt-1 text-xs text-ink-muted">
-            修改目录后模型列表会重新扫描；正在运行的实时字幕会先停止，需在新目录中选择模型后重新启用。
+            {translate("speechModels.folderHint")}
           </p>
           <details className="mt-2 text-xs leading-relaxed text-ink-muted">
-            <summary className="cursor-pointer py-1">如何手动安装模型</summary>
+            <summary className="cursor-pointer py-1">{translate("speechModels.manual")}</summary>
             <p className="mt-1">
-              也可将模型手动放入上述目录：每个模型使用独立子文件夹，包含 encoder、decoder、joiner 的
-              ONNX 文件及 tokens.txt，放好后点击「刷新模型」。
+              {translate("speechModels.manualHint")}
             </p>
           </details>
           <div className="mt-3 flex items-center justify-between">
@@ -265,9 +266,9 @@ export function SttModelManagerPage({ settings, patchSettings, sttModels, onBack
               className="inline-flex items-center gap-1 text-xs text-ink-muted transition hover:text-brand"
               onClick={() => void openUrl(OFFICIAL_RELEASE_URL)}
             >
-              <ExternalLink className="h-3 w-3" /> 官方模型页
+              <ExternalLink className="h-3 w-3" />{" " + translate("speechModels.official")}
             </button>
-            <p className="text-xs text-ink-muted">模型来自 sherpa-onnx 官方 GitHub Release</p>
+            <p className="text-xs text-ink-muted">{translate("speechModels.source")}</p>
           </div>
         </div>
       </SettingsGroup>
@@ -300,6 +301,7 @@ function ManagerModelRow({
   onStart: (id: string) => void;
   onCancel: (id: string) => void;
 }) {
+  const { t: translate } = useDesktopTranslation("desktop");
   const isJobBusy = job?.status === "downloading" || job?.status === "decompressing";
   const percent = job && job.total > 0 ? Math.round((job.downloaded / job.total) * 100) : 0;
   const missing = isCurrent && !installed;
@@ -324,17 +326,17 @@ function ManagerModelRow({
           }`}
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
-          {missing ? "当前使用（未找到）" : "当前使用"}
+          {missing ? translate("speechModels.missing") : translate("speechModels.current")}
         </span>
       ) : installed ? (
-        <span className="shrink-0 rounded px-2 py-1 text-xs text-ink-muted">点击切换使用</span>
+        <span className="shrink-0 rounded px-2 py-1 text-xs text-ink-muted">{translate("speechModels.activate")}</span>
       ) : isJobBusy ? (
         <button
           type="button"
           className="shrink-0 rounded px-3 py-1.5 text-xs text-ink-muted transition hover:bg-black/5 dark:hover:bg-white/[0.06]"
           onClick={(e) => { e.stopPropagation(); onCancel(id); }}
         >
-          取消
+          {translate("speechModels.cancel")}
         </button>
       ) : (
         <button
@@ -343,7 +345,7 @@ function ManagerModelRow({
           disabled={busy}
           onClick={(e) => { e.stopPropagation(); onStart(id); }}
         >
-          <Download className="h-3.5 w-3.5" /> 下载
+          <Download className="h-3.5 w-3.5" />{" " + translate("speechModels.download")}
         </button>
       )}
     </>
@@ -372,7 +374,7 @@ function ManagerModelRow({
             <>
               <div className="mb-1 flex items-center justify-between text-xs text-ink-muted">
                 <span className="flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> 下载中
+                  <Loader2 className="h-3 w-3 animate-spin" />{" " + translate("speechModels.downloading")}
                 </span>
                 <span>
                   {formatSize(job.downloaded)}
@@ -389,18 +391,18 @@ function ManagerModelRow({
           )}
           {job.status === "decompressing" && (
             <p className="flex items-center gap-1 text-xs text-ink-muted">
-              <Loader2 className="h-3 w-3 animate-spin" /> 下载完成，解压安装中…
+              <Loader2 className="h-3 w-3 animate-spin" />{" " + translate("speechModels.extracting")}
             </p>
           )}
           {job.status === "done" && (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">安装完成，已加入模型列表</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">{translate("speechModels.installed")}</p>
           )}
           {job.status === "cancelled" && (
-            <p className="text-xs text-ink-muted">已取消下载</p>
+            <p className="text-xs text-ink-muted">{translate("speechModels.canceled")}</p>
           )}
           {job.status === "error" && (
             <p className="text-xs text-rose-600 dark:text-rose-300" role="alert">
-              {job.error ?? "下载失败"}
+              {job.error ?? translate("speechModels.failed")}
             </p>
           )}
         </div>

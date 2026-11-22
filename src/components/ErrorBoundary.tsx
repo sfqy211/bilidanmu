@@ -1,3 +1,4 @@
+import { i18n as desktopI18n } from "@/i18n";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface Props {
@@ -27,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex h-screen items-center justify-center">
-          <p className="text-sm text-slate-500 dark:text-slate-400">页面加载出错，请重启应用</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{desktopI18n.t("desktop:errorBoundary.restart")}</p>
         </div>
       );
     }
