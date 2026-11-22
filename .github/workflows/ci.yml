@@ -6,7 +6,7 @@ on:
     paths:
       - "src/**"
       - "src-tauri/**"
-      - "docs/**"
+      - "website/**"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -17,7 +17,7 @@ on:
     paths:
       - "src/**"
       - "src-tauri/**"
-      - "docs/**"
+      - "website/**"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -123,53 +123,30 @@ jobs:
         run: cargo build --locked
 
   docs:
-    name: Documentation build
+    name: Website build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
     steps:
       - name: Checkout client
         uses: actions/checkout@v7
-        with:
-          path: bilidanmu
-
-      - name: Read pinned shared core revision
-        id: core
-        shell: bash
-        run: |
-          revision="$(node scripts/shared-core-revision.mjs)"
-          echo "revision=$revision" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout shared core
-        uses: actions/checkout@v7
-        with:
-          repository: sfqy211/danmaku-core
-          ref: ${{ steps.core.outputs.revision }}
-          path: danmaku-core
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: lts/*
+          node-version: 24
           cache: npm
-          cache-dependency-path: |
-            bilidanmu/package-lock.json
-            bilidanmu/docs/package-lock.json
-            danmaku-core/package-lock.json
+          cache-dependency-path: website/package-lock.json
 
-      - name: Install shared frontend dependencies
-        working-directory: danmaku-core
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build shared frontend
-        working-directory: danmaku-core
+      - name: Rebuild esbuild
+        run: npm rebuild esbuild
+
+      - name: Build website
         run: npm run build
 
-      - name: Install client dependencies
-        run: npm ci
-
-      - name: Install documentation dependencies
-        working-directory: bilidanmu/docs
-        run: npm ci
-
-      - name: Build documentation
-        working-directory: bilidanmu/docs
-        run: npm run build
+      - name: Typecheck website
+        run: npm run check:astro

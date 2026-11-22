@@ -1,18 +1,13 @@
-name: Deploy Docs
+name: Deploy Site
 
-# 文档站（Docusaurus）自动部署到 GitHub Pages：
-# 文档与其共享价格规则、固定来源变化时重新构建。
+# 发布页 + 文档站（Astro + AstroWind + Starlight）自动部署到 GitHub Pages。
+# 站点是纯静态构建，不再依赖主应用的共享前端或 Docusaurus。
 
 on:
   push:
     branches: [main]
     paths:
-      - "docs/**"
-      - "src/lib/price-chip.ts"
-      - "src-tauri/Cargo.toml"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/shared-core-revision.mjs"
+      - "website/**"
       - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
@@ -31,61 +26,32 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: bilidanmu
+        working-directory: website
     steps:
       - uses: actions/checkout@v7
-        with:
-          # lastUpdated: true 需要完整 git 历史计算每页最后提交时间
-          fetch-depth: 0
-          path: bilidanmu
-
-      - name: Read pinned shared core revision
-        id: core
-        shell: bash
-        run: |
-          revision="$(node scripts/shared-core-revision.mjs)"
-          echo "revision=$revision" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout shared core
-        uses: actions/checkout@v7
-        with:
-          repository: sfqy211/danmaku-core
-          ref: ${{ steps.core.outputs.revision }}
-          path: danmaku-core
 
       - uses: actions/setup-node@v7
         with:
-          node-version: lts/*
+          node-version: 24
           cache: npm
-          cache-dependency-path: |
-            bilidanmu/package-lock.json
-            bilidanmu/docs/package-lock.json
-            danmaku-core/package-lock.json
-
-      - name: Install shared frontend dependencies
-        working-directory: danmaku-core
-        run: npm ci
-
-      - name: Build shared frontend
-        working-directory: danmaku-core
-        run: npm run build
-
-      - name: Install client dependencies
-        run: npm ci
+          cache-dependency-path: website/package-lock.json
 
       - name: Install dependencies
-        working-directory: bilidanmu/docs
         run: npm ci
 
+      # npm 11 的 allow-scripts 可能跳过 esbuild 的 postinstall；
+      # 显式重建，避免 Vite 构建时找不到二进制。
+      - name: Rebuild esbuild
+        run: npm rebuild esbuild
+
       - name: Build
-        working-directory: bilidanmu/docs
         run: npm run build
 
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: bilidanmu/docs/build
+          path: website/dist
 
   deploy:
     runs-on: ubuntu-latest
