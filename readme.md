@@ -2,7 +2,7 @@
 
 B 站直播弹幕与听视频桌面客户端：把直播间收进一个常驻小窗，也可以只听声音、看实时字幕，或者把视频当播客听。支持 Windows / macOS / Linux。
 
-[下载](https://sfqy211.github.io/bilidanmu/#download) · [文档站](https://sfqy211.github.io/bilidanmu/) · [发布页](https://github.com/sfqy211/bilidanmu/releases) · [使用指南](https://sfqy211.github.io/bilidanmu/guide/quick-start)
+[下载](https://sfqy211.github.io/bilidanmu/#download) · [文档站](https://sfqy211.github.io/bilidanmu/docs/) · [发布页](https://github.com/sfqy211/bilidanmu/releases) · [使用指南](https://sfqy211.github.io/bilidanmu/docs/guide/quick-start/)
 
 ## 简介
 
@@ -18,7 +18,7 @@ B 站直播弹幕与听视频桌面客户端：把直播间收进一个常驻小
 - **AI 接入（MCP）**：内置本地 MCP 服务，AI 客户端可读取直播上下文、弹幕、视频字幕与评论，并在三档权限约束下执行发送、整理稍后再看等操作。
 - **外观**：浅色 / 深色 / 跟随系统，多套主题预设与自定义强调色，全局快捷键与界面缩放。
 
-功能的完整说明见[功能介绍](https://sfqy211.github.io/bilidanmu/guide/features)。
+功能的完整说明见[功能介绍](https://sfqy211.github.io/bilidanmu/docs/guide/features/)。
 
 ## 下载
 
@@ -30,15 +30,15 @@ B 站直播弹幕与听视频桌面客户端：把直播间收进一个常驻小
 | macOS Universal | `.dmg` | Intel / Apple Silicon；未签名，首次需右键「打开」 |
 | Linux x64 | `.AppImage` | 需要 webkit2gtk 4.1 |
 
-首次安装与登录步骤见[快速开始](https://sfqy211.github.io/bilidanmu/guide/quick-start)。
+首次安装与登录步骤见[快速开始](https://sfqy211.github.io/bilidanmu/docs/guide/quick-start/)。
 
 ## 文档
 
-文档站：<https://sfqy211.github.io/bilidanmu/>
+文档站：<https://sfqy211.github.io/bilidanmu/docs/>
 
-- [使用指南](https://sfqy211.github.io/bilidanmu/guide/quick-start)：安装、账号、直播间、弹幕窗、听视频、语音转字幕、AI 接入
-- [技术架构](https://sfqy211.github.io/bilidanmu/architecture/overview)：前后端结构、数据流、窗口与协议实现
-- [API 参考](https://sfqy211.github.io/bilidanmu/api/ipc)：IPC 命令、事件列表、MCP 工具
+- [使用指南](https://sfqy211.github.io/bilidanmu/docs/guide/quick-start/)：安装、账号、直播间、弹幕窗、听视频、语音转字幕、AI 接入
+- [技术架构](https://sfqy211.github.io/bilidanmu/docs/architecture/overview/)：前后端结构、数据流、窗口与协议实现
+- [API 参考](https://sfqy211.github.io/bilidanmu/docs/api/ipc/)：IPC 命令、事件列表、MCP 工具
 - 本地开发约定：`AGENTS.md`；测试手册：`tests/README.md`
 
 ## 开发
@@ -63,6 +63,20 @@ npm run typecheck    # 前端类型检查
 ```
 
 Rust 侧在 `src-tauri/` 下运行 `cargo check`。更多命令与提交前验证要求见 `AGENTS.md`。
+
+## 网站与文档
+
+发布页与文档站源码在 `website/`（Astro + AstroWind + Starlight），和桌面应用分开构建：
+
+```bash
+cd website
+npm install
+npm run dev        # http://localhost:4321/bilidanmu/
+npm run build      # 静态产物在 website/dist
+npm run check:astro
+```
+
+文档内容在 `website/src/content/docs/docs/`，旧 `docs/` Docusaurus 站保留作参考、不再部署。第三方模板许可见 `website/THIRD_PARTY_NOTICES.md`。
 
 ## 许可
 

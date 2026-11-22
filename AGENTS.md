@@ -16,9 +16,9 @@
 - Frontend verification: `npm run typecheck`.
 - Rust verification: `cargo check` from `src-tauri/`.
 - Build release: `npm run build` (gift build: `npm run build:gift`).
-- Docs site verification: `npm run build` from `docs/` (Docusaurus).
+- Docs site verification: `npm run build` + `npm run check:astro` from `website/` (Astro + Starlight).
 - After changing `src-tauri/icons/`: `touch src-tauri/build.rs` before rebuilding (cargo fingerprints don't watch icon files, so the embedded icon stays stale), then `ie4uinit.exe -show` to flush the Windows taskbar icon cache.
-- Version bump: `.\scripts\bump-version.ps1 <version>` (also rewrites `RELEASE_VERSION` in `docs/src/components/landing/LandingApp.tsx`; keep that in sync or the homepage download links 404).
+- Version bump: `.\scripts\bump-version.ps1 <version>` (also rewrites `VERSION` in `website/src/components/landing/Download.astro`; keep that in sync or the homepage download links 404).
 - No lite build variant — STT is always compiled in, toggled at runtime via settings. There is no built-in LLM: `src/pages/AIPage.tsx` is the MCP management page (service status/token, 三档权限). AI capability lives in external MCP clients, not in this app.
 - 礼物打赏（发送礼物）由 cargo feature `gift-send` 门控，官方构建默认关闭：命令层 `ensure_enabled()` 硬校验 + 前端按 `gift_send_enabled` 隐藏入口；开发调试用 `npm run dev:gift`。
 - There is no configured JS test/lint task in `package.json`; do not claim tests/lint passed unless you actually ran the available checks above.
@@ -26,7 +26,7 @@
 ## Required verification after code changes
 - Default expectation: run `npm run typecheck` and `cargo check`.
 - If you touched STT code, verify it still compiles.
-- If you touched `docs/`, run `npm run build` in `docs/` — `onBrokenLinks: 'throw'` fails the build on dead internal links.
+- If you touched `website/`, run `npm run build` and `npm run check:astro` in `website/`; the docs are content-checked by the same build.
 - Shared core: run `cargo test --manifest-path ../danmaku-core/Cargo.toml --workspace --locked` for protocol/Rust changes and `npm test` in `../danmaku-core` for shared UI changes.
 - Window interaction regression: `npm run dev:renderer`, then `./tests/test-video-window.ps1` (needs `agent-browser`); details and coverage are in `tests/README.md`.
 
@@ -40,14 +40,15 @@
 - `.github/workflows/publish-tauri.yml`: pushing to `main` with a change to `src-tauri/tauri.conf.json` publishes a GitHub release tagged `app-v<version>` (skipped if the tag already exists). Treat version bumps as release triggers. Matrix: Windows x64, macOS universal, Linux x64 (Ubuntu 22.04).
 - Release changelog is parsed from conventional commit subjects (`feat:` / `fix:` / `refactor:`); anything else lands in "其他".
 - CI gates on `npm run typecheck` and `cargo check` (in `src-tauri/`) before building, and deletes `src-tauri/target/sherpa-onnx-prebuilt` first (rust-cache leaves empty dirs that defeat sherpa-onnx-sys's "download if dir exists" check).
-- `.github/workflows/deploy-docs.yml`: pushing to `main` with changes under `docs/**` builds the Docusaurus site and deploys it to GitHub Pages.
+- `.github/workflows/deploy-docs.yml`: pushing to `main` with changes under `website/**` builds the Astro site (`website/`) and deploys it to GitHub Pages. The old `docs/` Docusaurus site is legacy and no longer deployed.
 
 ## Repo shape
 - `src/` is the Vite/React frontend. Vite root is `src`, output is `dist`, dev server is fixed to `http://localhost:3000` (`strictPort: true`, so a busy port fails instead of shifting).
 - `src-tauri/` is the Tauri/Rust app. `tauri.conf.json` starts the renderer with `beforeDevCommand: npm run dev:renderer` and builds it with `beforeBuildCommand: npm run build:renderer`.
 - Path alias `@/*` points to `src/*`.
 - 本地参考项目在 `D:\AHEU\code\reference`（bilibili-API-collect 协议文档、live-moyu 悬浮输入框/紧凑窗、JLiverTool 协议解析/SEND_GIFT_V2、BilibiliApis 送礼接口等）；遇到协议或接口问题先查本地参考项目，再联网搜索。
-- `docs/` is the Docusaurus documentation site (`routeBasePath: '/'`, content in `docs/docs/`, homepage/landing in `docs/src/`). Run `npm run dev` in `docs/` to start the docs dev server. `docs/design/` holds per-feature design records (that directory is NOT part of the docs site).
+- `website/` is the Astro site: AstroWind landing in `website/src/pages/index.astro` + `website/src/components/landing/`, Starlight docs in `website/src/content/docs/docs/` (served at `/docs/...`), site config in `website/src/config.yaml` + `website/astro.config.ts`. Run `npm run dev` in `website/` (http://localhost:4321/bilidanmu/).
+- `docs/` is the legacy Docusaurus site, kept for reference only; it is no longer deployed. `docs/design/` holds per-feature design records.
 
 ## Routes and navigation
 - `src/router.tsx`: `/rooms`, `/rooms/add`, `/accounts`, `/ai`, `/settings`, `/listen`, `/listen/add` (`/listen/search` redirects to it), `/listen/watchlater`, `/listen/fav/:mediaId`, `/listen/video/:bvid`, `/listen/video/:bvid/comments`, plus the standalone window routes `/danmaku/:roomId` (live danmaku) and `/video-danmaku` (video danmaku, loaded by the `video-danmaku` window).
@@ -95,8 +96,8 @@
 
 ## Docs conventions
 - Guide pages must describe the UI that actually exists, using the exact on-screen labels. When a feature is absent (e.g. subtitle focus/cover toggle, drawer windows, mode switch), delete the claim rather than softening it.
-- Feature lists in `README.md`, `docs/docs/guide/features.md` and the landing page (`docs/src/components/landing/data.ts`) describe the same product — keep them consistent with each other and with the code.
-- `docs/docs/api/{ipc,events,mcp}.md` must stay complete: every registered command and every emitted event name should be listed with payload fields matching the Rust/TS definitions; MCP tools are documented in `mcp.md` and their specs live (single source of truth) in `src-tauri/src/ai/registry.rs`.
+- Feature lists in `README.md`, `website/src/content/docs/docs/guide/features.md` and the landing page (`website/src/pages/index.astro` + `website/src/components/landing/`) describe the same product — keep them consistent with each other and with the code.
+- `website/src/content/docs/docs/api/{ipc,events,mcp}.md` must stay complete: every registered command and every emitted event name should be listed with payload fields matching the Rust/TS definitions; MCP tools are documented in `mcp.md` and their specs live (single source of truth) in `src-tauri/src/ai/registry.rs`.
 
 ## CSS conventions for danmaku window
 - `[data-transparent]` on html element makes body background transparent.
