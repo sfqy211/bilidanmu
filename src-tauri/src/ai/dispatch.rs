@@ -128,7 +128,8 @@ async fn request_confirmation(
     args: &serde_json::Value,
 ) -> Result<bool, ToolError> {
     let id = crate::ai::confirm::new_confirmation_id();
-    let message = describe_call(spec.name, spec.title, args);
+    let locale = crate::settings_store::load_locale(state);
+    let message = describe_call(spec.name, spec.title, args, locale);
 
     let (receiver, main_was_visible) = {
         let mut registry = state
@@ -142,7 +143,10 @@ async fn request_confirmation(
     let payload = crate::ai::confirm::PendingConfirmation {
         id: id.clone(),
         tool: label.to_string(),
-        title: format!("AI 请求：{}", spec.title),
+        title: match locale {
+            crate::locale::Locale::ZhCn => format!("AI 请求：{}", spec.title),
+            crate::locale::Locale::En => "AI request".to_string(),
+        },
         message,
         risk: spec.risk.as_str().to_string(),
     };
@@ -194,18 +198,32 @@ fn main_window_visible(app: &tauri::AppHandle) -> Option<bool> {
 }
 
 /// 给用户看的确认文案：说清"要做什么"，而不是把 JSON 甩出来。
-fn describe_call(name: &str, title: &str, args: &serde_json::Value) -> String {
+fn describe_call(
+    name: &str,
+    title: &str,
+    args: &serde_json::Value,
+    locale: crate::locale::Locale,
+) -> String {
+    let english = locale == crate::locale::Locale::En;
+    let label = |zh: &'static str, en: &'static str| if english { en } else { zh };
+    let fallback = || {
+        if english {
+            format!("Requested action: {name}")
+        } else {
+            title.to_string()
+        }
+    };
     let mut parts: Vec<String> = Vec::new();
 
     match name {
         "danmaku_send" => {
             if let Some(message) = args.get("message").and_then(|value| value.as_str()) {
-                parts.push(format!("发送弹幕：{message}"));
+                parts.push(format!("{}{message}", label("发送弹幕：", "Send danmaku: ")));
             }
         }
         "danmaku_send_emoticon" => {
             if let Some(unique) = args.get("emoticonUnique").and_then(|value| value.as_str()) {
-                parts.push(format!("发送表情弹幕：{unique}"));
+                parts.push(format!("{}{unique}", label("发送表情弹幕：", "Send emote: ")));
             }
         }
         "auto_send_start" => {
@@ -221,12 +239,14 @@ fn describe_call(name: &str, title: &str, args: &serde_json::Value) -> String {
             let limit = args
                 .get("timeLimitSecs")
                 .and_then(|value| value.as_u64())
-                .map(|secs| format!("，{secs} 秒后自动停止"))
-                .unwrap_or_else(|| "，持续到手动停止".to_string());
-            parts.push(format!(
-                "启动循环发送弹幕：{count} 条轮播，每 {} 秒一条{limit}",
-                interval as f64 / 1000.0
-            ));
+                .map(|secs| if english { format!(", stopping after {secs} s") } else { format!("，{secs} 秒后自动停止") })
+                .unwrap_or_else(|| label("，持续到手动停止", ", until stopped manually").to_string());
+            let seconds = interval as f64 / 1000.0;
+            parts.push(if english {
+                format!("Repeat {count} danmaku items, one every {seconds} s{limit}")
+            } else {
+                format!("启动循环发送弹幕：{count} 条轮播，每 {seconds} 秒一条{limit}")
+            });
         }
         "gift_send" => {
             let gift_id = args.get("giftId").and_then(|value| value.as_u64()).unwrap_or(0);
@@ -238,35 +258,62 @@ fn describe_call(name: &str, title: &str, args: &serde_json::Value) -> String {
                 .unwrap_or("silver");
             let total = price.saturating_mul(count);
             if coin == "gold" && total > 0 {
-                parts.push(format!(
-                    "赠送礼物 #{gift_id} × {count}，合计 {:.2} 元（真实扣费）",
-                    total as f64 / 1000.0
-                ));
+                let amount = total as f64 / 1000.0;
+                parts.push(if english {
+                    format!("Send gift #{gift_id} × {count}. This charges CNY {amount:.2}.")
+                } else {
+                    format!("赠送礼物 #{gift_id} × {count}，合计 {amount:.2} 元（真实扣费）")
+                });
             } else {
-                parts.push(format!("赠送礼物 #{gift_id} × {count}（{coin}）"));
+                parts.push(if english {
+                    format!("Send gift #{gift_id} × {count} ({coin})")
+                } else {
+                    format!("赠送礼物 #{gift_id} × {count}（{coin}）")
+                });
             }
         }
         "video_comment_post" => {
             if let Some(message) = args.get("message").and_then(|value| value.as_str()) {
-                parts.push(format!("发表公开评论：{message}"));
+                parts.push(format!("{}{message}", label("发表公开评论：", "Post a public comment: ")));
             }
         }
         "account_remove" => {
             if let Some(account) = args.get("accountId").and_then(|value| value.as_str()) {
-                parts.push(format!("删除账号 {account} 的本地凭据（不可恢复，需重新扫码）"));
+                parts.push(if english {
+                    format!("Delete the local credentials for account {account}. This cannot be undone. You will need to scan a new sign-in code.")
+                } else {
+                    format!("删除账号 {account} 的本地凭据（不可恢复，需重新扫码）")
+                });
             }
         }
         _ => {
-            parts.push(title.to_string());
+            parts.push(fallback());
         }
     }
 
     let mut text = parts.join("\n");
     if text.is_empty() {
-        text = title.to_string();
+        text = fallback();
     }
-    text.push_str("\n\n允许这次操作吗？");
+    text.push_str(label("\n\n允许这次操作吗？", "\n\nAllow this action?"));
     text
+}
+
+#[cfg(test)]
+mod tests {
+    use super::describe_call;
+    use crate::locale::Locale;
+    use serde_json::json;
+
+    #[test]
+    fn localized_gift_confirmation_preserves_cost_and_currency() {
+        let args = json!({ "giftId": 7, "giftNum": 2, "price": 550, "coinType": "gold" });
+        let chinese = describe_call("gift_send", "赠送礼物", &args, Locale::ZhCn);
+        let english = describe_call("gift_send", "赠送礼物", &args, Locale::En);
+        assert!(chinese.contains("1.10 元（真实扣费）"));
+        assert!(english.contains("Send gift #7 × 2"));
+        assert!(english.contains("This charges CNY 1.10."));
+    }
 }
 
 /// 日志里存的结果摘要：不存整个 data（可能很大），只留关键信息。

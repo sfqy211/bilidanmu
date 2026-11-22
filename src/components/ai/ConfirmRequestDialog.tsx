@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation } from "@/i18n";
 import { useEffect, useState } from "react";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
@@ -14,6 +15,7 @@ import type { AiConfirmRequest } from "@/types/ai";
 const CONFIRM_TIMEOUT_MS = 56_000;
 
 export function ConfirmRequestDialog() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const [request, setRequest] = useState<AiConfirmRequest | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,7 +75,7 @@ export function ConfirmRequestDialog() {
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-medium text-ink">{request.title}</h3>
             <p className="mt-1 text-xs text-ink-muted">
-              来自 AI 客户端 · 工具 {request.tool}
+              {translate("mcpConfirmation.source") + " "}{request.tool}
             </p>
             <p className="mt-3 whitespace-pre-wrap break-words text-sm text-ink">
               {request.message}
@@ -88,7 +90,7 @@ export function ConfirmRequestDialog() {
             disabled={submitting}
             onClick={() => void respond(false)}
           >
-            拒绝
+            {translate("mcpConfirmation.reject")}
           </button>
           <button
             type="button"
@@ -100,11 +102,11 @@ export function ConfirmRequestDialog() {
             disabled={submitting}
             onClick={() => void respond(true)}
           >
-            {submitting ? "处理中…" : "允许"}
+            {submitting ? translate("mcpConfirmation.working") : translate("mcpConfirmation.allow")}
           </button>
         </div>
         <p className="mt-3 text-right text-[11px] text-ink-muted">
-          超过 55 秒未响应将自动取消
+          {translate("mcpConfirmation.timeout")}
         </p>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowLeftRight, Check, Eye, KeyRound, Loader2, LogOut, Plus, RefreshCw, UserRound, X } from "lucide-react";
 import { getAllWindows } from "@tauri-apps/api/window";
@@ -11,6 +12,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export function AccountPage() {
+  const { t: translate } = useDesktopTranslation("desktop");
   const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
   const {
     accounts,
@@ -24,7 +26,7 @@ export function AccountPage() {
   const [showWarning, setShowWarning] = useState(false);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [authCode, setAuthCode] = useState<string | null>(null);
-  const [qrStatus, setQrStatus] = useState<string>("");
+  const [qrStatus, setQrStatus] = useState<"waiting" | "scanned" | "qrExpired" | "scanHint" | null>(null);
   const [loading, setLoading] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
@@ -46,22 +48,24 @@ export function AccountPage() {
         const result = await tauriCommands.auth.pollTvQr(authCode);
         if (cancelled) return;
 
-        setQrStatus(result.message ?? "等待扫码...");
+        if (result.status === "pending" || result.status === "scanned") {
+          setQrStatus(result.status === "scanned" ? "scanned" : "waiting");
+        }
 
         if (result.status === "success" && result.credential) {
           addAccount(result.credential);
-          showSuccess("扫码登录成功");
+          showSuccess(desktopI18n.t("desktop:account.signedIn"));
           resetQr();
           setShowAdd(false);
         }
 
         if (result.status === "expired") {
-          setQrStatus("二维码已过期，点击刷新");
+          setQrStatus("qrExpired");
           setAuthCode(null);
         }
       } catch (pollError) {
         if (!cancelled) {
-          showError(pollError instanceof Error ? pollError.message : "轮询二维码失败");
+          showError(pollError instanceof Error ? pollError.message : desktopI18n.t("desktop:account.pollFailed"));
           resetQr();
         }
       }
@@ -76,7 +80,7 @@ export function AccountPage() {
   const resetQr = () => {
     setAuthCode(null);
     setQrImageUrl(null);
-    setQrStatus("");
+    setQrStatus(null);
   };
 
   const handleCreateQr = async () => {
@@ -92,9 +96,9 @@ export function AccountPage() {
       });
       setQrImageUrl(imageUrl);
       setAuthCode(result.authCode);
-      setQrStatus("请使用哔哩哔哩 App 扫码登录");
+      setQrStatus("scanHint");
     } catch (qrError) {
-      showError(qrError instanceof Error ? qrError.message : "获取二维码失败");
+      showError(qrError instanceof Error ? qrError.message : translate("account.qrFailed"));
     } finally {
       setLoading(false);
     }
@@ -120,7 +124,7 @@ export function AccountPage() {
     try {
       const windows = await getAllWindows();
       if (windows.some((w) => w.label.startsWith("danmaku-"))) {
-        showError("请先关闭所有弹幕窗口后再移除账号");
+        showError(translate("account.closeToRemove"));
         return;
       }
     } catch { /* ignore */ }
@@ -128,9 +132,9 @@ export function AccountPage() {
     try {
       const newActiveId = await tauriCommands.auth.removeAccount(accountId);
       removeAccount(accountId, newActiveId);
-      showSuccess("已移除账号");
+      showSuccess(translate("account.removed"));
     } catch (e) {
-      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "移除账号失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : translate("account.removeFailed"));
     }
   };
 
@@ -138,7 +142,7 @@ export function AccountPage() {
     try {
       const windows = await getAllWindows();
       if (windows.some((w) => w.label.startsWith("danmaku-"))) {
-        showError("请先关闭所有弹幕窗口后再切换账号");
+        showError(translate("account.closeToSwitch"));
         return;
       }
     } catch { /* ignore */ }
@@ -148,9 +152,9 @@ export function AccountPage() {
     try {
       const credential = await tauriCommands.auth.switchAccount(accountId);
       setActiveAccount(accountId, credential);
-      showSuccess(`已切换到 ${credential.username}`);
+      showSuccess(translate("account.switched", { value: credential.username }));
     } catch (e) {
-      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "切换账号失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : translate("account.switchFailed"));
     } finally {
       setSwitchingId(null);
     }
@@ -160,7 +164,7 @@ export function AccountPage() {
     try {
       const windows = await getAllWindows();
       if (windows.some((w) => w.label.startsWith("danmaku-"))) {
-        showError("请先关闭所有弹幕窗口后再切换到匿名模式");
+        showError(translate("account.closeToAnonymous"));
         return;
       }
     } catch { /* ignore */ }
@@ -170,9 +174,9 @@ export function AccountPage() {
     try {
       const credential = await tauriCommands.auth.switchToAnonymous();
       setActiveAccount(ANONYMOUS_ACCOUNT_ID, credential);
-      showSuccess("已切换到匿名模式");
+      showSuccess(translate("account.switchedAnonymous"));
     } catch (e) {
-      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "切换到匿名模式失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : translate("account.anonymousFailed"));
     } finally {
       setSwitchingId(null);
     }
@@ -184,9 +188,9 @@ export function AccountPage() {
     try {
       const credential = await tauriCommands.auth.refreshAccountInfo(accountId);
       addAccount(credential);
-      showSuccess("账号信息已刷新");
+      showSuccess(translate("account.refreshed"));
     } catch (e) {
-      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "刷新账号信息失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : translate("account.refreshFailed"));
     } finally {
       setRefreshingId(null);
     }
@@ -198,27 +202,27 @@ export function AccountPage() {
     try {
       const credential = await tauriCommands.auth.refreshCookie(accountId);
       addAccount(credential);
-      showSuccess("Cookie 授权已续期");
+      showSuccess(translate("account.cookieRefreshed"));
     } catch (e) {
-      showError(typeof e === "string" ? e : e instanceof Error ? e.message : "刷新 Cookie 失败");
+      showError(typeof e === "string" ? e : e instanceof Error ? e.message : translate("account.cookieFailed"));
     } finally {
       setRefreshingId(null);
     }
   };
 
   const getExpiryText = (expiresAt?: number): { text: string; color: string } => {
-    if (!expiresAt) return { text: "过期时间未知", color: "text-slate-400 dark:text-slate-500" };
+    if (!expiresAt) return { text: translate("account.expiryUnknown"), color: "text-slate-400 dark:text-slate-500" };
     const now = Date.now() / 1000;
-    if (expiresAt <= now) return { text: "已过期", color: "text-rose-500 dark:text-rose-400" };
+    if (expiresAt <= now) return { text: translate("account.expired"), color: "text-rose-500 dark:text-rose-400" };
     const days = Math.floor((expiresAt - now) / 86400);
-    if (days <= 0) return { text: "不足1天过期", color: "text-amber-500 dark:text-amber-400" };
-    if (days <= 10) return { text: `${days}天后过期`, color: "text-amber-500 dark:text-amber-400" };
-    return { text: `${days}天后过期`, color: "text-emerald-600 dark:text-emerald-400" };
+    if (days <= 0) return { text: translate("account.expiresToday"), color: "text-amber-500 dark:text-amber-400" };
+    const text = translate("account.expires", { count: days });
+    return { text, color: days <= 10 ? "text-amber-500 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400" };
   };
 
   return (
     <section className="flex h-full min-h-0 flex-col select-none">
-      <PageHeader title="账号" description="扫码登录，支持多账号切换。" actions={
+      <PageHeader title={translate("account.title")} description={translate("account.description")} actions={
         <div className="flex flex-wrap items-center gap-2">
           {!showAdd && !showWarning && (
             <>
@@ -232,14 +236,14 @@ export function AccountPage() {
                 ) : (
                   <Eye className="h-4 w-4" />
                 )}
-                匿名模式
+                {translate("account.anonymous")}
               </button>
               <button
                 onClick={handleOpenAdd}
                 className="workspace-button workspace-button-primary"
               >
                 <Plus className="h-4 w-4" />
-                添加账号
+                {translate("account.add")}
               </button>
             </>
           )}
@@ -254,28 +258,28 @@ export function AccountPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <h3 className="mt-4 text-base font-medium text-ink">风险提示</h3>
+            <h3 className="mt-4 text-base font-medium text-ink">{translate("account.risk")}</h3>
             <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              程序请求与浏览器内正常使用所发送的请求不完全一致，能通过分析请求日志识别出来。
+              {translate("account.requestDisclosure")}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              软件开发者不对账号发生的任何事情负责，包括并不限于被标记为机器人账号、无法参与各种抽奖和活动等。
+              {translate("account.responsibility")}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              如您知晓您的账号会因以上所列出来的部分原因所导致无法使用或权益受损等情况，并愿意承担由此所会带来的一系列后果，请继续以下的操作，软件开发者不会对您账号所发生的任何后果承担责任。
+              {translate("account.consent")}
             </p>
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setShowWarning(false)}
                 className="rounded-xl px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.04]"
               >
-                取消
+                {translate("account.cancel")}
               </button>
               <button
                 onClick={handleConfirmWarning}
                 className="rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand/90"
               >
-                我已知晓，继续
+                {translate("account.continue")}
               </button>
             </div>
           </div>
@@ -284,7 +288,7 @@ export function AccountPage() {
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="flex w-full max-w-sm flex-col items-center rounded-lg bg-app-surface p-6 shadow-sm dark:bg-app-surface dark:ring-1 dark:ring-white/[0.06]">
             <div className="flex w-full items-center justify-between">
-              <h3 className="text-base font-medium text-ink">扫码登录</h3>
+              <h3 className="text-base font-medium text-ink">{translate("account.scan")}</h3>
               <button
                 onClick={handleCloseAdd}
                 className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-ink/[0.05] dark:text-slate-500 dark:hover:bg-white/[0.06]"
@@ -293,14 +297,14 @@ export function AccountPage() {
               </button>
             </div>
             <p className="mt-1 self-start text-xs text-ink-muted">
-              使用 Bilibili App 扫码，获取观看时长所需的 access_key。
+              {translate("account.scanDescription")}
             </p>
 
             <div className="mt-5 flex flex-col items-center gap-4">
               {qrImageUrl ? (
                 <img
                   src={qrImageUrl}
-                  alt="Bilibili 登录二维码"
+                  alt={translate("account.qrImage")}
                   className="h-[180px] w-[180px] bg-white"
                 />
               ) : (
@@ -308,7 +312,7 @@ export function AccountPage() {
                   {loading ? (
                     <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                   ) : (
-                    <span className="text-xs text-slate-400">点击下方生成二维码</span>
+                    <span className="text-xs text-slate-400">{translate("account.qrEmpty")}</span>
                   )}
                 </div>
               )}
@@ -318,11 +322,11 @@ export function AccountPage() {
                 disabled={loading}
                 className="rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "生成中..." : authCode ? "刷新二维码" : "生成二维码"}
+                {loading ? translate("account.generating") : authCode ? translate("account.refreshQr") : translate("account.generateQr")}
               </button>
 
               {qrStatus && (
-                <p className="text-xs text-slate-400 dark:text-slate-500">{qrStatus}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{translate(`account.${qrStatus}`)}</p>
               )}
             </div>
           </div>
@@ -330,7 +334,7 @@ export function AccountPage() {
       ) : accounts.length === 0 && activeAccountId !== ANONYMOUS_ACCOUNT_ID ? (
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="py-10 text-center text-sm text-ink-muted">
-            当前还没有登录账号。点击右上角「添加账号」扫码登录，或使用「匿名模式」。
+            {translate("account.noAccount")}
           </div>
         </div>
       ) : (
@@ -345,13 +349,13 @@ export function AccountPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-[15px] font-medium text-ink">匿名模式</p>
+                  <p className="text-[15px] font-medium text-ink">{translate("account.anonymous")}</p>
                   <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
                     <Check className="h-3 w-3" />
-                    当前
+                    {translate("account.current")}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[13px] text-ink-muted">仅可接收弹幕和音频流</p>
+                <p className="mt-0.5 text-[13px] text-ink-muted">{translate("account.receiveOnly")}</p>
               </div>
             </div>
           )}
@@ -389,7 +393,7 @@ export function AccountPage() {
                       {isActive && (
                         <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
                           <Check className="h-3 w-3" />
-                          当前
+                          {translate("account.current")}
                         </span>
                       )}
                     </div>
@@ -404,7 +408,7 @@ export function AccountPage() {
                     <button
                       onClick={() => void handleRefreshInfo(account.accountId)}
                       disabled={isRefreshing}
-                      title="刷新信息"
+                      title={translate("account.refresh")}
                       className="p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.06]"
                     >
                       {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -412,7 +416,7 @@ export function AccountPage() {
                     <button
                       onClick={() => void handleRefreshCookie(account.accountId)}
                       disabled={isRefreshing}
-                      title="更新授权（续期 Cookie）"
+                      title={translate("account.renew")}
                       className="p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.06]"
                     >
                       <KeyRound className="h-4 w-4" />
@@ -421,7 +425,7 @@ export function AccountPage() {
                       <button
                         onClick={() => void handleSwitchAccount(account.accountId)}
                         disabled={isSwitching}
-                        title="切换"
+                        title={translate("account.switch")}
                         className="p-1.5 text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-60 dark:text-brand dark:hover:bg-brand/10"
                       >
                         {isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
@@ -429,7 +433,7 @@ export function AccountPage() {
                     )}
                     <button
                       onClick={() => void handleRemoveAccount(account.accountId)}
-                      title="移除"
+                      title={translate("account.remove")}
                       className="p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-rose-300 dark:hover:bg-rose-500/10"
                     >
                       <LogOut className="h-4 w-4" />
