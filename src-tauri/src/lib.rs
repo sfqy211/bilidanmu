@@ -260,6 +260,8 @@ pub fn run() {
                     .auto_theme_from_background
                     .store(auto_theme, std::sync::atomic::Ordering::Relaxed);
                 if let Some(main) = app.get_webview_window("main") {
+                    #[cfg(target_os = "windows")]
+                    window_shell::apply_main_window_backdrop(&main);
                     if silent_start {
                         let _ = main.hide();
                         log::info!("静默启动：主窗口仅驻留系统托盘");

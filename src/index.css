@@ -35,7 +35,6 @@
   /* ── 设计 token：表面与文字（亮色）── */
   --app-page: #ececee;
   --app-surface: #f6f6f7;
-  --app-sidebar: #f1f1f3;
   --border-subtle: rgba(0, 0, 0, 0.08);
   --ink: #1b1b1f;
   --ink-muted: #6f6f7a;
@@ -61,7 +60,6 @@
   /* ── 设计 token：表面与文字（暗色）── */
   --app-page: #232327;
   --app-surface: #2a2a2f;
-  --app-sidebar: #232328;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --ink: #e8e8ea;
   --ink-muted: #9a9aa3;
@@ -206,33 +204,37 @@ textarea,
   background-color: var(--dock-bar-mark);
 }
 
-/* ── 主页面氛围设计系统（与弹幕窗同一套玻璃语言） ──
-   不改变既有布局：只以环境色、半透明表面、细高光和柔和投影建立玻璃层次。 */
-
+/* 共享玻璃底：细高光勾勒上缘，漫反射和环境色柔和地铺进整窗。 */
 .app-atmosphere {
-  background-color: var(--app-sidebar);
+  --workspace-glass-opacity: 90%;
+  --workspace-glass-tint: 0.065;
+  --workspace-glass-diffuse: 0.38;
+  --workspace-glass-highlight: 0.76;
+  --ink-muted: color-mix(in srgb, hsl(var(--muted-foreground)), var(--ink) 18%);
+  background-color: color-mix(in srgb, var(--app-page) var(--workspace-glass-opacity), transparent);
   background-image:
-    radial-gradient(ellipse 68% 72% at 92% -12%, rgb(var(--brand-rgb) / 0.075), transparent 72%),
-    radial-gradient(ellipse 58% 64% at -10% 108%, rgb(var(--brand-rgb) / 0.035), transparent 74%),
-    linear-gradient(145deg, color-mix(in srgb, var(--app-page) 72%, var(--app-sidebar)), var(--app-sidebar) 62%);
+    linear-gradient(90deg, transparent, rgb(255 255 255 / var(--workspace-glass-highlight)) 18%, transparent 72%),
+    radial-gradient(ellipse 74% 52% at 16% -6%, rgb(255 255 255 / var(--workspace-glass-diffuse)), transparent 76%),
+    radial-gradient(ellipse 76% 68% at 100% 0%, rgb(var(--brand-rgb) / var(--workspace-glass-tint)), transparent 74%);
+  background-size: 100% 1px, auto, auto;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 1px 0 var(--glass-border),
+    inset -1px 0 var(--glass-border),
+    inset 0 -1px var(--glass-border);
 }
 .dark .app-atmosphere {
-  background-color: var(--app-sidebar);
-  background-image:
-    radial-gradient(ellipse 68% 72% at 92% -12%, rgb(var(--brand-rgb) / 0.10), transparent 72%),
-    radial-gradient(ellipse 58% 64% at -10% 108%, rgb(var(--brand-rgb) / 0.04), transparent 74%),
-    linear-gradient(145deg, color-mix(in srgb, var(--app-page) 64%, var(--app-sidebar)), var(--app-sidebar) 62%);
+  --workspace-glass-opacity: 92%;
+  --workspace-glass-tint: 0.085;
+  --workspace-glass-diffuse: 0.065;
+  --workspace-glass-highlight: 0.20;
 }
 
-/* 内容区保留独立玻璃面；左侧用颜色渐隐衔接侧栏，不以完整描边制造“盒中盒”。 */
+/* 内容区只保留布局和弹层的定位边界，背景由外壳绘制。 */
 .workspace-main {
   margin: 0 8px 8px 0;
   border-radius: 10px;
-  background-color: var(--glass-panel-bg, var(--app-page));
-  background-image: linear-gradient(to right, var(--glass-seam-bg, transparent), transparent 40px);
-  box-shadow: var(--glass-panel-shadow, 0 12px 32px -24px rgb(0 0 0 / 0.24));
-  backdrop-filter: blur(20px) saturate(118%);
-  -webkit-backdrop-filter: blur(20px) saturate(118%);
+  contain: layout;
   overflow: hidden;
 }
 
@@ -274,30 +276,22 @@ textarea,
   --workspace-page-space: 24px;
   --workspace-control-radius: calc(var(--radius) - 4px);
   --workspace-hover: color-mix(in srgb, var(--ink) 4%, transparent);
-  --glass-panel-bg: color-mix(in srgb, var(--app-page) 60%, transparent);
   --glass-item-bg: color-mix(in srgb, var(--app-surface) 46%, transparent);
   --glass-item-hover: color-mix(in srgb, var(--ink) 4%, var(--glass-item-bg));
   --glass-control-bg: color-mix(in srgb, var(--app-surface) 34%, transparent);
   --glass-floating-bg: color-mix(in srgb, var(--app-surface) 78%, transparent);
   --glass-border: color-mix(in srgb, var(--ink) 8%, transparent);
   --glass-highlight: rgb(255 255 255 / 0.46);
-  --glass-seam-bg: color-mix(in srgb, var(--app-sidebar) 72%, transparent);
-  --glass-panel-shadow: inset 0 1px 0 var(--glass-highlight), 0 16px 38px -30px rgb(0 0 0 / 0.32);
 }
 .dark .workspace-shell {
-  --glass-panel-bg: color-mix(in srgb, var(--app-page) 64%, transparent);
   --glass-item-bg: color-mix(in srgb, var(--app-surface) 44%, transparent);
   --glass-control-bg: color-mix(in srgb, var(--app-surface) 30%, transparent);
   --glass-floating-bg: color-mix(in srgb, var(--app-surface) 80%, transparent);
   --glass-border: rgb(255 255 255 / 0.075);
   --glass-highlight: rgb(255 255 255 / 0.055);
-  --glass-seam-bg: color-mix(in srgb, var(--app-sidebar) 78%, transparent);
-  --glass-panel-shadow: inset 0 1px 0 var(--glass-highlight), 0 18px 42px -30px rgb(0 0 0 / 0.52);
 }
 
-/* 顶部标题栏：与外壳同色（灰），只有右侧内容区是内嵌的深色圆角面板。
-   此前该 class 只有 JSX 没有样式，标题栏透出页面底色，与侧栏割裂。
-   顶部两角显式给圆角：父级 overflow 在透明窗口下不总能裁掉子元素背景。 */
+/* 透明窗口下让标题栏两角贴合外壳裁切。 */
 .workspace-titlebar {
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
@@ -309,7 +303,6 @@ textarea,
   flex: 0 0 var(--workspace-sidebar-width);
   min-width: 0;
   padding: 24px 12px 12px;
-  /* 侧栏直接坐在外壳灰底上，不需要自己的背景与分隔线 */
 }
 
 .workspace-navigation { display: flex; flex-direction: column; gap: 4px; }
@@ -372,13 +365,7 @@ textarea,
 
 .workspace-page { padding: 24px var(--workspace-page-space); }
 .workspace-notice { margin: 12px var(--workspace-page-space) 0; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
-/* 迷你播放栏与外壳/侧边栏同色（此前用 --app-surface 比侧边栏浅一档，
-   视觉上像两种底色）；分隔靠自身的 border-t */
-.workspace-mini-player {
-  background: var(--glass-control-bg);
-  backdrop-filter: blur(16px) saturate(118%);
-  -webkit-backdrop-filter: blur(16px) saturate(118%);
-}
+.workspace-mini-player { border-color: var(--glass-border); }
 .workspace-brand { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .workspace-brand-logo { box-sizing: border-box; width: 24px; height: 24px; flex-shrink: 0; padding: 2px; border-radius: 7px; background: var(--glass-floating-bg); object-fit: contain; box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 1px var(--glass-border); }
 .dark .workspace-brand-logo { background: var(--glass-floating-bg); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 1px var(--glass-border); }
