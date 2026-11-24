@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { tauriCommands } from "@/lib/tauri";
 import type { FavFolder } from "@/types/bilibili";
 
+const collectionGrid = "grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-2.5";
+
 /** 听视频入口页：收藏夹与「稍后再看」合并为同一个目录列表。 */
 export function ListenHomePage() {
   const { t: translate } = useDesktopTranslation("desktop");
@@ -82,32 +84,40 @@ export function ListenHomePage() {
               <button type="button" onClick={() => void loadFolders()} className="workspace-button">{translate("videoHome.retry")}</button>
             </div>
           ) : (
-            <div className="app-rise list-card">
-              <button
-                onClick={() => navigate("/listen/watchlater")}
-                className="list-card-row"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                  <Clock className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{translate("videoHome.watchLater")}</span>
-                {watchLaterCount != null && (
-                  <span className="numeric shrink-0 text-xs text-ink-muted">{translate("videoHome.count", { count: watchLaterCount })}</span>
-                )}
-              </button>
-              {folders.map((folder) => (
+            <div className="app-rise">
+              <div className={`workspace-list-heading ${collectionGrid}`}>
+                <span className="col-start-2">{translate("videoHome.columns.collection")}</span>
+                <span className="text-right">{translate("videoHome.columns.count")}</span>
+              </div>
+              <div>
                 <button
-                  key={folder.id}
-                  onClick={() => navigate(`/listen/fav/${folder.id}`)}
-                  className="list-card-row"
+                  type="button"
+                  onClick={() => navigate("/listen/watchlater")}
+                  className={`workspace-list-row ${collectionGrid} cursor-pointer text-left`}
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.05] text-ink-muted">
-                    <ListMusic className="h-4 w-4" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                    <Clock className="h-4 w-4" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{folder.title}</span>
-                  <span className="numeric shrink-0 text-xs text-ink-muted">{translate("videoHome.count", { count: folder.mediaCount })}</span>
+                  <span className="min-w-0 truncate text-[13px] font-medium text-ink">{translate("videoHome.watchLater")}</span>
+                  {watchLaterCount != null && (
+                    <span className="numeric text-right text-xs text-ink-muted">{translate("videoHome.count", { count: watchLaterCount })}</span>
+                  )}
                 </button>
-              ))}
+                {folders.map((folder) => (
+                  <button
+                    type="button"
+                    key={folder.id}
+                    onClick={() => navigate(`/listen/fav/${folder.id}`)}
+                    className={`workspace-list-row ${collectionGrid} cursor-pointer text-left`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.05] text-ink-muted">
+                      <ListMusic className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 truncate text-[13px] font-medium text-ink">{folder.title}</span>
+                    <span className="numeric text-right text-xs text-ink-muted">{translate("videoHome.count", { count: folder.mediaCount })}</span>
+                  </button>
+                ))}
+              </div>
               {!folders.length && (
                 <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("videoHome.empty")}</div>
               )}

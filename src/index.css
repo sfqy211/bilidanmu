@@ -435,59 +435,59 @@ textarea,
   transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 .add-result-row:hover { background: var(--glass-item-hover); }
-/* 账号页行：与主页行卡同一套玻璃视觉（悬浮圆角块 + 品牌色左条标记当前） */
-.workspace-account-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 16px;
-  padding: 14px 16px;
-  border-radius: calc(var(--radius) - 4px);
-  background: var(--glass-item-bg);
-  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
-  transition: background-color 150ms ease, box-shadow 150ms ease;
-}
-.workspace-account-row:hover { background: var(--glass-item-hover); }
-.workspace-account-row[data-current="true"] {
-  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
-  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
-}
-.workspace-account-row[data-current="true"]:hover {
-  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
+/* 直播间、账号与视频列表共用行样式，列宽由各页定义。 */
+.workspace-list-heading {
+  min-height: 30px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 500;
 }
 
-/* ── 通用卡片列表 ──
-   与直播间主页同一套视觉：行是浮在页面底色上的独立圆角色块，行间留缝。
-   容器只负责纵向排列（不再有外框与整块底色）。
-   用于听视频首页、收藏夹/稍后再看、账号页等"少量条目的列表"。 */
-.list-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.workspace-list-row {
+  position: relative;
+  min-height: 46px;
 }
-.list-card-row {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 16px;
-  text-align: left;
-  /* 注意不要用 --room-control-radius：它只在 .room-workspace 作用域内定义，
-     其它页面取不到会回落成直角；这里直接用与主页行相同值的-radius 计算 */
+
+.workspace-list-row:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--glass-border) 55%, transparent);
+  pointer-events: none;
+}
+
+.workspace-list-row:is(:hover, :focus-visible, :has(:focus-visible)) {
   border-radius: calc(var(--radius) - 4px);
-  background: var(--glass-item-bg);
-  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  background: var(--glass-item-hover);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
 }
-.list-card-row:hover { background: var(--glass-item-hover); }
-/* 当前行：与主页当前房间一致（整行淡品牌渐变 + 完整细描边，不使用左侧色条） */
-.list-card-row-current {
-  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
-  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
+
+.workspace-list-row:is(:hover, :focus-visible, :has(:focus-visible))::after {
+  opacity: 0;
 }
-.list-card-row-current:hover {
-  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
+
+.workspace-list-row:focus-visible {
+  outline: 2px solid rgb(var(--brand-rgb) / 0.55);
+  outline-offset: -2px;
 }
+
+@media (hover: hover) {
+  /* 透明按钮保留 Tab 顺序，键盘聚焦时与鼠标悬停一样显示。 */
+  .workspace-list-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .workspace-list-row:is(:hover, :focus-visible, :has(:focus-visible)) .workspace-list-actions,
+  .workspace-list-actions[data-busy="true"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .workspace-nav-item:focus-visible,
 .workspace-button:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 .workspace-select:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
@@ -620,17 +620,12 @@ textarea,
   .appearance-mode-preview { width: 54px; height: 42px; }
 }
 
-/* 直播间工作台：按「正在直播 / 未开播」分区，行列表用索引式排版：
-   序号 + 主播 + 标题 + 状态 + 操作。行是浮在页面底色上的独立圆角色块，
-   行间留缝，不再是整块带边框的卡片。 */
+/* 直播间工作台按状态分区，列表的列头和数据行共用网格。 */
 .room-workspace {
   container-type: inline-size;
   --room-hover: var(--glass-item-hover);
   --room-rule: var(--glass-border);
   --room-tertiary: color-mix(in srgb, var(--ink-muted) 85%, var(--app-page));
-  --room-control-radius: calc(var(--radius) - 4px);
-  --room-row-bg: var(--glass-item-bg);
-  --room-row-bg-hover: var(--glass-item-hover);
 }
 
 /* ── 状态筛选胶囊：全部 / 直播中 / 未开播 ── */
@@ -726,20 +721,14 @@ textarea,
 .room-section-toggle:focus-visible { outline: 2px solid rgb(var(--brand-rgb) / 0.55); outline-offset: 2px; }
 
 /* ── 行列表 ── */
-.room-list { display: flex; flex-direction: column; gap: 8px; }
-
 .room-list-grid {
   display: grid;
-  /* 每行是独立的 grid 容器，列宽必须由固定值决定：只要有一列用 max-content，
-     该列就会按本行内容的实际宽度计算，剩余空间再分给 fr 两列，
-     于是「直播中 · 已播 3小时」和「未开播」两行的标题起始位置就会差出一截。
-     状态列按最长文案（未开播 · 2025年12月31日，等宽数字约 165px）留足，
-     操作列按三个按钮 + 分隔线固定。 */
+  /* 状态列和操作列预留固定宽度，按钮显示时不会挤动文字。 */
   grid-template-columns:
     minmax(96px, 1.05fr)  /* 主播 */
     minmax(120px, 2.2fr)  /* 直播标题 */
     172px                 /* 状态 */
-    108px;                /* 操作 */
+    88px;                 /* 操作 */
   align-items: center;
   /* 间距随容器宽度缩放，窄窗口下不浪费空间 */
   column-gap: clamp(8px, 1.2cqi, 16px);
@@ -754,41 +743,14 @@ textarea,
       minmax(80px, 1.05fr)
       minmax(90px, 1.8fr)
       172px
-      96px;
+      76px;
     column-gap: 8px;
     padding-inline: 8px 10px;
   }
-  .room-list-grid .room-row-actions > button { height: 24px; width: 24px; }
-  .room-list-grid .room-row-actions > button svg { height: 13px; width: 13px; }
+  .room-list-grid .workspace-list-actions > button { height: 24px; width: 24px; }
+  .room-list-grid .workspace-list-actions > button svg { height: 13px; width: 13px; }
   .room-section-header { padding-inline: 8px 10px; }
 }
-
-.room-list-row {
-  min-height: 44px;
-  border-radius: var(--room-control-radius);
-  background: var(--room-row-bg);
-  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
-  transition: background-color 150ms ease, box-shadow 150ms ease;
-}
-
-.room-list-row:hover,
-.room-list-row:focus-within {
-  background: var(--room-row-bg-hover);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), inset 0 1px 0 var(--glass-highlight);
-}
-
-/* 当前房间：整行淡品牌色玻璃 + 完整细描边，不再使用左侧色条。 */
-.room-list-row-current {
-  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
-  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
-}
-.room-list-row-current:hover,
-.room-list-row-current:focus-within {
-  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
-  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.34), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.56);
-}
-
-.room-row-divider { width: 1px; height: 16px; background: var(--room-rule); }
 
 .room-row-status {
   display: flex;

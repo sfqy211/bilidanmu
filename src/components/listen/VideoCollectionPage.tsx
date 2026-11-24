@@ -85,68 +85,61 @@ export function VideoCollectionPage({
   const renderListRow = (item: CollectionVideo, index: number) => {
     const isCurrent = currentBvid != null && item.bvid === currentBvid;
     const isRowLoading = playingBvid === item.bvid && playingBvid != null;
+    const isOpeningDanmaku = openingDanmakuBvid === item.bvid;
+    const isRemoving = removingBvid === item.bvid;
     return (
       <div
         key={`${item.bvid}-${index}`}
         role="button"
         tabIndex={rowBusy ? -1 : 0}
         aria-disabled={rowBusy || undefined}
+        aria-current={isCurrent || undefined}
         onClick={() => { if (!rowBusy) onPlay(item, index); }}
         onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
+          if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
           event.preventDefault();
           if (!rowBusy) onPlay(item, index);
         }}
-        className={`list-card-row group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${
-          isCurrent ? "list-card-row-current" : ""
-        } ${rowBusy ? "cursor-not-allowed opacity-60" : ""}`}
+        className={`workspace-list-row video-collection-list-grid group ${rowBusy ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
       >
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-ink">{item.title}</p>
-          <p className="mt-0.5 truncate text-xs text-ink-muted">{item.author}</p>
-        </div>
-        <span className="numeric shrink-0 text-xs text-ink-muted">{formatClock(item.duration)}</span>
-        {onDanmaku && (
-          <button
-            type="button"
-            onClick={(event) => { event.stopPropagation(); onDanmaku(item, index); }}
-            disabled={rowBusy}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-brand/10 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
-            title={translate("videoCollection.danmaku")}
-            aria-label={translate("videoCollection.danmakuTitle", { value: item.title })}
-          >
-            {openingDanmakuBvid === item.bvid ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <PanelsTopLeft className="h-3.5 w-3.5" />
-            )}
-          </button>
-        )}
-        {onRemove && (
-          <button
-            type="button"
-            onClick={(event) => { event.stopPropagation(); onRemove(item); }}
-            disabled={rowBusy || removingBvid === item.bvid}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
-            title={translate("videoCollection.remove")}
-            aria-label={translate("videoCollection.removeTitle", { value: item.title })}
-          >
-            {removingBvid === item.bvid ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )}
-          </button>
-        )}
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
-          {isRowLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : isCurrent ? (
-            isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />
-          ) : (
-            <Play className="h-3.5 w-3.5" />
+        <span className={`truncate text-[13px] font-medium ${isCurrent ? "text-brand" : "text-ink"}`} title={item.title}>{item.title}</span>
+        <span className="truncate text-xs text-ink-muted" title={item.author}>{item.author}</span>
+        <span className="numeric text-right text-xs text-ink-muted">{formatClock(item.duration)}</span>
+        <div className="workspace-list-actions flex items-center justify-end gap-0.5" data-busy={isRowLoading || isOpeningDanmaku || isRemoving || undefined}>
+          {onDanmaku && (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onDanmaku(item, index); }}
+              disabled={rowBusy}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-brand/10 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+              title={translate("videoCollection.danmaku")}
+              aria-label={translate("videoCollection.danmakuTitle", { value: item.title })}
+            >
+              {isOpeningDanmaku ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PanelsTopLeft className="h-3.5 w-3.5" />}
+            </button>
           )}
-        </span>
+          {onRemove && (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onRemove(item); }}
+              disabled={rowBusy || isRemoving}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+              title={translate("videoCollection.remove")}
+              aria-label={translate("videoCollection.removeTitle", { value: item.title })}
+            >
+              {isRemoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand transition group-hover:bg-brand/10">
+            {isRowLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : isCurrent && isPlaying ? (
+              <Pause className="h-3.5 w-3.5" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+          </span>
+        </div>
       </div>
     );
   };
@@ -164,7 +157,7 @@ export function VideoCollectionPage({
         aria-label={item.title}
         onClick={() => { if (!rowBusy) onPlay(item, index); }}
         onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
+          if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
           event.preventDefault();
           if (!rowBusy) onPlay(item, index);
         }}
@@ -302,13 +295,18 @@ export function VideoCollectionPage({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <div className="app-rise list-card">
+          <div className="app-rise">
             <div className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{translate("videoCollection.loading")}</div>
           </div>
         ) : items.length > 0 ? (
           viewMode === "list" ? (
-            <div className="app-rise list-card">
-              <div className="flex flex-col gap-2">
+            <div className="app-rise">
+              <div className="workspace-list-heading video-collection-list-grid">
+                <span className="truncate">{translate("videoCollection.columns.title")}</span>
+                <span className="truncate">{translate("videoCollection.columns.author")}</span>
+                <span className="text-right">{translate("videoCollection.columns.duration")}</span>
+              </div>
+              <div>
                 {items.map(renderListRow)}
               </div>
               {footer}
@@ -322,7 +320,7 @@ export function VideoCollectionPage({
             </div>
           )
         ) : (
-          <div className="app-rise list-card">
+          <div className="app-rise">
             <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               <EmptyIcon className="h-8 w-8" strokeWidth={1.6} />
               {emptyText}

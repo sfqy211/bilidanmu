@@ -371,6 +371,7 @@ export function RoomPage() {
 
   const renderListRow = (room: Room) => {
     const active = currentRoomId === room.id;
+    const isFavorite = favoriteIds.includes(room.roomId);
     const isLive = roomIsLive(room, liveStatusMap);
     const timeInfo = getRoomTimeInfo(room);
     return (
@@ -378,13 +379,11 @@ export function RoomPage() {
         key={room.id}
         data-room-id={room.id}
         onMouseDown={(e) => handleDragMouseDown(room, e)}
-        className={`room-list-row room-list-grid group ${
+        className={`workspace-list-row room-list-grid ${
           draggingId === room.id
             ? "opacity-60 outline outline-2 outline-brand"
             : ""
-        } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""} ${
-          active ? "room-list-row-current" : ""
-        }`}
+        } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         <div className="flex min-w-0 items-center gap-2">
           <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={room.uname}>{room.uname}</p>
@@ -412,19 +411,19 @@ export function RoomPage() {
             {timeInfo && <span className="room-row-time numeric">{timeInfo.text}</span>}
           </span>
         )}
-        <div className="room-row-actions flex shrink-0 items-center gap-0.5">
-          <span className="room-row-divider mx-1.5" aria-hidden="true" />
+        <div className="workspace-list-actions flex items-center justify-end gap-0.5">
           <button
             onClick={() => handleToggleFavorite(room)}
             className={`flex h-7 w-7 items-center justify-center rounded-full transition ${
-              favoriteIds.includes(room.roomId)
+              isFavorite
                 ? "text-brand"
                 : "text-slate-500 hover:bg-brand/10 hover:text-brand dark:text-slate-400 dark:hover:bg-brand/15 dark:hover:text-brand"
             }`}
-            aria-pressed={favoriteIds.includes(room.roomId)}
-            title={favoriteIds.includes(room.roomId) ? translate("rooms.unfavorite") : translate("rooms.favorite")}
+            aria-pressed={isFavorite}
+            aria-label={translate(isFavorite ? "rooms.unfavoriteRoom" : "rooms.favoriteRoom", { value: room.uname })}
+            title={translate(isFavorite ? "rooms.unfavorite" : "rooms.favorite")}
           >
-            <Star className={`h-4 w-4 ${favoriteIds.includes(room.roomId) ? "fill-brand" : ""}`} />
+            <Star className={`h-4 w-4 ${isFavorite ? "fill-brand" : ""}`} />
           </button>
           <button
             onClick={() => {
@@ -433,6 +432,7 @@ export function RoomPage() {
               void tauriCommands.room.openDanmaku(room.roomId);
             }}
             className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-brand/10 hover:text-brand dark:text-slate-400 dark:hover:bg-brand/15 dark:hover:text-brand"
+            aria-label={translate("rooms.openRoom", { value: room.uname })}
             title={translate("rooms.open")}
           >
             <MonitorPlay className="h-4 w-4" />
@@ -448,6 +448,7 @@ export function RoomPage() {
               }
             }}
             className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
+            aria-label={translate("rooms.deleteRoom", { value: room.uname })}
             title={translate("rooms.delete")}
           >
             <Trash2 className="h-4 w-4" />
@@ -690,6 +691,11 @@ export function RoomPage() {
           </div>
         ) : viewMode === "list" ? (
           <div className="app-rise">
+            <div className="workspace-list-heading room-list-grid">
+              <span>{translate("rooms.columns.streamer")}</span>
+              <span>{translate("rooms.columns.title")}</span>
+              <span>{translate("rooms.columns.status")}</span>
+            </div>
             {renderGrouped((list) => <div className="room-list">{list.map(renderListRow)}</div>)}
           </div>
         ) : (

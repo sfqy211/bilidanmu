@@ -150,6 +150,11 @@
       "sectionLive": "正在直播",
       "current": "当前",
       "noTitle": "暂无直播标题",
+      "columns": {
+        "streamer": "主播",
+        "title": "直播间标题",
+        "status": "状态 / 时间"
+      },
       "unfavorite": "取消收藏",
       "favorite": "收藏",
       "open": "打开弹幕",
@@ -179,7 +184,7 @@
       "mockDescription": "本地模拟弹幕流，无需连接真实直播间",
       "empty": "还没有添加直播间",
       "addHint": "点击右上角「添加」，搜索主播、房间号或粘贴直播链接",
-      "favoritesEmpty": "还没有收藏的直播间，点击房间卡片上的星标进行收藏",
+      "favoritesEmpty": "还没有收藏的直播间。切回全部直播间，将鼠标移到房间上后点击星标。",
       "noMatches": "没有匹配的直播间",
       "durationDays": "{{days}}天{{hours}}小时",
       "durationHours": "{{hours}}小时{{minutes}}分",
@@ -256,6 +261,10 @@
       "loading": "加载中...",
       "retry": "重新加载",
       "watchLater": "稍后再看",
+      "columns": {
+        "collection": "名称",
+        "count": "视频数量"
+      },
       "empty": "还没有创建收藏夹",
       "count_other": "{{count, number}} 个视频"
     },
@@ -286,6 +295,11 @@
       "removeTitle": "从稍后再看移除 {{value}}",
       "play": "播放",
       "playTitle": "播放 {{value}}",
+      "columns": {
+        "title": "视频标题",
+        "author": "UP 主",
+        "duration": "时长"
+      },
       "view": "显示方式",
       "switchList": "切换为列表显示",
       "list": "列表显示",
@@ -686,6 +700,12 @@
       "noAccount": "当前还没有登录账号。点击右上角「添加账号」扫码登录，或使用「匿名模式」。",
       "current": "当前",
       "receiveOnly": "仅可接收弹幕和音频流",
+      "columns": {
+        "name": "账号",
+        "uid": "UID",
+        "authorization": "授权状态",
+        "actions": "操作"
+      },
       "refresh": "刷新信息",
       "renew": "更新授权（续期 Cookie）",
       "switch": "切换",

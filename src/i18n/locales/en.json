@@ -150,6 +150,11 @@
       "sectionLive": "Live now",
       "current": "Current",
       "noTitle": "Untitled live room",
+      "columns": {
+        "streamer": "Streamer",
+        "title": "Room title",
+        "status": "Status / time"
+      },
       "unfavorite": "Remove from favorites",
       "favorite": "Add to favorites",
       "open": "Open danmaku",
@@ -179,7 +184,7 @@
       "mockDescription": "Local simulated danmaku stream",
       "empty": "No live rooms added",
       "addHint": "Choose Add to search for a streamer or room ID, or paste a live link",
-      "favoritesEmpty": "No favorites yet. Select the star on a room card to add it.",
+      "favoritesEmpty": "No favorites yet. Show all live rooms, then hover over a room and select its star.",
       "noMatches": "No matching live rooms",
       "durationDays": "{{days}}d {{hours}}h",
       "durationHours": "{{hours}}h {{minutes}}m",
@@ -258,6 +263,10 @@
       "loading": "Loading…",
       "retry": "Reload",
       "watchLater": "Watch Later",
+      "columns": {
+        "collection": "Name",
+        "count": "Video count"
+      },
       "empty": "No favorites folders yet",
       "count_one": "{{count, number}} video",
       "count_other": "{{count, number}} videos"
@@ -289,6 +298,11 @@
       "removeTitle": "Remove {{value}} from Watch Later",
       "play": "Play",
       "playTitle": "Play {{value}}",
+      "columns": {
+        "title": "Video title",
+        "author": "Creator",
+        "duration": "Duration"
+      },
       "view": "View mode",
       "switchList": "Switch to list view",
       "list": "List view",
@@ -697,6 +711,12 @@
       "noAccount": "No accounts are signed in. Choose Add account to scan a QR code, or use Anonymous mode.",
       "current": "Current",
       "receiveOnly": "Receive danmaku and audio only",
+      "columns": {
+        "name": "Account",
+        "uid": "UID",
+        "authorization": "Authorization",
+        "actions": "Actions"
+      },
       "refresh": "Refresh details",
       "renew": "Renew authorization (refresh cookie)",
       "switch": "Switch",

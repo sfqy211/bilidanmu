@@ -1,5 +1,12 @@
-/* 听视频列表的双视图（列表 / 封面），与看直播页的房间视图同一视觉语言。
-   独立文件而不是写进 index.css：该文件有本地的未提交改动，这里只放视频列表专用类名。 */
+/* 听视频合集的列表和封面视图。 */
+
+.video-collection-list-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) 4.5rem 5.5rem;
+  align-items: center;
+  column-gap: 10px;
+  padding-inline: 10px 12px;
+}
 
 .video-view-toggle {
   display: inline-flex;
