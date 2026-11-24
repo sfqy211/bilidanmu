@@ -202,12 +202,32 @@ function SelectValue({ placeholder }: { placeholder?: string }) {
 const SelectContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => {
-  const { open } = useSelectContext()
+>(({ className, children, style, ...props }, ref) => {
+  const { open, triggerRef } = useSelectContext()
+  const contentRef = React.useRef<HTMLDivElement | null>(null)
+  // 空间不够时向上展开：设置页在窗口底部打开下拉框时，向下会被窗口裁掉
+  const [openUpward, setOpenUpward] = React.useState(false)
+
+  React.useLayoutEffect(() => {
+    if (!open) {
+      setOpenUpward(false)
+      return
+    }
+    const trigger = triggerRef.current
+    const content = contentRef.current
+    if (!trigger || !content) return
+    const rect = trigger.getBoundingClientRect()
+    const below = window.innerHeight - rect.bottom
+    setOpenUpward(content.offsetHeight + 8 > below && rect.top > below)
+  }, [open, triggerRef])
 
   return (
     <div
-      ref={ref}
+      ref={(node) => {
+        contentRef.current = node
+        if (typeof ref === "function") ref(node)
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+      }}
       role="listbox"
       hidden={!open}
       data-state={open ? "open" : "closed"}
@@ -218,6 +238,9 @@ const SelectContent = React.forwardRef<
         "select-popover",
         className
       )}
+      style={openUpward
+        ? { ...style, top: "auto", bottom: "100%", marginTop: 0, marginBottom: 4 }
+        : style}
       {...props}
     >
       <div className="max-h-[240px] overflow-y-auto">
