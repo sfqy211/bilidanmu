@@ -435,7 +435,38 @@ textarea,
   transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 .add-result-row:hover { background: var(--glass-item-hover); }
-/* 直播间、账号与视频列表共用行样式，列宽由各页定义。 */
+
+/* ── 账号页行卡列表 ──
+   账号页保留原有的行卡视觉：每行是浮在页面底色上的独立圆角色块，行间留缝。
+   账号信息密度低，不套用直播/视频列表的表格化分行。 */
+.list-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 账号页行：悬浮圆角色块，当前账号用整行淡品牌渐变标记。 */
+.workspace-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--glass-item-bg);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.workspace-account-row:hover { background: var(--glass-item-hover); }
+.workspace-account-row[data-current="true"] {
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.14), rgb(var(--brand-rgb) / 0.08) 54%, rgb(var(--brand-rgb) / 0.05));
+  box-shadow: inset 0 0 0 1px rgb(var(--brand-rgb) / 0.28), inset 0 1px 0 var(--glass-highlight), 0 8px 20px -18px rgb(var(--brand-rgb) / 0.50);
+}
+.workspace-account-row[data-current="true"]:hover {
+  background: linear-gradient(105deg, rgb(var(--brand-rgb) / 0.18), rgb(var(--brand-rgb) / 0.11) 54%, rgb(var(--brand-rgb) / 0.07));
+}
+
+/* 直播间与视频列表共用行样式，列宽由各页定义。 */
 .workspace-list-heading {
   min-height: 30px;
   margin-bottom: 8px;

@@ -711,12 +711,6 @@
       "noAccount": "No accounts are signed in. Choose Add account to scan a QR code, or use Anonymous mode.",
       "current": "Current",
       "receiveOnly": "Receive danmaku and audio only",
-      "columns": {
-        "name": "Account",
-        "uid": "UID",
-        "authorization": "Authorization",
-        "actions": "Actions"
-      },
       "refresh": "Refresh details",
       "renew": "Renew authorization (refresh cookie)",
       "switch": "Switch",

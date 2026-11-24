@@ -11,10 +11,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSettingsStore } from "@/stores/settings-store";
 import { PageHeader } from "@/components/layout/PageHeader";
 
-const ACCOUNT_LIST_GRID = "grid w-full grid-cols-[minmax(0,1fr)_clamp(70px,16%,136px)_clamp(96px,24%,176px)_124px] items-center gap-x-2 px-2.5";
-const ACCOUNT_ACTION = "flex h-7 w-7 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-60";
-const ACCOUNT_REFRESH_ACTION = `${ACCOUNT_ACTION} text-ink-muted hover:bg-brand/10 hover:text-brand`;
-
 export function AccountPage() {
   const { t: translate } = useDesktopTranslation("desktop");
   const showAvatars = useSettingsStore((state) => state.settings.showAvatars);
@@ -343,110 +339,110 @@ export function AccountPage() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <table className="block w-full text-left" aria-label={translate("account.title")}>
-            <thead className="block">
-              <tr className={`workspace-list-heading ${ACCOUNT_LIST_GRID}`}>
-                <th scope="col" className="text-left font-medium">{translate("account.columns.name")}</th>
-                <th scope="col" className="text-left font-medium">{translate("account.columns.uid")}</th>
-                <th scope="col" className="text-left font-medium">{translate("account.columns.authorization")}</th>
-                <th scope="col"><span className="sr-only">{translate("account.columns.actions")}</span></th>
-              </tr>
-            </thead>
-            <tbody className="block">
-              {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
-                <tr className={`workspace-list-row ${ACCOUNT_LIST_GRID}`}>
-                  <th scope="row" className="flex min-w-0 items-center gap-2 text-left">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
-                      <Eye className="h-5 w-5" />
-                    </div>
-                    <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={translate("account.anonymous")}>
-                      {translate("account.anonymous")}
-                    </p>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
-                      <Check className="h-3 w-3" />
-                      {translate("account.current")}
-                    </span>
-                  </th>
-                  <td className="text-xs text-ink-muted">—</td>
-                  <td className="text-xs text-ink-muted">{translate("account.receiveOnly")}</td>
-                  <td />
-                </tr>
-              )}
+          {/* 账号列表：行卡浮在页面底色上，与直播间主页同一套视觉 */}
+          <div className="list-card">
+          {/* 匿名模式条目 */}
+          {activeAccountId === ANONYMOUS_ACCOUNT_ID && (
+            <div className="workspace-account-row" data-current="true">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
+                <Eye className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[15px] font-medium text-ink">{translate("account.anonymous")}</p>
+                  <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
+                    <Check className="h-3 w-3" />
+                    {translate("account.current")}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[13px] text-ink-muted">{translate("account.receiveOnly")}</p>
+              </div>
+            </div>
+          )}
 
-              {accounts.map((account) => {
-                if (account.accountId === ANONYMOUS_ACCOUNT_ID) return null;
-                const isActive = account.accountId === activeAccountId;
-                const isSwitching = switchingId === account.accountId;
-                const isRefreshing = refreshingId === account.accountId;
-                const expiry = getExpiryText(account.expiresAt);
-                return (
-                  <tr key={account.accountId} className={`workspace-list-row ${ACCOUNT_LIST_GRID}`}>
-                    <th scope="row" className="flex min-w-0 items-center gap-2 text-left">
-                      {showAvatars && (account.avatar ? (
-                        <ProxiedImage
-                          src={account.avatar}
-                          alt={account.username}
-                          persistent
-                          className="h-8 w-8 shrink-0 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
-                          <UserRound className="h-5 w-5" />
-                        </div>
-                      ))}
-                      <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={account.username}>{account.username}</p>
+          {/* 已登录账号列表 */}
+          {accounts.map((account) => {
+            const isActive = account.accountId === activeAccountId;
+            const isSwitching = switchingId === account.accountId;
+            const isRefreshing = refreshingId === account.accountId;
+            // 跳过匿名模式条目（已在上方单独显示）
+            if (account.accountId === ANONYMOUS_ACCOUNT_ID) return null;
+            const expiry = getExpiryText(account.expiresAt);
+            return (
+              <div
+                key={account.accountId}
+                className="workspace-account-row"
+                data-current={isActive}
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  {showAvatars && (account.avatar ? (
+                    <ProxiedImage
+                      src={account.avatar}
+                      alt={account.username}
+                      persistent
+                      className="h-8 w-8 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink-muted">
+                      <UserRound className="h-5 w-5" />
+                    </div>
+                  ))}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-[13px] font-medium text-ink" title={account.username}>{account.username}</p>
                       {isActive && (
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
+                        <span className="inline-flex items-center gap-1 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand">
                           <Check className="h-3 w-3" />
                           {translate("account.current")}
                         </span>
                       )}
-                    </th>
-                    <td className="numeric min-w-0 break-all text-xs text-ink-muted">{account.uid}</td>
-                    <td className={`min-w-0 text-xs ${expiry.color}`}>{expiry.text}</td>
-                    <td
-                      className="workspace-list-actions grid grid-cols-4 items-center gap-1"
-                      data-busy={isSwitching || isRefreshing || undefined}
+                    </div>
+                    <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-ink-muted">
+                      UID: {account.uid}
+                      <span className={expiry.color}>{expiry.text}</span>
+                    </p>
+                  </div>
+                </div>
+
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => void handleRefreshInfo(account.accountId)}
+                      disabled={isRefreshing}
+                      title={translate("account.refresh")}
+                      className="p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.06]"
                     >
+                      {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => void handleRefreshCookie(account.accountId)}
+                      disabled={isRefreshing}
+                      title={translate("account.renew")}
+                      className="p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+                    >
+                      <KeyRound className="h-4 w-4" />
+                    </button>
+                    {!isActive && (
                       <button
-                        onClick={() => void handleRefreshInfo(account.accountId)}
-                        disabled={isRefreshing}
-                        title={translate("account.refresh")}
-                        className={ACCOUNT_REFRESH_ACTION}
+                        onClick={() => void handleSwitchAccount(account.accountId)}
+                        disabled={isSwitching}
+                        title={translate("account.switch")}
+                        className="p-1.5 text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-60 dark:text-brand dark:hover:bg-brand/10"
                       >
-                        {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        {isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
                       </button>
-                      <button
-                        onClick={() => void handleRefreshCookie(account.accountId)}
-                        disabled={isRefreshing}
-                        title={translate("account.renew")}
-                        className={ACCOUNT_REFRESH_ACTION}
-                      >
-                        <KeyRound className="h-4 w-4" />
-                      </button>
-                      {!isActive && (
-                        <button
-                          onClick={() => void handleSwitchAccount(account.accountId)}
-                          disabled={isSwitching}
-                          title={translate("account.switch")}
-                          className={`${ACCOUNT_ACTION} text-brand hover:bg-brand/10`}
-                        >
-                          {isSwitching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => void handleRemoveAccount(account.accountId)}
-                        title={translate("account.remove")}
-                        className={`${ACCOUNT_ACTION} col-start-4 text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10`}
-                      >
-                        <LogOut className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    )}
+                    <button
+                      onClick={() => void handleRemoveAccount(account.accountId)}
+                      title={translate("account.remove")}
+                      className="p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </div>
+              </div>
+            );
+          })}
+          </div>
         </div>
       )}
     </section>

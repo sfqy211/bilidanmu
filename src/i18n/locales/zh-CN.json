@@ -700,12 +700,6 @@
       "noAccount": "当前还没有登录账号。点击右上角「添加账号」扫码登录，或使用「匿名模式」。",
       "current": "当前",
       "receiveOnly": "仅可接收弹幕和音频流",
-      "columns": {
-        "name": "账号",
-        "uid": "UID",
-        "authorization": "授权状态",
-        "actions": "操作"
-      },
       "refresh": "刷新信息",
       "renew": "更新授权（续期 Cookie）",
       "switch": "切换",
