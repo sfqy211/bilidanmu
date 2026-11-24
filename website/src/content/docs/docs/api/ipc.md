@@ -163,6 +163,19 @@ const settings = await tauriCommands.settings.get()
 
 `Settings.locale` 是已保存的界面语言。旧数据库缺少该值或值无法识别时，`get_settings` 返回 `"zh-CN"`。调用 `set_locale` 时，不支持的语言返回 `INVALID_LOCALE`，落盘失败返回 `LOCALE_SAVE_FAILED`。
 
+`Settings.audio.outputDeviceId` 保存选中的音频输出设备（WebView2 的 deviceId），空字符串表示跟随系统默认设备。
+
+`Settings.audio.outputDeviceLostAction` 决定当前使用的输出设备被拔出时的行为：`"continue"`（默认）回退到系统默认设备继续播放；`"disconnect"` 停止播放——直播音频销毁播放器并调用 `clear_audio_stream` 断开流，视频音频暂停并保留队列与进度。仅在「正在使用的设备」消失时触发；新插入设备并把系统默认切过去不会触发。
+
+## 音频设备命令 (`audio`)
+
+| 命令 | 参数 | 返回 | 说明 |
+| --- | --- | --- | --- |
+| `set_live_audio_playback` | `play` | `void` | 经事件让直播弹幕窗播放或停止直播音频（AI/MCP 与全局快捷键使用） |
+| `prepare_audio_device_list` | — | `void` | 为当前窗口的本地 origin 静默授予 WebView2 麦克风权限，让 `enumerateDevices()` 返回音频输出设备的 deviceId 与名称；不启动麦克风采集，也不显示权限弹框 |
+
+`prepare_audio_device_list` 只接受应用本地页面（`tauri.localhost` / `localhost` / `127.0.0.1`）调用。设备列表与按设备路由（`HTMLMediaElement.setSinkId`）依赖 Chromium 内核，Linux 与 macOS 构建不显示该设置。
+
 ## 状态命令 (`state`)
 
 | 命令 | 参数 | 返回 | 说明 |

@@ -59,9 +59,12 @@ symphonia = { version = "0.6.0", default-features = false, features = ["aac", "i
 tar = "0.4"
 bzip2 = "0.6"
 
-[target.'cfg(windows)'.dependencies.windows]
-version = "0.58"
-features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_Foundation", "Win32_Graphics_Gdi"]
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_Foundation", "Win32_Graphics_Gdi"] }
+# 音频输出设备列表：WebView2 只有在 origin 获得麦克风权限后才暴露 deviceId/label，
+# 通过 profile 接口静默写入权限（不启动采集、不弹系统权限框）
+webview2-com = "0.39"
+windows-core = "0.62"
 
 [profile.release]
 codegen-units = 1

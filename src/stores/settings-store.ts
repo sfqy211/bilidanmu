@@ -112,7 +112,9 @@ export const defaultSettings: Settings = {
   },
   audio: {
     defaultVolume: 80,
-    autoPlay: false
+    autoPlay: false,
+    outputDeviceId: "",
+    outputDeviceLostAction: "continue"
   },
   listen: {
     autoNext: true,

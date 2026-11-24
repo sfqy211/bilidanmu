@@ -321,6 +321,17 @@ pub struct AudioSetting {
     pub default_volume: u32,
     /// 进入直播间时自动播放音频
     pub auto_play: bool,
+    /// 音频输出设备（WebView2 的 deviceId）；空字符串 = 跟随系统默认设备
+    #[serde(default)]
+    pub output_device_id: String,
+    /// 当前使用的输出设备被拔出时的处理：
+    /// continue = 回退到系统默认设备继续播放；disconnect = 停止播放并断开音频流
+    #[serde(default = "default_output_device_lost_action")]
+    pub output_device_lost_action: String,
+}
+
+fn default_output_device_lost_action() -> String {
+    "continue".into()
 }
 
 impl Default for AudioSetting {
@@ -328,6 +339,8 @@ impl Default for AudioSetting {
         Self {
             default_volume: 80,
             auto_play: false,
+            output_device_id: String::new(),
+            output_device_lost_action: default_output_device_lost_action(),
         }
     }
 }

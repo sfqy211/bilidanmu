@@ -1,5 +1,11 @@
 import { create } from "zustand";
 import { i18n } from "@/i18n";
+import {
+  applyAudioOutputDevice,
+  outputDeviceLost,
+  readAudioOutputTopology,
+  type AudioOutputTopology,
+} from "@/lib/audio-output";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "./settings-store";
 import type { SeasonInfo, VideoInfo } from "@/types/bilibili";
@@ -168,6 +174,14 @@ export function seasonToQueue(season: SeasonInfo): PlayQueue {
 let audioEl: HTMLAudioElement | null = null;
 /** 防止过期的异步加载覆盖新一轮选曲 */
 let loadSeq = 0;
+/** 设备拓扑基线：用于识别「正在使用的输出设备被拔出」 */
+let outputTopology: AudioOutputTopology | null = null;
+
+function refreshOutputTopology() {
+  void readAudioOutputTopology().then((topology) => {
+    if (topology) outputTopology = topology;
+  });
+}
 
 /** Fisher-Yates 洗牌，返回新数组（不改入参） */
 function shuffleIndices(length: number): number[] {
@@ -224,6 +238,27 @@ function ensureAudio(get: () => VideoAudioStore, set: (partial: Partial<VideoAud
   if (audioEl) return audioEl;
   const el = new Audio();
   el.preload = "auto";
+  // 输出设备：单例元素创建时应用当前设置；设备插拔按「继续播放/断开」策略处理
+  const applyOutputDevice = () => {
+    void applyAudioOutputDevice(el, useSettingsStore.getState().settings.audio.outputDeviceId ?? "");
+  };
+  applyOutputDevice();
+  refreshOutputTopology();
+  navigator.mediaDevices?.addEventListener?.("devicechange", () => {
+    void (async () => {
+      const next = await readAudioOutputTopology();
+      const previous = outputTopology;
+      if (next) outputTopology = next;
+      const current = useSettingsStore.getState().settings.audio;
+      const selected = current.outputDeviceId ?? "";
+      if (current.outputDeviceLostAction === "disconnect") {
+        // 停止出声但保留队列与进度，用户可手动继续
+        if (outputDeviceLost(previous, next, selected) && !el.paused) el.pause();
+        return;
+      }
+      await applyAudioOutputDevice(el, selected);
+    })();
+  });
   el.addEventListener("play", () => set({ playing: true }));
   el.addEventListener("pause", () => set({ playing: false }));
   el.addEventListener("timeupdate", () => set({ currentTime: el.currentTime }));
@@ -325,6 +360,11 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
       audio.src = `${stream.url}?v=${seq}`;
       audio.load();
       audio.volume = get().volume / 100;
+      // 起播前重新应用输出设备：暂停期间设备可能被拔插或切换过
+      await applyAudioOutputDevice(
+        audio,
+        useSettingsStore.getState().settings.audio.outputDeviceId ?? ""
+      );
       // 不起播时停在这里：音频流已连接、进度停在 0，等用户在任意入口手动播放
       if (autoPlay) await audio.play();
       if (seq !== loadSeq) return;
@@ -400,6 +440,10 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
         return;
       }
       if (audio.paused) {
+        await applyAudioOutputDevice(
+          audio,
+          useSettingsStore.getState().settings.audio.outputDeviceId ?? ""
+        );
         await audio.play().catch(() => {});
       } else {
         audio.pause();
@@ -505,5 +549,13 @@ export const useVideoAudioStore = create<VideoAudioStore>((set, get) => {
 useSettingsStore.subscribe((state, previous) => {
   if (state.settings.audio.defaultVolume !== previous.settings.audio.defaultVolume) {
     useVideoAudioStore.getState().setVolume(state.settings.audio.defaultVolume);
+  }
+  // 输出设备在其他窗口被切换时立即生效（元素还没创建时由 ensureAudio 应用）
+  if (state.settings.audio.outputDeviceId !== previous.settings.audio.outputDeviceId && audioEl) {
+    void applyAudioOutputDevice(audioEl, state.settings.audio.outputDeviceId ?? "");
+  }
+  // 断开策略切换后重建拓扑基线，避免用很久以前的快照判断「设备消失」
+  if (state.settings.audio.outputDeviceLostAction !== previous.settings.audio.outputDeviceLostAction) {
+    refreshOutputTopology();
   }
 });

@@ -2,9 +2,11 @@ import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { tauriCommands } from "@/lib/tauri";
+import { useAudioOutputDevices } from "@/hooks/useAudioOutputDevices";
 import { useSettingsStore } from "@/stores/settings-store";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { SttModelManagerPage } from "./SttModelManagerPage";
-import { SettingsGroup, SettingsRange, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
+import { SettingsChoice, SettingsGroup, SettingsRange, SettingsRow, SettingsToggle, type SettingsPanelProps } from "./SettingsControls";
 
 export function AudioSettings({ settings, patchSettings }: SettingsPanelProps) {
   const { t: translate } = useDesktopTranslation("desktop");
@@ -39,9 +41,86 @@ export function AudioSettings({ settings, patchSettings }: SettingsPanelProps) {
           checked={settings.audio.autoPlay}
           onChange={(autoPlay) => patchSettings({ audio: { ...settings.audio, autoPlay } })} />
       </SettingsGroup>
+      <AudioOutputSettings settings={settings} patchSettings={patchSettings} />
       <SpeechSettings settings={settings} patchSettings={patchSettings} sttModels={sttModels}
         onOpenModelPage={() => setModelPage(true)} />
     </>
+  );
+}
+
+/**
+ * 播放设备：选择声音从哪个扬声器/耳机输出。
+ * 设备名来自系统（WebView2 的 deviceId 只在授权后可见），列表随插拔自动刷新。
+ */
+function AudioOutputSettings({ settings, patchSettings }: SettingsPanelProps) {
+  const { t: translate } = useDesktopTranslation("desktop");
+  const { supported, devices, loading, error } = useAudioOutputDevices();
+  if (!supported) return null;
+
+  const selected = settings.audio.outputDeviceId;
+  const selectedDevice = devices.find((device) => device.deviceId === selected);
+  const missing = selected !== "" && !selectedDevice && !loading;
+  const options = [
+    { value: "", label: translate("audioSettings.outputDefault") },
+    ...devices.map((device) => ({ value: device.deviceId, label: device.label })),
+  ];
+  // 已保存的设备被拔掉时仍保留在选项里，避免下拉框显示为空；
+  // 播放侧会回退到系统默认，设备插回后自动恢复
+  if (missing) {
+    options.push({ value: selected, label: translate("audioSettings.outputUnavailableOption") });
+  }
+
+  const description = loading
+    ? translate("audioSettings.outputLoading")
+    : error !== null
+      ? translate("audioSettings.outputReadFailed")
+      : missing
+        ? translate("audioSettings.outputUnavailable")
+        : devices.length === 0
+          ? translate("audioSettings.outputEmpty")
+          : translate("audioSettings.outputCurrent", {
+            device: selectedDevice?.label ?? translate("audioSettings.outputDefault"),
+          });
+
+  return (
+    <SettingsGroup title={translate("audioSettings.output")} description={translate("audioSettings.outputHint")}>
+      <SettingsRow title={translate("audioSettings.outputDevice")} description={description}>
+        <div className="settings-select-wrap">
+          <Select
+            value={selected}
+            onValueChange={(outputDeviceId) =>
+              patchSettings({ audio: { ...settings.audio, outputDeviceId } })
+            }
+          >
+            <SelectTrigger
+              aria-label={translate("audioSettings.outputDevice")}
+              className="settings-select-trigger"
+              title={options.find((option) => option.value === selected)?.label}
+            />
+            <SelectContent style={{ width: 320, maxWidth: "min(320px, calc(100vw - 48px))", left: "auto", right: 0 }}>
+              {options.map((option) => (
+                <SelectItem key={option.value || "default"} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </SettingsRow>
+      <SettingsChoice
+        title={translate("audioSettings.outputLost")}
+        description={translate("audioSettings.outputLostHint")}
+        value={settings.audio.outputDeviceLostAction ?? "continue"}
+        options={[
+          { value: "continue", label: translate("audioSettings.outputLostContinue") },
+          { value: "disconnect", label: translate("audioSettings.outputLostDisconnect") },
+        ]}
+        onChange={(value) => patchSettings({
+          audio: {
+            ...settings.audio,
+            outputDeviceLostAction: value === "disconnect" ? "disconnect" : "continue",
+          },
+        })}
+      />
+    </SettingsGroup>
   );
 }
 

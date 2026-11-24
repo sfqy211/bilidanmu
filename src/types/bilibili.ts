@@ -443,6 +443,10 @@ export interface VisualSetting {
 export interface AudioSetting {
   defaultVolume: number;
   autoPlay: boolean;
+  /** 音频输出设备（WebView2 deviceId）；空字符串 = 跟随系统默认设备 */
+  outputDeviceId: string;
+  /** 输出设备被拔出 / 系统默认输出变化时：continue 回退系统默认继续播放，disconnect 断开音频流 */
+  outputDeviceLostAction: "continue" | "disconnect";
 }
 
 export interface ListenSetting {

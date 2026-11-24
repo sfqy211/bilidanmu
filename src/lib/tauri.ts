@@ -227,7 +227,9 @@ export const tauriCommands = {
   },
   /** 弹幕窗音频控制（AI/MCP 用）：Rust 发事件，弹幕窗监听执行播放/停止 */
   audio: {
-    setPlayback: (play: boolean) => invoke<void>("set_live_audio_playback", { play })
+    setPlayback: (play: boolean) => invoke<void>("set_live_audio_playback", { play }),
+    /** 允许 WebView2 暴露音频输出设备的 deviceId/label（静默写 profile 权限，不启动采集） */
+    prepareDeviceList: () => invoke<void>("prepare_audio_device_list")
   },
   proxy: {
     image: (url: string, persistent?: boolean) =>

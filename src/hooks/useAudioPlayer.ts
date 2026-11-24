@@ -1,6 +1,12 @@
 import { i18n as desktopI18n } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Mpegts from "mpegts.js";
+import {
+  applyAudioOutputDevice,
+  outputDeviceLost,
+  readAudioOutputTopology,
+  type AudioOutputTopology,
+} from "@/lib/audio-output";
 import { tauriCommands } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -75,6 +81,29 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
     }
     setState((prev) => ({ ...prev, volume: defaultVolume }));
   }, [defaultVolume]);
+
+  // 音频输出设备：手动切换时把当前 <audio> 切到目标设备；
+  // 目标设备不可用时 helper 会回退系统默认
+  const outputDeviceId = useSettingsStore((state) => state.settings.audio.outputDeviceId ?? "");
+  const outputDeviceLostAction = useSettingsStore(
+    (state) => state.settings.audio.outputDeviceLostAction ?? "continue"
+  );
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    void applyAudioOutputDevice(audio, outputDeviceId);
+  }, [outputDeviceId]);
+
+  // 设备拓扑基线：判断一次 devicechange 是否属于「正在使用的设备消失」，
+  // 必须基于变化前后两份快照（首次快照缺失时不断开，避免误伤）
+  const outputTopologyRef = useRef<AudioOutputTopology | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void readAudioOutputTopology().then((topology) => {
+      if (!cancelled && topology) outputTopologyRef.current = topology;
+    });
+    return () => { cancelled = true; };
+  }, [outputDeviceId, outputDeviceLostAction]);
 
   const destroyPlayer = useCallback(() => {
     // 取消待处理的重连
@@ -200,6 +229,11 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       // 播放前设置音量与静音态
       audio.volume = volumeRef.current;
       audio.muted = mutedRef.current;
+      // 起播前重新应用输出设备：暂停期间设备可能被拔插或切换过
+      await applyAudioOutputDevice(
+        audio,
+        useSettingsStore.getState().settings.audio.outputDeviceId ?? ""
+      );
 
       try {
         await player.play();
@@ -257,6 +291,40 @@ export function useAudioPlayer(roomId: number | null, defaultVolume = 0.8) {
       // 忽略清理错误
     }
   }, [destroyPlayer]);
+
+  // 设备插拔：继续播放策略下重新应用输出设备；
+  // 断开策略下检测到正在使用的设备被拔出，就停止并清理直播流
+  useEffect(() => {
+    const audio = audioRef.current;
+    const mediaDevices = navigator.mediaDevices;
+    if (!audio || !mediaDevices?.addEventListener) return;
+    let disposed = false;
+
+    const handleDeviceChange = () => {
+      void (async () => {
+        const next = await readAudioOutputTopology();
+        const previous = outputTopologyRef.current;
+        if (next) outputTopologyRef.current = next;
+        if (disposed) return;
+
+        const current = useSettingsStore.getState().settings.audio;
+        const selected = current.outputDeviceId ?? "";
+        if (current.outputDeviceLostAction === "disconnect") {
+          if (outputDeviceLost(previous, next, selected)) {
+            await stop();
+          }
+          return;
+        }
+        await applyAudioOutputDevice(audio, selected);
+      })();
+    };
+
+    mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    return () => {
+      disposed = true;
+      mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+    };
+  }, [stop]);
 
   const setVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));

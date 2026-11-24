@@ -467,6 +467,7 @@ pub fn run() {
             commands::video_window::control_video_playback,
             commands::video::get_video_danmaku,
             commands::video::send_video_danmaku,
+            commands::audio::prepare_audio_device_list,
             commands::auth::login_by_tv_qr,
             commands::auth::poll_tv_qr,
             commands::auth::restore_login,

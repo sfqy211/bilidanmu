@@ -3,6 +3,7 @@ use crate::bili::credential::BiliCredential;
 use crate::AppState;
 use tauri::State;
 
+pub mod audio;
 pub mod auth;
 pub mod danmaku;
 pub mod download;
