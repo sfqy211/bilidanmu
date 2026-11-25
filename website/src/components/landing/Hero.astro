@@ -1,6 +1,6 @@
 ---
 import { Icon } from 'astro-icon/components';
-import danmakuWindow from '~/assets/images/bilidanmu/danmaku-window.webp';
+import ProductPreview from './ProductPreview.astro';
 
 const REPOSITORY = 'https://github.com/sfqy211/bilidanmu';
 const RELEASES = `${REPOSITORY}/releases/latest`;
@@ -15,35 +15,33 @@ const RELEASES = `${REPOSITORY}/releases/latest`;
     <div
       class="relative z-10 mx-auto grid max-w-7xl items-center gap-12 px-5 py-14 sm:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-10 lg:py-20"
     >
-      <div class="max-w-xl">
+      <div class="intersect intersect-once max-w-xl" data-reveal="hero">
         <span class="lp-badge">
           <span class="lp-live-dot"></span>
           B 站桌面弹幕伴侣
         </span>
 
-        <h1
-          class="mt-6 font-heading text-[clamp(2.9rem,6.2vw,5.4rem)] font-black leading-[1.02] tracking-[-0.045em] text-white"
-        >
+        <h1 class="mt-6 font-heading text-[clamp(2.9rem,6.2vw,5.4rem)] font-black leading-[1.02] tracking-[-0.045em]">
           桌面归你，<br />
           <span class="lp-gradient-text">热闹在旁。</span>
         </h1>
 
-        <p class="mt-5 text-lg leading-8 text-white/55">B 站直播，收进桌面一角。</p>
+        <p class="lp-panel-muted mt-5 text-lg leading-8">B 站直播，收进桌面一角。</p>
 
         <div class="mt-8 flex flex-col gap-3 sm:flex-row">
           <a class="lp-btn-primary" href={RELEASES} target="_blank" rel="noopener noreferrer">
             <Icon name="tabler:download" class="h-4 w-4" />
             下载 BiliDanmu
           </a>
-          <button type="button" class="lp-btn-ghost" data-open-film>
-            <span class="grid h-5 w-5 place-items-center rounded-full bg-white/15">
+          <button type="button" class="lp-btn-ghost" data-open-film aria-haspopup="dialog" aria-controls="film-dialog">
+            <span class="lp-panel-icon grid h-5 w-5 place-items-center rounded-full">
               <Icon name="tabler:player-play-filled" class="h-3 w-3" />
             </span>
             45 秒演示
           </button>
         </div>
 
-        <div class="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/35">
+        <div class="lp-panel-subtle mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
           <span class="inline-flex items-center gap-1.5">
             <Icon name="tabler:brand-windows" class="h-4 w-4" /> Windows
           </span>
@@ -56,69 +54,49 @@ const RELEASES = `${REPOSITORY}/releases/latest`;
         </div>
       </div>
 
-      <div class="relative mx-auto w-full max-w-[560px] sm:min-h-[520px]">
+      <figure class="hero-stage intersect intersect-once" data-reveal="hero">
         <div class="lp-glow lp-glow-pink absolute -inset-10 opacity-70"></div>
-
-        <!-- 桌面背景：一张被弹幕窗盖住的工作表（移动端隐藏，只留弹幕窗） -->
-        <div
-          class="relative ml-auto mt-2 hidden w-[82%] rotate-[1.4deg] overflow-hidden rounded-[1.6rem] border border-white/20 bg-gradient-to-br from-[#6e5bd1] via-[#3f719e] to-[#f2547d] p-3 shadow-[0_50px_120px_-30px_rgba(0,0,0,0.85)] sm:block"
-        >
-          <div class="rounded-2xl border border-white/60 bg-white/85 p-3 backdrop-blur-xl">
-            <div class="flex items-center justify-between border-b border-black/5 pb-2 text-[9px] text-black/40">
-              <span class="font-semibold text-black/55">10 月运营 · 订单表</span>
-              <span>已保存到云端</span>
-            </div>
-            <div class="mt-2 grid grid-cols-3 gap-1 text-[8px] text-black/45">
-              <span class="font-semibold">渠道</span>
-              <span class="font-semibold">订单编号</span>
-              <span class="font-semibold">商品</span>
-              {
-                [
-                  ['品牌商城', 'XJ26102001', '落肩卫衣'],
-                  ['小程序', 'XJ26102003', '帆布袋'],
-                  ['品牌商城', 'XJ26102005', '卫衣 × 2'],
-                  ['内容店铺', 'XJ26102007', '保温杯'],
-                  ['品牌商城', 'XJ26102008', '双肩包'],
-                  ['小程序', 'XJ26102009', '拉链外套'],
-                ].map((row) => (
-                  <span class="contents">
-                    <span class="border-t border-black/5 py-1">{row[0]}</span>
-                    <span class="border-t border-black/5 py-1 tabular-nums">{row[1]}</span>
-                    <span class="border-t border-black/5 py-1">{row[2]}</span>
-                  </span>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-
-        <!-- 当前版本弹幕窗（新截图），外加一层玻璃标题栏 -->
-        <div
-          class="relative mx-auto mt-4 w-[76%] overflow-hidden rounded-[1.25rem] border border-white/30 bg-white/70 shadow-[0_35px_90px_-25px_rgba(0,0,0,0.9)] backdrop-blur-2xl sm:absolute sm:bottom-0 sm:left-0 sm:mt-0 sm:w-[52%]"
-        >
-          <div class="flex items-center justify-between border-b border-black/5 bg-white/75 px-3 py-2">
-            <span class="text-[10px] font-bold tracking-tight text-black/70">星河电台 · 今晚</span>
-            <span class="inline-flex items-center gap-1 text-[8px] font-medium text-emerald-600">
-              <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> 直播中
-            </span>
-          </div>
-          <img
-            src={danmakuWindow.src}
-            alt="BiliDanmu 弹幕窗叠加在桌面工作表上"
-            class="block h-[360px] w-full object-cover object-bottom"
-            loading="eager"
-          />
-        </div>
-
-        <div class="lp-glass lp-float absolute -left-2 top-6 hidden rounded-full px-3 py-2 text-[11px] sm:block">
-          <Icon name="tabler:arrows-minimize" class="mr-1 inline h-3.5 w-3.5 text-pink-300" />
-          贴边收起
-        </div>
-        <div class="lp-glass lp-float lp-float-delay absolute -right-2 bottom-20 hidden rounded-full px-3 py-2 text-[11px] sm:block">
-          <Icon name="tabler:eye-off" class="mr-1 inline h-3.5 w-3.5 text-sky-300" />
-          鼠标移开隐身
-        </div>
-      </div>
+        <ProductPreview kind="workspace" class="hero-workspace" alt="BiliDanmu 主窗口中的直播间列表" loading="eager" />
+        <ProductPreview kind="liveGlass" class="hero-danmaku" alt="叠在主窗口右侧的半透明直播弹幕窗" loading="eager" />
+      </figure>
     </div>
   </div>
 </section>
+
+<style>
+  .hero-stage {
+    position: relative;
+    inline-size: 100%;
+    max-inline-size: 35rem;
+    aspect-ratio: 1.27;
+    margin: 0 auto;
+  }
+
+  .hero-stage :global(.hero-workspace),
+  .hero-stage :global(.hero-danmaku) {
+    position: absolute;
+    overflow: clip;
+    border: 1px solid var(--lp-panel-line);
+    border-radius: clamp(0.5rem, 1.1vw, 0.875rem);
+    box-shadow: var(--lp-window-shadow);
+  }
+
+  .hero-stage :global(.hero-workspace) {
+    inset-block-start: 7%;
+    inset-inline-start: 1%;
+    inline-size: 92%;
+  }
+
+  .hero-stage :global(.hero-danmaku) {
+    inset-block-end: 4%;
+    inset-inline-end: 0;
+    inline-size: 52%;
+    max-inline-size: 16rem;
+  }
+
+  @media (min-width: 40rem) {
+    .hero-stage :global(.hero-danmaku) {
+      inline-size: 46%;
+    }
+  }
+</style>

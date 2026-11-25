@@ -1,24 +1,29 @@
 ---
 import { Icon } from 'astro-icon/components';
-
-const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+import ProductPreview from './ProductPreview.astro';
 ---
 
 <section id="film" class="lp-section scroll-mt-24 py-6 sm:py-10">
   <div class="mx-auto max-w-7xl px-5 sm:px-8">
-    <div class="relative overflow-hidden rounded-[2rem] bg-[#0d0e12] p-5 sm:p-8 lg:p-12">
+    <div class="lp-panel relative overflow-clip rounded-[2rem] p-5 sm:p-8 lg:p-12">
       <div class="lp-glow lp-glow-pink absolute -right-24 -top-24 h-72 w-72"></div>
       <div class="lp-glow lp-glow-blue absolute -bottom-24 left-10 h-64 w-64"></div>
 
       <div class="relative grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-12">
-        <div>
-          <p class="text-[11px] font-semibold tracking-[0.18em] text-pink-300">45 秒产品演示</p>
-          <h2 class="mt-3 text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl">
+        <div class="intersect intersect-once" data-reveal>
+          <p class="lp-panel-accent text-[11px] font-semibold tracking-[0.18em]">45 秒产品演示</p>
+          <h2 class="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl">
             看看它<br />怎么待在桌面一角。
           </h2>
-          <p class="mt-4 max-w-md text-sm leading-7 text-white/55">真实操作，没有旁白。</p>
+          <p class="lp-panel-muted mt-4 max-w-md text-sm leading-7">真实操作，没有旁白。</p>
           <div class="mt-6 flex flex-wrap gap-3">
-            <button type="button" class="lp-btn-primary" data-open-film>
+            <button
+              type="button"
+              class="lp-btn-primary"
+              data-open-film
+              aria-haspopup="dialog"
+              aria-controls="film-dialog"
+            >
               <Icon name="tabler:player-play-filled" class="h-4 w-4" />
               播放演示
             </button>
@@ -27,29 +32,74 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 
         <button
           type="button"
-          class="group relative overflow-hidden rounded-2xl border border-white/10 text-left"
+          class="lp-film-cover intersect intersect-once relative overflow-clip rounded-2xl text-left"
+          data-reveal
           data-open-film
+          aria-haspopup="dialog"
+          aria-controls="film-dialog"
           aria-label="播放 BiliDanmu 产品演示"
         >
-          <img
-            src={`${base}marketing/film-poster.webp`}
-            alt="BiliDanmu 产品演示画面"
-            class="block w-full transition duration-500 group-hover:scale-[1.02]"
-          />
-          <span class="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/35">
-            <span
-              class="grid h-16 w-16 place-items-center rounded-full bg-white/95 text-black shadow-2xl transition duration-300 group-hover:scale-110"
-            >
+          <ProductPreview kind="workspace" alt="" class="lp-film-preview" />
+          <span class="lp-film-overlay absolute inset-0 grid place-items-center">
+            <span class="lp-film-play grid h-14 w-14 place-items-center rounded-full sm:h-16 sm:w-16">
               <Icon name="tabler:player-play-filled" class="ml-0.5 h-6 w-6" />
             </span>
           </span>
           <span
-            class="absolute bottom-4 left-4 rounded-full bg-black/55 px-3 py-1.5 text-[11px] font-medium text-white/85 backdrop-blur"
+            class="lp-glass absolute bottom-3 left-3 rounded-full px-3 py-1.5 text-[11px] font-medium sm:bottom-4 sm:left-4"
           >
-            01:12 / 45s · 含字幕
+            0:45
           </span>
         </button>
       </div>
     </div>
   </div>
 </section>
+
+<style>
+  .lp-film-cover {
+    aspect-ratio: 16 / 9;
+    background:
+      radial-gradient(ellipse at 15% 6%, var(--lp-panel-rose), transparent 68%),
+      radial-gradient(ellipse at 100% 94%, var(--lp-panel-violet), transparent 65%), var(--lp-panel-bg);
+  }
+
+  .lp-film-cover :global(.lp-film-preview) {
+    position: absolute;
+    inset: 7%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lp-film-cover :global(.lp-film-preview img) {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 0.6rem;
+    box-shadow: var(--lp-window-shadow);
+  }
+
+  .lp-film-overlay {
+    background: rgb(14 12 20 / 13%);
+  }
+
+  .lp-film-play {
+    color: var(--lp-panel-fg);
+    background: var(--lp-glass-bg);
+    box-shadow: var(--lp-float-shadow);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .lp-film-play {
+      transition: transform 260ms var(--lp-motion-ease);
+    }
+    .lp-film-cover:is(:hover, :focus-visible) .lp-film-play {
+      transform: scale(1.08);
+    }
+    .lp-film-cover:active .lp-film-play {
+      transform: scale(0.96);
+    }
+  }
+</style>

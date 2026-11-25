@@ -20,6 +20,7 @@ const platforms = [
     file: `BiliDanmu_${VERSION}_universal.dmg`,
     icon: 'tabler:brand-apple',
     hint: '.dmg · 首次打开右键',
+    preview: true,
   },
   {
     name: 'Linux',
@@ -27,27 +28,26 @@ const platforms = [
     file: `BiliDanmu_${VERSION}_amd64.AppImage`,
     icon: 'tabler:brand-ubuntu',
     hint: '.AppImage',
+    preview: true,
   },
 ];
 ---
 
 <section id="download" class="lp-section scroll-mt-24 py-6 sm:py-10">
   <div class="mx-auto max-w-7xl px-5 sm:px-8">
-    <div class="relative overflow-hidden rounded-[2rem] bg-[#0d0e12] p-6 text-white sm:p-10 lg:p-14">
+    <div class="lp-panel relative overflow-clip rounded-[2rem] p-6 sm:p-10 lg:p-14">
       <div class="lp-glow lp-glow-pink absolute -right-20 -top-24 h-80 w-80"></div>
       <div class="lp-glow lp-glow-blue absolute -bottom-28 left-16 h-72 w-72"></div>
 
       <div class="relative grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-16">
-        <div>
+        <div class="intersect intersect-once" data-reveal>
           <span class="lp-badge">BILIDANMU V{VERSION}</span>
           <h2 class="mt-5 text-4xl font-black leading-[1.04] tracking-[-0.04em] sm:text-5xl">
             给喜欢的直播，<br />
             <span class="lp-gradient-text">留个位置。</span>
           </h2>
-          <p class="mt-4 max-w-md text-sm leading-7 text-white/55">
-            Windows · macOS · Linux。免费开源。
-          </p>
-          <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-white/40">
+          <p class="lp-panel-muted mt-4 max-w-md text-sm leading-7">Windows · macOS · Linux。免费开源。</p>
+          <div class="lp-panel-subtle mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
             <span class="inline-flex items-center gap-1.5">
               <Icon name="tabler:shield-check" class="h-4 w-4" /> 本地运行
             </span>
@@ -57,34 +57,34 @@ const platforms = [
           </div>
         </div>
 
-        <div class="grid gap-3">
+        <div class="intersect intersect-once grid gap-3" data-reveal>
+          <p id="preview-download-note" class="lp-panel-muted text-xs leading-5">
+            macOS 和 Linux 为预览版，尚未经过测试。
+          </p>
           {
             platforms.map((platform) => (
               <a
                 href={`${ASSETS}/${platform.file}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="group flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-pink-400/40 hover:bg-white/[0.08]"
+                aria-describedby={platform.preview ? 'preview-download-note' : undefined}
+                class="lp-panel-action group flex items-center gap-4 rounded-2xl border p-4"
               >
-                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-white/85">
+                <span class="lp-panel-icon grid h-11 w-11 shrink-0 place-items-center rounded-xl">
                   <Icon name={platform.icon} class="h-5 w-5" />
                 </span>
                 <span class="min-w-0 flex-1">
-                  <span class="block text-sm font-semibold text-white">{platform.name}</span>
-                  <span class="text-xs text-white/45">{platform.detail}</span>
+                  <span class="block text-sm font-semibold">{platform.name}</span>
+                  <span class="lp-panel-muted text-xs">{platform.detail}</span>
                 </span>
-                <span class="hidden shrink-0 text-[11px] text-white/40 sm:block">{platform.hint}</span>
-                <Icon name="tabler:download" class="h-4 w-4 shrink-0 text-white/40 transition group-hover:text-pink-300" />
+                <span class="lp-panel-subtle hidden shrink-0 text-[11px] sm:block">{platform.hint}</span>
+                <Icon name="tabler:download" class="lp-panel-accent h-4 w-4 shrink-0" />
               </a>
             ))
           }
-          <div class="mt-1 flex items-center justify-between text-[11px] text-white/35">
-            <a class="transition hover:text-white/70" href={`${RELEASES}`} target="_blank" rel="noopener noreferrer">
-              全部版本与更新记录
-            </a>
-            <a class="transition hover:text-white/70" href="./docs/guide/quick-start/">
-              安装说明
-            </a>
+          <div class="lp-panel-subtle mt-1 flex items-center justify-between text-[11px]">
+            <a class="lp-panel-link" href={RELEASES} target="_blank" rel="noopener noreferrer"> 全部版本与更新记录 </a>
+            <a class="lp-panel-link" href="./docs/guide/quick-start/"> 安装说明 </a>
           </div>
         </div>
       </div>

@@ -23,62 +23,87 @@ const metadata = {
 <Layout metadata={metadata}>
   <div class="lp">
     <Hero />
-    <Marquee />
-    <Bento />
+    <div class="lp-feature-flow">
+      <Marquee />
+      <Bento />
+    </div>
     <FilmSection />
     <Scenes />
     <Faq />
     <Download />
+
+    <dialog id="film-dialog" class="lp-dialog" aria-label="BiliDanmu 产品演示">
+      <div class="lp-dialog-stage">
+        <video
+          src={`${base}marketing/product-film.mp4`}
+          poster={`${base}marketing/film-poster.webp`}
+          controls
+          playsinline
+          preload="none"
+        >
+          你的浏览器不支持视频播放，可以
+          <a href={`${base}marketing/product-film.mp4`}>直接下载演示视频</a>。
+        </video>
+        <button type="button" data-close-film class="lp-dialog-close">
+          关闭 <kbd class="ml-1 text-[10px] opacity-70">Esc</kbd>
+        </button>
+      </div>
+    </dialog>
   </div>
 
-  <dialog id="film-dialog" class="lp-dialog" aria-label="BiliDanmu 产品演示">
-    <div class="relative">
-      <video
-        src={`${base}marketing/product-film.mp4`}
-        poster={`${base}marketing/film-poster.webp`}
-        controls
-        playsinline
-        preload="none"
-      >
-        你的浏览器不支持视频播放，可以
-        <a href={`${base}marketing/product-film.mp4`}>直接下载演示视频</a>。
-      </video>
-      <button
-        type="button"
-        data-close-film
-        class="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur transition hover:bg-black/75"
-      >
-        关闭
-        <kbd class="rounded bg-white/15 px-1.5 py-0.5 text-[10px] text-white/60">Esc</kbd>
-      </button>
-    </div>
-  </dialog>
-
   <script>
-    const dialog = document.getElementById('film-dialog') as HTMLDialogElement | null;
-    const video = dialog?.querySelector('video') as HTMLVideoElement | null;
-
-    document.querySelectorAll('[data-open-film]').forEach((button) => {
-      button.addEventListener('click', () => {
-        if (!dialog) return;
+    document.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element)) return;
+      const dialog = document.querySelector<HTMLDialogElement>('#film-dialog');
+      if (!dialog) return;
+      if (event.target.closest('[data-open-film]')) {
         dialog.showModal();
-        if (video) video.play().catch(() => {});
-      });
+        dialog
+          .querySelector('video')
+          ?.play()
+          .catch(() => {});
+      } else if (event.target === dialog || event.target.closest('[data-close-film]')) {
+        dialog.close();
+      }
     });
 
-    document.querySelectorAll('[data-close-film]').forEach((button) => {
-      button.addEventListener('click', () => dialog?.close());
-    });
-
-    if (dialog) {
-      dialog.addEventListener('close', () => {
+    document.addEventListener(
+      'close',
+      (event) => {
+        if (!(event.target instanceof HTMLDialogElement) || event.target.id !== 'film-dialog') return;
+        const video = event.target.querySelector('video');
         if (!video) return;
         video.pause();
-        video.currentTime = 0;
-      });
-      dialog.addEventListener('click', (event) => {
-        if (event.target === dialog) dialog.close();
-      });
-    }
+        if (video.readyState > 0) video.currentTime = 0;
+      },
+      true
+    );
   </script>
 </Layout>
+
+<style is:global>
+  @media (prefers-reduced-motion: no-preference) {
+    .lp [data-reveal][data-animated='true'] {
+      animation: lp-reveal 520ms var(--lp-motion-ease) backwards;
+    }
+
+    .lp [data-reveal='hero'][data-animated='true'] {
+      animation-duration: 640ms;
+    }
+
+    .lp .lp-faq-item[open] .lp-faq-answer {
+      animation: lp-reveal 260ms var(--lp-motion-ease) backwards;
+    }
+  }
+
+  @keyframes lp-reveal {
+    from {
+      opacity: 0.45;
+      translate: 0 14px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+</style>

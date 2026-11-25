@@ -13,18 +13,17 @@ const items = [
 ];
 ---
 
-<div
-  class="lp-marquee border-y py-3.5"
-  style="background: var(--lp-soft); border-color: var(--lp-line)"
-  aria-hidden="true"
->
+<div class="lp-marquee intersect py-3.5" aria-hidden="true">
   <div class="lp-marquee-track items-center gap-8 text-sm font-semibold" style="color: var(--lp-muted)">
     {
-      [0, 1].map(() =>
+      [0, 1].map((copy) =>
         items.map((item) => (
-          <span class="inline-flex items-center gap-8 whitespace-nowrap">
+          <span
+            class="inline-flex items-center gap-8 whitespace-nowrap"
+            data-marquee-copy={copy === 1 ? '' : undefined}
+          >
             <span>{item}</span>
-            <span class="h-1 w-1 rounded-full" style="background: var(--lp-pink)"></span>
+            <span class="h-1 w-1 rounded-full" style="background: var(--lp-pink)" />
           </span>
         ))
       )

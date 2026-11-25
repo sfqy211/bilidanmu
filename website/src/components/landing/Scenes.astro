@@ -5,19 +5,19 @@ const scenes = [
   {
     title: '写代码时',
     copy: '弹幕在边缘，编辑器是整块。',
-    gradient: 'radial-gradient(120% 120% at 82% 18%, #7db6d4 0%, #2c5874 48%, #0d1720 100%)',
+    tone: 'scene-blue',
     icon: 'tabler:code',
   },
   {
     title: '看文档时',
     copy: '只留一行输入框。',
-    gradient: 'radial-gradient(120% 120% at 82% 18%, #e2a49c 0%, #8c5362 48%, #1e1117 100%)',
+    tone: 'scene-rose',
     icon: 'tabler:book',
   },
   {
     title: '睡前听视频',
     copy: '关掉屏幕，声音还在。',
-    gradient: 'radial-gradient(120% 120% at 82% 18%, #a7cfc4 0%, #2f6b60 48%, #0c1a17 100%)',
+    tone: 'scene-mint',
     icon: 'tabler:moon',
   },
 ];
@@ -25,7 +25,7 @@ const scenes = [
 
 <section id="scenes" class="lp-section scroll-mt-24 py-16 sm:py-24">
   <div class="mx-auto max-w-7xl px-5 sm:px-8">
-    <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <div class="intersect intersect-once flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between" data-reveal>
       <div>
         <p class="lp-eyebrow">使用场景</p>
         <h2 class="lp-h2 mt-3">它适合这些时刻。</h2>
@@ -36,13 +36,18 @@ const scenes = [
     <div class="mt-8 grid gap-4 sm:grid-cols-3">
       {
         scenes.map((scene) => (
-          <article class="lp-scene group min-h-[18rem] p-5" style={`background: ${scene.gradient}`}>
-            <div class="relative flex h-full flex-col justify-end">
-              <span class="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-white/10 backdrop-blur">
-                <Icon name={scene.icon} class="h-5 w-5 text-white" />
+          <article
+            class:list={['lp-scene intersect intersect-once intersect-quarter p-4 sm:p-5', scene.tone]}
+            data-reveal
+          >
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+              <div>
+                <h3 class="text-lg font-bold tracking-tight">{scene.title}</h3>
+                <p class="mt-1 text-sm leading-5 opacity-80">{scene.copy}</p>
+              </div>
+              <span class="scene-icon grid h-9 w-9 place-items-center rounded-full border" aria-hidden="true">
+                <Icon name={scene.icon} class="h-4 w-4" />
               </span>
-              <h3 class="mt-4 text-xl font-bold tracking-tight text-white">{scene.title}</h3>
-              <p class="mt-1.5 max-w-xs text-sm leading-6 text-white/70">{scene.copy}</p>
             </div>
           </article>
         ))
@@ -50,3 +55,64 @@ const scenes = [
     </div>
   </div>
 </section>
+
+<style>
+  .lp-scene {
+    --lp-scene-fg: #252132;
+    --lp-scene-grid: rgb(58 54 76 / 31%);
+    --lp-scene-shade: linear-gradient(to top, rgb(255 252 254 / 80%), transparent 75%);
+    background: radial-gradient(
+      120% 120% at 82% 18%,
+      var(--scene-highlight),
+      var(--scene-middle) 48%,
+      var(--scene-base)
+    );
+  }
+
+  .scene-blue {
+    --scene-highlight: #ecf7ff;
+    --scene-middle: #b6d5e9;
+    --scene-base: #cddfe9;
+  }
+
+  .scene-rose {
+    --scene-highlight: #fff2eb;
+    --scene-middle: #e6b9c4;
+    --scene-base: #efced4;
+  }
+
+  .scene-mint {
+    --scene-highlight: #ecfaf4;
+    --scene-middle: #b6d9cf;
+    --scene-base: #cde6dd;
+  }
+
+  :global(.dark) .lp-scene {
+    --lp-scene-fg: #faf7f8;
+    --lp-scene-grid: rgb(255 255 255 / 50%);
+    --lp-scene-shade: linear-gradient(to top, rgb(9 10 14 / 92%), rgb(9 10 14 / 18%) 68%);
+  }
+
+  :global(.dark) .scene-blue {
+    --scene-highlight: #7db6d4;
+    --scene-middle: #2c5874;
+    --scene-base: #0d1720;
+  }
+
+  :global(.dark) .scene-rose {
+    --scene-highlight: #e2a49c;
+    --scene-middle: #8c5362;
+    --scene-base: #1e1117;
+  }
+
+  :global(.dark) .scene-mint {
+    --scene-highlight: #a7cfc4;
+    --scene-middle: #2f6b60;
+    --scene-base: #0c1a17;
+  }
+
+  .scene-icon {
+    border-color: color-mix(in srgb, currentColor 22%, transparent);
+    background: color-mix(in srgb, currentColor 9%, transparent);
+  }
+</style>

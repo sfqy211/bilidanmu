@@ -1,0 +1,89 @@
+---
+import audioDark from '~/assets/images/bilidanmu/preview-audio-dark.webp';
+import audioLight from '~/assets/images/bilidanmu/preview-audio-light.webp';
+import dockDark from '~/assets/images/bilidanmu/preview-dock-dark.webp';
+import dockLight from '~/assets/images/bilidanmu/preview-dock-light.webp';
+import inputDark from '~/assets/images/bilidanmu/preview-input-dark.webp';
+import inputLight from '~/assets/images/bilidanmu/preview-input-light.webp';
+import liveDark from '~/assets/images/bilidanmu/preview-live-dark.webp';
+import liveGlassDark from '~/assets/images/bilidanmu/preview-live-glass-dark.webp';
+import liveGlassLight from '~/assets/images/bilidanmu/preview-live-glass-light.webp';
+import liveLight from '~/assets/images/bilidanmu/preview-live-light.webp';
+import mcpDark from '~/assets/images/bilidanmu/preview-mcp-dark.webp';
+import mcpLight from '~/assets/images/bilidanmu/preview-mcp-light.webp';
+import settingsDark from '~/assets/images/bilidanmu/preview-settings-dark.webp';
+import settingsLight from '~/assets/images/bilidanmu/preview-settings-light.webp';
+import videoDark from '~/assets/images/bilidanmu/preview-video-dark.webp';
+import videoLight from '~/assets/images/bilidanmu/preview-video-light.webp';
+import workspaceDark from '~/assets/images/bilidanmu/preview-workspace-dark.webp';
+import workspaceLight from '~/assets/images/bilidanmu/preview-workspace-light.webp';
+
+const previews = {
+  audio: { light: audioLight, dark: audioDark },
+  dock: { light: dockLight, dark: dockDark },
+  input: { light: inputLight, dark: inputDark },
+  live: { light: liveLight, dark: liveDark },
+  liveGlass: { light: liveGlassLight, dark: liveGlassDark },
+  mcp: { light: mcpLight, dark: mcpDark },
+  settings: { light: settingsLight, dark: settingsDark },
+  video: { light: videoLight, dark: videoDark },
+  workspace: { light: workspaceLight, dark: workspaceDark },
+};
+
+interface Props {
+  kind: keyof typeof previews;
+  alt: string;
+  loading?: 'eager' | 'lazy';
+  class?: string;
+}
+
+const { kind, alt, loading = 'lazy', class: className } = Astro.props;
+
+const { light, dark } = previews[kind];
+---
+
+<picture class={className}>
+  <source
+    data-product-preview-dark
+    media="(prefers-color-scheme: dark)"
+    srcset={dark.src}
+    width={dark.width}
+    height={dark.height}
+  />
+  <img
+    src={light.src}
+    width={light.width}
+    height={light.height}
+    alt={alt}
+    loading={loading}
+    decoding="async"
+    fetchpriority={loading === 'eager' ? 'high' : undefined}
+  />
+</picture>
+
+<script>
+  const root = document.documentElement;
+
+  function syncPreviewTheme() {
+    const media = root.classList.contains('dark') ? 'all' : 'not all';
+    for (const source of document.querySelectorAll<HTMLSourceElement>('[data-product-preview-dark]')) {
+      if (source.media !== media) source.media = media;
+    }
+  }
+
+  syncPreviewTheme();
+  new MutationObserver(syncPreviewTheme).observe(root, { attributeFilter: ['class'] });
+  document.addEventListener('astro:page-load', syncPreviewTheme);
+</script>
+
+<style>
+  picture,
+  img {
+    display: block;
+  }
+
+  img {
+    width: 100%;
+    height: auto;
+  }
+</style>
