@@ -75,6 +75,27 @@ function useAutoScroll(messages: DanmakuMessage[]) {
   const isAtBottomRef = useRef(true);
   const msgCountRef = useRef(messages.length);
   const lastMessageKeyRef = useRef<string | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // 回调 ref 同步维护 ResizeObserver：列表会随分割条折叠而卸载、恢复后重新挂载，
+  // 一次性 effect 会漏掉后挂载的节点。列表可视区变矮时保持吸底——输入框随多行
+  // 文字撑高会挤占上方列表的高度，而浏览器不会因为视口变小就调整 scrollTop
+  // （scrollHeight 没变、也不触发 scroll 事件），原本贴底的最新一行会被下边缘
+  // 裁掉半行。只有原本就贴底时才跟随，用户上翻查看历史时不打扰。
+  const attachScrollRef = useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    resizeObserverRef.current?.disconnect();
+    resizeObserverRef.current = null;
+    if (!node) return;
+    const observer = new ResizeObserver(() => {
+      if (!isAtBottomRef.current) return;
+      node.scrollTop = node.scrollHeight;
+    });
+    observer.observe(node);
+    resizeObserverRef.current = observer;
+  }, []);
+
+  useEffect(() => () => resizeObserverRef.current?.disconnect(), []);
 
   const checkAtBottom = useCallback(() => {
     const container = scrollRef.current;
@@ -125,7 +146,7 @@ function useAutoScroll(messages: DanmakuMessage[]) {
     });
   }, []);
 
-  return { scrollRef, isAtBottom, checkAtBottom, scrollToBottom };
+  return { scrollRef, attachScrollRef, isAtBottom, checkAtBottom, scrollToBottom };
 }
 
 const PANEL = {
@@ -1315,7 +1336,7 @@ export function DanmakuPage() {
                 )}
               </div>
               <div
-                ref={giftScroll.scrollRef}
+                ref={giftScroll.attachScrollRef}
                 onScroll={giftScroll.checkAtBottom}
                 onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                 className="relative min-h-0 flex-1 overflow-y-auto pt-2.5 pr-2.5 pb-1 pl-1"
@@ -1398,7 +1419,7 @@ export function DanmakuPage() {
             {showDanmaku && (
               <>
                 <div
-                  ref={danmakuScroll.scrollRef}
+                  ref={danmakuScroll.attachScrollRef}
                   onScroll={danmakuScroll.checkAtBottom}
                   onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                   onContextMenu={(e) => {
@@ -1527,7 +1548,7 @@ export function DanmakuPage() {
                     ))}
                   </div>
                   <div
-                    ref={activityScroll.scrollRef}
+                    ref={activityScroll.attachScrollRef}
                     onScroll={activityScroll.checkAtBottom}
                     onMouseDown={(event) => handleBlankAreaMouseDown(event, win.locked, win.passthrough)}
                     onContextMenu={(e) => {
