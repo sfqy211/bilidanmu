@@ -62,6 +62,7 @@ export const defaultSettings: Settings = {
   },
   appearance: {
     theme: "system",
+    motion: "system",
     autoThemeFromBackground: false,
     fontSize: 14,
     showMedal: true,

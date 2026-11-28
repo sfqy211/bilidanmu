@@ -2,6 +2,7 @@ import type { Settings, VisualFont, VisualProfile } from "@/types/bilibili";
 import { applyBrandTheme, DEFAULT_BRAND, hexToHslString } from "./brand-theme";
 import { applyTheme } from "./theme";
 import { syncBrandAccent } from "./brand-accent";
+import { applyMotionPreference } from "./motion";
 
 export const FONT_OPTIONS = [
   { value: "system", label: "fonts.system" }, { value: "yahei", label: "fonts.yahei" },
@@ -134,8 +135,8 @@ export function applyVisualTheme(settings: Settings) {
       : "0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 18px -10px rgba(15, 23, 42, 0.18)",
   };
   for (const [key, value] of Object.entries(values)) root.style.setProperty(key, value);
-  // 减少动态效果固定跟随系统无障碍设置，不再作为可调项。
-  root.dataset.reducedMotion = String(matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // 动效偏好：跟随系统 / 强制开启 / 强制关闭（见 appearance.motion）
+  applyMotionPreference(settings.appearance.motion);
   // 强调色已写入 CSS 变量：同步给托盘 / 窗口图标（系统亮暗切换也会走到这里）
   syncBrandAccent();
 }

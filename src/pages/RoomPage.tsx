@@ -1,5 +1,5 @@
 import { useTranslation as useDesktopTranslation, i18n as desktopI18n } from "@/i18n";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -20,6 +20,7 @@ import {
 import { FavoriteManageDialog } from "@/components/rooms/FavoriteManageDialog";
 import { CoverCard } from "@/components/CoverCard";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { tauriCommands } from "@/lib/tauri";
 import { useRoomStore } from "@/stores/room-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -81,6 +82,16 @@ export function RoomPage() {
   const [refreshing, setRefreshing] = useState(false);
   // 按直播状态筛选：全部 / 直播中 / 未开播
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
+  // 筛选切换的滑动方向：点右侧 tab 新内容从右侧滑入，点左侧 tab 从左侧滑入
+  const [paneSlide, setPaneSlide] = useState<"left" | "right" | null>(null);
+  // 筛选切换后列表从顶部重新开始，避免沿用上一个筛选的滚动位置
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  // 筛选胶囊的滑动指示器：前缘先到、后缘拖尾，形成黏滞的水滴感
+  const reducedMotion = useReducedMotion();
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tabIndicatorRef = useRef<HTMLSpanElement>(null);
+  const tabIndicatorState = useRef({ left: 0, right: 0, vLeft: 0, vRight: 0, raf: 0, ready: false });
   // 分区折叠：正在直播 / 未开播各自独立收起展开（会话内状态，不持久化）
   const [liveExpanded, setLiveExpanded] = useState(true);
   const [offlineExpanded, setOfflineExpanded] = useState(true);
@@ -300,6 +311,84 @@ export function RoomPage() {
     { value: "live", label: translate("rooms.live"), count: liveCount },
     { value: "offline", label: translate("rooms.offline"), count: rooms.length - liveCount },
   ];
+
+  // 胶囊指示器：两条边各用一条弹簧追随目标，出发侧（后缘）比前缘慢，
+  // 滑动时会先被拉长、把旧位置「拽」一段再回弹，形成黏滞的水滴感。
+  useLayoutEffect(() => {
+    const indicator = tabIndicatorRef.current;
+    if (!indicator) return;
+    const state = tabIndicatorState.current;
+
+    const target = () => {
+      const index = statusTabs.findIndex((tab) => tab.value === statusTab);
+      const button = tabButtonRefs.current[index];
+      if (!button) return null;
+      return { left: button.offsetLeft, right: button.offsetLeft + button.offsetWidth };
+    };
+
+    const paint = () => {
+      // 横向速度差越大，纵向收得越紧（水滴被拉长时的「变细」）
+      const stretch = Math.abs(state.vRight - state.vLeft);
+      indicator.style.transform = `translateX(${state.left}px) scaleY(${1 - Math.min(0.14, stretch * 0.007)})`;
+      indicator.style.width = `${Math.max(0, state.right - state.left)}px`;
+    };
+
+    const settle = (next: { left: number; right: number }) => {
+      state.left = next.left;
+      state.right = next.right;
+      state.vLeft = 0;
+      state.vRight = 0;
+      paint();
+    };
+
+    const moveTo = (next: { left: number; right: number } | null, animate: boolean) => {
+      if (!next) return;
+      if (state.raf) cancelAnimationFrame(state.raf);
+      state.raf = 0;
+      if (!animate || !state.ready) {
+        state.ready = true;
+        settle(next);
+        return;
+      }
+      let frames = 0;
+      // 方向在动画开始时定死：否则回弹越过目标后会中途换边、产生抖动
+      const movingRight = next.left + next.right >= state.left + state.right;
+      const kLeft = movingRight ? 0.2 : 0.28;
+      const kRight = movingRight ? 0.28 : 0.2;
+      const tick = () => {
+        state.vLeft = (state.vLeft + (next.left - state.left) * kLeft) * 0.55;
+        state.vRight = (state.vRight + (next.right - state.right) * kRight) * 0.55;
+        state.left += state.vLeft;
+        state.right += state.vRight;
+        paint();
+        const settled =
+          Math.abs(next.left - state.left) < 0.3 &&
+          Math.abs(next.right - state.right) < 0.3 &&
+          Math.abs(state.vLeft) < 0.05 &&
+          Math.abs(state.vRight) < 0.05;
+        if (settled || frames++ > 70) {
+          state.raf = 0;
+          settle(next);
+          return;
+        }
+        state.raf = requestAnimationFrame(tick);
+      };
+      state.raf = requestAnimationFrame(tick);
+    };
+
+    moveTo(target(), !reducedMotion);
+    // 计数变化、字号调整会改变 tab 宽度：跟随重新量一次
+    const observer = new ResizeObserver(() => moveTo(target(), !reducedMotion));
+    tabButtonRefs.current.forEach((button) => { if (button) observer.observe(button); });
+    return () => {
+      observer.disconnect();
+      if (state.raf) cancelAnimationFrame(state.raf);
+      state.raf = 0;
+    };
+  // statusTabs 每次渲染都是新数组，但只有顺序参与定位，不会因计数变化改变索引；
+  // rooms.length 用于「从空列表变为有列表」时重新初始化指示器。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusTab, reducedMotion, rooms.length]);
 
   // 时间段（列表行与封面卡共用）：直播中=已播时长（开播时间取接口下发，兜底本地记录）；
   // 未开播=上次直播时间。没有可展示的时间时返回 null。
@@ -639,13 +728,22 @@ export function RoomPage() {
 
       {rooms.length > 0 && (
         <div className="app-rise mb-4">
-          <div className="room-tabs" role="tablist" aria-label={translate("rooms.filter")}>
-            {statusTabs.map((tab) => (
+          <div ref={tabListRef} className="room-tabs" role="tablist" aria-label={translate("rooms.filter")}>
+            <span ref={tabIndicatorRef} className="room-tab-indicator" aria-hidden="true" />
+            {statusTabs.map((tab, index) => (
               <button
                 key={tab.value}
+                ref={(element) => { tabButtonRefs.current[index] = element; }}
                 role="tab"
                 aria-selected={statusTab === tab.value}
-                onClick={() => setStatusTab(tab.value)}
+                onClick={() => {
+                  if (statusTab === tab.value) return;
+                  const from = statusTabs.findIndex((item) => item.value === statusTab);
+                  const to = statusTabs.findIndex((item) => item.value === tab.value);
+                  setPaneSlide(to > from ? "right" : "left");
+                  setStatusTab(tab.value);
+                  contentScrollRef.current?.scrollTo({ top: 0 });
+                }}
                 className={`room-tab ${statusTab === tab.value ? "room-tab-active" : ""}`}
               >
                 {tab.label}
@@ -675,34 +773,37 @@ export function RoomPage() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {rooms.length === 0 ? (
-          <div className="workspace-empty">
+      <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {/* 首次进入沿用 app-rise；切换筛选时按方向横向滑入 */}
+        <div key={`pane-${statusTab}`} className={paneSlide === null ? "app-rise" : `room-pane-slide-${paneSlide}`}>
+          {rooms.length === 0 ? (
+            <div className="workspace-empty">
+              <div>
+                <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200">{translate("rooms.empty")}</p>
+                <p className="mt-1.5 text-[13px] text-slate-400 dark:text-slate-500">
+                  {translate("rooms.addHint")}
+                </p>
+              </div>
+            </div>
+          ) : previewRooms.length === 0 ? (
+            <div className="workspace-empty">
+              {favoriteOnly && !filterActive ? translate("rooms.favoritesEmpty") : translate("rooms.noMatches")}
+            </div>
+          ) : viewMode === "list" ? (
             <div>
-              <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200">{translate("rooms.empty")}</p>
-              <p className="mt-1.5 text-[13px] text-slate-400 dark:text-slate-500">
-                {translate("rooms.addHint")}
-              </p>
+              <div className="workspace-list-heading room-list-grid">
+                <span>{translate("rooms.columns.streamer")}</span>
+                <span>{translate("rooms.columns.title")}</span>
+                <span>{translate("rooms.columns.status")}</span>
+              </div>
+              {renderGrouped((list) => <div className="room-list">{list.map(renderListRow)}</div>)}
             </div>
-          </div>
-        ) : previewRooms.length === 0 ? (
-          <div className="workspace-empty">
-            {favoriteOnly && !filterActive ? translate("rooms.favoritesEmpty") : translate("rooms.noMatches")}
-          </div>
-        ) : viewMode === "list" ? (
-          <div className="app-rise">
-            <div className="workspace-list-heading room-list-grid">
-              <span>{translate("rooms.columns.streamer")}</span>
-              <span>{translate("rooms.columns.title")}</span>
-              <span>{translate("rooms.columns.status")}</span>
+          ) : (
+            <div>
+              {renderGrouped((list) => <div className="room-cover-grid">{list.map(renderCoverItem)}</div>)}
             </div>
-            {renderGrouped((list) => <div className="room-list">{list.map(renderListRow)}</div>)}
-          </div>
-        ) : (
-          <div className="app-rise">
-            {renderGrouped((list) => <div className="room-cover-grid">{list.map(renderCoverItem)}</div>)}
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <FavoriteManageDialog
         open={manageOpen}

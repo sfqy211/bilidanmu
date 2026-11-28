@@ -334,6 +334,9 @@ export interface TitleBarButtons {
   roomSwitcher: boolean;
 }
 
+/** 界面动效偏好：连接系统「减少动态效果」/ 强制开启 / 强制关闭 */
+export type MotionSetting = "system" | "enabled" | "reduced";
+
 export interface Settings {
   locale: Locale;
   visual: VisualSetting;
@@ -357,6 +360,8 @@ export interface Settings {
     theme: "light" | "dark" | "system";
     /** 弹幕窗跟随屏幕背景亮暗自动切换深浅 */
     autoThemeFromBackground?: boolean;
+    /** 界面动效：system 跟随系统「减少动态效果」/ enabled 强制开启 / reduced 强制关闭 */
+    motion: MotionSetting;
     fontSize: number;
     showMedal: boolean;
     showLevel: boolean;
@@ -422,6 +427,7 @@ export interface Settings {
 }
 
 export type VisualFont = "system" | "yahei" | "dengxian" | "serif";
+
 export interface VisualProfile {
   accent: string;
   /** 页面主背景（卡片外围、侧栏后的底色） */

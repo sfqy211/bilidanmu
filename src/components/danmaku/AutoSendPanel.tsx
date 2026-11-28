@@ -315,14 +315,26 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
       title={translate("autoSend.repeat")}
       onClose={onClose}
       extra={
-        (isRunning || like.isRunning)
-          ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-          : <Circle className="h-4 w-4 text-ink-muted" />
+        <>
+          <PanelButton
+            variant={running ? "stop" : "primary"}
+            onClick={handleToggle}
+            disabled={!running && !canStart}
+            title={running ? translate("autoSend.stop") : activeTab === "like" && !like.anchorId ? translate("autoSend.missingStreamer") : translate("autoSend.start")}
+            aria-label={running ? translate("autoSend.stop") : translate("autoSend.start")}
+            className="h-6 w-6 shrink-0 px-0"
+          >
+            {running ? <Square className="h-3 w-3" /> : <Play className="h-3.5 w-3.5" />}
+          </PanelButton>
+          {(isRunning || like.isRunning)
+            ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+            : <Circle className="h-4 w-4 text-ink-muted" />}
+        </>
       }
       footer={
-        <>
-          {/* 进度条（仅点赞 tab 且有目标时显示） */}
-          {activeTab === "like" && like.targetTotal > 0 && (
+        activeTab === "like" ? (
+          /* 进度条（仅点赞 tab 且有目标时显示，无内容时不渲染 footer） */
+          like.targetTotal > 0 ? (
             <div className="min-w-0 flex-1">
               <div className="mb-0.5 flex items-center justify-between text-[10px] text-ink-muted">
                 <span>{like.sentTotal}/{like.targetTotal}</span>
@@ -334,50 +346,38 @@ export function AutoSendPanel(props: AutoSendPanelProps) {
                 />
               </div>
             </div>
-          )}
-
-          {/* 间隔（仅文字/表情 tab，点赞 tab 上方已有批次间隔） */}
-          {activeTab !== "like" && (
+          ) : undefined
+        ) : (
+          /* 间隔 / 限时：同一行放置 */
+          <div className="flex flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
             <div className="flex items-center gap-1.5">
               <label className="shrink-0 text-xs text-ink-muted">{translate("autoSend.interval")}</label>
-              <PanelInput
-                value={intervalSec}
-                onChange={(e) => setIntervalSec(e.target.value)}
-                disabled={isRunning}
-                inputMode="decimal"
-                className="w-14"
-              />
+              <div className="w-12 shrink-0">
+                <PanelInput
+                  value={intervalSec}
+                  onChange={(e) => setIntervalSec(e.target.value)}
+                  disabled={isRunning}
+                  inputMode="decimal"
+                />
+              </div>
               <span className="text-xs text-ink-muted">{translate("autoSend.seconds")}</span>
             </div>
-          )}
 
-          {/* 限时（仅文字/表情 tab） */}
-          {activeTab !== "like" && (
             <div className="flex items-center gap-1.5">
               <label className="shrink-0 text-xs text-ink-muted">{translate("autoSend.duration")}</label>
-              <PanelInput
-                value={timeLimitSec}
-                onChange={(e) => setTimeLimitSec(e.target.value)}
-                disabled={isRunning}
-                inputMode="numeric"
-                placeholder="0"
-                className="w-14"
-              />
+              <div className="w-12 shrink-0">
+                <PanelInput
+                  value={timeLimitSec}
+                  onChange={(e) => setTimeLimitSec(e.target.value)}
+                  disabled={isRunning}
+                  inputMode="numeric"
+                  placeholder="0"
+                />
+              </div>
               <span className="text-xs text-ink-muted">{translate("autoSend.seconds")}</span>
             </div>
-          )}
-
-          <PanelButton
-            variant={running ? "stop" : "primary"}
-            onClick={handleToggle}
-            disabled={!running && !canStart}
-            title={running ? translate("autoSend.stop") : activeTab === "like" && !like.anchorId ? translate("autoSend.missingStreamer") : translate("autoSend.start")}
-            aria-label={running ? translate("autoSend.stop") : translate("autoSend.start")}
-            className="ml-auto w-8 shrink-0 px-0"
-          >
-            {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-4 w-4" />}
-          </PanelButton>
-        </>
+          </div>
+        )
       }
     >
       <PanelTabs

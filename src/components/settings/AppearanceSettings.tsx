@@ -126,6 +126,17 @@ export function AppearanceSettings({ settings, patchSettings }: SettingsPanelPro
           ))}
         </div>
       </SettingsRow>
+      <SettingsRow title={translate("appearance.motion")} description={translate("appearance.motionHint")}>
+        <div className="appearance-inline-controls">
+          <PillSelect label={translate("appearance.motion")} value={settings.appearance.motion}
+            options={[
+              { value: "system", label: translate("appearance.motionSystem") },
+              { value: "enabled", label: translate("appearance.motionEnabled") },
+              { value: "reduced", label: translate("appearance.motionReduced") },
+            ]}
+            onChange={(motion) => patchSettings({ appearance: { ...settings.appearance, motion: motion as Settings["appearance"]["motion"] } })} />
+        </div>
+      </SettingsRow>
       <SettingsRow title={translate("appearance.theme")} description={translate("appearance.presetHint", { value: translate(mode === "dark" ? "appearance.darkShort" : "appearance.lightShort") })}>
         <div className="appearance-inline-controls">
           <PillSelect label={translate("appearance.preset")} value={activePreset?.id ?? "custom"}

@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { initializeLocale } from "@/i18n/locale-sync";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
 import { applyVisualTheme } from "@/lib/visual-theme";
+import { applyMotionPreference } from "@/lib/motion";
 import { queryClient } from "@/lib/query-client";
 import { tauriCommands } from "@/lib/tauri";
 import { initVideoViewMode } from "@/lib/video-view-preference";
@@ -30,6 +31,8 @@ async function bootstrap() {
   if (settings) {
     useSettingsStore.getState().setSettings(settings);
     applyVisualTheme(useSettingsStore.getState().settings);
+    // 其他窗口改了「动效」等外观设置时即时同步，不必重载整个主题
+    useSettingsStore.subscribe((state) => applyMotionPreference(state.settings.appearance.motion));
   } else {
     applyTheme(getStoredTheme() ?? "system");
   }

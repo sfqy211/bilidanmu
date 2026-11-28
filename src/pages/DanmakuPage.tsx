@@ -591,6 +591,9 @@ export function DanmakuPage() {
     stop: stopAutoLike,
   } = useAutoLike(roomId);
 
+  // 循环发送（文字/表情）或自动点赞任一在跑，入口闪电都保持点亮
+  const autoLoopRunning = autoSendRunning || likeIsRunning;
+
   // ── 消息分流 ──
   const giftMessages = useMemo(() => storeGiftMessages.filter((m) => {
     const isGiftType = (m.type === "gift" && showGift) ||
@@ -1107,7 +1110,7 @@ export function DanmakuPage() {
               title={isAnonymous ? translate("liveWindow.anonymousUnavailable") : translate("liveWindow.autoSend")}
               className={`rounded inline-flex items-center p-1.5 text-xs transition ${
                 isAnonymous ? "cursor-not-allowed opacity-40"
-                  : autoSendRunning ? "danmaku-btn-active text-brand"
+                  : autoLoopRunning ? "danmaku-btn-active text-brand"
                   : activePanel === PANEL.AUTO_SEND ? "bg-brand/10 text-brand"
                   : "danmaku-bg-bar text-ink-muted hover:bg-[#ebebeb] text-ink dark:hover:bg-white/[0.04]"
               }`}
@@ -1223,6 +1226,7 @@ export function DanmakuPage() {
                           }}
                           className={`flex h-8 w-8 items-center justify-center rounded-md transition ${
                             disabled ? "cursor-not-allowed opacity-40"
+                              : key === PANEL.AUTO_SEND && autoLoopRunning ? "danmaku-btn-active text-brand"
                               : activePanel === key ? "bg-brand/10 text-brand"
                               : "text-ink-muted hover:bg-[var(--panel-hover)] hover:text-ink"
                           }`}

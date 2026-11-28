@@ -98,6 +98,9 @@ impl serde::Serialize for ActivityFilter {
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSetting {
     pub theme: String,
+    /// 界面动效：system 跟随系统「减少动态效果」/ enabled 强制开启 / reduced 强制关闭
+    #[serde(default = "default_motion")]
+    pub motion: String,
     /// 弹幕窗跟随屏幕背景亮暗自动切换深浅（采样窗口背后区域亮度）
     #[serde(default)]
     pub auto_theme_from_background: bool,
@@ -588,6 +591,10 @@ fn default_close_behavior() -> String {
     "ask".into()
 }
 
+fn default_motion() -> String {
+    "system".into()
+}
+
 fn default_startup_view() -> String {
     "danmaku".into()
 }
@@ -617,6 +624,7 @@ impl Default for Settings {
             },
             appearance: AppearanceSetting {
                 theme: "system".into(),
+                motion: default_motion(),
                 auto_theme_from_background: false,
                 font_size: 14,
                 show_medal: true,
