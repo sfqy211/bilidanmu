@@ -63,7 +63,45 @@ export interface BiliResponse {
   message: string;
 }
 
+export interface FullscreenInputRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface FullscreenInputRequest {
+  rect: FullscreenInputRect;
+  submit?: { rect: FullscreenInputRect; label: string };
+  text: string;
+  maxLength: number;
+  multiline: boolean;
+  label: string;
+  placeholder?: string;
+  style: Record<string, string>;
+}
+
+export interface FullscreenInputResult {
+  text: string;
+  send: boolean;
+}
+
+export interface FullscreenInputSession {
+  id: string;
+  input: FullscreenInputRequest;
+  position: FullscreenInputRect;
+  submitPosition?: FullscreenInputRect | null;
+}
+
 export const tauriCommands = {
+  fullscreenInput: {
+    begin: (request: FullscreenInputRequest) =>
+      invoke<FullscreenInputResult | null>("begin_fullscreen_input", { request }),
+    ready: (id: string) => invoke<boolean>("ready_fullscreen_input", { id }),
+    finish: (id: string, result: FullscreenInputResult) =>
+      invoke<void>("finish_fullscreen_input", { id, result }),
+    cancel: () => invoke<void>("cancel_fullscreen_input")
+  },
   auth: {
     loginByTvQr: () => invoke<{ url: string; authCode: string }>("login_by_tv_qr"),
     pollTvQr: (authCode: string) => invoke<QrPollResult & { accessKey?: string }>("poll_tv_qr", { authCode }),

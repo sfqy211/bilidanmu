@@ -22,6 +22,7 @@ mod window_state;
 mod window_stealth;
 mod shortcuts;
 mod focus;
+mod fullscreen_input;
 mod screen_luminance;
 
 use bili::credential::BiliCredential;
@@ -401,6 +402,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            fullscreen_input::on_window_event(window, event);
             match event {
                 WindowEvent::CloseRequested { api, .. } => {
                     // 关闭即隐藏（不断连/不退出）：主窗口按设置隐藏到托盘，两个弹幕小窗
@@ -462,6 +464,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            fullscreen_input::begin_fullscreen_input,
+            fullscreen_input::ready_fullscreen_input,
+            fullscreen_input::finish_fullscreen_input,
+            fullscreen_input::cancel_fullscreen_input,
             commands::video_window::open_video_danmaku_window,
             commands::video_window::close_video_danmaku_window,
             commands::video_window::publish_video_playback,

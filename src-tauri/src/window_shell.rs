@@ -73,6 +73,12 @@ pub fn build_shell_window<'a>(
         // 弹幕小窗全程不进任务栏（对齐 QQ：看直播/吸附时任务栏不留图标）。
         // 系统托盘图标保留，仍可通过托盘或小窗的退出按钮切回主页面。
         .skip_taskbar(true);
+    // Windows：小窗保持「不可激活」（WS_EX_NOACTIVATE）。全屏游戏/全屏视频在前台时，
+    // 点到小窗会抢走前台，系统随即把任务栏重新拉起盖在画面上。不可激活窗口的点击、
+    // 滚动、拖动和按钮照常响应。弹幕发送栏会先尝试使用全屏输入层，
+    // 回退和其他文本控件需要聚焦时再显式激活小窗。
+    #[cfg(target_os = "windows")]
+    let builder = builder.focusable(false);
     // 隐藏到托盘/吸附折叠时 WebView2 会节流后台定时器（Chromium 对隐藏页面
     // 5 分钟后可低至 1 次/分钟），mpegts.js 拉流循环与吸附/透传轮询都依赖 JS
     // 定时器。additional_browser_args 是整体替换而非追加，必须保留 Tauri

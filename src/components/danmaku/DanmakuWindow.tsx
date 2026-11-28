@@ -4,7 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ButtonHTMLAttributes,
+  type ComponentPropsWithRef,
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
@@ -81,7 +81,7 @@ export function DanmakuWindowButton({
   active,
   className = "",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+}: ComponentPropsWithRef<"button"> & { active?: boolean }) {
   return (
     <button
       type="button"
@@ -327,6 +327,43 @@ export function DanmakuWindow({
     return () => {
       delete document.documentElement.dataset.transparent;
     };
+  }, []);
+
+  // Windows 下弹幕小窗是不可激活窗口（点击不抢前台，见 window_shell.rs），
+  // 避免全屏应用上点击小窗时系统任务栏被重新拉起。鼠标点击、滚动、拖动和
+  // 按钮都不需要激活即可工作，但文本输入需要键盘焦点：按下输入类控件时
+  // 显式激活窗口。
+  useEffect(() => {
+    const textEntryFrom = (target: EventTarget | null): HTMLElement | null => {
+      if (!(target instanceof Element)) return null;
+      const element = target.closest<HTMLElement>(
+        "textarea, input, [contenteditable]:not([contenteditable='false'])",
+      );
+      if (!element) return null;
+      if (element instanceof HTMLInputElement) {
+        const type = (element.getAttribute("type") ?? "text").toLowerCase();
+        // 只认文本输入类控件：range/checkbox/button 之类不需要键盘焦点，
+        // 点击它们不应该把窗口拉到前台。
+        if (!["text", "number", "search", "password", "url", "email", "tel"].includes(type)) {
+          return null;
+        }
+      }
+      return element;
+    };
+    const activateForTextEntry = (event: MouseEvent) => {
+      const element = textEntryFrom(event.target);
+      if (!element || element.matches(":disabled, [readonly]")) return;
+      // 弹幕发送栏会先尝试在全屏宿主中接收键盘输入，自行处理常规聚焦回退。
+      if (event.button === 0 && element.hasAttribute("data-fullscreen-input")) return;
+      void appWindow
+        .setFocus()
+        // 激活后再补一次 DOM 焦点：窗口此前不在前台时，按下鼠标的默认
+        // 聚焦行为可能被吞掉，导致激活后第一次输入落空
+        .then(() => element.focus())
+        .catch(() => {});
+    };
+    document.addEventListener("mousedown", activateForTextEntry, true);
+    return () => document.removeEventListener("mousedown", activateForTextEntry, true);
   }, []);
 
   const inputOnlyActive = inputOnly?.active ?? false;

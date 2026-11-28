@@ -358,6 +358,9 @@ async fn create_danmaku_window(
         }
     }
     let _ = window.show();
+    // 小窗在 Windows 上是不可激活窗口（见 window_shell.rs），show() 不会再把它
+    // 带到前台；创建流程本身就是用户要进入/恢复弹幕窗，显式聚焦保留原行为。
+    let _ = window.set_focus();
     Ok(())
 }
 

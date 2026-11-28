@@ -849,13 +849,16 @@ export function DanmakuPage() {
 
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendErrorKey, setSendErrorKey] = useState(0);
+  const [fullscreenInputActive, setFullscreenInputActive] = useState(false);
+  const sendButton = useRef<HTMLButtonElement>(null);
+  const fullscreenSessionKey = `${roomId ?? ""}:${activeAccountId ?? ""}`;
 
-  const handleSend = async () => {
-    if (!roomId || !message.trim()) return;
-    const text = message.trim().slice(0, 40);
+  const handleSend = async (draft = message) => {
+    if (!roomId || !draft.trim()) return;
+    const text = draft.trim().slice(0, 40);
     try {
       await send(roomId, text);
-      setMessage("");
+      setMessage((current) => current === draft ? "" : current);
       setSendError(null);
     } catch (error) {
       // 从 danmaku store 获取错误消息（useDanmaku 已经设置了）
@@ -1005,7 +1008,8 @@ export function DanmakuPage() {
           <>
             {/* 紧凑栏没有底色，输入框只靠一圈中性浅灰描边划出边界；描边深浅由 --field-ring-a
                 跟着「不透明度」设置走：设置越高（窗口越实）描边越浅，越低（越透）描边越深 */}
-            <DanmakuInput value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
+            <DanmakuInput value={message} onChange={setMessage} onSend={(draft) => void handleSend(draft)} maxLength={40}
+              fullscreenSessionKey={fullscreenSessionKey} onFullscreenInputActiveChange={setFullscreenInputActive}
               aria-label={t("sendLive")} disabled={isAnonymous}
               style={{ "--field-ring-a": inputOnlyRingAlpha } as React.CSSProperties}
               className="min-w-0 flex-1 rounded bg-transparent px-2 py-1.5 text-sm outline-none ring-1 ring-inset ring-[rgb(148_163_184_/_var(--field-ring-a))] focus:ring-brand/70"
@@ -1231,7 +1235,9 @@ export function DanmakuPage() {
                 )}
               </div>
             )}
-            <DanmakuInput multiline value={message} onChange={setMessage} onSend={() => void handleSend()} maxLength={40}
+            <DanmakuInput multiline value={message} onChange={setMessage} onSend={(draft) => void handleSend(draft)} maxLength={40}
+              fullscreenSessionKey={fullscreenSessionKey} onFullscreenInputActiveChange={setFullscreenInputActive}
+              fullscreenSubmit={{ button: sendButton, label: translate("liveWindow.send") }}
               aria-label={t("sendLive")} disabled={isAnonymous}
               placeholder={isAnonymous ? translate("liveWindow.anonymousCannotSend") : translate("liveWindow.input")}
               className={`min-h-[40px] flex-1 resize-none bg-transparent py-2.5 pl-3 pr-0 text-sm outline-none ${
@@ -1240,8 +1246,9 @@ export function DanmakuPage() {
               style={{ maxHeight: "120px" }}
             />
               <button
-                onClick={() => void handleSend()}
-                disabled={!roomId || !message.trim() || sending || isAnonymous}
+                ref={sendButton}
+                onClick={() => { if (!fullscreenInputActive) void handleSend(); }}
+                disabled={!roomId || sending || isAnonymous || (!fullscreenInputActive && !message.trim())}
                 className={`m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded transition ${
                   isAnonymous
                     ? "cursor-not-allowed text-ink-muted opacity-40"

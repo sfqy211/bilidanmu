@@ -149,6 +149,17 @@ const settings = await tauriCommands.settings.get()
 
 主题模式、背景亮暗跟随、强调色与标题栏按钮复用 `settings.appearance`。深浅主题预设和字体复用 `settings.visual`。视频窗口的旧外观数据缺少字号或不透明度时，从已有设置补齐默认值。
 
+## 全屏弹幕输入 (`fullscreenInput`)
+
+| 命令 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `begin_fullscreen_input` | `request` | `{ text: string, send: boolean } \| null` | 由直播或视频弹幕窗发起。Windows 同屏全屏时打开临时输入层并等待输入结束。返回 `null` 时使用原输入框 |
+| `ready_fullscreen_input` | `id` | `boolean` | 临时输入层的编辑器就绪，返回是否取得了焦点 |
+| `finish_fullscreen_input` | `id, result` | `void` | 临时输入层返回草稿和发送意图，由来源窗口执行发送 |
+| `cancel_fullscreen_input` | — | `void` | 来源窗口取消当前输入会话 |
+
+`request` 包含 `rect: { x, y, width, height }`、`text`、`maxLength`、`multiline`、`label`、可选的 `placeholder` 和 `style: Record<string, string>`。有发送按钮时还可以传入 `submit: { rect, label }`。矩形以来源 WebView 客户区为原点，单位为物理像素。`id` 标识当前输入会话，`result` 包含 `text` 和 `send`。
+
 ## 设置命令 (`settings`)
 
 | 命令 | 参数 | 返回 | 说明 |

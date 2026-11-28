@@ -21,16 +21,20 @@ export function VideoWindowComposer({ playback, settingsOpen, settingsReady, onT
   const { activeAccountId, isAnonymous } = useAuthStore();
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [fullscreenInputActive, setFullscreenInputActive] = useState(false);
+  const sendButton = useRef<HTMLButtonElement>(null);
   const sendingRef = useRef(false);
   const identity = `${playback?.bvid ?? ""}:${playback?.cid ?? ""}`;
   const identityRef = useRef(identity);
   useEffect(() => { identityRef.current = identity; }, [identity]);
-  const canSend = !!activeAccountId && !isAnonymous && !!playback?.cid && !playback.loading;
+  const hasAccount = !!activeAccountId && !isAnonymous;
+  const canSend = hasAccount && !!playback?.cid && !playback.loading;
+  const sendDisabled = !canSend || sending;
   const currentTime = playback?.currentTime ?? 0;
 
-  const send = async () => {
-    if (!canSend || !playback?.bvid || !playback.cid || !message.trim() || sendingRef.current) return;
-    const text = message.trim();
+  const send = async (draft = message) => {
+    if (!canSend || !playback?.bvid || !playback.cid || !draft.trim() || sendingRef.current) return;
+    const text = draft.trim();
     sendingRef.current = true;
     setSending(true);
     try {
@@ -51,10 +55,14 @@ export function VideoWindowComposer({ playback, settingsOpen, settingsReady, onT
   return <div className="video-window-input">
     <AccountSwitcher viewingAccountId={activeAccountId} />
     <VideoWindowButton title={translate("videoComposer.settings")} active={settingsOpen} disabled={!settingsReady} onClick={onToggleSettings}><Settings /></VideoWindowButton>
-    <DanmakuInput aria-label={translate("videoComposer.label")} maxLength={100} value={message} disabled={!canSend || sending}
-      placeholder={canSend ? translate("videoComposer.at", { value: formatClock(currentTime) }) : isAnonymous || !activeAccountId ? translate("videoComposer.signIn") : translate("videoComposer.waiting")}
-      onChange={setMessage} onSend={() => void send()} />
-    <VideoWindowButton title={translate("videoComposer.send")} onClick={() => void send()} disabled={!canSend || !message.trim() || sending}>
+    <DanmakuInput aria-label={translate("videoComposer.label")} maxLength={100} value={message} disabled={sendDisabled}
+      fullscreenSessionKey={`${identity}:${activeAccountId ?? ""}`} onFullscreenInputActiveChange={setFullscreenInputActive}
+      fullscreenSubmit={{ button: sendButton, label: translate("videoComposer.send") }}
+      placeholder={canSend ? translate("videoComposer.at", { value: formatClock(currentTime) }) : hasAccount ? translate("videoComposer.waiting") : translate("videoComposer.signIn")}
+      onChange={setMessage} onSend={(draft) => void send(draft)} />
+    <VideoWindowButton ref={sendButton} title={translate("videoComposer.send")}
+      onClick={() => { if (!fullscreenInputActive) void send(); }}
+      disabled={sendDisabled || (!fullscreenInputActive && !message.trim())}>
       {sending ? <Loader2 className="animate-spin" /> : <Send />}
     </VideoWindowButton>
   </div>;

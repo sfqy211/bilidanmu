@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
-import { router } from "@/router";
 import { initializeLocale } from "@/i18n/locale-sync";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
 import { applyVisualTheme } from "@/lib/visual-theme";
@@ -17,7 +16,17 @@ import "./index.css";
 import "@danmaku-core/ui/styles.css";
 
 async function bootstrap() {
-  const settings = await initializeLocale();
+  if (window.location.pathname === "/danmaku-input-overlay") {
+    document.documentElement.dataset.transparent = "true";
+    const session = window.__BILIDANMU_FULLSCREEN_INPUT__;
+    if (session) {
+      const { FullscreenDanmakuInputPage } = await import("@/pages/FullscreenDanmakuInputPage");
+      ReactDOM.createRoot(document.getElementById("root")!).render(<FullscreenDanmakuInputPage session={session} />);
+    }
+    return;
+  }
+
+  const [{ router }, settings] = await Promise.all([import("@/router"), initializeLocale()]);
   if (settings) {
     useSettingsStore.getState().setSettings(settings);
     applyVisualTheme(useSettingsStore.getState().settings);
